@@ -42,6 +42,7 @@ type tab struct {
 
 type pane struct {
 	id, tab, terminal, cwd       string
+	from, side                   string // the pane it was split from, and on which side of it
 	agent, name, session, status string
 	screen                       *bytes.Buffer
 	proc                         *exec.Cmd
@@ -144,12 +145,19 @@ func (f *Fake) serveCall(conn net.Conn) {
 	}
 }
 
-// Load replaces the picture with a prepared one, such as a fixture's.
+// Load replaces the picture with a prepared one, such as a fixture's, and
+// numbers what is opened afterwards past every id of it.
 func (f *Fake) Load(s *contract.Snapshot) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.tabs, f.panes, f.focus = nil, nil, ""
 	for _, p := range s.Panes {
+		for _, id := range []string{p.ID, p.Tab, p.Terminal, p.Session} {
+			digits := len(id) - len(strings.TrimRight(id, "0123456789"))
+			if n, err := strconv.Atoi(id[len(id)-digits:]); err == nil {
+				f.serial = max(f.serial, n)
+			}
+		}
 		if !slices.ContainsFunc(f.tabs, func(t *tab) bool { return t.id == p.Tab }) {
 			f.tabs = append(f.tabs, &tab{id: p.Tab, label: p.Label})
 		}
@@ -437,7 +445,10 @@ func (f *Fake) launch(p *pane, args []string) {
 	}
 	env := f.Env()
 	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, "WHALESHARK_") && !strings.HasPrefix(kv, "HERDR_") {
+		// Of our variables an agent has the two that are the surroundings
+		// of a test, the clock and the notices switch, and its tab's.
+		name, _, _ := strings.Cut(kv, "=")
+		if !strings.HasPrefix(kv, "WHALESHARK_") && !strings.HasPrefix(kv, "HERDR_") || name == contract.EnvClock || name == contract.EnvNotices {
 			env = append(env, kv)
 		}
 	}
@@ -632,7 +643,7 @@ func (f *Fake) answer(call testkit.FakeCall, flags map[string][]string, rest, af
 		return nil, nil
 	}
 	id := arg(2)
-	if arg(1) == "resize" {
+	if arg(1) == "resize" || arg(1) == "focus" {
 		id = one(flags, "--pane")
 	} else if arg(1) == "swap" {
 		id = one(flags, "--source-pane")
@@ -646,7 +657,21 @@ func (f *Fake) answer(call testkit.FakeCall, flags map[string][]string, rest, af
 	switch arg(0) + " " + arg(1) {
 	case "pane split":
 		n := f.newPane(p.tab, p.cwd)
+		n.from, n.side = p.id, one(flags, "--direction")
 		return obj{"type": "pane_info", "pane": f.paneInfo(n)}, nil
+	case "pane focus":
+		// The neighbour is the pane split off on that side, or the pane this
+		// one was split from when the direction leads back to it.
+		back := map[string]string{"left": "right", "right": "left", "up": "down", "down": "up"}[one(flags, "--direction")]
+		changed := false
+		for _, n := range f.panes {
+			if n.from == p.id && n.side == one(flags, "--direction") || p.from == n.id && p.side == back {
+				f.setFocus(n.id)
+				changed = true
+				break
+			}
+		}
+		return obj{"type": "pane_focus_direction", "focus": obj{"changed": changed, "focused_pane_id": f.focus, "source_pane_id": p.id}}, nil
 	case "pane swap":
 		if f.pane(one(flags, "--target-pane")) == nil {
 			return nil, missing("pane", one(flags, "--target-pane"))

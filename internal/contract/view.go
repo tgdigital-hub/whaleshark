@@ -121,6 +121,11 @@ type ViewInput struct {
 	Checked time.Time
 	Swept   Swept
 	Watched bool
+	// All adds the cards nobody is working on: stopped, queued and done.
+	All bool
+	// Notes are what only the screen that asks knows about its own sources,
+	// such as "slow updates"; they follow the builder's own on the age line.
+	Notes []string
 }
 
 // View is the one description of the screen. The panes, the plain text, the
@@ -217,10 +222,13 @@ type Item struct {
 	Name string `json:"name,omitempty"`
 	// Source says who is asking, in the words every screen uses: "a question
 	// from the worker", "sign-off asked by the lead agent".
-	Source  string    `json:"source"`
-	Since   time.Time `json:"since"`
-	Text    string    `json:"text"`
-	Buttons []Button  `json:"buttons,omitempty"`
+	Source string    `json:"source"`
+	Since  time.Time `json:"since"`
+	Text   string    `json:"text"`
+	// News is Text as the news of a row that begins with other words: its
+	// first letter lower-cased unless the next is a capital too.
+	News    string   `json:"news"`
+	Buttons []Button `json:"buttons,omitempty"`
 	// Line is true when the item is answered on a line to type in.
 	Line   bool `json:"line,omitempty"`
 	Holds  bool `json:"holds,omitempty"`
@@ -234,6 +242,17 @@ type Item struct {
 	// Next is what plain text shows after ">": the lines this caller may
 	// run, or for a caller who may not answer, "waiting for the human".
 	Next []string `json:"next,omitempty"`
+}
+
+// NextJoin is the word a printer puts between two lines of a Next list, given
+// the first of the two: "then" after a line that only prepares the next (it
+// shows, closes or lists), and "or" after any other, which is a choice.
+func NextJoin(before string) string {
+	verb, _, _ := strings.Cut(strings.TrimPrefix(before, "whaleshark "), " ")
+	if verb == "show" || verb == "close" || verb == "task" {
+		return "then"
+	}
+	return "or"
 }
 
 // Button is one way to answer an item. Answer is the text it gives; one that

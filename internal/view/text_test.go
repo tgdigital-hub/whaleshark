@@ -49,7 +49,7 @@ func TestEveningText(t *testing.T) {
 	for _, caller := range callers {
 		for _, width := range []int{100, 80} {
 			for _, plain := range []bool{false, true} {
-				v := Build(f.Input(caller), false)
+				v := Build(f.Input(caller))
 				got := text(v, Options{Width: width, PlainMarks: plain})
 				name := fmt.Sprintf("status-%s-%d", caller, width)
 				if plain {
@@ -152,7 +152,7 @@ func TestEveningWordForWord(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := strings.Fields(string(picture))
-	v := Build(evening(t).Input(contract.Human), false)
+	v := Build(evening(t).Input(contract.Human))
 	for _, width := range []int{130, 100, 80} {
 		if got := strings.Fields(text(v, Options{Width: width})); !slices.Equal(got, want) {
 			t.Errorf("at %d columns the words differ\n%s", width, diff(strings.Join(want, "\n"), strings.Join(got, "\n")))
@@ -166,7 +166,9 @@ func TestHumanFlag(t *testing.T) {
 	f := evening(t)
 	for _, caller := range callers {
 		for _, all := range []bool{false, true} {
-			v := Build(f.Input(caller), all)
+			in := f.Input(caller)
+			in.All = all
+			v := Build(in)
 			shown := text(v, Options{Width: 100}) + text(v, Options{Width: 80, Items: true}) + indent(t, v)
 			if caller != contract.Human && strings.Contains(shown, "--human") {
 				t.Errorf("--human is shown to the %s", caller)
@@ -210,7 +212,7 @@ func FuzzHostileText(f *testing.F) {
 
 func hostile(t *testing.T, bad string) {
 	f := evening(t)
-	before := text(Build(f.Input(contract.Human), true), Options{Width: 100})
+	before := text(Build(whole(f.Input(contract.Human))), Options{Width: 100})
 	s := &f.State
 	s.Run.Objective += bad
 	for _, task := range s.Tasks {
@@ -232,7 +234,7 @@ func hostile(t *testing.T, bad string) {
 		q.Options = []string{"yes" + bad, "no"}
 	}
 	s.Run.Findings[0].Files[0] += bad
-	v := Build(f.Input(contract.Human), true)
+	v := Build(whole(f.Input(contract.Human)))
 	wide := text(v, Options{Width: 100})
 	all := wide + text(v, Options{Width: 40, PlainMarks: true}) + indent(t, v)
 	for i, r := range all {

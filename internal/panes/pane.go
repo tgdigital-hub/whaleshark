@@ -89,7 +89,8 @@ type pane struct {
 }
 
 func newPane(kind string, t *term.Term, k *contract.Kit, root, run string, now func() time.Time) *pane {
-	return &pane{kind: kind, t: t, k: k, root: root, run: run, now: now, make: Build, heard: make(chan news),
+	build := func(in contract.ViewInput) contract.View { return *k.View(in) }
+	return &pane{kind: kind, t: t, k: k, root: root, run: run, now: now, make: build, heard: make(chan news),
 		scheme: theme.Schemes[0], plainMarks: contract.PlainMarks(os.Getenv), px: -1, py: -1, lit: -1, stale: true, dirty: true}
 }
 
@@ -281,14 +282,8 @@ func (p *pane) load() {
 	if p.ui.Folded != wasFolded {
 		p.folded = p.ui.Folded
 	}
-	p.figures = map[string]contract.CtxFile{}
-	files, _ := os.ReadDir(filepath.Join(dirs.State, "ctx"))
-	for _, f := range files {
-		var c contract.CtxFile
-		if id, ok := strings.CutSuffix(f.Name(), ".json"); ok &&
-			contract.ReadVersioned(filepath.Join(dirs.State, "ctx", f.Name()), contract.FileVersion, &c) == nil {
-			p.figures[id] = c
-		}
+	if p.figures = nil; p.state != nil {
+		p.figures = contract.ReadCtx(dirs.State, p.state)
 	}
 	p.limits, _ = contract.ReadProjectFile(p.root)
 	cfg := contract.PersonDefaults()
@@ -308,14 +303,22 @@ func (p *pane) build() {
 	if p.herdrOK.Before(checked) {
 		checked = p.herdrOK
 	}
+	// What only this pane knows about its two sources goes on the age line.
+	var notes []string
+	if p.watch == nil || p.watch.Slow() {
+		notes = append(notes, "slow updates")
+	}
+	if !p.lostAt.IsZero() && now.Sub(p.lostAt) < sayLost {
+		notes = append(notes, "herdr: checking every 5 s")
+	}
 	switch {
 	case p.state != nil:
 		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Herdr: p.picture,
-			Ctx: p.figures, UI: p.ui, Limits: p.limits, Checked: checked})
+			Ctx: p.figures, UI: p.ui, Limits: p.limits, Checked: checked, Notes: notes})
 	case p.readErr != nil && !errors.Is(p.readErr, contract.ErrNoRun):
-		p.view = contract.View{Alerts: []string{"the record cannot be read: " + p.readErr.Error()}}
+		p.view = contract.View{Alerts: []string{"the record cannot be read: " + p.readErr.Error()}, Fresh: contract.Fresh{Notes: notes}}
 	default:
-		p.view = contract.View{Alerts: []string{"no run in this folder yet"}, Fresh: contract.Fresh{Checked: checked}}
+		p.view = contract.View{Alerts: []string{"no run in this folder yet"}, Fresh: contract.Fresh{Checked: checked, Notes: notes}}
 	}
 	p.cards = p.cards[:0]
 	for _, s := range p.view.Sections {

@@ -56,9 +56,9 @@ type builder struct {
 }
 
 // Build makes the one view model from a run, herdr's picture and the small
-// files beside them. It reads nothing and keeps nothing. With all it adds
-// the cards nobody is working on: stopped, queued and done.
-func Build(in contract.ViewInput, all bool) *contract.View {
+// files beside them. It reads nothing and keeps nothing.
+func Build(in contract.ViewInput) *contract.View {
+	all := in.All
 	b := &builder{in: in, s: in.State, seats: map[string]*seat{}}
 	if in.Herdr != nil {
 		b.panes = map[string]*contract.Pane{}
@@ -288,7 +288,7 @@ func (b *builder) items(v *contract.View) {
 func (b *builder) item(q *contract.Question, st *seat, holds, late bool) contract.Item {
 	it := contract.Item{
 		ID: q.ID, Form: q.Form, Look: contract.LookNeedsYou, Task: q.Task, Since: q.CreatedAt,
-		Text: cli.Plain(q.Text), Holds: holds, Urgent: q.Urgent, Line: q.Form == contract.FormQuestion,
+		Text: cli.Plain(q.Text), News: news(cli.Plain(q.Text)), Holds: holds, Urgent: q.Urgent, Line: q.Form == contract.FormQuestion,
 	}
 	lead := q.Cause == contract.CauseLeadUnread || q.Cause == contract.CauseLeadSilent
 	switch {
@@ -515,6 +515,7 @@ func (b *builder) around(v *contract.View) {
 	if !in.Watched {
 		v.Fresh.Notes = append(v.Fresh.Notes, "nobody is watching")
 	}
+	v.Fresh.Notes = append(v.Fresh.Notes, in.Notes...)
 	ui := in.UI
 	if ui.DND && (ui.DNDUntil.IsZero() || in.Now.Before(ui.DNDUntil)) {
 		v.Strip.DND, v.Strip.DNDUntil = true, ui.DNDUntil

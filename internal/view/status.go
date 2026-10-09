@@ -47,11 +47,7 @@ func status(c *contract.Call) (any, error) {
 	}
 	swept, err := c.Kit.Sweeper.Sweep(c.Root, c.Run, c.Now)
 	if quiet {
-		return struct {
-			Ran     bool      `json:"ran"`
-			At      time.Time `json:"at"`
-			Changed bool      `json:"changed"`
-		}(swept), err
+		return swept, err
 	}
 	s, err := c.Kit.Reader().Read(c.Root, c.Run)
 	if errors.Is(err, contract.ErrNoRun) {
@@ -60,7 +56,9 @@ func status(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, &contract.Refusal{Exit: contract.ExitEnv, Code: "state_unreadable", Message: "The record cannot be read: " + err.Error() + "."}
 	}
-	v := Build(input(c, s, swept), has("all"))
+	in := input(c, s, swept)
+	in.All = has("all")
+	v := Build(in)
 	Text(c.Out, v, Options{Width: width(), PlainMarks: contract.PlainMarks(os.Getenv), Items: has("items")})
 	return v, nil
 }
@@ -86,19 +84,8 @@ func input(c *contract.Call, s *contract.State, swept contract.Swept) contract.V
 		return in
 	}
 	contract.ReadVersioned(filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &in.UI)
-	in.Ctx = map[string]contract.CtxFile{}
-	for _, a := range s.Attempts {
-		var f contract.CtxFile
-		if a.State.Live() && contract.ReadVersioned(ctxPath(dirs.State, a.Place.Pane), contract.FileVersion, &f) == nil && !f.At.IsZero() {
-			in.Ctx[a.Place.Pane] = f
-		}
-	}
+	in.Ctx = contract.ReadCtx(dirs.State, s)
 	return in
-}
-
-// ctxPath is where the status-line hook keeps a pane's context figure.
-func ctxPath(stateDir, pane string) string {
-	return filepath.Join(stateDir, "ctx", pane+".json")
 }
 
 // width is how many columns the text may take: COLUMNS, the terminal's own

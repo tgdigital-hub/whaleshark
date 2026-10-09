@@ -144,14 +144,7 @@ func (p *pane) age(now time.Time, short bool) (string, term.Style) {
 	case short:
 		text = "live · " + ago(now.Sub(checked))
 	}
-	notes := slices.Clone(p.view.Fresh.Notes)
-	if p.watch == nil || p.watch.Slow() {
-		notes = append(notes, "slow updates")
-	}
-	if !p.lostAt.IsZero() && now.Sub(p.lostAt) < sayLost {
-		notes = append(notes, "herdr: checking every 5 s")
-	}
-	for _, n := range notes {
+	for _, n := range p.view.Fresh.Notes {
 		if !strings.Contains(text, n) {
 			text += " · " + n
 		}

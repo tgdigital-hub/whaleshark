@@ -1,6 +1,8 @@
 package contract
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -251,13 +253,41 @@ type UIFile struct {
 	LastHere    time.Time         `json:"last_here,omitzero"`
 }
 
-// CtxFile is ctx/<pane>.json: how full an agent's context is, as its own
+// CtxFile is the file CtxPath names: how full an agent's context is, as its own
 // status line last said. Known is false when the figure was empty.
 type CtxFile struct {
 	Versioned
 	Pct   int       `json:"pct"`
 	Known bool      `json:"known"`
 	At    time.Time `json:"at"`
+}
+
+// CtxPath is the file of one pane's context figure. A pane id of herdr's
+// holds a colon, which a Windows file name cannot: the file has "+" in its
+// place, which no pane id holds.
+func CtxPath(stateDir, pane string) string {
+	return filepath.Join(stateDir, "ctx", strings.ReplaceAll(pane, ":", "+")+".json")
+}
+
+// ReadCtx returns the context figure of every live attempt's pane that has
+// one, by pane id.
+func ReadCtx(stateDir string, s *State) map[string]CtxFile {
+	out := map[string]CtxFile{}
+	for _, a := range s.Attempts {
+		var f CtxFile
+		if a.State.Live() && a.Place.Pane != "" && ReadVersioned(CtxPath(stateDir, a.Place.Pane), FileVersion, &f) == nil && !f.At.IsZero() {
+			out[a.Place.Pane] = f
+		}
+	}
+	return out
+}
+
+// TokenHash is the form a worker's token takes in the record, which never
+// holds the token itself: "sha256:" and the hash of the token without the
+// space around it, in hexadecimal.
+func TokenHash(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // Installed is installed.json: what init wrote, so it can be removed exactly.

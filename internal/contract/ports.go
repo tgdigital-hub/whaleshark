@@ -133,6 +133,11 @@ type Herdr interface {
 	// Resize moves a pane's dividing line by a fraction of its split.
 	Resize(pane, direction string, amount float64) error
 	PaneClose(pane string) error
+	// PaneFocus gives the keys to the pane beside pane in a direction (left,
+	// right, up, down), which is the one way herdr has, and returns the pane
+	// that then has them: pane's neighbour, or with none there whichever had
+	// them before.
+	PaneFocus(pane, direction string) (focused string, err error)
 	// Notify shows herdr's pop-up and returns herdr's reason and its own
 	// pop-up setting, without which the reason cannot be trusted.
 	Notify(title, body string, sound bool) (reason, delivery string, err error)
@@ -265,9 +270,9 @@ type AgentSettings interface {
 
 // Swept is what one sweep did. Ran is false when nobody has swept yet.
 type Swept struct {
-	Ran     bool
-	At      time.Time
-	Changed bool
+	Ran     bool      `json:"ran"`
+	At      time.Time `json:"at"`
+	Changed bool      `json:"changed"`
 }
 
 // Sweeper looks at every live attempt of a run once.
@@ -315,6 +320,7 @@ func (NoHerdr) Split(string, string, float64) (Pane, error)         { return Pan
 func (NoHerdr) Swap(string, string) error                           { return ErrNotBuilt }
 func (NoHerdr) Resize(string, string, float64) error                { return ErrNotBuilt }
 func (NoHerdr) PaneClose(string) error                              { return ErrNotBuilt }
+func (NoHerdr) PaneFocus(string, string) (string, error)            { return "", ErrNotBuilt }
 func (NoHerdr) Notify(string, string, bool) (string, string, error) { return "", "", ErrNotBuilt }
 func (NoHerdr) SetKeys([]KeyEntry) error                            { return ErrNotBuilt }
 func (NoHerdr) Events(context.Context) (*Snapshot, <-chan HerdrEvent, error) {

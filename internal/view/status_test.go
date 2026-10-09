@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,10 +18,14 @@ import (
 // sweep that is counted, and a login folder of the test's own.
 type record struct {
 	contract.NoStore
-	s *contract.State
+	s     *contract.State
+	reads *int
 }
 
 func (r record) Read(_, run string) (*contract.State, error) {
+	if r.reads != nil {
+		*r.reads++
+	}
 	if r.s == nil || run != r.s.Run.ID {
 		return nil, contract.ErrNoRun
 	}
@@ -62,9 +65,6 @@ func (l login) Dirs() (contract.Dirs, error) { return contract.Dirs{State: l.dir
 // command would hand it over, at 100 columns with the marks.
 func call(t *testing.T, f *testkit.Fixture, caller contract.CallerKind, flags ...string) (*contract.Call, *bytes.Buffer, *sweeps) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("a pane id holds a colon, which a file name there cannot")
-	}
 	t.Setenv("COLUMNS", "100")
 	t.Setenv("WHALESHARK_MARKS", "utf8")
 	dir := t.TempDir()
@@ -74,7 +74,7 @@ func call(t *testing.T, f *testkit.Fixture, caller contract.CallerKind, flags ..
 		}
 	}
 	for pane, ctx := range f.Ctx {
-		write(ctxPath(dir, pane), ctx)
+		write(contract.CtxPath(dir, pane), ctx)
 	}
 	write(filepath.Join(dir, "ui.json"), f.UI)
 	k, sw := contract.NewKit(), &sweeps{}
@@ -107,6 +107,20 @@ func TestStatus(t *testing.T) {
 		}
 		if got, want := out.String(), text(&want, Options{Width: 100}); got != want {
 			t.Errorf("%s: the text is not the printed view\n%s", caller, diff(want, got))
+		}
+	}
+}
+
+// A status takes the shared lock once and gives it back: a reader that read
+// in a loop would have every command wait for its turn behind it.
+func TestStatusReadsTheRecordOnce(t *testing.T) {
+	f := evening(t)
+	for _, flags := range [][]string{nil, {"all"}, {"items"}} {
+		c, _, _ := call(t, f, contract.Human, flags...)
+		reads := 0
+		c.Kit.Store = record{s: &f.State, reads: &reads}
+		if _, err := k(c); err != nil || reads != 1 {
+			t.Errorf("status %v read the record %d times (%v)", flags, reads, err)
 		}
 	}
 }
@@ -186,7 +200,7 @@ func TestStatusWithout(t *testing.T) {
 	// A context file from a newer program counts as absent.
 	c, out, _ = call(t, f, contract.Human)
 	dirs, _ := c.Kit.Platform.Dirs()
-	if err := os.WriteFile(ctxPath(dirs.State, "w1:p2"), []byte(`{"version": 99, "pct": 5, "known": true, "at": "2026-10-08T21:13:00Z"}`), 0o600); err != nil {
+	if err := os.WriteFile(contract.CtxPath(dirs.State, "w1:p2"), []byte(`{"version": 99, "pct": 5, "known": true, "at": "2026-10-08T21:13:00Z"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	result, err := k(c)

@@ -59,6 +59,8 @@ type Kit struct {
 	Evidence      Evidence
 	AgentSettings AgentSettings
 	Sweeper       Sweeper
+	// View builds the one view model; the view package puts the builder here.
+	View func(ViewInput) *View
 	// Main parses the arguments, works out the caller, runs the handler and
 	// returns the exit code; in is the command's standard input. The cli
 	// package replaces the one NewKit sets.
@@ -73,8 +75,14 @@ func NewKit() *Kit {
 		Store: NoStore{}, Herdr: NoHerdr{}, Platform: NoPlatform{}, Placement: NoPlacement{},
 		Integrator: NoIntegrator{}, Overlap: NoOverlap{}, Notifier: NoNotifier{},
 		Evidence: NoEvidence{}, AgentSettings: NoAgentSettings{}, Sweeper: NoSweeper{},
-		Main: listOnly, handlers: map[string]Handler{},
+		View: noView, Main: listOnly, handlers: map[string]Handler{},
 	}
+}
+
+// noView is the view model until the builder is plugged in: it says so.
+func noView(in ViewInput) *View {
+	return &View{Version: ViewVersion, At: in.Now, Caller: in.Caller,
+		Alerts: []string{"the view model is " + ErrNotBuilt.Error()}, Fresh: Fresh{Checked: in.Checked}}
 }
 
 // Reader is the store with nothing on it that writes.

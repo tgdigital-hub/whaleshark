@@ -249,6 +249,16 @@ func (a *Adapter) Resize(pane, direction string, amount float64) error {
 
 func (a *Adapter) PaneClose(pane string) error { return a.do("pane", "close", pane) }
 
+func (a *Adapter) PaneFocus(pane, direction string) (string, error) {
+	var w struct {
+		Focus struct {
+			Focused string `json:"focused_pane_id"`
+		}
+	}
+	err := a.call(context.Background(), wait, &w, "pane", "focus", "--pane", pane, "--direction", direction)
+	return w.Focus.Focused, err
+}
+
 // Notify returns herdr's reason beside herdr's own pop-up setting: with
 // delivery "off" herdr 0.9.1 still answers "shown" and draws nothing.
 func (a *Adapter) Notify(title, body string, sound bool) (reason, delivery string, err error) {

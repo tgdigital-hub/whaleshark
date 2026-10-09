@@ -5,4 +5,7 @@ package view
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
 // Plug binds this package's handlers and puts its implementations into the kit.
-func Plug(k *contract.Kit) { k.Handle("status", status) }
+func Plug(k *contract.Kit) {
+	k.View = Build
+	k.Handle("status", status)
+}

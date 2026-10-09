@@ -34,7 +34,7 @@ func indent(t *testing.T, v any) string {
 func TestEveningViews(t *testing.T) {
 	f := evening(t)
 	for _, caller := range []contract.CallerKind{contract.Human, contract.Orchestrator} {
-		got, want := indent(t, Build(f.Input(caller), false)), indent(t, f.Views[caller])
+		got, want := indent(t, Build(f.Input(caller))), indent(t, f.Views[caller])
 		if got != want {
 			t.Errorf("%s: the view differs from the fixture's\n%s", caller, diff(want, got))
 		}
@@ -92,7 +92,7 @@ func TestAtPrompt(t *testing.T) {
 		From: contract.FromTool, Cause: contract.CausePrompt, Task: "T1", Attempt: "T1.1", Text: "login page is waiting at a prompt in its tab.",
 		State: contract.QuestionOpen, CreatedAt: f.Now.Add(-time.Minute)}
 	for _, caller := range callers {
-		v := Build(f.Input(caller), false)
+		v := Build(f.Input(caller))
 		c, section := card(t, v, "T1")
 		same(t, "card", []any{c.Look, section, c.Colour, c.News, c.Since.Equal(f.Now.Add(-time.Minute)), c.Flag, c.Next}, []any{contract.LookAtPrompt, "NEEDS YOU", "blocked", newsPrompt, true, false, []string(nil)})
 		it := item(t, v.Items, "n5")
@@ -116,7 +116,7 @@ func TestLateQuestion(t *testing.T) {
 		contract.Orchestrator: {`whaleshark answer q10 "<answer>"`, "whaleshark escalate q10"},
 		contract.Unbound:      {sourceLate},
 	} {
-		v := Build(f.Input(caller), false)
+		v := Build(f.Input(caller))
 		c, _ := card(t, v, "T11")
 		it := v.Items[0]
 		same(t, "card", []any{c.Look, c.Item, c.News, c.Next}, []any{contract.LookNeedsYou, "q10", "which sender address?", []string(nil)})
@@ -132,7 +132,7 @@ func TestPaused(t *testing.T) {
 	f := evening(t)
 	at := f.Now.Add(-3 * time.Minute)
 	f.State.Run.Paused = &contract.Pause{At: at, By: "human"}
-	v := Build(f.Input(contract.Orchestrator), false)
+	v := Build(f.Input(contract.Orchestrator))
 	for task, want := range map[string][]any{
 		"T1":  {contract.LookPaused, contract.WordFinishing, "paused", []string{"whaleshark wait"}},
 		"T10": {contract.LookPaused, contract.WordStillRunning, "blocked", []string{"whaleshark wait"}},
@@ -159,7 +159,7 @@ func TestPale(t *testing.T) {
 	f := evening(t)
 	f.State.Attempts["T5.1"].Progress.At = f.Now.Add(-34 * time.Minute)
 	f.State.Attempts["T7.1"].Progress.At = f.Now.Add(-34 * time.Minute)
-	v := Build(f.Input(contract.Orchestrator), false)
+	v := Build(f.Input(contract.Orchestrator))
 	c, _ := card(t, v, "T5")
 	same(t, "busy and old", []any{c.Pale, c.Look, len(c.Next)}, []any{true, contract.LookBuilding, 3})
 	if c, _ := card(t, v, "T7"); c.Pale {
@@ -177,7 +177,7 @@ func TestNoHerdr(t *testing.T) {
 	in := f.Input(contract.Human)
 	in.Herdr, in.Swept, in.Watched = nil, contract.Swept{}, false
 	in.State.Run.Herdr.SeenAt = f.Now.Add(-time.Minute)
-	v := Build(in, false)
+	v := Build(in)
 	c, _ := card(t, v, "T12")
 	same(t, "card", []any{c.Look, c.Tab}, []any{contract.LookIdle, "w1:t13"})
 	same(t, "notes and alerts", []any{v.Fresh.Notes, v.Alerts}, []any{[]string{"herdr not reachable", "not checked yet", "nobody is watching"}, []string{"herdr cannot be reached"}})
@@ -186,7 +186,7 @@ func TestNoHerdr(t *testing.T) {
 	f = evening(t)
 	pane(f, "w1:p2").Agent = ""
 	f.Herdr.Panes = f.Herdr.Panes[:len(f.Herdr.Panes)-1]
-	v = Build(f.Input(contract.Human), false)
+	v = Build(f.Input(contract.Human))
 	for task, tab := range map[string]string{"T1": "w1:t2", "T12": ""} {
 		c, _ := card(t, v, task)
 		same(t, task, []any{c.Look, c.Tab, c.Actions[0] == "go"}, []any{contract.LookIdle, tab, tab != ""})
@@ -209,7 +209,7 @@ func TestFailed(t *testing.T) {
 	f.State.Attempts["T5.1"].Report = &contract.Report{Outcome: contract.ReportFailed, Summary: "the pages do not build"}
 	f.Herdr.Panes = slices.DeleteFunc(f.Herdr.Panes, func(p contract.Pane) bool { return p.ID == "w1:p10" })
 	for caller, flag := range map[contract.CallerKind]string{contract.Human: " --human", contract.Orchestrator: ""} {
-		v := Build(f.Input(caller), true)
+		v := Build(whole(f.Input(caller)))
 		for task, want := range map[string][]any{
 			"T9": {contract.LookFailed, "FAILED", newsExited, []string{"whaleshark start T9 --retry" + flag}, []string{"retry"}},
 			"T5": {contract.LookFailed, "FAILED", "the pages do not build", []string{"whaleshark task edit T5 --brief <file>" + flag, "whaleshark task reset T5" + flag}, []string{"go", "close"}},
@@ -227,7 +227,7 @@ func TestFailed(t *testing.T) {
 			t.Errorf("the failed task prints\n%s", got)
 		}
 	}
-	if v := Build(f.Input(contract.Human), false); len(v.Sections) != 5 || v.Sections[1].Name != "FAILED" {
+	if v := Build(f.Input(contract.Human)); len(v.Sections) != 5 || v.Sections[1].Name != "FAILED" {
 		t.Errorf("without --all the sections are %d", len(v.Sections))
 	}
 }
@@ -241,7 +241,7 @@ func TestHeldAndAnswered(t *testing.T) {
 	q := f.State.Questions["q7"]
 	q.State, q.Answer, q.AnsweredAt, q.SettlesAt = contract.QuestionAnswered, "yes", f.Now, f.Now.Add(4*time.Second)
 	q.AnsweredBy = &contract.Origin{Caller: contract.Human, Where: contract.WherePane}
-	v := Build(f.Input(contract.Human), false)
+	v := Build(f.Input(contract.Human))
 	same(t, "held", []any{len(v.Held), v.Held[0].ID, len(v.Items), v.Counts.Waiting, v.Counts.Holding}, []any{1, "n4", 1, 1, 1})
 	same(t, "strip", []any{v.Strip.DND, v.Strip.Mute, v.Strip.Away.Equal(f.UI.LastHere)}, []any{true, true, true})
 	c, _ := card(t, v, "T8")
@@ -259,7 +259,7 @@ func TestHeldAndAnswered(t *testing.T) {
 
 	f.UI.DNDUntil = f.Now.Add(-time.Minute)
 	q.State, q.UsedAt = contract.QuestionUsed, f.Now
-	v = Build(f.Input(contract.Orchestrator), false)
+	v = Build(f.Input(contract.Orchestrator))
 	it = item(t, v.Answered, "q7")
 	same(t, "after the end time, and used", []any{len(v.Held), v.Strip.DND, len(it.Buttons), it.Next}, []any{0, false, 0, []string(nil)})
 }
@@ -281,7 +281,7 @@ func TestFormsAndWords(t *testing.T) {
 	s.Tasks["T14"].Status = contract.TaskCancelled
 	s.Tasks["T7"].Check = contract.CheckNone
 	s.Attempts["T7.1"].Check = nil
-	v := Build(f.Input(contract.Human), true)
+	v := Build(whole(f.Input(contract.Human)))
 
 	it := item(t, v.Items, "q7")
 	same(t, "choice", []any{it.Buttons, it.Next}, []any{[]contract.Button{{Label: "Keep it", Key: "1", Answer: "keep it"}, {Label: "Drop", Key: "2", Answer: "drop"},
@@ -314,4 +314,10 @@ func TestFormsAndWords(t *testing.T) {
 			t.Errorf("%q is missing in\n%s", want, got)
 		}
 	}
+}
+
+// whole asks for every card, as --all does.
+func whole(in contract.ViewInput) contract.ViewInput {
+	in.All = true
+	return in
 }

@@ -13,13 +13,6 @@ import (
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) { k.Handle("ui", ui) }
 
-// Build makes the view model a pane draws. Until the view package is joined
-// to it, a pane shows its own lines and says that the rest is not built.
-var Build = func(in contract.ViewInput) contract.View {
-	return contract.View{Version: contract.ViewVersion, At: in.Now, Caller: in.Caller,
-		Alerts: []string{"the view model is " + contract.ErrNotBuilt.Error()}, Fresh: contract.Fresh{Checked: in.Checked}}
-}
-
 // ui runs a pane program in the pane it was started in, until the pane
 // closes or the person leaves it.
 func ui(c *contract.Call) (any, error) {
@@ -31,6 +24,13 @@ func ui(c *contract.Call) (any, error) {
 		return nil, err
 	}
 	defer t.Close()
-	newPane(c.Args[1], t, c.Kit, c.Root, c.Run, contract.Now).loop()
+	Run(c.Args[1], t, c.Kit, c.Root, c.Run)
 	return nil, nil
+}
+
+// Run draws one pane, "fleet" or "actions", on a terminal until its input
+// ends or the person leaves. With no run named it shows the project's
+// current one.
+func Run(kind string, t *term.Term, k *contract.Kit, root, run string) {
+	newPane(kind, t, k, root, run, contract.Now).loop()
 }

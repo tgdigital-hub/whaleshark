@@ -210,6 +210,15 @@ func TestTheRealAdapterDrivesTheFakeAsAProgram(t *testing.T) {
 	if err := real.PaneClose("w1:p99"); herdr.Code(err) != "pane_not_found" {
 		t.Errorf("closing a pane that is not there: %v", err)
 	}
+	// The keys go to a pane's neighbour; where there is none they stay.
+	for _, step := range [][3]string{{tab.ID, "right", side.ID}, {side.ID, "left", tab.ID}, {tab.ID, "up", tab.ID}} {
+		if got, err := real.PaneFocus(step[0], step[1]); err != nil || got != step[2] || !find(t, f, step[2]).Focused {
+			t.Errorf("the keys %s of %s went to %q, %v", step[1], step[0], got, err)
+		}
+	}
+	if _, err := real.PaneFocus("w1:p99", "left"); herdr.Code(err) != "pane_not_found" {
+		t.Errorf("the neighbour of a pane that is not there: %v", err)
+	}
 	if err := real.AgentStart("a", "claude", side.ID, nil, time.Second); herdr.Code(err) != "invalid_agent_timeout" {
 		t.Errorf("a start timeout herdr refuses: %v", err)
 	}
@@ -271,6 +280,13 @@ func TestTakesTheFixturesPicture(t *testing.T) {
 	slices.SortFunc(fixture.Herdr.Panes, func(a, b contract.Pane) int { return strings.Compare(a.ID, b.ID) })
 	if got := panes(t, f); !slices.Equal(got, fixture.Herdr.Panes) {
 		t.Errorf("the fake shows\n%+v\nthe fixture has\n%+v", got, fixture.Herdr.Panes)
+	}
+	// What is opened next is numbered past the picture, so it is nobody's.
+	opened, err := f.TabCreate("/work/shop", "new", nil)
+	if err != nil || slices.ContainsFunc(fixture.Herdr.Panes, func(p contract.Pane) bool {
+		return p.ID == opened.ID || p.Tab == opened.Tab || p.Terminal == opened.Terminal
+	}) {
+		t.Errorf("a tab opened after the picture was loaded is %+v, %v", opened, err)
 	}
 }
 

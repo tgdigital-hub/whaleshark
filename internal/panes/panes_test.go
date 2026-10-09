@@ -27,11 +27,15 @@ type reader struct {
 	contract.NoStore
 	dir   string
 	state *contract.State
+	reads *atomic.Int32
 }
 
-func (r reader) Read(string, string) (*contract.State, error) { return r.state, nil }
-func (r reader) Current(string) (string, error)               { return "r3", nil }
-func (r reader) Dir(_, run string) string                     { return filepath.Join(r.dir, run) }
+func (r reader) Read(string, string) (*contract.State, error) {
+	r.reads.Add(1)
+	return r.state, nil
+}
+func (r reader) Current(string) (string, error) { return "r3", nil }
+func (r reader) Dir(_, run string) string       { return filepath.Join(r.dir, run) }
 
 // world is one pane on a pretended terminal, drawing the view model of the
 // evening fixture, with a fake herdr holding the fixture's picture and real
@@ -45,6 +49,7 @@ type world struct {
 	file  string // the run's state.json
 	h     int
 	clock atomic.Int64
+	reads atomic.Int32 // how often the pane has read the record
 
 	mu   sync.Mutex
 	view contract.View
@@ -62,7 +67,7 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	k := contract.NewKit()
 	sys := platform.New(runtime.GOOS)
 	sys.Home, sys.Env = home, func(name string) string { return env[name] }
-	k.Platform, k.Store = sys, reader{dir: home, state: &fx.State}
+	k.Platform, k.Store = sys, reader{dir: home, state: &fx.State, reads: &wd.reads}
 	wd.file = filepath.Join(home, "r3", "state.json")
 	os.MkdirAll(filepath.Dir(wd.file), 0o700)
 	wd.touch()
@@ -78,7 +83,7 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 		wd.mu.Lock()
 		defer wd.mu.Unlock()
 		v := wd.view
-		v.Fresh, wd.seen = contract.Fresh{Checked: in.Checked}, in.Herdr
+		v.Fresh, wd.seen = contract.Fresh{Checked: in.Checked, Notes: in.Notes}, in.Herdr
 		return v
 	}
 	done := make(chan bool)
@@ -438,6 +443,28 @@ func TestFoldAndUnfold(t *testing.T) {
 	}
 	wd.s.ClickText("▲ photo upload")
 	wd.shows("[v]", "› ▲ photo upload")
+}
+
+// A pane reads the record when a file of its own changed and at no other
+// time, with notices and without: the lock is shared among readers, and one
+// that read in a loop would have every command wait for its turn behind it.
+func TestAPaneReadsOnlyWhenAFileChanged(t *testing.T) {
+	for name, env := range map[string]map[string]string{"notices": nil, "no notices": {contract.EnvNotices: contract.NoticesOff}} {
+		t.Run(name, func(t *testing.T) {
+			wd := start(t, fleet, 60, 20, env)
+			time.Sleep(time.Second) // what starting up reads
+			before := wd.reads.Load()
+			time.Sleep(3 * time.Second)
+			if n := wd.reads.Load() - before; n != 0 {
+				t.Fatalf("left alone for three seconds the pane read the record %d times", n)
+			}
+			wd.touch()
+			time.Sleep(3 * time.Second)
+			if n := wd.reads.Load() - before; n < 1 || n > 2 {
+				t.Fatalf("after one change the pane read the record %d times", n)
+			}
+		})
+	}
 }
 
 func TestSlowUpdatesAreSaidWithinTwoSeconds(t *testing.T) {

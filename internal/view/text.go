@@ -43,7 +43,7 @@ func Text(w io.Writer, v *contract.View, o Options) {
 	var items []row
 	for _, it := range v.Items {
 		p.forms[it.ID] = formWord(it.Form)
-		text := news(clean(it.Text))
+		text := clean(it.News)
 		if it.Form == contract.FormChoice {
 			var options []string
 			for _, b := range it.Buttons {
@@ -208,8 +208,8 @@ func (p *printer) line(prefix, text, trail string) {
 }
 
 // steps prints the lines a reader may run: side by side where they fit, else
-// one under the other. What follows a step that only prepares the next comes
-// "then"; any other is a choice, and comes after "or".
+// one under the other, joined by the contract's word; after "or" the
+// program's name is not said again.
 func (p *printer) steps(next []string) {
 	if len(next) == 0 {
 		return
@@ -220,11 +220,10 @@ func (p *printer) steps(next []string) {
 		if parts[i] = clean(s); i == 0 {
 			continue
 		}
-		verb, _, _ := strings.Cut(strings.TrimPrefix(clean(next[i-1]), "whaleshark "), " ")
-		if verb == "show" || verb == "close" || verb == "task" {
-			parts[i] = "then        " + parts[i]
-		} else {
+		if join := contract.NextJoin(clean(next[i-1])); join == "or" {
 			parts[i] = "or        " + strings.TrimPrefix(parts[i], "whaleshark ")
+		} else {
+			parts[i] = join + "        " + parts[i]
 		}
 	}
 	if one := indent + "> " + strings.Join(parts, "        "); cells(one) <= p.o.Width {
