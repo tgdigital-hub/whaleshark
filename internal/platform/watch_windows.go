@@ -52,6 +52,7 @@ func stop(h windows.Handle) {
 
 func (d *dirChanges) file(string)           {}
 func (d *dirChanges) exact() bool           { return true }
+func (d *dirChanges) lost(string) bool      { return false }
 func (d *dirChanges) events() <-chan string { return d.ch }
 
 func (d *dirChanges) close() {

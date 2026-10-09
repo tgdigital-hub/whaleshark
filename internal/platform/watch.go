@@ -23,6 +23,9 @@ type notifier interface {
 	// exact: a file is named only when it changed, so the notice is believed
 	// even where a look cannot tell the difference.
 	exact() bool
+	// lost: the system has ended the notices of a folder by itself, as Linux
+	// does when the folder is removed, whatever is under its name by now.
+	lost(dir string) bool
 	events() <-chan string
 	close()
 }
@@ -35,6 +38,7 @@ func (silent) file(string)           {}
 func (silent) events() <-chan string { return nil }
 func (silent) close()                {}
 func (silent) exact() bool           { return false }
+func (silent) lost(string) bool      { return false }
 
 // mute is a system whose notices start without complaint and never come:
 // what a watcher is given when the notices are switched off for a test.
@@ -111,16 +115,20 @@ func (w *watcher) run() {
 		case <-w.done:
 			return
 		case p := <-w.n.events():
-			if f := w.dirs[p]; f != nil {
+			// A watched folder inside a watched folder is both: a folder to
+			// look into, and an entry that may have come, gone or been remade.
+			inside := w.dirs[p]
+			if inside != nil {
 				for q := range w.unheard {
 					if filepath.Dir(q) == p {
 						delete(w.unheard, q)
 					}
 				}
-				w.scan(p, f)
-			} else if f := w.dirs[filepath.Dir(p)]; f != nil {
+				w.scan(p, inside)
+			}
+			if f := w.dirs[filepath.Dir(p)]; f != nil {
 				delete(w.unheard, p)
-				if _, named := w.files[p]; (named || f.whole) && (w.see(p) || w.n.exact()) {
+				if _, named := w.files[p]; (named || f.whole) && (w.see(p) || w.n.exact() && inside == nil) {
 					w.tell(p)
 				}
 			}
@@ -147,11 +155,12 @@ func (w *watcher) run() {
 	}
 }
 
-// attach gives a folder its notices when it has none, or when the folder is
-// no longer the one they were started on. It reports whether it had to.
+// attach gives a folder its notices when it has none, when the folder is no
+// longer the one they were started on, or when the system has ended them.
+// It reports whether it had to.
 func (w *watcher) attach(d string, f *folder) bool {
 	info, err := os.Stat(d)
-	if err == nil && f.info != nil && os.SameFile(info, f.info) {
+	if err == nil && f.info != nil && os.SameFile(info, f.info) && !w.n.lost(d) {
 		return false
 	}
 	f.info = nil
@@ -236,7 +245,7 @@ func inotifyEvents(buf []byte, each func(watch int32, mask uint32, name string))
 			return
 		}
 		name := bytes.TrimRight(buf[16:n], "\x00")
-		each(int32(binary.NativeEndian.Uint32(buf)), binary.NativeEndian.Uint32(buf[4:]), string(name))
+		each(int32(binary.NativeEndian.Uint32(buf)), binary.NativeEndian.Uint32(buf[4:]), string(name)) // #nosec G115 -- the kernel's signed number, read as it wrote it
 		buf = buf[n:]
 	}
 }

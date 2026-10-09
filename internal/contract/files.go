@@ -166,6 +166,7 @@ const (
 // in the file EnvClock names.
 func Now() time.Time {
 	if path := os.Getenv(EnvClock); path != "" {
+		// #nosec G703 -- the clock file of a scripted test, named by the login's own environment
 		if data, err := os.ReadFile(path); err == nil {
 			if t, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(string(data))); err == nil {
 				return t

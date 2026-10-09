@@ -333,6 +333,7 @@ func TestBlockWrittenAndRemovedLeavesTheFileAsItWas(t *testing.T) {
 			if err := os.WriteFile(path, []byte(content), 0o640); err != nil {
 				t.Fatal(err)
 			}
+			was, _ := os.Stat(path) // 0640 where the system keeps such bits
 			before, created, err := Write(renamer{}, path)
 			if err != nil || before != Absent || created {
 				t.Fatalf("Write = %v, %v, %v", before, created, err)
@@ -353,7 +354,7 @@ func TestBlockWrittenAndRemovedLeavesTheFileAsItWas(t *testing.T) {
 			if err != nil || string(got) != content {
 				t.Errorf("after Remove the file is %q, want %q (%v)", got, content, err)
 			}
-			if info, _ := os.Stat(path); info.Mode().Perm() != 0o640 {
+			if info, _ := os.Stat(path); info.Mode().Perm() != was.Mode().Perm() {
 				t.Errorf("the file's permissions became %v", info.Mode().Perm())
 			}
 			if left, _ := os.ReadDir(filepath.Dir(path)); len(left) != 1 {

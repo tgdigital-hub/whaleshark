@@ -85,8 +85,8 @@ func state(data []byte) BlockState {
 }
 
 // read returns a file's content, and missing when there is no such file.
-func read(path string) (data []byte, missing bool, err error) {
-	data, err = os.ReadFile(path)
+func read(file func(string) ([]byte, error), path string) (data []byte, missing bool, err error) {
+	data, err = file(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, true, nil
 	}
@@ -95,7 +95,7 @@ func read(path string) (data []byte, missing bool, err error) {
 
 // Look says what a file holds of the block; a missing file holds none.
 func Look(path string) (BlockState, error) {
-	data, _, err := read(path)
+	data, _, err := read(os.ReadFile, path)
 	return state(data), err
 }
 
@@ -104,7 +104,7 @@ func Look(path string) (BlockState, error) {
 // the file held before: anything but Absent means nothing was written. Only
 // a block written here, onto Absent, is one Remove takes out byte for byte.
 func Write(p contract.Platform, path string) (before BlockState, created bool, err error) {
-	data, created, err := read(path)
+	data, created, err := read(p.Read, path)
 	if err != nil {
 		return "", false, err
 	}
@@ -121,7 +121,7 @@ func Write(p contract.Platform, path string) (before BlockState, created bool, e
 // it. An edited block is left alone and reported by the state returned. With
 // created, a file left empty is deleted.
 func Remove(p contract.Platform, path string, created bool) (before BlockState, err error) {
-	data, _, err := read(path)
+	data, _, err := read(p.Read, path)
 	if err != nil {
 		return "", err
 	}

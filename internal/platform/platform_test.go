@@ -278,6 +278,41 @@ func TestReplaceRetriesOnWindows(t *testing.T) {
 	if err := on("linux", nil).replace("a", "b", busyFor(1), sleep); err != sharing || calls != 1 {
 		t.Errorf("linux tried %d times: %v", calls, err)
 	}
+
+	// A read waits for a file that is held, and not for one it may not open.
+	for code, tries := range map[syscall.Errno]int{32: 3, 33: 3, 5: 1} {
+		calls = 0
+		refused := &fs.PathError{Op: "open", Err: code}
+		err := on(onWindows, nil).patient("a", heldOpen[1:], func() error {
+			if calls++; calls < 3 {
+				return refused
+			}
+			return nil
+		}, sleep)
+		if calls != tries || (tries == 1) != (err == refused) {
+			t.Errorf("a read refused with %d was tried %d times: %v", code, calls, err)
+		}
+	}
+}
+
+func TestRead(t *testing.T) {
+	s, path := New(runtime.GOOS), filepath.Join(t.TempDir(), "state.json")
+	if _, err := s.Read(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("a file that is not there: %v", err)
+	}
+	// Windows is given half a second to finish a replace before the file is
+	// believed missing; no other system needs it.
+	for goos, least := range map[string]time.Duration{onWindows: 500 * time.Millisecond, "linux": 0} {
+		start := time.Now()
+		_, err := on(goos, nil).Read(path)
+		if took := time.Since(start); !errors.Is(err, fs.ErrNotExist) || took < least || took > least+400*time.Millisecond {
+			t.Errorf("%s said %v of a missing file after %v", goos, err, took)
+		}
+	}
+	os.WriteFile(path, []byte("old"), 0o600)
+	if data, err := s.Read(path); err != nil || string(data) != "old" {
+		t.Errorf("read %q, %v", data, err)
+	}
 }
 
 func TestReplace(t *testing.T) {

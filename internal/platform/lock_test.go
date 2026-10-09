@@ -27,7 +27,7 @@ func change(s *System, dir string) error {
 	}
 	defer unlock()
 	final := filepath.Join(dir, "count")
-	data, err := os.ReadFile(final)
+	data, err := s.Read(final)
 	if err != nil {
 		return err
 	}
@@ -63,8 +63,9 @@ func TestTwentyProcesses(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Readers run throughout: under the shared lock the number never goes
-	// back, and without any lock the file is never missing or half written.
+	// Readers run throughout, reading as the program does, with Read: under
+	// the shared lock the number never goes back, and without any lock the
+	// file is never missing, half written or refused.
 	var stop atomic.Bool
 	var readers sync.WaitGroup
 	var reads atomic.Int64
@@ -82,7 +83,7 @@ func TestTwentyProcesses(t *testing.T) {
 						return
 					}
 				}
-				data, err := os.ReadFile(count)
+				data, err := s.Read(count)
 				unlock()
 				n, convErr := strconv.Atoi(strings.TrimSpace(string(data)))
 				if err != nil || convErr != nil || n < last {

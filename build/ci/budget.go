@@ -20,7 +20,17 @@ import (
 // to fn. A folder that does not exist yet has none.
 func (g *gate) shipped(dir string, fn func(path string, data []byte)) error {
 	exts, skip := g.lim.words("count"), g.lim.words("skip")
-	err := filepath.WalkDir(filepath.Join(g.root, dir), func(path string, d fs.DirEntry, err error) error {
+	// Read through the folder itself, so that a link put in a file's place
+	// while the walk is on leads nowhere outside it.
+	tree, err := os.OpenRoot(filepath.Join(g.root, dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer tree.Close()
+	return fs.WalkDir(tree.FS(), ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -34,16 +44,12 @@ func (g *gate) shipped(dir string, fn func(path string, data []byte)) error {
 		if skipped || !slices.Contains(exts, filepath.Ext(path)) {
 			return nil
 		}
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(tree.FS(), path)
 		if err == nil {
-			fn(path, data)
+			fn(filepath.Join(g.root, dir, filepath.FromSlash(path)), data)
 		}
 		return err
 	})
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	return err
 }
 
 func (g *gate) lines() error {

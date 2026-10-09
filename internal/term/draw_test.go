@@ -90,7 +90,7 @@ func TestPutCutsAndCounts(t *testing.T) {
 
 // What an agent wrote cannot recolour, retitle or clear the screen.
 func TestHostileTextIsDrawnHarmless(t *testing.T) {
-	const hostile = "\x1b[31mred\x1b]0;a title\x07 ok\x1b[2J\x1b[?1049l\r\n[ Yes ]\u009b1m‮\x1bP+q\x1b\\."
+	const hostile = "\x1b[31mred\x1b]0;a title\x07 ok\x1b[2J\x1b[?1049l\r\n[ Yes ]\u009b1m\u202e\x1bP+q\x1b\\."
 	if got := term.Clean(hostile); got != "red ok [ Yes ]1m." {
 		t.Errorf("Clean gives %q", got)
 	}
@@ -105,7 +105,7 @@ func TestHostileTextIsDrawnHarmless(t *testing.T) {
 func FuzzClean(f *testing.F) {
 	f.Add("plain")
 	f.Add("\x1b[31mred\x1b]0;t\x07\x1b")
-	f.Add("a\xffb\xc2\x9b⁦")
+	f.Add("a\xffb\xc2\x9b\u2066")
 	f.Fuzz(func(t *testing.T, s string) {
 		g := term.NewGrid(30, 1)
 		g.Put(0, 0, 30, s, term.Style{})

@@ -112,7 +112,7 @@ func main() {
 			tell("report-agent", "--state", contract.StatusBlocked)
 			forever()
 		case "edit":
-			if file, err := os.OpenFile(arg(1), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+			if file, err := os.OpenFile(arg(1), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
 				fmt.Fprintf(file, "a line by %s\n", os.Getenv(contract.EnvAttempt))
 				file.Close()
 			}
