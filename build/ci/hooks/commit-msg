@@ -1,0 +1,3 @@
+#!/bin/sh
+# Refuse a commit whose message holds something private.
+exec go run ./build/ci message "$1"
