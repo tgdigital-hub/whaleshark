@@ -1,0 +1,58 @@
+# The gate on hosted machines: the same program that runs on a developer's
+# own machine. No step here is written by anyone else: the commit is fetched
+# with plain git, and the machine's own Go fetches and checks the toolchain
+# that go.mod names. So there is nothing of another project's to pin.
+name: gate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  GOTOOLCHAIN: auto
+
+jobs:
+  gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Fetch this commit
+        run: |
+          git init -q .
+          git config core.autocrlf false
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch -q --depth 1 origin "$GITHUB_SHA" || git fetch -q --depth 1 origin "$GITHUB_REF"
+          git checkout -q FETCH_HEAD
+      - name: The Go that go.mod names
+        run: go version
+      - name: The gate
+        run: go run ./build/ci build vet fmt test cross lines modules page commands imports timing publish
+
+  security:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Fetch this commit and its history
+        run: |
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch -q origin "$GITHUB_SHA" || git fetch -q origin "$GITHUB_REF"
+          git checkout -q FETCH_HEAD
+      - name: Install the checkers, each at an exact version (none is shipped)
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: The outside checkers, and the publish check over the history
+        run: go run ./build/ci security history

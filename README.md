@@ -6,7 +6,7 @@ The aim is Orca's way of orchestrating many agents, with herdr's lightness: one 
 
 ## Status
 
-**The foundation only. No command works yet.** This repository holds the shared contracts the rest is built on: the shapes of the files, the view model, the interfaces between the packages, and the table of all 40 commands. `whaleshark help` lists them, each marked "not built yet".
+**Early: the foundation and the first layer. Nothing that runs an agent works yet.** This repository holds the shared contracts the rest is built on (the shapes of the files, the view model, the interfaces between the packages, the table of all 40 commands) and the first packages on top of them: the command line itself, the rules for every change to a run, the layer over the operating system, the adapter to herdr, the guides, the terminal layer and the build gate. `whaleshark help` lists every command and marks those not built yet; `help`, `version` and `guide` work.
 
 ## Building
 
@@ -22,7 +22,25 @@ go test ./...
 - `cmd/whaleshark/`: the entry point. It hands one kit to every package and runs the command.
 - `internal/contract/`: everything that is shared. Only a contracts change edits it.
 - `internal/contract/testkit/`: the contracts of the tests: the fixture format and one fixture, the grammar of a scenario file, and how the fake herdr and the fake agents work together.
-- every other folder under `internal/`: one package each, today a `commands.go` with an empty `Plug`, replaced by the package when it is written.
+- every other folder under `internal/`: one package each. A package that is not written yet is a `commands.go` with an empty `Plug`.
+- `build/ci/`: the gate, described below.
+- `test/`: a stand-in for herdr and a scripted agent, for tests that need neither the real herdr nor a real agent.
+
+## Checks
+
+One program holds the tree to its limits and runs every check: `go run ./build/ci`. It builds for the five systems, runs the tests, counts lines per folder, modules, commands and the size of the file against `build/ci/limits.txt`, checks which package may reach which, times the commands that must be fast, and looks for anything private in what would be published. `build/ci/README.md` says what each step does.
+
+Five outside tools do the security checks. None is part of the program and the gate installs none; one that is missing is skipped on your own machine, said out loud, and fails a hosted run.
+
+| Tool | For |
+|---|---|
+| [staticcheck](https://staticcheck.dev) | a stricter static analyser than `go vet` |
+| [gosec](https://github.com/securego/gosec) | shell strings, weak file permissions, unchecked paths |
+| [govulncheck](https://go.dev/doc/security/vuln/) | our modules against the public list of known flaws |
+| [gitleaks](https://github.com/gitleaks/gitleaks) | secrets in the files and in the history |
+| [shellcheck](https://www.shellcheck.net) | every shell script in the repository |
+
+The hosted runs in `.github/workflows/` use the same program. They take no step from any other project: the commit is fetched with plain git and built with the machine's own Go.
 
 ## Dependencies
 
