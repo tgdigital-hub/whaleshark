@@ -39,6 +39,14 @@ func real(t *testing.T, paths ...string) *watcher {
 	return w
 }
 
+// soon is how long a test waits for word of a change. It is no promise of
+// speed: a hosted machine that runs other tests beside these can leave a
+// goroutine waiting for longer than the check takes to come round. That the
+// word came by a notice and not by the check is what Slow says at the end:
+// a change the check finds with no notice in the quarter second after it
+// makes the watcher slow.
+const soon = 10 * time.Second
+
 // told waits until the watcher has told of path at a moment when ok holds.
 func told(t *testing.T, w *watcher, within time.Duration, path string, ok func() bool) time.Duration {
 	t.Helper()
@@ -63,8 +71,8 @@ func holds(path, text string) func() bool {
 }
 
 // TestThousandChanges replaces one file a thousand times and wants word of
-// every one, each well inside the second after which the self-check would
-// have found it, and no doubt about the notices at the end.
+// every one, and no doubt about the notices at the end: none was left to
+// the self-check to find.
 func TestThousandChanges(t *testing.T) {
 	state := filepath.Join(t.TempDir(), "state.json")
 	replaceFile(t, state, "start")
@@ -73,7 +81,7 @@ func TestThousandChanges(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		text := strconv.Itoa(i)
 		replaceFile(t, state, text)
-		worst = max(worst, told(t, w, checkEvery/2, state, holds(state, text)))
+		worst = max(worst, told(t, w, soon, state, holds(state, text)))
 	}
 	extra := 0
 	for more := true; more; {
@@ -91,16 +99,31 @@ func TestThousandChanges(t *testing.T) {
 }
 
 // TestAChangeAtOnce replaces a file the instant its watcher is there, fifty
-// watchers over: a folder's notices are on before the watcher is handed out.
+// watchers over, and wants each told by a notice: a folder's notices are on
+// before the watcher is handed out, so no check finds a change unheard.
 func TestAChangeAtOnce(t *testing.T) {
-	state := filepath.Join(t.TempDir(), "state.json")
-	replaceFile(t, state, "start")
+	dir := t.TempDir()
+	var all []*watcher
 	for i := range 50 {
+		state := filepath.Join(dir, strconv.Itoa(i), "state.json")
+		if err := os.Mkdir(filepath.Dir(state), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		replaceFile(t, state, "start")
 		w := real(t, state)
-		text := strconv.Itoa(i)
-		replaceFile(t, state, text)
-		told(t, w, checkEvery/2, state, holds(state, text))
-		w.Close()
+		replaceFile(t, state, "now")
+		told(t, w, soon, state, holds(state, "now"))
+		go func() {
+			for range w.Changes() {
+			}
+		}()
+		all = append(all, w)
+	}
+	time.Sleep(checkEvery + 2*slowEvery) // every watcher has checked itself once
+	for i, w := range all {
+		if w.Slow() {
+			t.Errorf("watcher %d found its first change by the check, not by a notice", i)
+		}
 	}
 }
 
@@ -188,7 +211,7 @@ func TestNamedNoticeIsBelieved(t *testing.T) {
 	w := watch(n, []string{state})
 	defer w.Close()
 	n.ch <- state
-	told(t, w, checkEvery/2, state, holds(state, "0"))
+	told(t, w, soon, state, holds(state, "0"))
 	n.ch <- filepath.Join(dir, "state.json.new")
 	n.ch <- dir
 	select {
@@ -221,11 +244,11 @@ func TestFolderInsideAFolder(t *testing.T) {
 	for _, change := range []func(string) error{os.Remove, os.Remove} {
 		os.Mkdir(ctx, 0o700)
 		n.ch <- ctx
-		told(t, w, checkEvery/2, ctx, func() bool { return true })
+		told(t, w, soon, ctx, func() bool { return true })
 		time.Sleep(checkEvery + slowEvery) // by now the folder has its notices
 		change(ctx)
 		n.ch <- ctx
-		told(t, w, checkEvery/2, ctx, func() bool { return true })
+		told(t, w, soon, ctx, func() bool { return true })
 	}
 	time.Sleep(checkEvery + 2*slowEvery)
 	if w.Slow() {
@@ -257,7 +280,7 @@ func TestWatchKinds(t *testing.T) {
 	root := t.TempDir()
 	named, later := filepath.Join(root, "paused"), filepath.Join(root, "ctx")
 	w := real(t, named, later)
-	within := checkEvery / 2
+	within := soon
 
 	// A named file that appears, is written in place, touched, and removed.
 	os.WriteFile(named, []byte("a"), 0o600)
