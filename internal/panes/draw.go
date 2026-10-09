@@ -96,6 +96,18 @@ func wrap(s string, w int) []string {
 	return append(lines, line)
 }
 
+// cut shortens a text to w cells and says so in its last cell.
+func (p *pane) cut(s string, w int) string {
+	if term.Width(s) <= w || w < 1 {
+		return s
+	}
+	r := []rune(s)
+	for len(r) > 0 && term.Width(string(r)) >= w {
+		r = r[:len(r)-1]
+	}
+	return strings.TrimRight(string(r), " ") + p.glyph("…", ">")
+}
+
 // button draws a thing to click and returns the cells it takes.
 func (p *pane) button(x, y int, text string, st term.Style, do func()) int {
 	w := term.Width(text)
@@ -224,13 +236,18 @@ func (p *pane) drawFleet(now time.Time) {
 	y := 1
 	for _, a := range v.Alerts {
 		if y < h-foot {
-			t.Put(1, y, w-1, a, bold(p.st("blocked")))
+			t.Put(1, y, w-1, p.cut(a, w-1), bold(p.st("blocked")))
 			y++
 		}
 	}
 	room := h - foot - y
 	if !narrow && h > 12 {
 		y, room = y+1, room-2
+	} else if len(p.cards)*3 < room {
+		y, room = y+1, room-1
+	}
+	if len(p.cards) == 0 && len(v.Alerts) == 0 && room > 0 {
+		t.Put(3, y, w-3, "no agents yet", dim)
 	}
 	rows := 3
 	if len(p.cards)*3 > room {
@@ -241,25 +258,36 @@ func (p *pane) drawFleet(now time.Time) {
 		p.card(p.cards[p.top+i], y+i*rows, rows, narrow, now)
 	}
 
-	counts := fmt.Sprintf("%d agents · %d need you", v.Counts.Agents, v.Counts.NeedYou)
-	above, below, gap, buttons := " · %d above", " · %d below", 1, []string{"narrower", "wider", "fleet"}
-	if narrow {
-		counts = fmt.Sprintf("%d · %d need you", v.Counts.Agents, v.Counts.NeedYou)
-		above, below, gap, buttons = p.glyph(" ↑%d", " -%d"), p.glyph(" ↓%d", " +%d"), 0, buttons[:2]
+	// The header says as much as fits: the counts in three lengths, and the
+	// three buttons, two of them or none.
+	need := p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain)
+	up, down := p.glyph(" ↑%d", " -%d"), p.glyph(" ↓%d", " +%d")
+	forms := []struct {
+		counts, above, below string
+		buttons, gap         int
+	}{
+		{fmt.Sprintf("%d agents · %d need you", v.Counts.Agents, v.Counts.NeedYou), " · %d above", " · %d below", 3, 1},
+		{fmt.Sprintf("%d · %d need you", v.Counts.Agents, v.Counts.NeedYou), up, down, 3, 1},
+		{fmt.Sprintf("%d · %d need you", v.Counts.Agents, v.Counts.NeedYou), up, down, 2, 0},
+		{fmt.Sprintf("%d · %s%d", v.Counts.Agents, need, v.Counts.NeedYou), up, down, 2, 0},
+		{fmt.Sprintf("%d · %s%d", v.Counts.Agents, need, v.Counts.NeedYou), up, down, 0, 0},
 	}
-	if p.top > 0 {
-		counts += fmt.Sprintf(above, p.top)
-	}
-	if rest := len(p.cards) - p.top - fit; rest > 0 {
-		counts += fmt.Sprintf(below, rest)
-	}
-	x := w - len(buttons)*(3+gap) + gap
-	if 9+term.Width(counts) > x {
-		x = w
-	}
-	p.title("FLEET", counts, x-1)
-	for i, b := range buttons {
-		x += p.button(x, 0, [...]string{"[<]", "[>]", "[x]"}[i], dim, func() { p.notYet(label(b)) }) + gap
+	for i, f := range forms {
+		if p.top > 0 {
+			f.counts += fmt.Sprintf(f.above, p.top)
+		}
+		if rest := len(p.cards) - p.top - fit; rest > 0 {
+			f.counts += fmt.Sprintf(f.below, rest)
+		}
+		x := w - f.buttons*(3+f.gap) + f.gap
+		if 9+term.Width(f.counts) > x && i < len(forms)-1 {
+			continue
+		}
+		p.title("FLEET", f.counts, x-1)
+		for i, b := range []string{"narrower", "wider", "fleet"}[:f.buttons] {
+			x += p.button(x, 0, [...]string{"[<]", "[>]", "[x]"}[i], dim, func() { p.notYet(label(b)) }) + f.gap
+		}
+		break
 	}
 
 	show := func(x, y int) int { return x + p.button(x, y, "[show]", dim, func() { p.notYet(label("show")) }) }
@@ -268,19 +296,19 @@ func (p *pane) drawFleet(now time.Time) {
 	case !narrow:
 		show(3+t.Put(1, y, w-1, done, dim), y)
 		p.hintLine(y+1, w, keys, keys)
-		t.Put(1, y+2, w-1, age, ageSt)
+		t.Put(1, y+2, w-1, p.cut(age, w-1), ageSt)
 	case term.Width(done+" [show] · "+age) < w:
 		if foot == 2 {
 			p.hintLine(y, w, keys, keys)
 		}
-		x = show(2+t.Put(1, h-1, w-1, done, dim), h-1)
+		x := show(2+t.Put(1, h-1, w-1, done, dim), h-1)
 		t.Put(x, h-1, w-x, " · "+age, ageSt)
 	default:
 		if foot == 3 {
 			p.hintLine(y, w, keys, keys)
 		}
 		show(2+t.Put(1, h-2, w-1, done, dim), h-2)
-		t.Put(1, h-1, w-1, age, ageSt)
+		t.Put(1, h-1, w-1, p.cut(age, w-1), ageSt)
 	}
 }
 
@@ -314,13 +342,17 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 	}
 	ww := term.Width(word)
 	t.Put(1, y, 1, p.glyph(lk.Mark, lk.Plain), st(c.Colour))
-	x := 3 + t.Put(3, y, w-ww-4, c.Name, name)
+	room := w - ww - 4
+	if c.Flag {
+		room -= 2
+	}
+	x := 3 + t.Put(3, y, room, p.cut(c.Name, room), name)
 	if c.Flag {
 		t.Put(x+1, y, w-ww-x-2, p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain), st("needs"))
 	}
 	t.Put(w-ww, y, ww, word, st(c.Colour))
 
-	ctx, cells := "ctx unknown", (c.Ctx+10)/20
+	ctx, cells := "  ctx unknown", (c.Ctx+10)/20
 	switch {
 	case narrow && c.CtxKnown:
 		ctx = fmt.Sprintf("ctx %2d%%", c.Ctx)
@@ -361,7 +393,14 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 		if c.Pale && !c.Said.IsZero() {
 			news = "said " + ago(now.Sub(c.Said)) + " ago: " + news
 		}
-		t.Put(3, y+2, w-3, news, st("dim"))
+		// A change that would conflict is the news; one that only meets
+		// another follows it.
+		if x := c.Clash; x != nil && x.Conflicts {
+			news = "clashes with " + x.Name + ": " + x.File
+		} else if x != nil {
+			news += " · also changes " + x.File
+		}
+		t.Put(3, y+2, w-3, p.cut(news, w-3), st("dim"))
 	}
 }
 
@@ -373,6 +412,7 @@ func (p *pane) drawActions(now time.Time) {
 		return
 	}
 	age, ageSt := p.age(now, true)
+	age = p.cut(age, w-2)
 	aw := term.Width(age)
 	p.hintLine(h-1, w-aw-3, "j k choose · y n o answer · u undo · x fold · / all actions · ? keys",
 		"ctrl+b a to answer · / all actions · ? keys")
@@ -389,7 +429,7 @@ func (p *pane) drawActions(now time.Time) {
 		t.Put(3, y, w-3, "nothing waits for you", dim)
 	}
 	height := func(i int) int {
-		if p.folded {
+		if p.folded || room < 3 {
 			return 1
 		}
 		return 2 + min(len(wrap(items[i].Text, w-6)), max(room-3, 1))
@@ -398,9 +438,9 @@ func (p *pane) drawActions(now time.Time) {
 	for i := range len(items) {
 		used += height(i)
 	}
-	if used < room && !p.folded {
-		y++
-	} else if fit < len(items) && room > 1 {
+	if used < room && len(items) > 0 && height(0) > 1 {
+		y, room = y+1, room-1
+	} else if used > room && room > 1 {
 		room--
 		fit = p.window(len(items), room, height)
 	}
@@ -408,17 +448,28 @@ func (p *pane) drawActions(now time.Time) {
 		p.item(items[i], y, height(i), now)
 		y += height(i)
 	}
-	if fit < len(items) && y < h-1 {
-		t.Put(5, y, w-5, fmt.Sprintf("+%d more · j k", len(items)-fit), dim)
+	// What does not fit whole is shown on one line each, as far as the rows
+	// go, and a last row counts what is still out of view.
+	rest, left := items[p.top+fit:], h-1-y
+	lines := min(len(rest), left)
+	hidden := p.top + len(rest) - lines
+	if hidden > 0 && lines == left && left > 0 {
+		lines, hidden = lines-1, hidden+1
+	}
+	for i := range lines {
+		p.item(rest[i], y+i, 1, now)
+	}
+	if y += lines; hidden > 0 && y < h-1 {
+		t.Put(5, y, w-5, fmt.Sprintf("+%d more · j k", hidden), dim)
 	}
 }
 
 // item is one thing that waits for the person, in one of its four forms:
 // who asks, the text as it was asked, and the buttons or the line to type on.
-// Folded, it is one line.
+// In one row it is its name and its text.
 func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 	t, w, lk := p.t, p.t.W, look(it.Look)
-	p.hits = append(p.hits, hit{0, y, w, rows, false, func() { p.sel, p.folded = it.ID, false }})
+	p.hits = append(p.hits, hit{0, y, w, rows, false, func() { p.sel, p.folded, p.follow = it.ID, false, true }})
 	name := p.st("text")
 	if it.ID == p.sel {
 		name = bold(name)
@@ -429,16 +480,19 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 	if x > 5 {
 		x += t.Put(x, y, w-x, " · ", p.st("dim"))
 	}
-	if p.folded {
-		t.Put(x, y, w-x, it.Text, p.st("text"))
+	if rows == 1 {
+		t.Put(x, y, w-x, p.cut(it.Text, w-x-1), p.st("text"))
 		return
 	}
 	since := "now"
 	if d := now.Sub(it.Since); d >= time.Minute {
 		since = ago(d)
 	}
-	t.Put(x, y, w-x, it.Source+" · "+since, p.st("dim"))
+	t.Put(x, y, w-x, p.cut(it.Source+" · "+since, w-x-1), p.st("dim"))
 	lines := wrap(it.Text, w-6)
+	if n := rows - 2; len(lines) > n {
+		lines[n-1] = p.cut(lines[n-1]+" "+lines[n], w-6)
+	}
 	for i, l := range lines[:min(len(lines), rows-2)] {
 		t.Put(5, y+1+i, w-6, l, p.st("text"))
 	}
@@ -481,27 +535,32 @@ func (p *pane) strip(now time.Time) {
 	if s.DoneAsYou > 0 {
 		more = append(more, fmt.Sprintf(" · %d done as you", s.DoneAsYou))
 	}
-	counts := fmt.Sprintf("%d waiting · %d hold work up", v.Counts.Waiting, v.Counts.Holding) + strings.Join(more, "")
-	texts, total := make([]string, len(ids)), 4
-	for i, id := range ids {
-		texts[i] = "[ " + label(id) + " ]"
-		total += term.Width(texts[i]) + 1
-	}
-	if 10+term.Width(counts)+total > w {
-		total = 3
-		for i := range ids {
-			texts[i] = "[" + short[i] + "]"
+	// As much as fits: the full words, then the short buttons, then the
+	// short counts too, with less and less of what else there is to say.
+	long := fmt.Sprintf("%d waiting · %d hold work up", v.Counts.Waiting, v.Counts.Holding)
+	brief := fmt.Sprintf("%d · %s%d", v.Counts.Waiting, p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain), v.Counts.Holding)
+	counts, texts, total := "", make([]string, len(ids)), 0
+	for form := 0; form <= 2+len(more); form++ {
+		counts, total = long+strings.Join(more, ""), 4-min(form, 1)
+		if form > 1 {
+			counts = brief + strings.Join(more[:len(more)+2-form], "")
+		}
+		for i, id := range ids {
+			if texts[i] = "[ " + label(id) + " ]"; form > 0 {
+				texts[i] = "[" + short[i] + "]"
+			}
 			total += term.Width(texts[i]) + 1
 		}
-		for n := len(more); n >= 0; n-- {
-			counts = fmt.Sprintf("%d · %s%d", v.Counts.Waiting, p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain), v.Counts.Holding) +
-				strings.Join(more[:n], "")
-			if 10+term.Width(counts)+total <= w {
-				break
-			}
+		if 10+term.Width(counts)+total <= w {
+			break
 		}
 	}
-	p.title("ACTIONS", counts, w-total-1)
+	if 10+term.Width(counts)+total > w {
+		// Too narrow for both: the counts stand where the name stood.
+		p.title(brief, "", w-total-1)
+	} else {
+		p.title("ACTIONS", counts, w-total-1)
+	}
 	x := w - total
 	for i, id := range ids {
 		x += p.button(x, 0, texts[i], styles[i], func() { p.notYet(label(id)) }) + 1

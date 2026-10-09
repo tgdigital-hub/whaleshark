@@ -2,7 +2,6 @@ package panes
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -364,8 +363,6 @@ func TestTheFourFormsAndTheStrip(t *testing.T) {
 	wd.resize(64, 20)
 	wd.shows("ACTIONS  3 · ▲2 · paused  ", "[Resume] [Catch up] [DND] [Mute] [v]")
 }
-
-func mouseMove(x, y int) string { return fmt.Sprintf("\x1b[<35;%d;%dM", x+1, y+1) }
 
 func TestAnItemInsertedAboveTheSelectionDoesNotMoveIt(t *testing.T) {
 	wd := start(t, actions, 104, 24, nil)

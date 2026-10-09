@@ -198,7 +198,7 @@ func TestStatusWithout(t *testing.T) {
 	}
 
 	// A context file from a newer program counts as absent.
-	c, out, _ = call(t, f, contract.Human)
+	c, _, _ = call(t, f, contract.Human)
 	dirs, _ := c.Kit.Platform.Dirs()
 	if err := os.WriteFile(contract.CtxPath(dirs.State, "w1:p2"), []byte(`{"version": 99, "pct": 5, "known": true, "at": "2026-10-08T21:13:00Z"}`), 0o600); err != nil {
 		t.Fatal(err)

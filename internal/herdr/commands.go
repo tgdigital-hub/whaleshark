@@ -250,6 +250,24 @@ func (a *Adapter) Resize(pane, direction string, amount float64) error {
 
 func (a *Adapter) PaneClose(pane string) error { return a.do("pane", "close", pane) }
 
+func (a *Adapter) Size(pane string) (w, h int, err error) {
+	var l struct {
+		Layout struct {
+			Panes []struct {
+				ID   string `json:"pane_id"`
+				Rect struct{ Width, Height int }
+			}
+		}
+	}
+	err = a.call(context.Background(), wait, &l, "pane", "layout", "--pane", pane)
+	for _, p := range l.Layout.Panes {
+		if p.ID == pane {
+			w, h = p.Rect.Width, p.Rect.Height
+		}
+	}
+	return w, h, err
+}
+
 func (a *Adapter) PaneFocus(pane, direction string) (string, error) {
 	var w struct {
 		Focus struct {

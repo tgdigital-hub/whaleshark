@@ -180,7 +180,10 @@ func TestNoHerdr(t *testing.T) {
 	v := Build(in)
 	c, _ := card(t, v, "T12")
 	same(t, "card", []any{c.Look, c.Tab}, []any{contract.LookIdle, "w1:t13"})
-	same(t, "notes and alerts", []any{v.Fresh.Notes, v.Alerts}, []any{[]string{"herdr not reachable", "not checked yet", "nobody is watching"}, []string{"herdr cannot be reached"}})
+	same(t, "notes and alerts", []any{v.Fresh.Notes, v.Alerts}, []any{[]string{"herdr not reachable", "no sweep yet"}, []string{"herdr cannot be reached"}})
+	// Once a sweep has run, the one note about it is that nobody sweeps now.
+	in.Swept.Ran = true
+	same(t, "notes after a sweep", Build(in).Fresh.Notes, []string{"herdr not reachable", "nobody is sweeping"})
 
 	// A pane with no agent in it, or no pane at all, is silence: idle, never failed.
 	f = evening(t)

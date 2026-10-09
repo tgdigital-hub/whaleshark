@@ -509,11 +509,12 @@ func (b *builder) around(v *contract.View) {
 			v.Alerts = append(v.Alerts, "herdr cannot be reached")
 		}
 	}
+	// One note about the sweep, never two: that none has run yet says all
+	// there is to say until one has.
 	if !in.Swept.Ran {
-		v.Fresh.Notes = append(v.Fresh.Notes, "not checked yet")
-	}
-	if !in.Watched {
-		v.Fresh.Notes = append(v.Fresh.Notes, "nobody is watching")
+		v.Fresh.Notes = append(v.Fresh.Notes, "no sweep yet")
+	} else if !in.Watched {
+		v.Fresh.Notes = append(v.Fresh.Notes, "nobody is sweeping")
 	}
 	v.Fresh.Notes = append(v.Fresh.Notes, in.Notes...)
 	ui := in.UI

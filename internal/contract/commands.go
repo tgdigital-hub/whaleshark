@@ -158,7 +158,7 @@ var Commands = []Command{
 		Flags:   flags("admin=NAME", "admin-key=FILE", "user=NAME", "key=FILE", "off", "name=NAME", "aud=TAG", "email=LIST", "team=NAME", "herdr"),
 		Example: "sudo whaleshark server add --user ana --key ana.pub"},
 	{Name: "ui", Section: "setup", Phase: 1, Who: H | O | U, Exits: []int{0, 3},
-		Usage:   "ui [fleet|actions] [on|off] / ui menu / ui run <pane>",
+		Usage:   "ui [close] / ui fleet|actions [on|off] / ui menu / ui run <pane>",
 		Help:    "open or close the fleet pane and the action pane in the lead agent's tab",
 		Example: "whaleshark ui fleet off"},
 	{Name: "set", Section: "setup", Phase: 1, Who: H | U, Exits: []int{0, 2},

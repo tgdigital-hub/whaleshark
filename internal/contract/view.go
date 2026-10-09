@@ -282,8 +282,8 @@ type Strip struct {
 type Fresh struct {
 	Checked time.Time `json:"checked"`
 	// Notes are what the screen says about its sources: "slow updates",
-	// "herdr: checking every 5 s", "herdr not reachable", "not checked yet",
-	// "nobody is watching".
+	// "herdr: checking every 5 s", "herdr not reachable", and of the sweep
+	// either "no sweep yet" or "nobody is sweeping".
 	Notes []string `json:"notes,omitempty"`
 }
 

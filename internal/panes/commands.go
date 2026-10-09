@@ -13,19 +13,36 @@ import (
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) { k.Handle("ui", ui) }
 
-// ui runs a pane program in the pane it was started in, until the pane
-// closes or the person leaves it.
+// ui opens and closes the two panes beside the conversation, or, as `ui run`,
+// is the program inside one of them until the pane closes or the person
+// leaves it.
 func ui(c *contract.Call) (any, error) {
-	if len(c.Args) != 2 || c.Args[0] != "run" || c.Args[1] != fleet && c.Args[1] != actions {
-		return nil, fmt.Errorf("ui: only `ui run fleet` and `ui run actions` exist so far: the rest is %w", contract.ErrNotBuilt)
+	a := append(c.Args, "", "")[:max(len(c.Args), 2)]
+	one := a[0] == fleet || a[0] == actions
+	switch {
+	case len(a) > 2 || a[0] == "menu":
+	case a[0] == "run" && (a[1] == fleet || a[1] == actions):
+		t, err := term.Open()
+		if err != nil {
+			return nil, err
+		}
+		defer t.Close()
+		Run(a[1], t, c.Kit, c.Root, c.Run)
+		return nil, nil
+	case a[0] == "" || a[0] == "close" && a[1] == "":
+		return place(c, func(string, bool) bool { return a[0] == "" })
+	case one && (a[1] == "" || a[1] == "on" || a[1] == "off"):
+		return place(c, func(kind string, open bool) bool {
+			if kind != a[0] {
+				return open
+			}
+			return a[1] == "on" || a[1] == "" && !open
+		})
 	}
-	t, err := term.Open()
-	if err != nil {
-		return nil, err
+	if a[0] == "menu" {
+		return nil, fmt.Errorf("ui menu: %w", contract.ErrNotBuilt)
 	}
-	defer t.Close()
-	Run(c.Args[1], t, c.Kit, c.Root, c.Run)
-	return nil, nil
+	return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "Usage: whaleshark " + c.Command.Usage}
 }
 
 // Run draws one pane, "fleet" or "actions", on a terminal until its input
