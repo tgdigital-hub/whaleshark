@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -26,7 +27,9 @@ func emptyPage(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return nil, http.Serve(l, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	page := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		empty.Execute(w, contract.ErrNotBuilt.Error())
-	}))
+	})
+	// A caller that never finishes its request is not waited for.
+	return nil, (&http.Server{Handler: page, ReadHeaderTimeout: 10 * time.Second}).Serve(l)
 }

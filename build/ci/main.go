@@ -138,6 +138,7 @@ func (l limits) words(key string) []string {
 // cmd runs a program in the tree and returns what it printed. Cgo is off
 // for everything, as it is for the program we ship.
 func (g *gate) cmd(env []string, name string, args ...string) (string, error) {
+	// #nosec G204 -- the tools this folder names, with a list of arguments and no shell
 	c := exec.Command(name, args...)
 	c.Dir = g.root
 	c.Env = append(append(os.Environ(), "CGO_ENABLED=0"), env...)

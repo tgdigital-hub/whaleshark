@@ -37,6 +37,7 @@ type Adapter struct {
 func New(k *contract.Kit) *Adapter { return &Adapter{kit: k, Call: run} }
 
 func run(ctx context.Context, env, args []string) ([]byte, []byte, int, error) {
+	// #nosec G204 -- always the program herdr, with a list of arguments and no shell
 	cmd := exec.CommandContext(ctx, "herdr", args...)
 	cmd.Env = append(os.Environ(), env...)
 	var out, errOut bytes.Buffer

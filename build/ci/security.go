@@ -8,42 +8,80 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
 // checkers are the outside tools of the security step. None is shipped and
 // none is installed by the gate: one that is missing is skipped out loud,
-// and on a hosted machine (CI set) a skipped one fails.
+// and on a hosted machine (CI set) a skipped one fails. over names the list
+// a checker is given after its own arguments: the shell scripts, the folders
+// of the program and the gate, or the folders of the stand-ins under test/.
 var checkers = []struct {
 	tool, what string
 	args       []string
+	over       string
 }{
-	{"staticcheck", "the stricter static analyser", []string{"./..."}},
-	{"gosec", "the security analyser", []string{"-quiet", "./..."}},
-	{"govulncheck", "known flaws in the modules", []string{"./..."}},
-	{"gitleaks", "secrets in the history", []string{"git", "--no-banner", "--redact", "."}},
-	{"gitleaks", "secrets in the files", []string{"dir", "--no-banner", "--redact", "."}},
-	{"shellcheck", "the shell scripts", nil},
+	{"staticcheck", "the stricter static analyser", []string{"./..."}, ""},
+	{"gosec", "the security analyser", []string{"-quiet", "-exclude=" + gosecAside}, "ours"},
+	{"gosec", "the security analyser, over the stand-ins", []string{"-quiet", "-exclude=" + gosecDoubles}, "doubles"},
+	{"govulncheck", "known flaws in the modules", []string{"./..."}, ""},
+	{"gitleaks", "secrets in the history", []string{"git", "--no-banner", "--redact", "."}, ""},
+	{"gitleaks", "secrets in the files", []string{"dir", "--no-banner", "--redact", "."}, ""},
+	{"shellcheck", "the shell scripts", nil, "scripts"},
 }
+
+// Two of gosec's rules are set aside for every folder, because of what this
+// program is: a command a person runs as themselves, on files they name.
+//
+// G304, a file opened by a path held in a variable. Every file this program
+// opens is one: the person's project, their state folder, a file they name.
+//
+// G104, an error nobody reads. What was left unread when the rule was set
+// aside, each read by a person: a close after the work is done or has
+// failed, a line to a terminal or a connection that has gone, the restoring
+// of a terminal on the way out, and the note of who holds a lock.
+//
+// The stand-ins under test/, the fake herdr and the fake agent, are in no
+// program we ship and are held to a lighter rule. A test tells them through
+// their environment which program to start (G204, G702), which socket to
+// call (G704) and which files to touch (G703), and that is their whole use.
+const (
+	gosecAside   = "G104,G304"
+	gosecDoubles = gosecAside + ",G204,G702,G703,G704"
+)
 
 func (g *gate) security() error {
 	files, err := g.published()
 	if err != nil {
 		return err
 	}
-	var scripts []string
+	over := map[string][]string{}
 	for _, f := range files {
 		data, _ := os.ReadFile(filepath.Join(g.root, f))
 		if strings.HasSuffix(f, ".sh") || bytes.HasPrefix(data, []byte("#!/bin/sh")) {
-			scripts = append(scripts, f)
+			over["scripts"] = append(over["scripts"], f)
 		}
+	}
+	module, err := g.cmd(nil, "go", "list", "-m")
+	if err != nil {
+		return err
+	}
+	packages, err := g.cmd(nil, "go", "list", "./...")
+	if err != nil {
+		return err
+	}
+	for _, pkg := range strings.Fields(packages) {
+		rel := strings.TrimPrefix(pkg, strings.TrimSpace(module)+"/")
+		which := "ours"
+		if under(rel, "test") {
+			which = "doubles"
+		}
+		over[which] = append(over[which], "./"+rel)
 	}
 	var errs []error
 	for _, c := range checkers {
-		args := c.args
-		if c.tool == "shellcheck" {
-			args = scripts
-		}
+		args := append(slices.Clone(c.args), over[c.over]...)
 		if _, err := exec.LookPath(c.tool); err != nil {
 			fmt.Fprintf(g.out, "  SKIPPED %s (%s): it is not installed\n", c.tool, c.what)
 			if os.Getenv("CI") != "" {

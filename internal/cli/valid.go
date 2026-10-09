@@ -100,6 +100,7 @@ func outside(root, p string) string {
 	}
 	at := filepath.Join(base, p)
 	for at != base {
+		// #nosec G703 -- this walk is itself the check that the path stays inside the project
 		if _, err := os.Lstat(at); err == nil {
 			break
 		}

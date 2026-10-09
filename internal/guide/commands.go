@@ -37,6 +37,8 @@ func run(c *contract.Call) (any, error) {
 			Message: "guide takes one of: worker, lead",
 			Next:    []string{"whaleshark guide lead", "whaleshark guide worker"}}
 	}
-	io.WriteString(c.Out, text)
+	if _, err := io.WriteString(c.Out, text); err != nil {
+		return nil, err
+	}
 	return map[string]string{"guide": which, "text": text}, nil
 }

@@ -36,10 +36,16 @@ None of them is part of the program, and the gate installs nothing. A checker th
 |---|---|
 | `go vet` | the language's own vetting (the `vet` step) |
 | [staticcheck](https://staticcheck.dev) | a stricter static analyser |
-| [gosec](https://github.com/securego/gosec) | shell strings, weak file permissions, unchecked paths |
+| [gosec](https://github.com/securego/gosec) | shell strings, weak file permissions, unchecked paths; run twice, see below |
 | [govulncheck](https://go.dev/doc/security/vuln/) | our modules against the public list of known flaws |
 | [gitleaks](https://github.com/gitleaks/gitleaks) | secrets in the files and in the history |
 | [shellcheck](https://www.shellcheck.net) | every shell script in the repository |
+
+A finding that is wrong for this code is silenced at its own line, with the reason in the comment (`#nosec` and the rule's number). No checker is switched off and no folder of the program is left out.
+
+gosec has two rules set aside for every folder, because the program is a command a person runs as themselves on files they name: G304 (a file opened by a path held in a variable, which is every file this program opens) and G104 (an error nobody reads: what is left is a close after the work is done or has failed, a line to a terminal or a connection that has gone, and the note of who holds a lock). `security.go` says the same beside the rule numbers.
+
+**The stand-ins under `test/` are held to a lighter rule.** The fake herdr and the fake agent are in no program we ship. A test tells them through their environment which program to start, which socket to call and which files to touch, so for those folders gosec also leaves out G204, G702, G703 and G704. It runs once over everything else and once over them.
 
 ## The publish check
 
