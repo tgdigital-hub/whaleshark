@@ -1,38 +1,36 @@
-// Package panes is not built yet. Its owner replaces this file. Until then it
-// holds an empty pane, so that the program file is measured with a pane in it.
+// Package panes draws the fleet pane and the action pane. A pane keeps
+// nothing and changes nothing: it reads the record, herdr's picture and a few
+// small files, has one view model built from them, and draws that.
 package panes
 
 import (
 	"fmt"
-	"os"
-	"strings"
-
-	"github.com/rivo/uniseg"
-	"golang.org/x/term"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
 
 // Plug binds this package's handlers and puts its implementations into the kit.
-func Plug(k *contract.Kit) { k.Handle("empty-pane", emptyPane) }
+func Plug(k *contract.Kit) { k.Handle("ui", ui) }
 
-// emptyPane draws one centred line on the alternate screen and leaves at the
-// first key, putting the terminal back as it was.
-func emptyPane(*contract.Call) (any, error) {
-	fd := int(os.Stdin.Fd())
-	old, err := term.MakeRaw(fd)
+// Build makes the view model a pane draws. Until the view package is joined
+// to it, a pane shows its own lines and says that the rest is not built.
+var Build = func(in contract.ViewInput) contract.View {
+	return contract.View{Version: contract.ViewVersion, At: in.Now, Caller: in.Caller,
+		Alerts: []string{"the view model is " + contract.ErrNotBuilt.Error()}, Fresh: contract.Fresh{Checked: in.Checked}}
+}
+
+// ui runs a pane program in the pane it was started in, until the pane
+// closes or the person leaves it.
+func ui(c *contract.Call) (any, error) {
+	if len(c.Args) != 2 || c.Args[0] != "run" || c.Args[1] != fleet && c.Args[1] != actions {
+		return nil, fmt.Errorf("ui: only `ui run fleet` and `ui run actions` exist so far: the rest is %w", contract.ErrNotBuilt)
+	}
+	t, err := term.Open()
 	if err != nil {
 		return nil, err
 	}
-	defer term.Restore(fd, old)
-	cols, rows, err := term.GetSize(fd)
-	if err != nil {
-		return nil, err
-	}
-	line := "FLEET · " + contract.ErrNotBuilt.Error()
-	pad := strings.Repeat(" ", max(0, (cols-uniseg.StringWidth(line))/2))
-	fmt.Print("\x1b[?1049h\x1b[2J\x1b[", rows/2+1, ";1H", pad, line)
-	defer fmt.Print("\x1b[?1049l")
-	_, err = os.Stdin.Read(make([]byte, 1))
-	return nil, err
+	defer t.Close()
+	newPane(c.Args[1], t, c.Kit, c.Root, c.Run, contract.Now).loop()
+	return nil, nil
 }
