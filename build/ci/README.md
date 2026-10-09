@@ -17,7 +17,7 @@ It runs every step even after one has failed, prints what each found, and ends w
 | `modules` | the whole module list, not only the direct ones: at most four, each one named |
 | `page` | the weight of everything of the page that is not Go |
 | `commands` | the number of top-level commands |
-| `imports` | the panes, the page and the connection reach neither the store nor the sweep, however many packages lie between, and call no writing method of the store through the kit; the operating system is asked for in one folder only |
+| `imports` | the panes, the page and the connection reach neither the store nor the sweep, however many packages lie between, and nothing they reach names the kit's store at all: they read through its reader; the operating system is asked for in one folder only |
 | `timing` | the commands that must be fast, the middle one of 21 runs each (not on Windows) |
 | `security` | the outside checkers below |
 | `publish` | nothing private in what git would publish |
