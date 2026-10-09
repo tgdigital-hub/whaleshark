@@ -90,6 +90,20 @@ func TestThousandChanges(t *testing.T) {
 	t.Logf("1000 changes, the slowest told after %v, %d told twice", worst, extra)
 }
 
+// TestAChangeAtOnce replaces a file the instant its watcher is there, fifty
+// watchers over: a folder's notices are on before the watcher is handed out.
+func TestAChangeAtOnce(t *testing.T) {
+	state := filepath.Join(t.TempDir(), "state.json")
+	replaceFile(t, state, "start")
+	for i := range 50 {
+		w := real(t, state)
+		text := strconv.Itoa(i)
+		replaceFile(t, state, text)
+		told(t, w, checkEvery/2, state, holds(state, text))
+		w.Close()
+	}
+}
+
 // TestThousandChangesInAFolder spreads a thousand changes over twenty files
 // of a watched folder, half replaced and half written in place, without
 // waiting between them, and wants the last state of every file told.
