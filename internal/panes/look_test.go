@@ -55,3 +55,45 @@ func TestLook(t *testing.T) {
 		}
 	}
 }
+
+// What look round 0 found: at every size a pane says as much as fits, and
+// what it cuts it marks.
+func TestAPaneFitsWhatItSaysToItsSize(t *testing.T) {
+	shows := func(p *pane, texts ...string) {
+		t.Helper()
+		for _, text := range texts {
+			if _, _, ok := p.t.Find(text); !ok {
+				t.Errorf("a %s pane of %dx%d does not show %q:\n%s", p.kind, p.t.W, p.t.H, text, frame(p))
+			}
+		}
+	}
+	p, _, _ := still(t, fleet, 24, 30)
+	shows(p, "FLEET  12 · ▲2   [<][>]", "▲ sign-up pa… needs you", "● price list ▲ to check")
+	p, _, _ = still(t, fleet, 32, 30)
+	shows(p, "FLEET  12 · 2 need you   [<][>]")
+	p, _, _ = still(t, fleet, 40, 48)
+	shows(p, "FLEET  12 · 2 need you      [<] [>] [x]", "tests written · also changes search.…", "clashes with search box: search.js")
+	// The bars are one length, whatever the context bar says.
+	x1, _ := p.find(t, " 20%      ctx unknown")
+	x2, _ := p.find(t, " 30%    ctx ▮")
+	if x1 != x2 {
+		t.Errorf("the figures of two bars stand at %d and %d:\n%s", x1, x2, frame(p))
+	}
+	p, v, _ := still(t, fleet, 40, 30)
+	none := *v
+	none.Sections, none.Counts = nil, contract.Counts{}
+	p.make, p.stale = func(contract.ViewInput) contract.View { return none }, true
+	p.draw()
+	shows(p, "FLEET  0 · 0 need you       [<] [>] [x]", "no agents yet")
+
+	// The action pane: the strip in three lengths, and what does not fit
+	// whole on a line of its own.
+	p, _, _ = still(t, actions, 122, 8)
+	shows(p, "3 waiting · 2 hold work up", "[ Catch me up ]", "[ Yes ]", "▲ photo upload · Which sizes should a photo be kept in?", "● price list · Prices load")
+	p, _, _ = still(t, actions, 85, 6)
+	shows(p, "3 waiting · 2 hold work up", "[Catch up]", "[ Yes ]", "+2 more · j k")
+	p, _, _ = still(t, actions, 60, 3)
+	shows(p, "ACTIONS  3 · ▲2", "[Stop all]", "▲ sign-up page · Must the old sign-up link keep working?")
+	p, _, _ = still(t, actions, 60, 4)
+	shows(p, "▲ sign-up page · Must", "+2 more · j k")
+}

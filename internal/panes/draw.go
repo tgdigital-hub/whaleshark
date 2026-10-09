@@ -393,6 +393,13 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 		if c.Pale && !c.Said.IsZero() {
 			news = "said " + ago(now.Sub(c.Said)) + " ago: " + news
 		}
+		// A change that would conflict is the news; one that only meets
+		// another follows it.
+		if x := c.Clash; x != nil && x.Conflicts {
+			news = "clashes with " + x.Name + ": " + x.File
+		} else if x != nil {
+			news += " · also changes " + x.File
+		}
 		t.Put(3, y+2, w-3, p.cut(news, w-3), st("dim"))
 	}
 }
