@@ -487,7 +487,12 @@ func TestAPaneReadsOnlyWhenAFileChanged(t *testing.T) {
 	}
 }
 
-func TestSlowUpdatesAreSaidWithinTwoSeconds(t *testing.T) {
+// The watcher finds a change no notice told of at its next look, within a
+// second, gives the notice a quarter of a second more, and the pane says so
+// when it next draws the ages, within another second: two and a quarter
+// seconds at the most, and the test changes the file at the worst moment,
+// just after the pane and its watcher began.
+func TestSlowUpdatesAreSaidWithinThreeSeconds(t *testing.T) {
 	for _, kind := range []string{fleet, actions} {
 		t.Run(kind, func(t *testing.T) {
 			wd := start(t, kind, 100, 30, map[string]string{contract.EnvNotices: contract.NoticesOff})
@@ -497,8 +502,8 @@ func TestSlowUpdatesAreSaidWithinTwoSeconds(t *testing.T) {
 			wd.touch()
 			at := time.Now()
 			for !strings.Contains(wd.last(), "slow updates") {
-				if time.Since(at) > 2*time.Second {
-					t.Fatalf("two seconds after a change without a notice the last line is %q", wd.last())
+				if time.Since(at) > 3*time.Second {
+					t.Fatalf("three seconds after a change without a notice the last line is %q", wd.last())
 				}
 				time.Sleep(5 * time.Millisecond)
 			}
@@ -506,6 +511,9 @@ func TestSlowUpdatesAreSaidWithinTwoSeconds(t *testing.T) {
 	}
 }
 
+// The line is dropped just after the pane began, the worst moment: the
+// comparison that finds it is five seconds away, and then takes a snapshot
+// and a draw of its own, which the half second on top is for.
 func TestALostLineIsSaidWithinFiveSeconds(t *testing.T) {
 	for _, kind := range []string{fleet, actions} {
 		t.Run(kind, func(t *testing.T) {
@@ -513,7 +521,7 @@ func TestALostLineIsSaidWithinFiveSeconds(t *testing.T) {
 			wd.herdr.Drop(testkit.PushClosed, "w1:p2")
 			at := time.Now()
 			for !strings.Contains(wd.last(), "herdr: checking every 5 s") {
-				if time.Since(at) > 5*time.Second {
+				if time.Since(at) > 5*time.Second+time.Second/2 {
 					t.Fatalf("five seconds after herdr dropped a line the last line is %q", wd.last())
 				}
 				time.Sleep(5 * time.Millisecond)
