@@ -1,0 +1,82 @@
+# The limits the gate holds the tree to. One limit per line; a figure changes
+# here, in the same commit as the reason for it.
+
+# lines <limit> <name> <folder>...
+# Every line of the shipped files in the folders, blank lines and comments
+# included. More than a tenth over fails. A folder under internal/ with no
+# line here fails too.
+lines 2100 contract internal/contract cmd/whaleshark
+lines 950 platform internal/platform
+lines 1100 cli internal/cli
+lines 1600 rules internal/rules
+lines 500 store internal/store
+lines 800 herdr internal/herdr
+lines 250 guide internal/guide
+lines 950 runtask internal/runtask
+lines 1150 launch internal/launch
+lines 300 worker internal/worker
+lines 950 inbox internal/inbox
+lines 1800 view internal/view
+lines 700 question internal/question
+lines 380 mail internal/mail
+lines 450 notify internal/notify
+lines 1100 gitwt internal/gitwt
+lines 900 integrate internal/integrate
+lines 800 overlap internal/overlap
+lines 1010 doctor internal/doctor
+lines 1150 term internal/term
+lines 2200 panes internal/panes
+lines 150 theme internal/theme
+lines 280 hook internal/hook
+lines 250 team internal/team
+lines 1910 dash internal/dash
+lines 350 push internal/push
+lines 450 connect internal/connect
+lines 250 evidence internal/evidence
+lines 1280 dashweb internal/dashweb
+lines 1180 install install
+
+# What a shipped file is: these endings, but no file or folder named in skip.
+count .go .html .css .js .sh
+skip _test.go testdata testkit
+
+# All of the above together, with no tenth.
+total 28000
+
+# The whole module list, not only the direct ones.
+modules 4
+module github.com/BurntSushi/toml
+module github.com/rivo/uniseg
+module golang.org/x/sys
+module golang.org/x/term
+
+# The program file, in bytes, for each system it is built for.
+size 15000000
+target darwin/arm64
+target darwin/amd64
+target linux/amd64
+target linux/arm64
+target windows/amd64
+
+# Everything of the page that is not Go, in bytes.
+page 100000 internal/dashweb
+
+# Top-level commands.
+commands 42
+
+# time <limit> <command line>: the middle one of 21 runs.
+time 30ms version
+time 30ms hook statusline
+time 30ms hook gate
+
+# noimport <folder> <folder>...: nothing the first folder imports, however
+# far down, may be one of the others, and none of it may call a writing
+# method of the store.
+noimport internal/panes internal/store internal/inbox
+noimport internal/dash internal/store internal/inbox
+noimport internal/connect internal/store internal/inbox
+
+# only <text> <folder>...: the text appears in shipped Go files of these
+# folders and nowhere else.
+only runtime.GOOS internal/platform
+only HERDR_SOCKET_PATH internal/herdr

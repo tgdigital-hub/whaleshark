@@ -1,0 +1,3 @@
+#!/bin/sh
+# Refuse a commit while anything private is in what git would publish.
+exec go run ./build/ci publish

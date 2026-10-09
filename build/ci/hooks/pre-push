@@ -1,0 +1,9 @@
+#!/bin/sh
+# Refuse a push while the tree, or any commit that would leave, holds
+# something private. Git gives one line for each branch or tag being pushed.
+go run ./build/ci publish || exit 1
+while read -r _ local _ remote; do
+  case $local in *[!0]*) ;; *) continue ;; esac
+  case $remote in *[!0]*) range=$remote..$local ;; *) range=$local ;; esac
+  go run ./build/ci history "$range" || exit 1
+done
