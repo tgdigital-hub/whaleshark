@@ -1,7 +1,9 @@
 # The gate on hosted machines: the same program that runs on a developer's
 # own machine. No step here is written by anyone else: the commit is fetched
 # with plain git, and the machine's own Go fetches and checks the toolchain
-# that go.mod names. So there is nothing of another project's to pin.
+# that go.mod names. So there is nothing of another project's to pin. Where
+# a machine has no Go on its path it still has some in its own tool folder,
+# put there by whoever built the machine; the newest of those starts us off.
 name: gate
 
 on:
@@ -33,6 +35,8 @@ jobs:
           git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
           git fetch -q --depth 1 origin "$GITHUB_SHA" || git fetch -q --depth 1 origin "$GITHUB_REF"
           git checkout -q FETCH_HEAD
+      - name: A Go to start from
+        run: command -v go || ls -d "$RUNNER_TOOL_CACHE"/go/*/*/bin | sort -V | tail -1 >> "$GITHUB_PATH"
       - name: The Go that go.mod names
         run: go version
       - name: The gate
@@ -49,6 +53,9 @@ jobs:
           git checkout -q FETCH_HEAD
       - name: Install the checkers, each at an exact version (none is shipped)
         run: |
+          # Each is built with the Go that go.mod names: a checker reads our
+          # code with the Go it was built with, and an older one cannot.
+          export GOTOOLCHAIN="$(go env GOVERSION)"
           go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
           go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
           go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
