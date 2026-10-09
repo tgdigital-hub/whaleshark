@@ -175,7 +175,9 @@ type Platform interface {
 	// Replace renames tmp over final, retrying where another program holds it open.
 	Replace(tmp, final string) error
 	// Read reads a whole file that Replace may be replacing at that moment:
-	// it never stands in a replace's way and never fails because of one.
+	// it never stands in a replace's way and never fails because of one. It
+	// is for a reader that will write the file back: on Windows it takes
+	// half a second to say that a file is not there.
 	Read(path string) ([]byte, error)
 	// Private makes a file or folder readable by the login only.
 	Private(path string) error

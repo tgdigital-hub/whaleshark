@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -348,7 +349,10 @@ func TestASubscriptionCutAtRandomMissesNoChange(t *testing.T) {
 			}
 			if !caughtUp() {
 				got := <-built
-				t.Fatalf("after step %d the picture built from events is\n%+v\nherdr's own is\n%+v", step, got, panes(t, f))
+				where := make([]byte, 1<<20)
+				where = where[:runtime.Stack(where, true)]
+				t.Fatalf("after step %d and %d connections the picture built from events is\n%+v\nherdr's own is\n%+v\nwhere everything stood:\n%s",
+					step, connections.Load(), got, panes(t, f), where)
 			}
 		}
 	}

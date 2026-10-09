@@ -105,10 +105,17 @@ func (s *System) replace(tmp, final string, rename func(string, string) error, s
 }
 
 // Read opens the file so that a replace goes on under it, and waits out
-// another program's hold on it as Replace does.
+// another program's hold on it as Replace does. Measured on Windows: about
+// one replace in 10,000 stalls and leaves the name without a file for up to
+// 216 ms, so a missing file is looked for again there for half a second.
 func (s *System) Read(path string) (data []byte, err error) {
-	err = s.patient(path, heldOpen[1:], func() error { data, err = readFile(path); return err }, time.Sleep)
-	return data, err
+	for wait := time.Millisecond; ; wait *= 2 {
+		err = s.patient(path, heldOpen[1:], func() error { data, err = readFile(path); return err }, time.Sleep)
+		if s.OS != onWindows || !errors.Is(err, fs.ErrNotExist) || wait > 256*time.Millisecond {
+			return data, err
+		}
+		time.Sleep(wait)
+	}
 }
 
 // patient tries again, with growing pauses, what Windows refused with one of

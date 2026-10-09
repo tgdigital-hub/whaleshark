@@ -57,7 +57,7 @@ func told(t *testing.T, w *watcher, within time.Duration, path string, ok func()
 
 func holds(path, text string) func() bool {
 	return func() bool {
-		data, _ := here.Read(path)
+		data, _ := readFile(path) // a look, with no patience for a file that is gone
 		return string(data) == text
 	}
 }
@@ -100,7 +100,7 @@ func TestThousandChangesInAFolder(t *testing.T) {
 	go func() {
 		defer close(done)
 		for p := range w.Changes() {
-			data, _ := here.Read(p)
+			data, _ := readFile(p)
 			seen[p] = string(data)
 		}
 	}()

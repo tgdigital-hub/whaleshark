@@ -300,6 +300,15 @@ func TestRead(t *testing.T) {
 	if _, err := s.Read(path); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("a file that is not there: %v", err)
 	}
+	// Windows is given half a second to finish a replace before the file is
+	// believed missing; no other system needs it.
+	for goos, least := range map[string]time.Duration{onWindows: 500 * time.Millisecond, "linux": 0} {
+		start := time.Now()
+		_, err := on(goos, nil).Read(path)
+		if took := time.Since(start); !errors.Is(err, fs.ErrNotExist) || took < least || took > least+400*time.Millisecond {
+			t.Errorf("%s said %v of a missing file after %v", goos, err, took)
+		}
+	}
 	os.WriteFile(path, []byte("old"), 0o600)
 	if data, err := s.Read(path); err != nil || string(data) != "old" {
 		t.Errorf("read %q, %v", data, err)
