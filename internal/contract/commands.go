@@ -1,6 +1,9 @@
 package contract
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // CallerKind is who runs a command, worked out the same way for every command.
 type CallerKind string
@@ -48,12 +51,24 @@ const (
 	ExitPending = 75
 )
 
+// PhaseE is the engine's phase in a Phase field: it is built between
+// phases 1 and 2 and has a letter for a name.
+const PhaseE = 5
+
+// PhaseName is how a phase is written for a person.
+func PhaseName(phase int) string {
+	if phase == PhaseE {
+		return "E"
+	}
+	return strconv.Itoa(phase)
+}
+
 // Command is one row of the command table: the single source for the parser,
 // the caller check, help and the guides.
 type Command struct {
 	Name    string
 	Section string // of the command set: setup, runs, worker, views, code
-	Phase   int    // the phase that builds it
+	Phase   int    // the phase that builds it; PhaseE for the engine's
 	Who     Who
 	Usage   string
 	Help    string
@@ -82,8 +97,8 @@ type Flag struct {
 // standard input when the path is "-".
 var CommonFlags = flags("json", "run=ID", "root=DIR", "help", "human", "file=PATH")
 
-// flags builds a flag list from "name", "name=VALUE", "name@phase" and
-// "name!" (the human only).
+// flags builds a flag list from "name", "name=VALUE", "name@phase" (a digit)
+// and "name!" (the human only).
 func flags(specs ...string) []Flag {
 	out := make([]Flag, len(specs))
 	for i, s := range specs {
@@ -161,11 +176,18 @@ var Commands = []Command{
 		Usage:   "ui [close] / ui fleet|actions [on|off] / ui menu / ui run <pane>",
 		Help:    "open or close the fleet pane and the action pane in the lead agent's tab",
 		Example: "whaleshark ui fleet off"},
+	{Name: "open", Section: "setup", Phase: PhaseE, Who: H | U, Exits: []int{0, 3},
+		Usage: "open", Help: "the window: your tabs and panes in this terminal; closing it stops nothing",
+		Example: "whaleshark open"},
+	{Name: "engine", Section: "setup", Phase: PhaseE, Who: H | U, Exits: []int{0, 3},
+		Usage: "engine run|stop|status", Help: "the keeper that holds every pane's terminal for this login: run it, stop it, see it",
+		Example: "whaleshark engine status"},
 	{Name: "set", Section: "setup", Phase: 1, Who: H | U, Exits: []int{0, 2},
 		Usage: "set <key> <value>", Help: "your own settings: theme, dnd, mute, nudge.sound, nudge.popup, nudge.phone, actions, fleet.width",
 		Example: "whaleshark set theme kelp"},
 	{Name: "hook", Section: "setup", Phase: 1, Who: all, Exits: []int{0},
-		Usage: "hook statusline / hook gate", Help: "run by an agent's own harness, never typed"},
+		Usage: "hook statusline / hook gate / hook state <event>", Help: "run by an agent's own harness, never typed",
+		Subs: []Sub{{Name: "state", Phase: PhaseE}}},
 
 	{Name: "run", Section: "runs", Phase: 1, Who: O | H, Exits: []int{0, 4, 5},
 		Usage:   `run new "<objective>" [--base REF] [--limit N] [--park] / run list / run show / run use <id> / run close [--abandon] / run rm <id> / run takeover`,

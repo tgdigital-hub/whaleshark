@@ -66,8 +66,8 @@ func (w wireSnapshot) snapshot() *contract.Snapshot {
 	return s
 }
 
-// The kinds of event Events delivers. Created, Updated and Closed are also
-// what it reports when a fresh snapshot shows a change no line told of.
+// herdr's own names for its event lines. Created, Updated and Closed are
+// also what the stream makes of a change that only a fresh snapshot showed.
 const (
 	Created   = "pane_created"
 	Updated   = "pane_updated"
@@ -80,45 +80,12 @@ const (
 	TabNamed  = "tab_renamed"
 )
 
-// Apply brings a picture up to date with one event of Events. TabClosed and
-// TabNamed carry the tab's id, and TabNamed its new label; every other kind
-// carries the pane's whole record as it is after the event, or as it last
-// was when the pane is gone.
-func Apply(s *contract.Snapshot, e contract.HerdrEvent) {
-	panes, found := make([]contract.Pane, 0, len(s.Panes)+1), false
-	for _, p := range s.Panes {
-		switch e.Kind {
-		case Closed, Exited:
-			if p.ID == e.Pane.ID {
-				continue
-			}
-		case TabClosed:
-			if p.Tab == e.Pane.Tab {
-				continue
-			}
-		case TabNamed:
-			if p.Tab == e.Pane.Tab {
-				p.Label = e.Pane.Label
-			}
-		default:
-			if e.Pane.Focused {
-				p.Focused = false
-			}
-			if p.ID == e.Pane.ID {
-				p, found = e.Pane, true
-			}
-		}
-		panes = append(panes, p)
-	}
-	switch e.Kind {
-	case Closed, Exited, TabClosed, TabNamed:
-	default:
-		if !found {
-			panes = append(panes, e.Pane)
-			slices.SortFunc(panes, byID)
-		}
-	}
-	s.Panes = panes
+// ours is the contract's kind of event for each of herdr's lines. herdr has
+// no line for a changed folder or session, so those two kinds never come.
+var ours = map[string]string{
+	Created: contract.EvOpened, Updated: contract.EvState, Closed: contract.EvClosed,
+	Exited: contract.EvClosed, Focused: contract.EvFocus, Status: contract.EvState,
+	Released: contract.EvState, TabClosed: contract.EvTabClosed, TabNamed: contract.EvRenamed,
 }
 
 // The subscription is one connection to herdr's socket, and of the two ways
@@ -146,7 +113,7 @@ type stream struct {
 	conn  net.Conn
 	lines *bufio.Reader
 	pic   *contract.Snapshot
-	out   chan contract.HerdrEvent
+	out   chan contract.TermEvent
 }
 
 // Events subscribes first and takes the snapshot second, so that nothing can
@@ -154,8 +121,8 @@ type stream struct {
 // closes the connection, as it does when it stops, or when ctx ends; the
 // caller then calls Events again. A closed connection and a pane's changed
 // Terminal are the two signs that herdr was restarted.
-func (a *Adapter) Events(ctx context.Context) (*contract.Snapshot, <-chan contract.HerdrEvent, error) {
-	s := &stream{a: a, ctx: ctx, pic: &contract.Snapshot{}, out: make(chan contract.HerdrEvent, 64)}
+func (a *Adapter) Events(ctx context.Context) (*contract.Snapshot, <-chan contract.TermEvent, error) {
+	s := &stream{a: a, ctx: ctx, pic: &contract.Snapshot{}, out: make(chan contract.TermEvent, 64)}
 	first, err := a.Snapshot(ctx)
 	if err == nil {
 		s.pic = first
@@ -294,8 +261,8 @@ func (s *stream) read() {
 }
 
 func (s *stream) emit(kind string, p contract.Pane) bool {
-	e := contract.HerdrEvent{Kind: kind, Pane: p}
-	Apply(s.pic, e)
+	e := contract.TermEvent{Seq: s.pic.Seq + 1, Kind: ours[kind], Pane: p}
+	contract.Apply(s.pic, e)
 	select {
 	case s.out <- e:
 		return true

@@ -1,12 +1,22 @@
 package term
 
-import "fmt"
+import (
+	"fmt"
 
-// Colour is a colour of the full range. The zero value is the terminal's own.
-type Colour uint32
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
+)
+
+// Colour, Style and Cell are the contract's: one cell from the screen reader
+// to the person's terminal. A colour given by its number among the 256 is
+// drawn as one of the full range until the window is built.
+type (
+	Colour = contract.Colour
+	Style  = contract.Style
+	Cell   = contract.Cell
+)
 
 // RGB is the colour 0xRRGGBB.
-func RGB(v uint32) Colour { return Colour(v&0xffffff | 1<<24) }
+func RGB(v uint32) Colour { return contract.RGB(v) }
 
 // Mode is how much colour the terminal takes: the full range, the nearest
 // of 256, or none at all.

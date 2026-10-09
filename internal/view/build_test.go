@@ -66,9 +66,9 @@ func item(t *testing.T, items []contract.Item, id string) contract.Item {
 }
 
 func pane(f *testkit.Fixture, id string) *contract.Pane {
-	for i := range f.Herdr.Panes {
-		if f.Herdr.Panes[i].ID == id {
-			return &f.Herdr.Panes[i]
+	for i := range f.Terms.Panes {
+		if f.Terms.Panes[i].ID == id {
+			return &f.Terms.Panes[i]
 		}
 	}
 	return nil
@@ -87,7 +87,7 @@ func same(t *testing.T, what string, got, want any) {
 func TestAtPrompt(t *testing.T) {
 	f := evening(t)
 	pane(f, "w1:p2").Status = contract.StatusBlocked
-	f.State.Attempts["T1.1"].Herdr.BlockedSince = f.Now.Add(-time.Minute)
+	f.State.Attempts["T1.1"].Seen.BlockedSince = f.Now.Add(-time.Minute)
 	f.State.Questions["n5"] = &contract.Question{ID: "n5", Kind: contract.KindNeed, Form: contract.FormTodo, For: contract.ForHuman,
 		From: contract.FromTool, Cause: contract.CausePrompt, Task: "T1", Attempt: "T1.1", Text: "login page is waiting at a prompt in its tab.",
 		State: contract.QuestionOpen, CreatedAt: f.Now.Add(-time.Minute)}
@@ -172,11 +172,11 @@ func TestPale(t *testing.T) {
 
 // Without herdr's picture the cards come from the record and from what the
 // sweep last saw, and the text says so.
-func TestNoHerdr(t *testing.T) {
+func TestNoTerminals(t *testing.T) {
 	f := evening(t)
 	in := f.Input(contract.Human)
-	in.Herdr, in.Swept, in.Watched = nil, contract.Swept{}, false
-	in.State.Run.Herdr.SeenAt = f.Now.Add(-time.Minute)
+	in.Terms, in.Swept, in.Watched = nil, contract.Swept{}, false
+	in.State.Run.Terms.SeenAt = f.Now.Add(-time.Minute)
 	v := Build(in)
 	c, _ := card(t, v, "T12")
 	same(t, "card", []any{c.Look, c.Tab}, []any{contract.LookIdle, "w1:t13"})
@@ -188,7 +188,7 @@ func TestNoHerdr(t *testing.T) {
 	// A pane with no agent in it, or no pane at all, is silence: idle, never failed.
 	f = evening(t)
 	pane(f, "w1:p2").Agent = ""
-	f.Herdr.Panes = f.Herdr.Panes[:len(f.Herdr.Panes)-1]
+	f.Terms.Panes = f.Terms.Panes[:len(f.Terms.Panes)-1]
 	v = Build(f.Input(contract.Human))
 	for task, tab := range map[string]string{"T1": "w1:t2", "T12": ""} {
 		c, _ := card(t, v, task)
@@ -210,7 +210,7 @@ func TestFailed(t *testing.T) {
 	end("T3.1", contract.AttemptStartFailed, contract.TaskReady)
 	end("T1.1", contract.AttemptStopped, contract.TaskReady)
 	f.State.Attempts["T5.1"].Report = &contract.Report{Outcome: contract.ReportFailed, Summary: "the pages do not build"}
-	f.Herdr.Panes = slices.DeleteFunc(f.Herdr.Panes, func(p contract.Pane) bool { return p.ID == "w1:p10" })
+	f.Terms.Panes = slices.DeleteFunc(f.Terms.Panes, func(p contract.Pane) bool { return p.ID == "w1:p10" })
 	for caller, flag := range map[contract.CallerKind]string{contract.Human: " --human", contract.Orchestrator: ""} {
 		v := Build(whole(f.Input(caller)))
 		for task, want := range map[string][]any{

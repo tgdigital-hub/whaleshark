@@ -20,9 +20,9 @@ import (
 )
 
 // Plug puts the real adapter into the kit.
-func Plug(k *contract.Kit) { k.Herdr = New(k) }
+func Plug(k *contract.Kit) { k.Terms = New(k) }
 
-// Adapter is contract.Herdr over the herdr program on the PATH.
+// Adapter is contract.Terminals over the herdr program on the PATH.
 type Adapter struct {
 	kit *contract.Kit
 	// Call runs herdr once and returns what it printed and its exit code. The
@@ -77,7 +77,7 @@ func (e *Error) Is(target error) bool {
 	case contract.ErrNoPane:
 		return e.Code == "pane_not_found" || e.Code == "agent_not_found"
 	}
-	return target == contract.ErrHerdrUnreachable && e.Code == Unreachable
+	return target == contract.ErrEngineUnreachable && e.Code == Unreachable
 }
 
 // Code returns herdr's code for an error of this package, or "".
@@ -229,8 +229,15 @@ func (a *Adapter) Screen(pane string) (string, error) {
 
 func fraction(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) }
 
-// Split never moves the focus. The new pane's Label is left empty.
+// errEngine is the answer to what only the engine can do.
+var errEngine = errors.New("herdr cannot do this; WhaleShark's own engine will")
+
+// Split never moves the focus. The new pane's Label is left empty. herdr
+// splits to the right and below only, and only by a share.
 func (a *Adapter) Split(pane, direction string, ratio float64) (contract.Pane, error) {
+	if direction == contract.Left || direction == contract.Up || ratio > 1 {
+		return contract.Pane{}, errEngine
+	}
 	var w struct{ Pane record }
 	err := a.call(context.Background(), wait, &w,
 		"pane", "split", pane, "--direction", direction, "--ratio", fraction(ratio), "--no-focus")
@@ -268,7 +275,14 @@ func (a *Adapter) Size(pane string) (w, h int, err error) {
 	return w, h, err
 }
 
+// Overlay is the engine's: herdr has a pop-up only behind a shortcut.
+func (a *Adapter) Overlay([]string, float64, float64) error { return errEngine }
+
+// PaneFocus has only the neighbour form, which is the one way herdr has.
 func (a *Adapter) PaneFocus(pane, direction string) (string, error) {
+	if direction == "" {
+		return "", errEngine
+	}
 	var w struct {
 		Focus struct {
 			Focused string `json:"focused_pane_id"`

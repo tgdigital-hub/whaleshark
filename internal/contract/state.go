@@ -37,7 +37,7 @@ type Run struct {
 	Paused       *Pause       `json:"paused"`
 	Base         *GitRef      `json:"base"`
 	Integration  *Integration `json:"integration"`
-	Herdr        HerdrSeen    `json:"herdr"`
+	Terms        TermsSeen    `json:"terminals"`
 	Lead         LeadSeen     `json:"lead,omitzero"`
 	Findings     []Finding    `json:"findings,omitempty"`
 }
@@ -75,7 +75,8 @@ type Integration struct {
 	Landed string `json:"landed"`
 }
 
-type HerdrSeen struct {
+// TermsSeen is when a sweep last had the terminals' picture.
+type TermsSeen struct {
 	SeenAt time.Time `json:"seen_at,omitzero"`
 }
 
@@ -187,7 +188,7 @@ type Attempt struct {
 	TokenHash  string       `json:"token_hash"`
 	Agent      Agent        `json:"agent"`
 	Place      Place        `json:"place"`
-	Herdr      AgentSeen    `json:"herdr"`
+	Seen       AgentSeen    `json:"seen"`
 	Progress   *Progress    `json:"progress"`
 	Gated      bool         `json:"gated"`
 	Check      *CheckResult `json:"check"`

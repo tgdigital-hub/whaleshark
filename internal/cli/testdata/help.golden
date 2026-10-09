@@ -9,6 +9,8 @@ $ whaleshark     # as the person
   connect   from your own computer: keep one connection to the server for the page and the terminals  (not built yet)
   server    for the administrator, with sudo, on the server: set it up, add people, upgrade  (not built yet)
   ui        open or close the fleet pane and the action pane in the lead agent's tab  (not built yet)
+  open      the window: your tabs and panes in this terminal; closing it stops nothing  (not built yet)
+  engine    the keeper that holds every pane's terminal for this login: run it, stop it, see it  (not built yet)
   set       your own settings: theme, dnd, mute, nudge.sound, nudge.popup, nudge.phone, actions, fleet.width  (not built yet)
   hook      run by an agent's own harness, never typed  (not built yet)
   run       start, list, show, switch, close or delete a run, or bind it to this pane  (not built yet)

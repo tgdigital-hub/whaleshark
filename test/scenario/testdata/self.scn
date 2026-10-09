@@ -16,11 +16,11 @@ kill-wait
 pane fleet: 60x20
 expect-row "login page · done"
 expect-row "search box · working"
-herdr-event blocked T3
+term-event blocked T3
 expect-row "search box · blocked"
-herdr-drop idle T4
+term-drop idle T4
 expect-row "search results · idle"
-herdr-event focused lead
+term-event focused lead
 click "search box"
 expect-last-line "clicked search box"
 type "yes"

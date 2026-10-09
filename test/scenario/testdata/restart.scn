@@ -7,6 +7,6 @@ expect-row "Lead · idle"
 expect-row "sign-up page · working"
 kill-orchestrator
 expect-row "Lead · unknown"
-restart-herdr
+restart-terminals
 expect-row "sign-up page · idle"
 as-worker T2.1: version          -> expect whaleshark

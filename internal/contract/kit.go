@@ -48,9 +48,11 @@ type Handler func(c *Call) (result any, err error)
 // and what they need changed they start as a child command. Rules has no
 // stand-in: the real ones are pure, so a test plugs them in.
 type Kit struct {
-	Rules         Rules
-	Store         Store
-	Herdr         Herdr
+	Rules Rules
+	Store Store
+	Terms Terminals
+	// Pty starts a pane's terminal; the keeper and its tests take it from here.
+	Pty           func(PtySpec) (Pty, error)
 	Platform      Platform
 	Placement     Placement
 	Integrator    Integrator
@@ -72,7 +74,7 @@ type Kit struct {
 // NewKit returns a kit with every stand-in in place and nothing bound.
 func NewKit() *Kit {
 	return &Kit{
-		Store: NoStore{}, Herdr: NoHerdr{}, Platform: NoPlatform{}, Placement: NoPlacement{},
+		Store: NoStore{}, Terms: NoTerminals{}, Pty: NoPty, Platform: NoPlatform{}, Placement: NoPlacement{},
 		Integrator: NoIntegrator{}, Overlap: NoOverlap{}, Notifier: NoNotifier{},
 		Evidence: NoEvidence{}, AgentSettings: NoAgentSettings{}, Sweeper: NoSweeper{},
 		View: noView, Main: listOnly, handlers: map[string]Handler{},

@@ -52,7 +52,7 @@ func (r Rules) Start(s *contract.State, task string, retry, paneHoldsAgent bool,
 	n := &contract.Attempt{
 		ID: fmt.Sprintf("%s.%d", t.ID, len(t.Attempts)+1), Task: t.ID, N: len(t.Attempts) + 1,
 		State: contract.AttemptStarting, StateSince: now, TokenHash: tokenHash, Agent: a, Gated: gated,
-		Herdr: contract.AgentSeen{Liveness: contract.Unverifiable, At: now}, StartedAt: now,
+		Seen: contract.AgentSeen{Liveness: contract.Unverifiable, At: now}, StartedAt: now,
 	}
 	if prev != nil {
 		n.RetryOf = prev.ID
@@ -93,7 +93,7 @@ func (Rules) Working(s *contract.State, id string, now time.Time) error {
 		return err
 	}
 	setState(a, contract.AttemptWorking, now)
-	a.Herdr = contract.AgentSeen{Status: contract.StatusWorking, At: now, Liveness: contract.Live, LastWorking: now}
+	a.Seen = contract.AgentSeen{Status: contract.StatusWorking, At: now, Liveness: contract.Live, LastWorking: now}
 	return nil
 }
 
@@ -133,7 +133,7 @@ func (Rules) Progress(s *contract.State, id string, pct int, note string, now ti
 		return refuse(contract.ExitUsage, "bad_percent", "Progress is a number from 0 to 100.")
 	}
 	a.Progress = &contract.Progress{Pct: pct, Note: note, At: now}
-	a.Herdr.StaleFlagged = false
+	a.Seen.StaleFlagged = false
 	return nil
 }
 
@@ -264,7 +264,7 @@ func (r Rules) Reject(s *contract.State, task, why string, agent contract.Livene
 		setState(a, contract.AttemptWorking, now)
 		a.Round++
 		a.Report, a.Check = nil, nil
-		a.Herdr.LastWorking = now
+		a.Seen.LastWorking = now
 		t.Status = contract.TaskRunning
 		mail(s, a, why, "", now)
 	case agent == contract.Gone:

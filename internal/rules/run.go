@@ -96,7 +96,7 @@ func (Rules) Resume(s *contract.State, now time.Time) error {
 	s.Run.Paused = nil
 	for _, a := range s.Attempts {
 		if a.State == contract.AttemptWorking {
-			a.Herdr.LastWorking = now
+			a.Seen.LastWorking = now
 		}
 	}
 	raise(s, "resumed", nil, nil, "", nil, now)

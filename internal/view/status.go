@@ -69,15 +69,15 @@ func status(c *contract.Call) (any, error) {
 func input(c *contract.Call, s *contract.State, swept contract.Swept) contract.ViewInput {
 	in := contract.ViewInput{
 		Now: c.Now, Caller: c.Caller.Kind, State: s, Limits: contract.ProjectDefaults(),
-		Checked: s.Run.Herdr.SeenAt, Swept: swept, Watched: true,
+		Checked: s.Run.Terms.SeenAt, Swept: swept, Watched: true,
 	}
 	if p, err := contract.ReadProjectFile(c.Root); err == nil {
 		in.Limits = p
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotWait)
 	defer cancel()
-	if snap, err := c.Kit.Herdr.Snapshot(ctx); err == nil && snap != nil {
-		in.Herdr, in.Checked = snap, c.Now
+	if snap, err := c.Kit.Terms.Snapshot(ctx); err == nil && snap != nil {
+		in.Terms, in.Checked = snap, c.Now
 	}
 	dirs, err := c.Kit.Platform.Dirs()
 	if err != nil {

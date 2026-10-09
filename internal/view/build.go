@@ -60,10 +60,10 @@ type builder struct {
 func Build(in contract.ViewInput) *contract.View {
 	all := in.All
 	b := &builder{in: in, s: in.State, seats: map[string]*seat{}}
-	if in.Herdr != nil {
+	if in.Terms != nil {
 		b.panes = map[string]*contract.Pane{}
-		for i := range in.Herdr.Panes {
-			b.panes[in.Herdr.Panes[i].ID] = &in.Herdr.Panes[i]
+		for i := range in.Terms.Panes {
+			b.panes[in.Terms.Panes[i].ID] = &in.Terms.Panes[i]
 		}
 	}
 	v := &contract.View{
@@ -152,7 +152,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 		c.Ctx, c.CtxKnown = f.Pct, true
 	}
 	// What herdr shows now: its picture, or without one what the sweep last saw.
-	status, open := a.Herdr.Status, a.Place.Tab != ""
+	status, open := a.Seen.Status, a.Place.Tab != ""
 	if b.panes != nil {
 		p := b.panes[a.Place.Pane]
 		if status, open = "", open && p != nil; p != nil && p.Agent != "" {
@@ -173,7 +173,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 	case contract.AttemptWorking:
 		c.Look = contract.LookBuilding
 		if status == "" || status == contract.StatusIdle || status == contract.StatusDone {
-			c.Look, c.Since = contract.LookIdle, first(a.Herdr.GoneSince, a.Herdr.LastWorking, a.StateSince)
+			c.Look, c.Since = contract.LookIdle, first(a.Seen.GoneSince, a.Seen.LastWorking, a.StateSince)
 		}
 	case contract.AttemptAsked:
 		c.Look = contract.LookAsking
@@ -210,13 +210,13 @@ func (b *builder) seat(t *contract.Task) *seat {
 		c.Look = contract.LookStopped
 	case !st.live:
 	case status == contract.StatusBlocked:
-		c.Look, c.Since, c.News = contract.LookAtPrompt, first(a.Herdr.BlockedSince, a.StateSince), newsPrompt
+		c.Look, c.Since, c.News = contract.LookAtPrompt, first(a.Seen.BlockedSince, a.StateSince), newsPrompt
 	case b.s.Run.Paused != nil && c.Look != contract.LookToCheck && c.Look != contract.LookCheckFailed:
 		// "Paused" is two facts: the run is paused and herdr shows the agent at rest.
 		c.Look, c.Since = contract.LookPaused, b.s.Run.Paused.At
 		if status == contract.StatusWorking {
 			c.Word = contract.WordFinishing
-			if !a.Gated || !contract.Gates[a.Agent.Kind].Holds || a.Herdr.StillFlagged {
+			if !a.Gated || !contract.Gates[a.Agent.Kind].Holds || a.Seen.StillFlagged {
 				c.Word = contract.WordStillRunning
 			}
 		}
@@ -503,9 +503,9 @@ func (b *builder) around(v *contract.View) {
 			v.Alerts = append(v.Alerts, "most workers stopped together; check your usage limit")
 		}
 	}
-	if in.Herdr == nil {
+	if in.Terms == nil {
 		v.Fresh.Notes = append(v.Fresh.Notes, "herdr not reachable")
-		if in.Now.Sub(run.Herdr.SeenAt) >= time.Minute {
+		if in.Now.Sub(run.Terms.SeenAt) >= time.Minute {
 			v.Alerts = append(v.Alerts, "herdr cannot be reached")
 		}
 	}

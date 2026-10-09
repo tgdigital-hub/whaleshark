@@ -196,7 +196,7 @@ func use(s *contract.State, q *contract.Question, now time.Time) {
 	a, t := s.Attempts[q.Attempt], s.Tasks[q.Task]
 	if a != nil && a.State == contract.AttemptAsked {
 		setState(a, contract.AttemptWorking, now)
-		a.Herdr.LastWorking = now
+		a.Seen.LastWorking = now
 	}
 	if q.Holds && t != nil {
 		decide(t, q, now)

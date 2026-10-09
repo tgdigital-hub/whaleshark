@@ -63,7 +63,7 @@ func until(t *testing.T, what string, done func() bool) {
 	t.Fatalf("after five seconds still not: %s", what)
 }
 
-func panes(t *testing.T, h contract.Herdr) []contract.Pane {
+func panes(t *testing.T, h contract.Terminals) []contract.Pane {
 	t.Helper()
 	s, err := h.Snapshot(context.Background())
 	if err != nil {
@@ -72,7 +72,7 @@ func panes(t *testing.T, h contract.Herdr) []contract.Pane {
 	return s.Panes
 }
 
-func find(t *testing.T, h contract.Herdr, id string) contract.Pane {
+func find(t *testing.T, h contract.Terminals, id string) contract.Pane {
 	t.Helper()
 	for _, p := range panes(t, h) {
 		if p.ID == id {
@@ -204,7 +204,7 @@ func TestTheRealAdapterDrivesTheFakeAsAProgram(t *testing.T) {
 		t.Errorf("through the program:\n%+v\nin this process:\n%+v", pic.Panes, panes(t, f))
 	}
 	f.Push(contract.StatusBlocked, side.ID)
-	if e := <-events; e.Kind != herdr.Status || e.Pane.ID != side.ID || e.Pane.Status != contract.StatusBlocked {
+	if e := <-events; e.Kind != contract.EvState || e.Pane.ID != side.ID || e.Pane.Status != contract.StatusBlocked {
 		t.Errorf("the event was %+v", e)
 	}
 	if err := real.TabRename(tab.Tab, "--focus"); err != nil || find(t, f, tab.ID).Label != "--focus" || find(t, f, tab.ID).Focused {
@@ -264,7 +264,7 @@ func TestALostLineIsOnlyFoundByASnapshot(t *testing.T) {
 	f.Push(contract.StatusBlocked, a.ID)
 	f.Drop(contract.StatusWorking, a.ID)
 	f.Push(contract.StatusWorking, b.ID)
-	herdr.Apply(pic, <-events)
+	contract.Apply(pic, <-events)
 	if slices.Equal(pic.Panes, panes(t, f)) {
 		t.Error("the picture built from events shows a change whose line was lost")
 	}
@@ -279,14 +279,14 @@ func TestTakesTheFixturesPicture(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := start(t)
-	f.Load(fixture.Herdr)
-	slices.SortFunc(fixture.Herdr.Panes, func(a, b contract.Pane) int { return strings.Compare(a.ID, b.ID) })
-	if got := panes(t, f); !slices.Equal(got, fixture.Herdr.Panes) {
-		t.Errorf("the fake shows\n%+v\nthe fixture has\n%+v", got, fixture.Herdr.Panes)
+	f.Load(fixture.Terms)
+	slices.SortFunc(fixture.Terms.Panes, func(a, b contract.Pane) int { return strings.Compare(a.ID, b.ID) })
+	if got := panes(t, f); !slices.Equal(got, fixture.Terms.Panes) {
+		t.Errorf("the fake shows\n%+v\nthe fixture has\n%+v", got, fixture.Terms.Panes)
 	}
 	// What is opened next is numbered past the picture, so it is nobody's.
 	opened, err := f.TabCreate("/work/shop", "new", nil)
-	if err != nil || slices.ContainsFunc(fixture.Herdr.Panes, func(p contract.Pane) bool {
+	if err != nil || slices.ContainsFunc(fixture.Terms.Panes, func(p contract.Pane) bool {
 		return p.ID == opened.ID || p.Tab == opened.Tab || p.Terminal == opened.Terminal
 	}) {
 		t.Errorf("a tab opened after the picture was loaded is %+v, %v", opened, err)
@@ -318,7 +318,7 @@ func TestASubscriptionCutAtRandomMissesNoChange(t *testing.T) {
 			<-built
 			built <- pic.Panes
 			for e := range events {
-				herdr.Apply(pic, e)
+				contract.Apply(pic, e)
 				<-built
 				built <- pic.Panes
 			}

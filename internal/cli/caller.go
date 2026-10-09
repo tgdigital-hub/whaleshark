@@ -56,8 +56,8 @@ func rootOf(c *contract.Call) (string, error) {
 // every command, reading the record and nothing else. sub is the form of the
 // command, which decides who may be told about a record that cannot be read.
 func locate(c *contract.Call, sub string) *contract.Refusal {
-	pane, attempt, run := os.Getenv(contract.EnvPane), os.Getenv(contract.EnvAttempt), os.Getenv(contract.EnvRun)
-	key := os.Getenv(contract.EnvActivePane)
+	pane, key := contract.PaneOf(os.Getenv)
+	attempt, run := os.Getenv(contract.EnvAttempt), os.Getenv(contract.EnvRun)
 	if f := c.Flags["run"]; f != nil {
 		run = f[len(f)-1]
 	}

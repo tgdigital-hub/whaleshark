@@ -144,15 +144,15 @@ func (r *runner) step(kind, rest string) {
 	case "kill-orchestrator":
 		r.kill(func(c running) bool { return c.who == Orch })
 		r.p.Herdr.Push(testkit.PushGone, r.p.Lead)
-	case "restart-herdr":
+	case "restart-terminals":
 		r.p.Herdr.Restart()
 		r.p.restarted = true
-	case "herdr-event", "herdr-drop":
+	case "term-event", "term-drop":
 		w := words(rest)
 		if len(w) != 2 || !slices.Contains(pushes, w[0]) {
 			r.fail("it takes one of %s, then a task, an attempt or lead", strings.Join(pushes, ", "))
 		}
-		if kind == "herdr-event" {
+		if kind == "term-event" {
 			r.p.Herdr.Push(w[0], r.where(w[1]))
 		} else {
 			r.p.Herdr.Drop(w[0], r.where(w[1]))
@@ -187,7 +187,7 @@ func (r *runner) step(kind, rest string) {
 	}
 }
 
-// pushes is what a herdr-event or herdr-drop line may name.
+// pushes is what a term-event or term-drop line may name.
 var pushes = []string{contract.StatusWorking, contract.StatusIdle, contract.StatusDone, contract.StatusBlocked,
 	contract.StatusUnknown, testkit.PushGone, testkit.PushClosed, testkit.PushFocused}
 

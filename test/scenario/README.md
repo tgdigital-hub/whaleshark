@@ -42,14 +42,14 @@ assert: T1 status done; attempts T1.1 accepted; no event lost
 | `task <id> "<title>" [flags]` | short for `orch: task add ...` |
 | `human: <command>` | the person: `--human` is added, from a pane no run records |
 | `human: page: <command>` | a button of the page: its mark and no pane at all |
-| `as-worker <attempt>: <command>` | from that attempt's tab, with the tab's variables; after `restart-herdr` with its pane only |
+| `as-worker <attempt>: <command>` | from that attempt's tab, with the tab's variables; after `restart-terminals` with its pane only |
 | `as-unbound: <command>` | from a pane no run is bound to |
 
 A command must end with exit code 0. `-> expect` at the end of the line says otherwise, or more: `-> expect exit 5 not_bound` wants that exit code, and every word after it must be somewhere in what the command printed. `--ack last` stands for the delivery id the last `wait` printed. A line that ends in `&` is left running, which is how a `wait` or an `ask` is made to block; `kill-wait` ends every waiting `wait`, and whatever still runs is ended with the scenario. A command that is not left running and has not ended after twenty seconds fails the test.
 
 **Time.** The clock stands still at the fixture's moment, or at the moment the scenario began. `clock +30s` moves it for every command and pane, and for every fake agent: the fake herdr hands an agent the clock and the notices switch of the test, as a real herdr hands an agent its own surroundings.
 
-**herdr.** `herdr-event <kind> <task>` changes the fake's picture and pushes the line; `herdr-drop` changes the picture and pushes nothing. The kind is `working`, `idle`, `done`, `blocked`, `unknown`, `gone` (the agent left its pane), `closed` (the pane was closed) or `focused`. In the place of a task, an attempt or `lead` may stand. `restart-herdr` does what the real one does: the same panes, none of our variables in any tab. `kill-orchestrator` ends the lead agent's commands and takes its agent out of its pane.
+**herdr.** `term-event <kind> <task>` changes the fake's picture and pushes the line; `term-drop` changes the picture and pushes nothing. The kind is `working`, `idle`, `done`, `blocked`, `unknown`, `gone` (the agent left its pane), `closed` (the pane was closed) or `focused`. In the place of a task, an attempt or `lead` may stand. `restart-terminals` does what the real one does: the same panes, none of our variables in any tab. `kill-orchestrator` ends the lead agent's commands and takes its agent out of its pane.
 
 **Panes.** `pane fleet: 100x30` starts that pane on a pretended terminal of that size, through the same terminal layer as a real one; `pane actions: 60x30` the other. The steps that follow act on the pane named last; `pane fleet:` with no size turns them back to one that is open, and a size starts the pane again. `click <text>` clicks the first cell of that text, `key <name>` presses one key (`enter`, `esc`, `tab`, `up`, `ctrl+c`, a letter), `type "<text>"` types. `expect-row <text>` waits up to two seconds for some row to show the text, `expect-last-line <text>` for the last line to. `notices off` makes file changes arrive without a notice in every pane and command started after it.
 

@@ -144,6 +144,8 @@ func SetPaused(stateDir string, p *Pause) error {
 
 // The variables a worker's tab is created with, herdr's own pane variable,
 // and the variable that names a file holding the time for a scripted test.
+// EnvPane and EnvActivePane are herdr's names and go with it; the keeper
+// sets EnvTermPane and EnvTermActivePane, and PaneOf reads whichever is there.
 //
 // EnvFrom is where a pane or the page's server says its child command comes
 // from: WherePane, WherePage or WherePhone. The page's server starts its

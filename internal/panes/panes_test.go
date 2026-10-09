@@ -90,8 +90,8 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	if wd.herdr, err = fakeherdr.New(k); err != nil {
 		t.Fatal(err)
 	}
-	wd.herdr.Load(fx.Herdr)
-	k.Herdr = wd.herdr
+	wd.herdr.Load(fx.Terms)
+	k.Terms = wd.herdr
 
 	wd.p = newPane(kind, wd.s.Term, k, home, "", func() time.Time { return fx.Now.Add(time.Duration(wd.clock.Load())) })
 	wd.p.plainMarks = false
@@ -99,7 +99,7 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 		wd.mu.Lock()
 		defer wd.mu.Unlock()
 		v := wd.view
-		v.Fresh, wd.seen = contract.Fresh{Checked: in.Checked, Notes: in.Notes}, in.Herdr
+		v.Fresh, wd.seen = contract.Fresh{Checked: in.Checked, Notes: in.Notes}, in.Terms
 		return v
 	}
 	done := make(chan bool)
@@ -537,7 +537,7 @@ func TestALostLineIsSaidWithinFiveSeconds(t *testing.T) {
 
 func TestAnotherFolderOrSessionCountsNoLostLine(t *testing.T) {
 	wd := start(t, fleet, 100, 30, nil)
-	moved := *wd.fx.Herdr
+	moved := *wd.fx.Terms
 	moved.Panes = slices.Clone(moved.Panes)
 	login(&moved).Cwd, login(&moved).Session = "/work/shop/site", "s-other"
 	wd.herdr.Load(&moved)
@@ -569,7 +569,7 @@ func TestTheComparisonLooksTwiceAtAStatus(t *testing.T) {
 	p := newPane(fleet, termtest.New(40, 10).Term, contract.NewKit(), "", "", func() time.Time { return fx.Now })
 	p.bg = gone
 	with := func(change func(p *contract.Pane)) *contract.Snapshot {
-		s := &contract.Snapshot{Panes: slices.Clone(fx.Herdr.Panes)}
+		s := &contract.Snapshot{Panes: slices.Clone(fx.Terms.Panes)}
 		change(login(s))
 		return s
 	}

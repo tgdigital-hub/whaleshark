@@ -17,8 +17,8 @@ func TestEvening(t *testing.T) {
 	if f.Version != FixtureVersion || f.State.Version != contract.StateVersion || f.Now.Format("15:04") != "21:14" {
 		t.Fatalf("version %d, state %d, now %v", f.Version, f.State.Version, f.Now)
 	}
-	if len(f.State.Tasks) != 19 || len(f.Herdr.Panes) != 13 {
-		t.Errorf("%d tasks and %d panes, want 19 and 13", len(f.State.Tasks), len(f.Herdr.Panes))
+	if len(f.State.Tasks) != 19 || len(f.Terms.Panes) != 13 {
+		t.Errorf("%d tasks and %d panes, want 19 and 13", len(f.State.Tasks), len(f.Terms.Panes))
 	}
 	order := func(l contract.Look) int {
 		return slices.IndexFunc(contract.Looks, func(x contract.LookOf) bool { return x.Look == l })

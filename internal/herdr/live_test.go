@@ -65,7 +65,7 @@ func TestLive(t *testing.T) {
 					t.Fatalf("%s: the event connection closed", what)
 				}
 				t.Logf("%s: %s %+v", what, e.Kind, e.Pane)
-				Apply(pic, e)
+				contract.Apply(pic, e)
 			case <-deadline:
 				for i := range max(len(pic.Panes), len(now.Panes)) {
 					if i >= len(pic.Panes) || i >= len(now.Panes) || pic.Panes[i] != now.Panes[i] {

@@ -32,7 +32,7 @@ func TestTableMatchesCommandSet(t *testing.T) {
 	var got []string
 	for _, c := range Commands {
 		exits := strings.Trim(strings.ReplaceAll(fmt.Sprint(c.Exits), " ", ","), "[]")
-		got = append(got, strings.Join([]string{c.Name, c.Section, fmt.Sprint(c.Phase), marks(c.Who), exits}, " "))
+		got = append(got, strings.Join([]string{c.Name, c.Section, PhaseName(c.Phase), marks(c.Who), exits}, " "))
 	}
 	var lines []string
 	for line := range strings.Lines(string(want)) {
@@ -67,16 +67,16 @@ func TestCounts(t *testing.T) {
 			}
 		}
 	}
-	if len(Commands) != 40 {
-		t.Errorf("%d commands, want 40", len(Commands))
+	if len(Commands) != 42 {
+		t.Errorf("%d commands, want 42", len(Commands))
 	}
-	for name, want := range map[string]int{"setup": 12, "runs": 15, "worker": 4, "views": 6, "code": 3} {
+	for name, want := range map[string]int{"setup": 14, "runs": 15, "worker": 4, "views": 6, "code": 3} {
 		if section[name] != want {
 			t.Errorf("section %s has %d commands, want %d", name, section[name], want)
 		}
 	}
-	if phase[1] != 29 || phase[2] != 8 || phase[3] != 3 {
-		t.Errorf("by phase: %v, want 29, 8 and 3", phase)
+	if phase[1] != 29 || phase[PhaseE] != 2 || phase[2] != 8 || phase[3] != 3 {
+		t.Errorf("by phase: %v, want 29, 2 for the engine, 8 and 3", phase)
 	}
 }
 
@@ -168,8 +168,8 @@ func TestListOnly(t *testing.T) {
 	if code := k.Main(k, []string{"help"}, nil, &out, &errw); code != ExitOK {
 		t.Fatalf("help: exit %d", code)
 	}
-	if n := strings.Count(out.String(), "(not built yet)"); n != 40 || strings.Count(out.String(), "\n") != 40 {
-		t.Errorf("help marks %d commands as not built, want 40", n)
+	if n := strings.Count(out.String(), "(not built yet)"); n != 42 || strings.Count(out.String(), "\n") != 42 {
+		t.Errorf("help marks %d commands as not built, want 42", n)
 	}
 	if code := k.Main(k, []string{"start"}, nil, &out, &errw); code != ExitFailed || !strings.Contains(errw.String(), "not built yet") {
 		t.Errorf("start: exit %d, %q", code, errw.String())

@@ -32,7 +32,7 @@ func (r Rules) Seen(s *contract.State, id string, pane *contract.Pane, startLock
 	if a.State == contract.AttemptStarting {
 		return !startLockHeld && r.StartFailed(s, id, textStartDied, now) == nil
 	}
-	t, h := s.Tasks[a.Task], &a.Herdr
+	t, h := s.Tasks[a.Task], &a.Seen
 	before, state, agent, place := *h, a.State, a.Agent, a.Place
 	seq, items, withdrawn := s.Counters.Seq, s.Counters.Need, false
 	pause := s.Run.Paused
@@ -144,7 +144,7 @@ func stoppedTogether(s *contract.State, now time.Time) {
 			continue
 		}
 		working++
-		if st := a.Herdr.Status; (st == contract.StatusIdle || st == contract.StatusDone) && now.Sub(a.Herdr.LastWorking) <= together {
+		if st := a.Seen.Status; (st == contract.StatusIdle || st == contract.StatusDone) && now.Sub(a.Seen.LastWorking) <= together {
 			idle++
 		}
 	}

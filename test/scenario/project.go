@@ -107,7 +107,7 @@ func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Proje
 		t.Fatal(err)
 	}
 	t.Cleanup(p.Herdr.Close)
-	p.Kit.Herdr = p.Herdr
+	p.Kit.Terms = p.Herdr
 	for id, script := range scripts {
 		p.Herdr.Script(id, script)
 	}
@@ -116,7 +116,7 @@ func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Proje
 	picture := []contract.Pane{{ID: p.Lead, Tab: "w1:t1", Label: "Lead", Cwd: p.Root, Focused: true,
 		Agent: "claude", Status: contract.StatusIdle}}
 	if f != nil {
-		p.now, p.seq, picture = f.Now, f.State.Counters.Seq, f.Herdr.Panes
+		p.now, p.seq, picture = f.Now, f.State.Counters.Seq, f.Terms.Panes
 		if o := f.State.Run.Orchestrator; o != nil {
 			p.Lead = o.Pane
 		}

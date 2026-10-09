@@ -6,19 +6,6 @@ import (
 	"github.com/rivo/uniseg"
 )
 
-// Style is how a cell is drawn.
-type Style struct {
-	Fg, Bg                                Colour
-	Bold, Dim, Underline, Reverse, Strike bool
-}
-
-// Cell is one place on the screen. Text is one character as a person sees
-// it; it is empty in the right half of a character two cells wide.
-type Cell struct {
-	Text  string
-	Style Style
-}
-
 var blank = Cell{Text: " "}
 
 // Grid is what a program draws into: H rows of W cells.
@@ -68,9 +55,9 @@ func (g *Grid) Put(x, y, w int, s string, st Style) int {
 		if x+cw > end {
 			break
 		}
-		g.set(x, y, Cell{c, st})
+		g.set(x, y, Cell{Text: c, Style: st})
 		if cw == 2 {
-			g.set(x+1, y, Cell{"", st})
+			g.set(x+1, y, Cell{Style: st})
 		}
 		x += cw
 	}

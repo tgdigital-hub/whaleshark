@@ -33,13 +33,13 @@ func (r record) Read(_, run string) (*contract.State, error) {
 }
 
 type picture struct {
-	contract.NoHerdr
+	contract.NoTerminals
 	snap *contract.Snapshot
 }
 
 func (p picture) Snapshot(context.Context) (*contract.Snapshot, error) {
 	if p.snap == nil {
-		return nil, contract.ErrHerdrUnreachable
+		return nil, contract.ErrEngineUnreachable
 	}
 	return p.snap, nil
 }
@@ -79,7 +79,7 @@ func call(t *testing.T, f *testkit.Fixture, caller contract.CallerKind, flags ..
 	}
 	write(filepath.Join(dir, "ui.json"), f.UI)
 	k, sw := contract.NewKit(), &sweeps{}
-	k.Store, k.Herdr, k.Sweeper, k.Platform = record{s: &f.State}, picture{snap: f.Herdr}, sw, login{dir: dir}
+	k.Store, k.Terms, k.Sweeper, k.Platform = record{s: &f.State}, picture{snap: f.Terms}, sw, login{dir: dir}
 	Plug(k)
 	out := new(bytes.Buffer)
 	c := &contract.Call{Kit: k, Command: contract.Find("status"), Flags: map[string][]string{}, Caller: contract.Caller{Kind: caller},
@@ -189,7 +189,7 @@ func TestStatusWithout(t *testing.T) {
 	}
 
 	c, out, _ := call(t, f, contract.Human)
-	c.Kit.Herdr, c.Now = picture{}, f.Now.Add(3*time.Minute)
+	c.Kit.Terms, c.Now = picture{}, f.Now.Add(3*time.Minute)
 	if _, err := k(c); err != nil {
 		t.Fatal(err)
 	}

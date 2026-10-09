@@ -13,7 +13,6 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
-	"github.com/tgdigital-hub/whaleshark/internal/herdr"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/theme"
 )
@@ -35,7 +34,7 @@ const (
 // error, or a line for the person.
 type news struct {
 	snap *contract.Snapshot
-	ev   contract.HerdrEvent
+	ev   contract.TermEvent
 	err  error
 	look int
 	said string
@@ -167,7 +166,7 @@ func (p *pane) tell(m news) {
 // listen holds the event connection open and opens it again when it ends.
 func (p *pane) listen() {
 	for p.bg.Err() == nil {
-		snap, events, err := p.k.Herdr.Events(p.bg)
+		snap, events, err := p.k.Terms.Events(p.bg)
 		p.tell(news{snap: snap, err: err})
 		if err != nil {
 			select {
@@ -184,7 +183,7 @@ func (p *pane) listen() {
 
 func (p *pane) snapshot(look int) {
 	p.helper(func() {
-		snap, err := p.k.Herdr.Snapshot(p.bg)
+		snap, err := p.k.Terms.Snapshot(p.bg)
 		p.tell(news{snap: snap, err: err, look: look})
 	})
 }
@@ -201,7 +200,7 @@ func (p *pane) herdr(m news) {
 		}
 	case m.ev.Kind != "":
 		if p.picture != nil {
-			herdr.Apply(p.picture, m.ev)
+			contract.Apply(p.picture, m.ev)
 		}
 	case m.look == 0:
 		p.picture, p.herdrOK = m.snap, p.now()
@@ -316,7 +315,7 @@ func (p *pane) build() {
 	}
 	switch {
 	case p.state != nil:
-		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Herdr: p.picture,
+		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Terms: p.picture,
 			Ctx: p.figures, UI: p.ui, Limits: p.limits, Checked: checked, Notes: notes})
 	case p.readErr != nil && !errors.Is(p.readErr, contract.ErrNoRun):
 		p.view = contract.View{Alerts: []string{"the record cannot be read: " + p.readErr.Error()}, Fresh: contract.Fresh{Notes: notes}}
@@ -467,7 +466,7 @@ func (p *pane) goTo(tab string) {
 		return
 	}
 	p.helper(func() {
-		if err := p.k.Herdr.TabFocus(tab); err != nil {
+		if err := p.k.Terms.TabFocus(tab); err != nil {
 			p.tell(news{said: "cannot go there: " + err.Error()})
 		}
 	})

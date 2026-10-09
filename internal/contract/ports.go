@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -45,14 +46,21 @@ type Store interface {
 	Remove(root, run string) error
 }
 
-// Snapshot is herdr's picture of every pane at one moment.
+// Snapshot is the terminals' picture of every pane at one moment. Instance is
+// new at every start of the keeper, so a restart is seen without inference;
+// Seq is the number of the last event the picture holds. Under herdr, until
+// the swap, Instance is empty and Seq counts what the adapter delivered.
 type Snapshot struct {
-	At    time.Time `json:"at"`
-	Panes []Pane    `json:"panes"`
+	At       time.Time `json:"at"`
+	Instance string    `json:"instance,omitempty"`
+	Seq      uint64    `json:"seq,omitempty"`
+	Panes    []Pane    `json:"panes"`
 }
 
-// Pane is one pane as herdr shows it. Agent is empty when the pane holds a
-// bare shell. Status is one of the Status constants.
+// Pane is one pane as the terminals show it. Agent is empty when the pane
+// holds a bare shell. Status is one of the Status constants. Terminal is new
+// each time the pane's program is started; Workspace is herdr's and goes
+// with it.
 type Pane struct {
 	ID        string `json:"pane"`
 	Tab       string `json:"tab"`
@@ -67,7 +75,7 @@ type Pane struct {
 	Status    string `json:"status"`
 }
 
-// What herdr says an agent is doing. Done and idle are one state to the tool.
+// What an agent is doing. Done and idle are one state to the tool.
 const (
 	StatusWorking = "working"
 	StatusIdle    = "idle"
@@ -76,44 +84,104 @@ const (
 	StatusUnknown = "unknown"
 )
 
-// HerdrEvent is one line of herdr's event stream. Kind is herdr's own name
-// for it; Pane is the whole record when the event carries one.
-type HerdrEvent struct {
-	Kind string
-	Pane Pane
+// The kinds of TermEvent. EvRenamed and EvTabClosed carry the tab's id, and
+// EvRenamed its new label; every other kind carries the pane's whole record
+// as it is after the event, or as it last was when the pane is gone.
+const (
+	EvOpened    = "pane-opened"
+	EvClosed    = "pane-closed"
+	EvState     = "state"
+	EvFocus     = "focus"
+	EvRenamed   = "renamed"
+	EvFolder    = "folder"
+	EvSession   = "session"
+	EvTabClosed = "tab-closed"
+)
+
+// TermEvent is one change, in the order it happened: Seq counts up by one.
+type TermEvent struct {
+	Seq  uint64 `json:"seq"`
+	Kind string `json:"kind"`
+	Pane Pane   `json:"pane"`
 }
 
-// KeyEntry is one shortcut written into herdr's settings: Type is "shell" or "popup".
+// Apply brings a picture up to date with one event of Events.
+func Apply(s *Snapshot, e TermEvent) {
+	byID := func(a, b Pane) int { return strings.Compare(a.ID, b.ID) }
+	panes, found := make([]Pane, 0, len(s.Panes)+1), false
+	for _, p := range s.Panes {
+		switch e.Kind {
+		case EvClosed:
+			if p.ID == e.Pane.ID {
+				continue
+			}
+		case EvTabClosed:
+			if p.Tab == e.Pane.Tab {
+				continue
+			}
+		case EvRenamed:
+			if p.Tab == e.Pane.Tab {
+				p.Label = e.Pane.Label
+			}
+		default:
+			if e.Pane.Focused {
+				p.Focused = false
+			}
+			if p.ID == e.Pane.ID {
+				p, found = e.Pane, true
+			}
+		}
+		panes = append(panes, p)
+	}
+	if e.Kind != EvClosed && e.Kind != EvTabClosed && e.Kind != EvRenamed && !found {
+		panes = append(panes, e.Pane)
+		slices.SortFunc(panes, byID)
+	}
+	s.Panes, s.Seq = panes, max(s.Seq, e.Seq)
+}
+
+// KeyEntry is one shortcut in the settings: Type is "shell" or "popup".
 type KeyEntry struct {
-	Key, Type string
-	Argv      []string
+	Key  string   `toml:"key"`
+	Type string   `toml:"type"`
+	Argv []string `toml:"argv"`
 }
 
-// herdr's refusals that callers tell apart; every other is just an error.
-// ErrAgentNotReady: an agent stopped at a prompt while starting, as opposed
-// to a start that failed; herdr also says it of a prompt or a pointer for an
+// The terminals' refusals that callers tell apart; every other is just an
+// error. ErrAgentNotReady: an agent stopped at a prompt while starting, as
+// opposed to a start that failed; also said of a prompt or a pointer for an
 // agent that is no longer in front in its pane. ErrAgentBlocked: the agent is
 // at a prompt, so nothing is typed. ErrPromptStalled: the prompt was typed
 // and the agent did not start on it. ErrNoPane: the pane or its agent is
-// gone. ErrHerdrUnreachable: no herdr, or its server is not running.
+// gone. ErrEngineUnreachable: the terminals cannot be reached at all.
 var (
-	ErrAgentNotReady    = errors.New("agent_not_ready")
-	ErrAgentBlocked     = errors.New("agent_blocked")
-	ErrPromptStalled    = errors.New("agent_prompt_stalled")
-	ErrNoPane           = errors.New("no such pane or agent")
-	ErrHerdrUnreachable = errors.New("herdr is not reachable")
+	ErrAgentNotReady     = errors.New("agent_not_ready")
+	ErrAgentBlocked      = errors.New("agent_blocked")
+	ErrPromptStalled     = errors.New("agent_prompt_stalled")
+	ErrNoPane            = errors.New("no such pane or agent")
+	ErrEngineUnreachable = errors.New("herdr is not reachable")
 )
 
-// Herdr is the only way to herdr. It has no call that sends a key to an agent.
-type Herdr interface {
+// The directions of Split, Resize and PaneFocus, and what Notify answers.
+const (
+	Right, Down, Left, Up = "right", "down", "left", "up"
+
+	NotifyShown    = "shown"
+	NotifyNoWindow = "no_window"
+	NotifyOff      = "off"
+)
+
+// Terminals is the only way to the panes and what runs in them: the engine's
+// keeper and, until the swap, herdr. It has no call that sends a key to an
+// agent. What a comment gives to the engine alone, herdr's adapter refuses.
+type Terminals interface {
 	Version() (string, error)
 	Snapshot(ctx context.Context) (*Snapshot, error)
-	// Events takes one snapshot, then delivers every change herdr announces
-	// until the server closes the connection, which closes the channel. A
-	// pane's folder and an agent's session change with no line; only the
-	// next snapshot shows them. A status line can come a few tenths of a
-	// second late and after lines of things that happened later.
-	Events(ctx context.Context) (*Snapshot, <-chan HerdrEvent, error)
+	// Events takes one snapshot, then delivers every change in order until
+	// the keeper stops, which closes the channel. Under herdr a pane's folder
+	// and an agent's session change with no event, and a status can come a
+	// few tenths of a second late; only the next snapshot shows the first two.
+	Events(ctx context.Context) (*Snapshot, <-chan TermEvent, error)
 	// TabCreate opens a tab without focusing it; env is KEY=VALUE.
 	TabCreate(cwd, label string, env []string) (Pane, error)
 	TabRename(tab, label string) error
@@ -124,28 +192,36 @@ type Herdr interface {
 	Prompt(name, text string, timeout time.Duration) error
 	// Point types one of the fixed one-line pointers into an agent's pane.
 	Point(pane string, p Pointer, arg string) error
-	// Run types a command line of ids and tool-made paths into a pane's shell.
+	// Run runs a command of ids and tool-made paths in a pane. The keeper
+	// starts it there from the list, in place of the pane's shell, and closes
+	// the pane when it ends; herdr types it into the shell as one line.
 	Run(pane string, argv []string) error
 	// Screen returns the text a pane shows.
 	Screen(pane string) (string, error)
-	// Split opens a pane to the right of or below pane; ratio is the share pane keeps.
+	// Split opens a pane beside pane: Right or Down, and with the engine Left
+	// or Up. A ratio of at most 1 is the share pane keeps; with the engine a
+	// ratio above 1 is the new pane's size in cells, kept as the window changes.
 	Split(pane, direction string, ratio float64) (Pane, error)
 	Swap(source, target string) error
 	// Resize moves a pane's dividing line by a fraction of its split.
 	Resize(pane, direction string, amount float64) error
 	PaneClose(pane string) error
-	// Size is a pane's width and height in cells, its frame included.
+	// Size is a pane's width and height in cells; under herdr its frame is included.
 	Size(pane string) (w, h int, err error)
-	// PaneFocus gives the keys to the pane beside pane in a direction (left,
-	// right, up, down), which is the one way herdr has, and returns the pane
-	// that then has them: pane's neighbour, or with none there whichever had
-	// them before.
+	// PaneFocus gives the keys to the pane beside pane in a direction and
+	// returns the pane that then has them: pane's neighbour, or with none
+	// there whichever had them before. With the engine an empty direction
+	// gives them to pane itself.
 	PaneFocus(pane, direction string) (focused string, err error)
-	// Notify shows herdr's pop-up and returns herdr's reason and its own
-	// pop-up setting, without which the reason cannot be trusted.
+	// Notify shows the pop-up and returns the reason (with the engine one of
+	// the Notify constants) and the pop-up's setting, without which herdr's
+	// reason cannot be trusted.
 	Notify(title, body string, sound bool) (reason, delivery string, err error)
-	// SetKeys replaces our marked entries in herdr's settings file; none removes them.
+	// SetKeys replaces our marked shortcuts in the settings; none removes them.
 	SetKeys(entries []KeyEntry) error
+	// Overlay runs a program in a pane drawn over the tab until it ends; w
+	// and h are shares of the window, or cells above 1. The engine only.
+	Overlay(argv []string, w, h float64) error
 }
 
 // Dirs are the login's three folders of ours.
@@ -297,7 +373,7 @@ type Sweeper interface {
 // thing plugs it in.
 type (
 	NoStore         struct{}
-	NoHerdr         struct{}
+	NoTerminals     struct{}
 	NoPlatform      struct{}
 	NoPlacement     struct{}
 	NoIntegrator    struct{}
@@ -319,30 +395,31 @@ func (NoStore) Append(string, string, []Event) error            { return ErrNotB
 func (NoStore) SetCurrent(string, string) error                 { return ErrNotBuilt }
 func (NoStore) Remove(string, string) error                     { return ErrNotBuilt }
 
-func (NoHerdr) Version() (string, error)                            { return "", ErrNotBuilt }
-func (NoHerdr) Snapshot(context.Context) (*Snapshot, error)         { return nil, ErrNotBuilt }
-func (NoHerdr) TabCreate(string, string, []string) (Pane, error)    { return Pane{}, ErrNotBuilt }
-func (NoHerdr) TabRename(string, string) error                      { return ErrNotBuilt }
-func (NoHerdr) TabFocus(string) error                               { return ErrNotBuilt }
-func (NoHerdr) TabClose(string) error                               { return ErrNotBuilt }
-func (NoHerdr) Prompt(string, string, time.Duration) error          { return ErrNotBuilt }
-func (NoHerdr) Point(string, Pointer, string) error                 { return ErrNotBuilt }
-func (NoHerdr) Run(string, []string) error                          { return ErrNotBuilt }
-func (NoHerdr) Screen(string) (string, error)                       { return "", ErrNotBuilt }
-func (NoHerdr) Split(string, string, float64) (Pane, error)         { return Pane{}, ErrNotBuilt }
-func (NoHerdr) Swap(string, string) error                           { return ErrNotBuilt }
-func (NoHerdr) Resize(string, string, float64) error                { return ErrNotBuilt }
-func (NoHerdr) PaneClose(string) error                              { return ErrNotBuilt }
-func (NoHerdr) Size(string) (int, int, error)                       { return 0, 0, ErrNotBuilt }
-func (NoHerdr) PaneFocus(string, string) (string, error)            { return "", ErrNotBuilt }
-func (NoHerdr) Notify(string, string, bool) (string, string, error) { return "", "", ErrNotBuilt }
-func (NoHerdr) SetKeys([]KeyEntry) error                            { return ErrNotBuilt }
-func (NoHerdr) Events(context.Context) (*Snapshot, <-chan HerdrEvent, error) {
+func (NoTerminals) Version() (string, error)                            { return "", ErrNotBuilt }
+func (NoTerminals) Snapshot(context.Context) (*Snapshot, error)         { return nil, ErrNotBuilt }
+func (NoTerminals) TabCreate(string, string, []string) (Pane, error)    { return Pane{}, ErrNotBuilt }
+func (NoTerminals) TabRename(string, string) error                      { return ErrNotBuilt }
+func (NoTerminals) TabFocus(string) error                               { return ErrNotBuilt }
+func (NoTerminals) TabClose(string) error                               { return ErrNotBuilt }
+func (NoTerminals) Prompt(string, string, time.Duration) error          { return ErrNotBuilt }
+func (NoTerminals) Point(string, Pointer, string) error                 { return ErrNotBuilt }
+func (NoTerminals) Run(string, []string) error                          { return ErrNotBuilt }
+func (NoTerminals) Screen(string) (string, error)                       { return "", ErrNotBuilt }
+func (NoTerminals) Split(string, string, float64) (Pane, error)         { return Pane{}, ErrNotBuilt }
+func (NoTerminals) Swap(string, string) error                           { return ErrNotBuilt }
+func (NoTerminals) Resize(string, string, float64) error                { return ErrNotBuilt }
+func (NoTerminals) PaneClose(string) error                              { return ErrNotBuilt }
+func (NoTerminals) Size(string) (int, int, error)                       { return 0, 0, ErrNotBuilt }
+func (NoTerminals) PaneFocus(string, string) (string, error)            { return "", ErrNotBuilt }
+func (NoTerminals) Notify(string, string, bool) (string, string, error) { return "", "", ErrNotBuilt }
+func (NoTerminals) SetKeys([]KeyEntry) error                            { return ErrNotBuilt }
+func (NoTerminals) Events(context.Context) (*Snapshot, <-chan TermEvent, error) {
 	return nil, nil, ErrNotBuilt
 }
-func (NoHerdr) AgentStart(string, string, string, []string, time.Duration) error {
+func (NoTerminals) AgentStart(string, string, string, []string, time.Duration) error {
 	return ErrNotBuilt
 }
+func (NoTerminals) Overlay([]string, float64, float64) error { return ErrNotBuilt }
 
 func (NoPlatform) Dirs() (Dirs, error)                   { return Dirs{}, ErrNotBuilt }
 func (NoPlatform) Lock(string, bool) (func(), error)     { return nil, ErrNotBuilt }

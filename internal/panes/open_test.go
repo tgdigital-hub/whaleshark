@@ -31,7 +31,7 @@ func newDesk(t *testing.T) *desk {
 		t.Fatal(err)
 	}
 	t.Cleanup(f.Close)
-	k.Herdr = f
+	k.Terms = f
 	d := &desk{t: t, k: k, herdr: f}
 	d.me = d.panes()[0].ID
 	return d

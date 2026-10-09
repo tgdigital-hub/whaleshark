@@ -17,7 +17,7 @@ const FixtureVersion = 1
 // Fixture is one prepared moment: everything the view model is built from,
 // and the view model each kind of caller must then be shown. The fixture
 // builder writes State as the run's state.json, Ctx as the context files and
-// UI as ui.json, and hands Herdr to the fake herdr as its picture.
+// UI as ui.json, and hands Terms to the fake herdr as its picture.
 type Fixture struct {
 	Version   int                         `json:"version"`
 	Name      string                      `json:"name"`
@@ -25,7 +25,7 @@ type Fixture struct {
 	Checked   time.Time                   `json:"checked"`
 	Elsewhere int                         `json:"elsewhere"`
 	State     contract.State              `json:"state"`
-	Herdr     *contract.Snapshot          `json:"herdr"`
+	Terms     *contract.Snapshot          `json:"terminals"`
 	Ctx       map[string]contract.CtxFile `json:"ctx"`
 	UI        contract.UIFile             `json:"ui"`
 	// Views holds the expected view model by caller: "human" and "orchestrator".
@@ -35,7 +35,7 @@ type Fixture struct {
 // Input is the fixture as the view builder takes it, for one caller.
 func (f *Fixture) Input(caller contract.CallerKind) contract.ViewInput {
 	return contract.ViewInput{
-		Now: f.Now, Caller: caller, State: &f.State, Herdr: f.Herdr, Ctx: f.Ctx, UI: f.UI,
+		Now: f.Now, Caller: caller, State: &f.State, Terms: f.Terms, Ctx: f.Ctx, UI: f.UI,
 		Limits: contract.ProjectDefaults(), Elsewhere: f.Elsewhere, Checked: f.Checked,
 		Swept: contract.Swept{Ran: true, At: f.Checked}, Watched: true,
 	}
@@ -71,9 +71,9 @@ var Lines = map[string]string{
 	"clock":             `clock +<duration>                  move the injected clock`,
 	"kill-wait":         `kill-wait                          kill the running wait`,
 	"kill-orchestrator": `kill-orchestrator                  end the orchestrator's session`,
-	"restart-herdr":     `restart-herdr                      the fake herdr restarts as the real one does`,
-	"herdr-event":       `herdr-event <kind> <task>          the fake herdr changes its picture and pushes the line`,
-	"herdr-drop":        `herdr-drop <kind> <task>           the fake herdr changes its picture and pushes nothing`,
+	"restart-terminals": `restart-terminals                  the fake herdr restarts as the real one does`,
+	"term-event":        `term-event <kind> <task>           the fake herdr changes its picture and pushes the line`,
+	"term-drop":         `term-drop <kind> <task>            the fake herdr changes its picture and pushes nothing`,
 	"notices":           `notices on|off                     file changes arrive with or without a notice`,
 	"pane":              `pane fleet|actions: <cols>x<rows>  start a pane on a pretended terminal`,
 	"click":             `click <text>                       click the first cell of that text in the pane`,
@@ -110,7 +110,10 @@ var AgentSteps = map[string]string{
 // attempt in its WHALESHARK_ATTEMPT. The event stream is served on the socket
 // file EnvEvents names, in herdr's own lines.
 const (
-	EnvFake   = "FAKEHERDR_SOCKET"
+	EnvFake = "FAKEHERDR_SOCKET"
+	// EnvCorpus names a second folder of recordings for the replay tests of
+	// the engine, beside test/corpus: recordings that are not published.
+	EnvCorpus = "WHALESHARK_CORPUS_EXTRA"
 	EnvEvents = "FAKEHERDR_EVENTS"
 	EnvAgent  = "FAKEHERDR_AGENT"
 )
@@ -138,7 +141,7 @@ const (
 
 // FakeHerdr is the fake as the scenario runner drives it in its own process.
 type FakeHerdr interface {
-	contract.Herdr
+	contract.Terminals
 	// Script registers what the fake agent of an attempt plays.
 	Script(attempt, script string)
 	// Push changes the picture of a pane and pushes the line; Drop changes

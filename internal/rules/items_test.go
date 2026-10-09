@@ -473,11 +473,11 @@ func TestSeen(t *testing.T) {
 				if got != st.want {
 					t.Errorf("step %d at %v: changed %v, want %v", i, st.at, got, st.want)
 				}
-				s.Attempts["T1.1"].Herdr.LastWorking = time.Time{}
+				s.Attempts["T1.1"].Seen.LastWorking = time.Time{}
 				cmp := snapshot(s)
 				var before contract.State
 				json.Unmarshal([]byte(was), &before)
-				before.Attempts["T1.1"].Herdr.LastWorking = time.Time{}
+				before.Attempts["T1.1"].Seen.LastWorking = time.Time{}
 				if !got && cmp != snapshot(&before) {
 					t.Errorf("step %d said nothing changed, and something did", i)
 				}
@@ -486,8 +486,8 @@ func TestSeen(t *testing.T) {
 				}
 			}
 			a := s.Attempts["T1.1"]
-			if got := kinds(s); !slices.Equal(got, row.events) || a.State != row.attempt || a.Herdr.Liveness != row.liveness {
-				t.Errorf("events %v, attempt %s, liveness %s; want %v, %s, %s", got, a.State, a.Herdr.Liveness, row.events, row.attempt, row.liveness)
+			if got := kinds(s); !slices.Equal(got, row.events) || a.State != row.attempt || a.Seen.Liveness != row.liveness {
+				t.Errorf("events %v, attempt %s, liveness %s; want %v, %s, %s", got, a.State, a.Seen.Liveness, row.events, row.attempt, row.liveness)
 			}
 		})
 	}

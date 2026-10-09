@@ -636,7 +636,7 @@ func big() *contract.State {
 		s.Attempts[id+".1"] = &contract.Attempt{ID: id + ".1", Task: id, N: 1, State: contract.AttemptWorking, StateSince: now,
 			TokenHash: strings.Repeat("ab", 32), Agent: contract.Agent{Kind: "claude", Name: "h1a2b-r1-t" + strconv.Itoa(i) + "-1"},
 			Place:    contract.Place{Tab: "w1:t" + strconv.Itoa(i), Pane: "w1:p" + strconv.Itoa(i), Workspace: "w1", Cwd: "project", OpenedByUs: true},
-			Herdr:    contract.AgentSeen{Status: contract.StatusWorking, At: now, Liveness: contract.Live, LastWorking: now},
+			Seen:     contract.AgentSeen{Status: contract.StatusWorking, At: now, Liveness: contract.Live, LastWorking: now},
 			Progress: &contract.Progress{Pct: 40, Note: "half of the tests pass, working on the rest", At: now}, StartedAt: now}
 	}
 	for i := 1; i <= 1000; i++ {

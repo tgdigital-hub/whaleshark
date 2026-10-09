@@ -190,9 +190,9 @@ func TestEventsSplitLinesAndEndWithTheConnection(t *testing.T) {
 	var kinds []string
 	for e := range events {
 		kinds = append(kinds, e.Kind)
-		Apply(pic, e)
+		contract.Apply(pic, e)
 	}
-	if want := []string{Status, Focused, TabNamed, Released, TabClosed}; !slices.Equal(kinds, want) {
+	if want := []string{ours[Status], ours[Focused], ours[TabNamed], ours[Released], ours[TabClosed]}; !slices.Equal(kinds, want) {
 		t.Errorf("events %v, want %v", kinds, want)
 	}
 	want := []contract.Pane{{ID: "w1:p2", Tab: "w1:t2", Workspace: "w1", Terminal: "term_b", Label: "new name",

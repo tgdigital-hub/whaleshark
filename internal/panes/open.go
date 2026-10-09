@@ -46,7 +46,7 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 	if err != nil {
 		return nil, err
 	}
-	snap, err := k.Herdr.Snapshot(context.Background())
+	snap, err := k.Terms.Snapshot(context.Background())
 	if err != nil {
 		return nil, cannot("The panes cannot be opened: %v.", err)
 	}
@@ -77,7 +77,7 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 		case p.Tab != panes[me].Tab:
 			return nil, cannot("The panes are open in another tab (%s): run `whaleshark ui close` there first.", p.Label)
 		case o.kind == fleet:
-			if w, _, err := k.Herdr.Size(p.ID); err == nil && w > 0 {
+			if w, _, err := k.Terms.Size(p.ID); err == nil && w > 0 {
 				ui.FleetWidth = w
 			}
 		}
@@ -90,7 +90,7 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 	// The conversation's pane is as wide as the tab while the fleet is closed.
 	w := 0
 	if wantFleet && !fl.open {
-		w, _, _ = k.Herdr.Size(me)
+		w, _, _ = k.Terms.Size(me)
 	}
 	if w > 0 && w < noneBelow {
 		return nil, cannot("This terminal is %d columns wide, too narrow for panes: `whaleshark status` shows the same.", w)
@@ -99,13 +99,13 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 	// action pane, so an action pane that is in its way is opened again.
 	again := wantFleet && !fl.open && ac.open
 	if ac.open && (!wantActions || again) {
-		if err := k.Herdr.PaneClose(*ac.pane); err != nil {
+		if err := k.Terms.PaneClose(*ac.pane); err != nil {
 			return nil, err
 		}
 		*ac.pane, *ac.term, ac.open = "", "", false
 	}
 	if fl.open && !wantFleet {
-		if err := k.Herdr.PaneClose(*fl.pane); err != nil {
+		if err := k.Terms.PaneClose(*fl.pane); err != nil {
 			return nil, err
 		}
 		*fl.pane, *fl.term, fl.open = "", "", false
@@ -115,11 +115,11 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 		self = "whaleshark"
 	}
 	split := func(kind, direction string, keep float64, pane, term *string) error {
-		p, err := k.Herdr.Split(me, direction, keep)
+		p, err := k.Terms.Split(me, direction, keep)
 		if err == nil {
 			*pane, *term = p.ID, p.Terminal
 			// exec, so that the pane closes with its program.
-			err = k.Herdr.Run(p.ID, []string{"exec", self, "ui", "run", kind, "--root", c.Root})
+			err = k.Terms.Run(p.ID, []string{"exec", self, "ui", "run", kind, "--root", c.Root})
 		}
 		return err
 	}

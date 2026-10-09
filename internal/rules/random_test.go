@@ -133,7 +133,7 @@ func invariants(s *contract.State) string {
 		if t := s.Tasks[a.Task]; t == nil || !slices.Contains(t.Attempts, id) {
 			fail("%s is not an attempt of its task", id)
 		}
-		if a.State.Live() && a.Herdr.Liveness == "" {
+		if a.State.Live() && a.Seen.Liveness == "" {
 			fail("%s has no liveness", id)
 		}
 	}

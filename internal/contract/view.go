@@ -108,8 +108,8 @@ type ViewInput struct {
 	Now    time.Time
 	Caller CallerKind
 	State  *State
-	// Herdr is herdr's picture, nil when herdr cannot be reached.
-	Herdr *Snapshot
+	// Terms is the terminals' picture, nil when they cannot be reached.
+	Terms *Snapshot
 	// Ctx is each agent's context figure by pane id.
 	Ctx    map[string]CtxFile
 	UI     UIFile

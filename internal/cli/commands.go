@@ -132,7 +132,7 @@ func help(c *contract.Call) (any, error) {
 	for _, f := range r.Flags[:len(cmd.Flags)] {
 		note := ""
 		if f.Phase != 0 {
-			note = fmt.Sprintf("  (phase %d)", f.Phase)
+			note = "  (phase " + contract.PhaseName(f.Phase) + ")"
 		}
 		if f.Who != nil {
 			note += "  (the person only)"
@@ -150,7 +150,7 @@ func help(c *contract.Call) (any, error) {
 		line("Example:", r.Example)
 	}
 	if !r.Built {
-		fmt.Fprintf(c.Out, "\nNot built yet: it comes with phase %d.\n", cmd.Phase)
+		fmt.Fprintf(c.Out, "\nNot built yet: it comes with phase %s.\n", contract.PhaseName(cmd.Phase))
 	}
 	return r, nil
 }
@@ -174,7 +174,7 @@ func version(c *contract.Call) (any, error) {
 		}
 	}
 	seen := "not seen"
-	if h, err := c.Kit.Herdr.Version(); err == nil {
+	if h, err := c.Kit.Terms.Version(); err == nil {
 		v.Herdr, seen = h, h
 	}
 	fmt.Fprintf(c.Out, "whaleshark %s (%s)\nherdr %s\n", v.Version, v.Build, Plain(seen))
