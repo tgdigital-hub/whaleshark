@@ -41,8 +41,11 @@ count .go .html .css .js .sh
 skip _test.go testdata testkit
 
 # All of the above together, with no tenth. The folders above are planned
-# at 27,600 and the four look rounds at 400 more: all of the 28,000.
-total 28000
+# at 27,600 and the four look rounds at 400 more: 28,000. The cap was that
+# figure until the project decided to build its own terminal engine and
+# depend on no other program; the engine's folders get their lines here when
+# they are created.
+total 40000
 
 # The whole module list, not only the direct ones.
 modules 4

@@ -2,11 +2,19 @@
 
 WhaleShark (`whaleshark`) will be a small command-line tool for running a team of coding agents: you talk to one lead agent, it hands tasks to worker agents in their own terminal tabs, and the tool keeps the record of who is doing what, who is stuck and what is waiting to be checked.
 
-The aim is Orca's way of orchestrating many agents, with herdr's lightness: one program file, no desktop app, and nothing of ours running out of sight unless you switch it on.
+The aim is Orca's way of orchestrating many agents, with herdr's lightness: one program file, no desktop app, and nothing else to install.
 
 ## Status
 
-**Early: the foundation and the first layer. Nothing that runs an agent works yet.** This repository holds the shared contracts the rest is built on (the shapes of the files, the view model, the interfaces between the packages, the table of all 40 commands) and the first packages on top of them: the command line itself, the rules for every change to a run, the layer over the operating system, the adapter to herdr, the guides, the terminal layer and the build gate. `whaleshark help` lists every command and marks those not built yet; `help`, `version` and `guide` work.
+**Early: the foundation and the first layer. Nothing that runs an agent works yet.** This repository holds the shared contracts the rest is built on (the shapes of the files, the view model, the interfaces between the packages, the table of all 40 commands) and the first packages on top of them: the command line itself, the rules for every change to a run, the layer over the operating system, the adapter to herdr, the guides, the terminal layer, the build gate, the store, the view of a run and the first form of the two panes. `whaleshark help` lists every command and marks those not built yet.
+
+## The terminal engine
+
+WhaleShark is getting its own terminal engine, so that it needs nothing else installed. The engine is the part that keeps the agents' terminals alive in the background, draws the tabs and the panes, and reads what each program prints. **It is not built yet.**
+
+The current code uses herdr, a separate program that you would install yourself, only as scaffolding while that engine is built. It calls herdr and contains none of its code. When the engine is in, herdr is taken out completely, and nothing is released before that.
+
+The price is size: the limit on everything shipped moved from 28,000 lines to 40,000 to make room for the engine.
 
 ## Building
 
@@ -61,4 +69,4 @@ MIT; see `LICENSE`.
 
 WhaleShark borrows ideas from [Orca](https://github.com/stablyai/orca) (MIT licence, copyright Lovecast Inc.): a run, its tasks and their attempts as separate things, an inbox that replays until it is acknowledged, a question that blocks and survives a timeout, and never taking silence for failure. No code or text was taken from Orca or from any other project: every line here was written for WhaleShark.
 
-It runs on herdr, a separate program that you install yourself. WhaleShark contains none of it.
+The current code calls herdr, a separate program, as scaffolding until WhaleShark's own engine replaces it (see "The terminal engine" above). WhaleShark contains none of herdr's code.
