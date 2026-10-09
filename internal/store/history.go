@@ -15,8 +15,8 @@ import (
 // version holds the history to the version of the record beside it, the one
 // version a run has: the lines of a run this program is too old for are
 // neither read nor added to. A run with no record is no run.
-func version(dir string) error {
-	err := contract.ReadVersioned(filepath.Join(dir, stateFile), contract.StateVersion, new(contract.Versioned))
+func (st *Store) version(dir string) error {
+	err := contract.ReadVersioned(st.p.Peek, filepath.Join(dir, stateFile), contract.StateVersion, new(contract.Versioned))
 	if _, missing := os.Stat(filepath.Join(dir, stateFile)); err == nil && missing != nil {
 		return contract.ErrNoRun
 	}
@@ -27,7 +27,7 @@ func version(dir string) error {
 // is one a writer was cut off in, and is left out.
 func (st *Store) History(root, run string) (events []contract.Event, err error) {
 	err = st.locked(root, run, false, func(dir string) error {
-		if err := version(dir); err != nil {
+		if err := st.version(dir); err != nil {
 			return err
 		}
 		data, err := os.ReadFile(filepath.Join(dir, historyFile))
@@ -66,7 +66,7 @@ func (st *Store) Append(root, run string, events []contract.Event) error {
 		return nil
 	}
 	return st.locked(root, run, true, func(dir string) error {
-		if err := version(dir); err != nil {
+		if err := st.version(dir); err != nil {
 			return refused(err)
 		}
 		path := filepath.Join(dir, historyFile)

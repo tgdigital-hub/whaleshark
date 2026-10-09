@@ -36,6 +36,23 @@ func (r reader) Read(string, string) (*contract.State, error) {
 func (r reader) Current(string) (string, error) { return "r3", nil }
 func (r reader) Dir(_, run string) string       { return filepath.Join(r.dir, run) }
 
+// system is this system with a home of its own and env for its environment.
+// Windows keeps a program's files in two folders its environment names and
+// has no rule without them, so there they lie inside the home too.
+func system(home string, env map[string]string) *platform.System {
+	sys := platform.New(runtime.GOOS)
+	sys.Home, sys.Env = home, func(name string) string {
+		switch name {
+		case "APPDATA":
+			return filepath.Join(home, "roaming")
+		case "LOCALAPPDATA":
+			return filepath.Join(home, "local")
+		}
+		return env[name]
+	}
+	return sys
+}
+
 // world is one pane on a pretended terminal, drawing the view model of the
 // evening fixture, with a fake herdr holding the fixture's picture and real
 // file notices on a folder of its own.
@@ -45,6 +62,7 @@ type world struct {
 	p     *pane
 	herdr *fakeherdr.Fake
 	fx    *testkit.Fixture
+	sys   *platform.System
 	file  string // the run's state.json
 	h     int
 	clock atomic.Int64
@@ -64,9 +82,8 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	wd := &world{t: t, s: termtest.New(w, h), h: h, fx: fx, view: *fx.Views[contract.Human]}
 	home := t.TempDir()
 	k := contract.NewKit()
-	sys := platform.New(runtime.GOOS)
-	sys.Home, sys.Env = home, func(name string) string { return env[name] }
-	k.Platform, k.Store = sys, reader{dir: home, state: &fx.State, reads: &wd.reads}
+	wd.sys = system(home, env)
+	k.Platform, k.Store = wd.sys, reader{dir: home, state: &fx.State, reads: &wd.reads}
 	wd.file = filepath.Join(home, "r3", "state.json")
 	os.MkdirAll(filepath.Dir(wd.file), 0o700)
 	wd.touch()
@@ -99,9 +116,15 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	return wd
 }
 
-// touch replaces the record's file, as a command of ours does when it ends.
+// touch replaces the record's file, as a command of ours does when it ends:
+// a finished file is moved over it. Written in place it would be three
+// changes on Windows, cut short, written and closed, each with its notice.
 func (wd *world) touch() {
-	if err := os.WriteFile(wd.file, []byte(time.Now().String()), 0o600); err != nil {
+	err := os.WriteFile(wd.file+".tmp", []byte(time.Now().String()), 0o600)
+	if err == nil {
+		err = wd.sys.Replace(wd.file+".tmp", wd.file)
+	}
+	if err != nil {
 		wd.t.Fatal(err)
 	}
 }
@@ -464,7 +487,12 @@ func TestAPaneReadsOnlyWhenAFileChanged(t *testing.T) {
 	}
 }
 
-func TestSlowUpdatesAreSaidWithinTwoSeconds(t *testing.T) {
+// The watcher finds a change no notice told of at its next look, within a
+// second, gives the notice a quarter of a second more, and the pane says so
+// when it next draws the ages, within another second: two and a quarter
+// seconds at the most, and the test changes the file at the worst moment,
+// just after the pane and its watcher began.
+func TestSlowUpdatesAreSaidWithinThreeSeconds(t *testing.T) {
 	for _, kind := range []string{fleet, actions} {
 		t.Run(kind, func(t *testing.T) {
 			wd := start(t, kind, 100, 30, map[string]string{contract.EnvNotices: contract.NoticesOff})
@@ -474,8 +502,8 @@ func TestSlowUpdatesAreSaidWithinTwoSeconds(t *testing.T) {
 			wd.touch()
 			at := time.Now()
 			for !strings.Contains(wd.last(), "slow updates") {
-				if time.Since(at) > 2*time.Second {
-					t.Fatalf("two seconds after a change without a notice the last line is %q", wd.last())
+				if time.Since(at) > 3*time.Second {
+					t.Fatalf("three seconds after a change without a notice the last line is %q", wd.last())
 				}
 				time.Sleep(5 * time.Millisecond)
 			}
@@ -483,6 +511,9 @@ func TestSlowUpdatesAreSaidWithinTwoSeconds(t *testing.T) {
 	}
 }
 
+// The line is dropped just after the pane began, the worst moment: the
+// comparison that finds it is five seconds away, and then takes a snapshot
+// and a draw of its own, which the half second on top is for.
 func TestALostLineIsSaidWithinFiveSeconds(t *testing.T) {
 	for _, kind := range []string{fleet, actions} {
 		t.Run(kind, func(t *testing.T) {
@@ -490,7 +521,7 @@ func TestALostLineIsSaidWithinFiveSeconds(t *testing.T) {
 			wd.herdr.Drop(testkit.PushClosed, "w1:p2")
 			at := time.Now()
 			for !strings.Contains(wd.last(), "herdr: checking every 5 s") {
-				if time.Since(at) > 5*time.Second {
+				if time.Since(at) > 5*time.Second+time.Second/2 {
 					t.Fatalf("five seconds after herdr dropped a line the last line is %q", wd.last())
 				}
 				time.Sleep(5 * time.Millisecond)

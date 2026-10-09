@@ -298,6 +298,10 @@ func TestTakesTheFixturesPicture(t *testing.T) {
 // picture built from one snapshot and the events after it ends up equal to
 // herdr's own.
 func TestASubscriptionCutAtRandomMissesNoChange(t *testing.T) {
+	// How many milliseconds the reader is waited for before it counts as
+	// stuck. It is no promise of speed: a hosted machine that runs other
+	// tests beside this one can keep a goroutine waiting for seconds.
+	const patience = 30000
 	f := start(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -321,6 +325,16 @@ func TestASubscriptionCutAtRandomMissesNoChange(t *testing.T) {
 		}
 	}()
 
+	subscribed := func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return len(f.subs) > 0
+	}
+	// cuts counts the cuts that closed a connection somebody read. The
+	// reader's new connections do not: a cut that falls while it is
+	// connecting again for a new pane closes the old connection only, and it
+	// reads on from the new one.
+	cuts := 0
 	random := rand.New(rand.NewPCG(1, 2))
 	states := []string{contract.StatusWorking, contract.StatusIdle, contract.StatusDone, contract.StatusBlocked, "gone", "focused"}
 	for step := range 1500 {
@@ -345,7 +359,16 @@ func TestASubscriptionCutAtRandomMissesNoChange(t *testing.T) {
 		case n < 16:
 			f.TabFocus(pick.Tab)
 		case n < 18:
+			// Every other cut waits until somebody is subscribed again: this
+			// loop talks to nobody and outruns the reader on a busy machine,
+			// where the cuts after the first would find nothing to cut.
+			if subscribed() {
+				cuts++
+			}
 			f.Cut()
+			for wait := 0; n == 17 && !subscribed() && wait < patience; wait++ {
+				time.Sleep(time.Millisecond)
+			}
 		case n < 20 && pick.Agent == "":
 			f.AgentStart("again-"+strings.ReplaceAll(pick.ID, ":", "-"), "claude", pick.ID, nil, time.Minute)
 		default:
@@ -357,10 +380,7 @@ func TestASubscriptionCutAtRandomMissesNoChange(t *testing.T) {
 				built <- got
 				return slices.Equal(got, panes(t, f))
 			}
-			for range 300 {
-				if caughtUp() {
-					break
-				}
+			for wait := 0; !caughtUp() && wait < patience; wait += 10 {
 				time.Sleep(10 * time.Millisecond)
 			}
 			if !caughtUp() {
@@ -372,7 +392,7 @@ func TestASubscriptionCutAtRandomMissesNoChange(t *testing.T) {
 			}
 		}
 	}
-	if connections.Load() < 10 {
-		t.Errorf("the connection was cut only %d times; the test proves little", connections.Load())
+	if cuts < 10 {
+		t.Errorf("the connection was cut only %d times, and made %d times; the test proves little", cuts, connections.Load())
 	}
 }

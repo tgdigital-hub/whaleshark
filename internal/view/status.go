@@ -83,8 +83,8 @@ func input(c *contract.Call, s *contract.State, swept contract.Swept) contract.V
 	if err != nil {
 		return in
 	}
-	contract.ReadVersioned(filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &in.UI)
-	in.Ctx = contract.ReadCtx(dirs.State, s)
+	contract.ReadVersioned(c.Kit.Platform.Peek, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &in.UI)
+	in.Ctx = contract.ReadCtx(c.Kit.Platform.Peek, dirs.State, s)
 	return in
 }
 

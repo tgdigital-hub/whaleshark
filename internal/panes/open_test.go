@@ -5,12 +5,10 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
-	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/test/fakeherdr"
 )
 
@@ -27,9 +25,7 @@ func newDesk(t *testing.T) *desk {
 	t.Parallel()
 	home := t.TempDir()
 	k := contract.NewKit()
-	sys := platform.New(runtime.GOOS)
-	sys.Home, sys.Env = home, func(string) string { return "" }
-	k.Platform = sys
+	k.Platform = system(home, nil)
 	f, err := fakeherdr.New(k)
 	if err != nil {
 		t.Fatal(err)
@@ -90,11 +86,15 @@ func TestUIOpensBothPanesOnceAndClosesOnlyItsOwn(t *testing.T) {
 	if err != nil || o.Fleet == "" || o.Actions == "" {
 		t.Fatalf("ui: %+v, %v", o, err)
 	}
+	// The line typed into a pane is spelled for the shell of this system.
 	self, _ := d.k.Platform.SelfPath()
+	typed := func(kind string) string {
+		return d.k.Platform.Quote("", []string{"exec", self, "ui", "run", kind, "--root", "/project"})
+	}
 	want := "pane split " + d.me + " --direction right --ratio 0.7 --no-focus\n" +
-		"pane run " + o.Fleet + " exec " + self + " ui run fleet --root /project\n" +
+		"pane run " + o.Fleet + " " + typed("fleet") + "\n" +
 		"pane split " + d.me + " --direction down --ratio 0.75 --no-focus\n" +
-		"pane run " + o.Actions + " exec " + self + " ui run actions --root /project"
+		"pane run " + o.Actions + " " + typed("actions")
 	if got := d.did(); got != want {
 		t.Errorf("ui asked herdr for\n%s\nwant\n%s", got, want)
 	}
@@ -203,7 +203,7 @@ func TestUIFitsTheFleetToTheScreen(t *testing.T) {
 		d.herdr.Width = c.width
 		dirs, _ := d.k.Platform.Dirs()
 		file := filepath.Join(dirs.State, "ui.json")
-		if err := contract.WriteVersioned(d.k.Platform.Replace, file, contract.FileVersion, contract.UIFile{Versioned: contract.Versioned{Version: contract.FileVersion}, FleetWidth: c.kept}); err != nil {
+		if err := contract.WriteVersioned(d.k.Platform, file, contract.FileVersion, contract.UIFile{Versioned: contract.Versioned{Version: contract.FileVersion}, FleetWidth: c.kept}); err != nil {
 			t.Fatal(err)
 		}
 		d.did()

@@ -6,7 +6,10 @@
 # included. More than a tenth over fails. A folder under internal/ with no
 # line here fails too.
 lines 2400 contract internal/contract cmd/whaleshark
-lines 1100 platform internal/platform
+# platform: 35 more than planned, for a Windows watcher that asks for a
+# folder's changes before Watch returns; the shorter one lost the changes of
+# its first instants.
+lines 1135 platform internal/platform
 lines 900 cli internal/cli
 lines 1600 rules internal/rules
 lines 500 store internal/store

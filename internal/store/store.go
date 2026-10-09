@@ -72,8 +72,8 @@ func (st *Store) locked(root, run string, exclusive bool, fn func(dir string) er
 
 // load reads a run's record and passes it through the validator again. data
 // is the file as it stands.
-func load(dir, run string) (*contract.State, []byte, error) {
-	data, err := os.ReadFile(filepath.Join(dir, stateFile))
+func (st *Store) load(dir, run string) (*contract.State, []byte, error) {
+	data, err := st.p.Peek(filepath.Join(dir, stateFile))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil, contract.ErrNoRun
 	}
@@ -153,7 +153,7 @@ func (st *Store) save(dir string, s *contract.State, old []byte) error {
 
 func (st *Store) Read(root, run string) (s *contract.State, err error) {
 	err = st.locked(root, run, false, func(dir string) error {
-		s, _, err = load(dir, run)
+		s, _, err = st.load(dir, run)
 		return err
 	})
 	return s, err
@@ -185,7 +185,7 @@ func (st *Store) Create(root string, s *contract.State) error {
 
 func (st *Store) Change(root, run string, fn func(*contract.State) error) error {
 	return st.locked(root, run, true, func(dir string) error {
-		s, old, err := load(dir, run)
+		s, old, err := st.load(dir, run)
 		if err != nil {
 			return refused(err)
 		}
@@ -207,7 +207,7 @@ func (st *Store) Change(root, run string, fn func(*contract.State) error) error 
 // is cut off never leaves half a run under its id.
 func (st *Store) Remove(root, run string) error {
 	return st.locked(root, run, true, func(dir string) error {
-		s, _, err := load(dir, run)
+		s, _, err := st.load(dir, run)
 		if err != nil {
 			return refused(err)
 		}
@@ -254,7 +254,7 @@ func (st *Store) Runs(root string) ([]string, error) {
 // names a run that is no longer there.
 func (st *Store) Current(root string) (string, error) {
 	var c pointer
-	err := contract.ReadVersioned(filepath.Join(st.Dir(root, ""), currentFile), contract.FileVersion, &c)
+	err := contract.ReadVersioned(st.p.Peek, filepath.Join(st.Dir(root, ""), currentFile), contract.FileVersion, &c)
 	if errors.Is(err, contract.ErrNewer) || err == nil && c.Run == "" {
 		return "", nil
 	}
@@ -280,7 +280,7 @@ func (st *Store) SetCurrent(root, run string) error {
 		// A pointer from a newer program is not written over; the file is
 		// written under the one name the store's writers share, so a writer
 		// killed here leaves nothing that stays.
-		if err := contract.ReadVersioned(filepath.Join(base, currentFile), contract.FileVersion, new(contract.Versioned)); err != nil {
+		if err := contract.ReadVersioned(st.p.Peek, filepath.Join(base, currentFile), contract.FileVersion, new(contract.Versioned)); err != nil {
 			return refused(err)
 		}
 		data, err := json.MarshalIndent(pointer{contract.Versioned{Version: contract.FileVersion}, run}, "", " ")

@@ -56,7 +56,7 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 	}
 	file := filepath.Join(dirs.State, "ui.json")
 	var ui contract.UIFile
-	if err := contract.ReadVersioned(file, contract.FileVersion, &ui); err != nil {
+	if err := contract.ReadVersioned(k.Platform.Read, file, contract.FileVersion, &ui); err != nil {
 		return nil, err
 	}
 	was := ui
@@ -141,7 +141,7 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 	// What was opened is written down even when a later step failed.
 	if fmt.Sprint(ui) != fmt.Sprint(was) {
 		ui.Version = contract.FileVersion
-		if werr := contract.WriteVersioned(k.Platform.Replace, file, contract.FileVersion, ui); err == nil {
+		if werr := contract.WriteVersioned(k.Platform, file, contract.FileVersion, ui); err == nil {
 			err = werr
 		}
 	}
