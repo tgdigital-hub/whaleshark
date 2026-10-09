@@ -1,0 +1,2263 @@
+{
+ "version": 1,
+ "name": "evening-2114",
+ "now": "2026-10-08T21:14:00Z",
+ "checked": "2026-10-08T21:14:00Z",
+ "elsewhere": 1,
+ "state": {
+  "version": 1,
+  "run": {
+   "id": "r3",
+   "objective": "new shop site",
+   "created_at": "2026-10-08T20:30:00Z",
+   "orchestrator": {
+    "pane": "w1:p1",
+    "workspace": "w1",
+    "bound_at": "2026-10-08T20:30:00Z"
+   },
+   "gen": 0,
+   "limit": 20,
+   "paused": null,
+   "base": null,
+   "integration": null,
+   "herdr": {
+    "seen_at": "2026-10-08T21:14:00Z"
+   },
+   "findings": [
+    {
+     "kind": "overlap",
+     "tasks": [
+      "T3",
+      "T4"
+     ],
+     "files": [
+      "search.js"
+     ],
+     "how": "both change the same lines"
+    }
+   ]
+  },
+  "tasks": {
+   "P1": {
+    "id": "P1",
+    "name": "the project",
+    "title": "set up the project",
+    "brief": "briefs/P1.md",
+    "check": "npm test",
+    "placement": "shared",
+    "status": "done",
+    "failures": 0,
+    "attempts": [
+     "P1.1"
+    ],
+    "worktree": null,
+    "accepted": {
+     "how": "check",
+     "at": "2026-10-08T20:20:00Z"
+    },
+    "seen_at": "2026-10-08T20:29:00Z",
+    "created_at": "2026-10-08T19:00:00Z",
+    "settled_at": "2026-10-08T20:20:00Z"
+   },
+   "P2": {
+    "id": "P2",
+    "name": "page list",
+    "title": "agree the page list",
+    "brief": "briefs/P2.md",
+    "check": "npm test",
+    "placement": "shared",
+    "status": "done",
+    "failures": 0,
+    "attempts": [
+     "P2.1"
+    ],
+    "worktree": null,
+    "accepted": {
+     "how": "check",
+     "at": "2026-10-08T20:21:00Z"
+    },
+    "seen_at": "2026-10-08T20:29:00Z",
+    "created_at": "2026-10-08T19:00:00Z",
+    "settled_at": "2026-10-08T20:21:00Z"
+   },
+   "P3": {
+    "id": "P3",
+    "name": "the colours",
+    "title": "pick the colours",
+    "brief": "briefs/P3.md",
+    "check": "npm test",
+    "placement": "shared",
+    "status": "done",
+    "failures": 0,
+    "attempts": [
+     "P3.1"
+    ],
+    "worktree": null,
+    "accepted": {
+     "how": "check",
+     "at": "2026-10-08T20:22:00Z"
+    },
+    "seen_at": "2026-10-08T20:29:00Z",
+    "created_at": "2026-10-08T19:00:00Z",
+    "settled_at": "2026-10-08T20:22:00Z"
+   },
+   "P4": {
+    "id": "P4",
+    "name": "the layout",
+    "title": "sketch the layout",
+    "brief": "briefs/P4.md",
+    "check": "npm test",
+    "placement": "shared",
+    "status": "done",
+    "failures": 0,
+    "attempts": [
+     "P4.1"
+    ],
+    "worktree": null,
+    "accepted": {
+     "how": "check",
+     "at": "2026-10-08T20:23:00Z"
+    },
+    "seen_at": "2026-10-08T20:29:00Z",
+    "created_at": "2026-10-08T19:00:00Z",
+    "settled_at": "2026-10-08T20:23:00Z"
+   },
+   "P5": {
+    "id": "P5",
+    "name": "the words",
+    "title": "write the words",
+    "brief": "briefs/P5.md",
+    "check": "npm test",
+    "placement": "shared",
+    "status": "done",
+    "failures": 0,
+    "attempts": [
+     "P5.1"
+    ],
+    "worktree": null,
+    "accepted": {
+     "how": "check",
+     "at": "2026-10-08T20:24:00Z"
+    },
+    "seen_at": "2026-10-08T20:29:00Z",
+    "created_at": "2026-10-08T19:00:00Z",
+    "settled_at": "2026-10-08T20:24:00Z"
+   },
+   "T1": {
+    "id": "T1",
+    "name": "login page",
+    "title": "login page",
+    "brief": "briefs/T1.md",
+    "after": [
+     "P1"
+    ],
+    "owns": [
+     "src/login-page/**"
+    ],
+    "check": "npm test -- login",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T1.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T20:30:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T10": {
+    "id": "T10",
+    "name": "checkout form",
+    "title": "checkout form",
+    "brief": "briefs/T10.md",
+    "after": [
+     "P1"
+    ],
+    "owns": [
+     "src/checkout-form/**"
+    ],
+    "check": "npm test -- checkout",
+    "placement": "shared",
+    "agent": "codex",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T10.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T21:02:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T11": {
+    "id": "T11",
+    "name": "order emails",
+    "title": "order emails",
+    "brief": "briefs/T11.md",
+    "after": [
+     "P1"
+    ],
+    "owns": [
+     "src/order-emails/**"
+    ],
+    "check": "npm test -- order",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T11.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T21:10:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T12": {
+    "id": "T12",
+    "name": "admin page",
+    "title": "admin page",
+    "brief": "briefs/T12.md",
+    "after": [
+     "P1"
+    ],
+    "owns": [
+     "src/admin-page/**"
+    ],
+    "check": "npm test -- admin",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T12.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T21:02:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T13": {
+    "id": "T13",
+    "name": "whole site",
+    "title": "try the whole site",
+    "brief": "briefs/T13.md",
+    "after": [
+     "T1",
+     "T2",
+     "T3",
+     "T4",
+     "T5",
+     "T6",
+     "T7",
+     "T8",
+     "T9",
+     "T10",
+     "T11",
+     "T12"
+    ],
+    "check": "npm test",
+    "placement": "shared",
+    "status": "pending",
+    "failures": 0,
+    "worktree": null,
+    "accepted": null,
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T14": {
+    "id": "T14",
+    "name": "go live",
+    "title": "put it live",
+    "brief": "briefs/T14.md",
+    "after": [
+     "T13"
+    ],
+    "check": "none",
+    "placement": "shared",
+    "status": "pending",
+    "failures": 0,
+    "worktree": null,
+    "accepted": null,
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T2": {
+    "id": "T2",
+    "name": "sign-up page",
+    "title": "sign-up page",
+    "brief": "briefs/T2.md",
+    "after": [
+     "P1"
+    ],
+    "owns": [
+     "src/sign-up-page/**"
+    ],
+    "check": "npm test -- sign-up",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T2.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T21:11:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T3": {
+    "id": "T3",
+    "name": "search box",
+    "title": "search box",
+    "brief": "briefs/T3.md",
+    "after": [
+     "P2"
+    ],
+    "owns": [
+     "src/search/**"
+    ],
+    "check": "npm test -- search",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T3.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T20:32:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T4": {
+    "id": "T4",
+    "name": "search results",
+    "title": "search results",
+    "brief": "briefs/T4.md",
+    "after": [
+     "P2"
+    ],
+    "owns": [
+     "src/search/**"
+    ],
+    "check": "npm test -- search",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T4.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T20:32:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T5": {
+    "id": "T5",
+    "name": "help pages",
+    "title": "help pages",
+    "brief": "briefs/T5.md",
+    "after": [
+     "P2"
+    ],
+    "owns": [
+     "src/help-pages/**"
+    ],
+    "check": "npm test -- help",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T5.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T20:33:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T6": {
+    "id": "T6",
+    "name": "photo upload",
+    "title": "photo upload",
+    "brief": "briefs/T6.md",
+    "after": [
+     "P1"
+    ],
+    "owns": [
+     "src/photo-upload/**"
+    ],
+    "check": "npm test -- photo",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T6.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T21:13:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T7": {
+    "id": "T7",
+    "name": "email sender",
+    "title": "email sender",
+    "brief": "briefs/T7.md",
+    "after": [
+     "P1"
+    ],
+    "owns": [
+     "src/email-sender/**"
+    ],
+    "check": "npm test -- email",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "review",
+    "failures": 0,
+    "attempts": [
+     "T7.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T21:12:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T8": {
+    "id": "T8",
+    "name": "price list",
+    "title": "price list",
+    "brief": "briefs/T8.md",
+    "after": [
+     "P2"
+    ],
+    "owns": [
+     "src/price-list/**"
+    ],
+    "check": "npm test -- price",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "review",
+    "failures": 0,
+    "attempts": [
+     "T8.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T21:10:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   },
+   "T9": {
+    "id": "T9",
+    "name": "site map",
+    "title": "site map",
+    "brief": "briefs/T9.md",
+    "after": [
+     "P2"
+    ],
+    "owns": [
+     "src/site-map/**"
+    ],
+    "check": "npm test -- site",
+    "placement": "shared",
+    "agent": "claude",
+    "status": "running",
+    "failures": 0,
+    "attempts": [
+     "T9.1"
+    ],
+    "worktree": null,
+    "accepted": null,
+    "seen_at": "2026-10-08T20:54:00Z",
+    "created_at": "2026-10-08T20:30:00Z"
+   }
+  },
+  "attempts": {
+   "P1.1": {
+    "id": "P1.1",
+    "task": "P1",
+    "n": 1,
+    "state": "accepted",
+    "state_since": "2026-10-08T20:20:00Z",
+    "round": 0,
+    "token_hash": "",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-p1-1"
+    },
+    "place": {
+     "tab": "",
+     "pane": "",
+     "terminal": "",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "",
+     "liveness": "exited"
+    },
+    "progress": null,
+    "gated": true,
+    "check": {
+     "ok": true,
+     "at": "2026-10-08T20:20:00Z",
+     "tail": "ok"
+    },
+    "report": null,
+    "accept": null,
+    "exit": {
+     "cause": "reported",
+     "at": "2026-10-08T20:20:00Z"
+    },
+    "started_at": "2026-10-08T19:05:00Z",
+    "ended_at": "2026-10-08T20:20:00Z"
+   },
+   "P2.1": {
+    "id": "P2.1",
+    "task": "P2",
+    "n": 1,
+    "state": "accepted",
+    "state_since": "2026-10-08T20:21:00Z",
+    "round": 0,
+    "token_hash": "",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-p2-1"
+    },
+    "place": {
+     "tab": "",
+     "pane": "",
+     "terminal": "",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "",
+     "liveness": "exited"
+    },
+    "progress": null,
+    "gated": true,
+    "check": {
+     "ok": true,
+     "at": "2026-10-08T20:21:00Z",
+     "tail": "ok"
+    },
+    "report": null,
+    "accept": null,
+    "exit": {
+     "cause": "reported",
+     "at": "2026-10-08T20:21:00Z"
+    },
+    "started_at": "2026-10-08T19:05:00Z",
+    "ended_at": "2026-10-08T20:21:00Z"
+   },
+   "P3.1": {
+    "id": "P3.1",
+    "task": "P3",
+    "n": 1,
+    "state": "accepted",
+    "state_since": "2026-10-08T20:22:00Z",
+    "round": 0,
+    "token_hash": "",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-p3-1"
+    },
+    "place": {
+     "tab": "",
+     "pane": "",
+     "terminal": "",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "",
+     "liveness": "exited"
+    },
+    "progress": null,
+    "gated": true,
+    "check": {
+     "ok": true,
+     "at": "2026-10-08T20:22:00Z",
+     "tail": "ok"
+    },
+    "report": null,
+    "accept": null,
+    "exit": {
+     "cause": "reported",
+     "at": "2026-10-08T20:22:00Z"
+    },
+    "started_at": "2026-10-08T19:05:00Z",
+    "ended_at": "2026-10-08T20:22:00Z"
+   },
+   "P4.1": {
+    "id": "P4.1",
+    "task": "P4",
+    "n": 1,
+    "state": "accepted",
+    "state_since": "2026-10-08T20:23:00Z",
+    "round": 0,
+    "token_hash": "",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-p4-1"
+    },
+    "place": {
+     "tab": "",
+     "pane": "",
+     "terminal": "",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "",
+     "liveness": "exited"
+    },
+    "progress": null,
+    "gated": true,
+    "check": {
+     "ok": true,
+     "at": "2026-10-08T20:23:00Z",
+     "tail": "ok"
+    },
+    "report": null,
+    "accept": null,
+    "exit": {
+     "cause": "reported",
+     "at": "2026-10-08T20:23:00Z"
+    },
+    "started_at": "2026-10-08T19:05:00Z",
+    "ended_at": "2026-10-08T20:23:00Z"
+   },
+   "P5.1": {
+    "id": "P5.1",
+    "task": "P5",
+    "n": 1,
+    "state": "accepted",
+    "state_since": "2026-10-08T20:24:00Z",
+    "round": 0,
+    "token_hash": "",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-p5-1"
+    },
+    "place": {
+     "tab": "",
+     "pane": "",
+     "terminal": "",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "",
+     "liveness": "exited"
+    },
+    "progress": null,
+    "gated": true,
+    "check": {
+     "ok": true,
+     "at": "2026-10-08T20:24:00Z",
+     "tail": "ok"
+    },
+    "report": null,
+    "accept": null,
+    "exit": {
+     "cause": "reported",
+     "at": "2026-10-08T20:24:00Z"
+    },
+    "started_at": "2026-10-08T19:05:00Z",
+    "ended_at": "2026-10-08T20:24:00Z"
+   },
+   "T1.1": {
+    "id": "T1.1",
+    "task": "T1",
+    "n": 1,
+    "state": "working",
+    "state_since": "2026-10-08T20:30:00Z",
+    "round": 0,
+    "token_hash": "sha256:t1",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t1-1",
+     "session": "s-t1"
+    },
+    "place": {
+     "tab": "w1:t2",
+     "pane": "w1:p2",
+     "terminal": "term-2",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 80,
+     "note": "form and checks written",
+     "at": "2026-10-08T21:05:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:30:00Z"
+   },
+   "T10.1": {
+    "id": "T10.1",
+    "task": "T10",
+    "n": 1,
+    "state": "working",
+    "state_since": "2026-10-08T21:02:00Z",
+    "round": 0,
+    "token_hash": "sha256:t10",
+    "agent": {
+     "kind": "codex",
+     "name": "h3fa1-r3-t10-1",
+     "session": "s-t10"
+    },
+    "place": {
+     "tab": "w1:t11",
+     "pane": "w1:p11",
+     "terminal": "term-11",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 20,
+     "note": "reading the existing code",
+     "at": "2026-10-08T21:06:00Z"
+    },
+    "gated": false,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T21:02:00Z"
+   },
+   "T11.1": {
+    "id": "T11.1",
+    "task": "T11",
+    "n": 1,
+    "state": "asked",
+    "state_since": "2026-10-08T21:10:00Z",
+    "round": 0,
+    "token_hash": "sha256:t11",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t11-1",
+     "session": "s-t11"
+    },
+    "place": {
+     "tab": "w1:t12",
+     "pane": "w1:p12",
+     "terminal": "term-12",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 35,
+     "note": "templates listed",
+     "at": "2026-10-08T21:04:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:40:00Z"
+   },
+   "T12.1": {
+    "id": "T12.1",
+    "task": "T12",
+    "n": 1,
+    "state": "working",
+    "state_since": "2026-10-08T21:02:00Z",
+    "round": 0,
+    "token_hash": "sha256:t12",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t12-1",
+     "session": "s-t12"
+    },
+    "place": {
+     "tab": "w1:t13",
+     "pane": "w1:p13",
+     "terminal": "term-13",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "idle",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "unverifiable",
+     "last_working": "2026-10-08T21:02:00Z",
+     "quiet_flagged": true
+    },
+    "progress": {
+     "pct": 50,
+     "note": "half the screens done",
+     "at": "2026-10-08T21:00:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:34:00Z"
+   },
+   "T2.1": {
+    "id": "T2.1",
+    "task": "T2",
+    "n": 1,
+    "state": "asked",
+    "state_since": "2026-10-08T21:11:00Z",
+    "round": 0,
+    "token_hash": "sha256:t2",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t2-1",
+     "session": "s-t2"
+    },
+    "place": {
+     "tab": "w1:t3",
+     "pane": "w1:p3",
+     "terminal": "term-3",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 40,
+     "note": "form written",
+     "at": "2026-10-08T21:06:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:30:00Z"
+   },
+   "T3.1": {
+    "id": "T3.1",
+    "task": "T3",
+    "n": 1,
+    "state": "working",
+    "state_since": "2026-10-08T20:32:00Z",
+    "round": 0,
+    "token_hash": "sha256:t3",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t3-1",
+     "session": "s-t3"
+    },
+    "place": {
+     "tab": "w1:t4",
+     "pane": "w1:p4",
+     "terminal": "term-4",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 60,
+     "note": "tests written",
+     "at": "2026-10-08T21:08:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:32:00Z"
+   },
+   "T4.1": {
+    "id": "T4.1",
+    "task": "T4",
+    "n": 1,
+    "state": "working",
+    "state_since": "2026-10-08T20:32:00Z",
+    "round": 0,
+    "token_hash": "sha256:t4",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t4-1",
+     "session": "s-t4"
+    },
+    "place": {
+     "tab": "w1:t5",
+     "pane": "w1:p5",
+     "terminal": "term-5",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 45,
+     "note": "list and paging done",
+     "at": "2026-10-08T21:07:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:32:00Z"
+   },
+   "T5.1": {
+    "id": "T5.1",
+    "task": "T5",
+    "n": 1,
+    "state": "working",
+    "state_since": "2026-10-08T20:33:00Z",
+    "round": 0,
+    "token_hash": "sha256:t5",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t5-1",
+     "session": "s-t5"
+    },
+    "place": {
+     "tab": "w1:t6",
+     "pane": "w1:p6",
+     "terminal": "term-6",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 70,
+     "note": "nine of twelve pages written",
+     "at": "2026-10-08T21:02:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:33:00Z"
+   },
+   "T6.1": {
+    "id": "T6.1",
+    "task": "T6",
+    "n": 1,
+    "state": "asked",
+    "state_since": "2026-10-08T21:13:00Z",
+    "round": 0,
+    "token_hash": "sha256:t6",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t6-1",
+     "session": "s-t6"
+    },
+    "place": {
+     "tab": "w1:t7",
+     "pane": "w1:p7",
+     "terminal": "term-7",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 55,
+     "note": "upload form written",
+     "at": "2026-10-08T21:09:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:33:00Z"
+   },
+   "T7.1": {
+    "id": "T7.1",
+    "task": "T7",
+    "n": 1,
+    "state": "reported",
+    "state_since": "2026-10-08T21:12:00Z",
+    "round": 0,
+    "token_hash": "sha256:t7",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t7-1",
+     "session": "s-t7"
+    },
+    "place": {
+     "tab": "w1:t8",
+     "pane": "w1:p8",
+     "terminal": "term-8",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "done",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:12:00Z"
+    },
+    "progress": {
+     "pct": 100,
+     "note": "templates done",
+     "at": "2026-10-08T20:58:00Z"
+    },
+    "gated": true,
+    "check": {
+     "ok": false,
+     "at": "2026-10-08T21:12:00Z",
+     "tail": "2 of 41 tests fail: bounce handling"
+    },
+    "report": {
+     "outcome": "done",
+     "summary": "all sending paths covered",
+     "at": "2026-10-08T21:09:00Z"
+    },
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:32:00Z"
+   },
+   "T8.1": {
+    "id": "T8.1",
+    "task": "T8",
+    "n": 1,
+    "state": "reported",
+    "state_since": "2026-10-08T21:10:00Z",
+    "round": 0,
+    "token_hash": "sha256:t8",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t8-1",
+     "session": "s-t8"
+    },
+    "place": {
+     "tab": "w1:t9",
+     "pane": "w1:p9",
+     "terminal": "term-9",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "done",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:10:00Z"
+    },
+    "progress": {
+     "pct": 100,
+     "note": "tests pass",
+     "at": "2026-10-08T21:08:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": {
+     "outcome": "done",
+     "summary": "prices load from the sheet; 14 tests pass",
+     "at": "2026-10-08T21:10:00Z"
+    },
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:34:00Z"
+   },
+   "T9.1": {
+    "id": "T9.1",
+    "task": "T9",
+    "n": 1,
+    "state": "working",
+    "state_since": "2026-10-08T20:54:00Z",
+    "round": 0,
+    "token_hash": "sha256:t9",
+    "agent": {
+     "kind": "claude",
+     "name": "h3fa1-r3-t9-1",
+     "session": "s-t9"
+    },
+    "place": {
+     "tab": "w1:t10",
+     "pane": "w1:p10",
+     "terminal": "term-10",
+     "workspace": "w1",
+     "cwd": "/work/shop",
+     "opened_by_us": true
+    },
+    "herdr": {
+     "status": "working",
+     "at": "2026-10-08T21:14:00Z",
+     "liveness": "live",
+     "last_working": "2026-10-08T21:14:00Z"
+    },
+    "progress": {
+     "pct": 30,
+     "note": "reading the page list",
+     "at": "2026-10-08T21:01:00Z"
+    },
+    "gated": true,
+    "check": null,
+    "report": null,
+    "accept": null,
+    "exit": null,
+    "started_at": "2026-10-08T20:54:00Z"
+   }
+  },
+  "questions": {
+   "n4": {
+    "id": "n4",
+    "kind": "need",
+    "form": "signoff",
+    "for": "human",
+    "from": "lead",
+    "task": "T8",
+    "text": "Prices load from the sheet and 14 tests pass. Put it with the finished work?",
+    "state": "open",
+    "created_at": "2026-10-08T21:14:00Z",
+    "shown_at": "2026-10-08T21:14:00Z",
+    "answered_by": null
+   },
+   "q10": {
+    "id": "q10",
+    "kind": "ask",
+    "form": "question",
+    "for": "orchestrator",
+    "from": "T11.1",
+    "task": "T11",
+    "attempt": "T11.1",
+    "text": "Which sender address?",
+    "state": "open",
+    "created_at": "2026-10-08T21:10:00Z",
+    "answered_by": null
+   },
+   "q7": {
+    "id": "q7",
+    "kind": "ask",
+    "form": "choice",
+    "for": "human",
+    "from": "T2.1",
+    "task": "T2",
+    "attempt": "T2.1",
+    "text": "Must the old sign-up link keep working?",
+    "state": "open",
+    "created_at": "2026-10-08T21:11:00Z",
+    "shown_at": "2026-10-08T21:11:00Z",
+    "answered_by": null
+   },
+   "q9": {
+    "id": "q9",
+    "kind": "ask",
+    "form": "question",
+    "for": "human",
+    "from": "T6.1",
+    "task": "T6",
+    "attempt": "T6.1",
+    "text": "Which sizes should a photo be kept in?",
+    "state": "open",
+    "created_at": "2026-10-08T21:13:00Z",
+    "shown_at": "2026-10-08T21:13:00Z",
+    "answered_by": null
+   }
+  },
+  "inbox": {
+   "events": [],
+   "acked": 57,
+   "outstanding": null
+  },
+  "counters": {
+   "seq": 57,
+   "question": 10,
+   "need": 4,
+   "delivery": 9
+  }
+ },
+ "herdr": {
+  "at": "2026-10-08T21:14:00Z",
+  "panes": [
+   {
+    "pane": "w1:p1",
+    "tab": "w1:t1",
+    "workspace": "w1",
+    "terminal": "term-1",
+    "label": "Lead",
+    "cwd": "/work/shop",
+    "focused": true,
+    "agent": "claude",
+    "status": "idle"
+   },
+   {
+    "pane": "w1:p2",
+    "tab": "w1:t2",
+    "workspace": "w1",
+    "terminal": "term-2",
+    "label": "login page",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t1-1",
+    "session": "s-t1",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p3",
+    "tab": "w1:t3",
+    "workspace": "w1",
+    "terminal": "term-3",
+    "label": "sign-up page",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t2-1",
+    "session": "s-t2",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p4",
+    "tab": "w1:t4",
+    "workspace": "w1",
+    "terminal": "term-4",
+    "label": "search box",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t3-1",
+    "session": "s-t3",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p5",
+    "tab": "w1:t5",
+    "workspace": "w1",
+    "terminal": "term-5",
+    "label": "search results",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t4-1",
+    "session": "s-t4",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p6",
+    "tab": "w1:t6",
+    "workspace": "w1",
+    "terminal": "term-6",
+    "label": "help pages",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t5-1",
+    "session": "s-t5",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p7",
+    "tab": "w1:t7",
+    "workspace": "w1",
+    "terminal": "term-7",
+    "label": "photo upload",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t6-1",
+    "session": "s-t6",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p8",
+    "tab": "w1:t8",
+    "workspace": "w1",
+    "terminal": "term-8",
+    "label": "email sender",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t7-1",
+    "session": "s-t7",
+    "status": "done"
+   },
+   {
+    "pane": "w1:p9",
+    "tab": "w1:t9",
+    "workspace": "w1",
+    "terminal": "term-9",
+    "label": "price list",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t8-1",
+    "session": "s-t8",
+    "status": "done"
+   },
+   {
+    "pane": "w1:p10",
+    "tab": "w1:t10",
+    "workspace": "w1",
+    "terminal": "term-10",
+    "label": "site map",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t9-1",
+    "session": "s-t9",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p11",
+    "tab": "w1:t11",
+    "workspace": "w1",
+    "terminal": "term-11",
+    "label": "checkout form",
+    "cwd": "/work/shop",
+    "agent": "codex",
+    "name": "h3fa1-r3-t10-1",
+    "session": "s-t10",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p12",
+    "tab": "w1:t12",
+    "workspace": "w1",
+    "terminal": "term-12",
+    "label": "order emails",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t11-1",
+    "session": "s-t11",
+    "status": "working"
+   },
+   {
+    "pane": "w1:p13",
+    "tab": "w1:t13",
+    "workspace": "w1",
+    "terminal": "term-13",
+    "label": "admin page",
+    "cwd": "/work/shop",
+    "agent": "claude",
+    "name": "h3fa1-r3-t12-1",
+    "session": "s-t12",
+    "status": "idle"
+   }
+  ]
+ },
+ "ctx": {
+  "w1:p10": {
+   "version": 1,
+   "pct": 21,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p11": {
+   "version": 1,
+   "pct": 0,
+   "known": false,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p12": {
+   "version": 1,
+   "pct": 33,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p13": {
+   "version": 1,
+   "pct": 57,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p2": {
+   "version": 1,
+   "pct": 66,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p3": {
+   "version": 1,
+   "pct": 48,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p4": {
+   "version": 1,
+   "pct": 52,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p5": {
+   "version": 1,
+   "pct": 44,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p6": {
+   "version": 1,
+   "pct": 88,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p7": {
+   "version": 1,
+   "pct": 61,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p8": {
+   "version": 1,
+   "pct": 72,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  },
+  "w1:p9": {
+   "version": 1,
+   "pct": 39,
+   "known": true,
+   "at": "2026-10-08T21:13:00Z"
+  }
+ },
+ "ui": {
+  "version": 1,
+  "fleet_pane": "w1:p20",
+  "actions_pane": "w1:p21",
+  "last_here": "2026-10-08T21:14:00Z"
+ },
+ "views": {
+  "human": {
+   "version": 1,
+   "at": "2026-10-08T21:14:00Z",
+   "caller": "human",
+   "run": "r3",
+   "objective": "new shop site",
+   "counts": {
+    "agents": 12,
+    "need_you": 2,
+    "check_failed": 1,
+    "to_check": 1,
+    "waiting": 3,
+    "holding": 2,
+    "done_today": 5,
+    "elsewhere": 1
+   },
+   "items": [
+    {
+     "id": "q7",
+     "form": "choice",
+     "look": "needs you",
+     "task": "T2",
+     "name": "sign-up page",
+     "source": "a question from the worker",
+     "since": "2026-10-08T21:11:00Z",
+     "text": "Must the old sign-up link keep working?",
+     "buttons": [
+      {
+       "label": "Yes",
+       "key": "y",
+       "answer": "yes"
+      },
+      {
+       "label": "No",
+       "key": "n",
+       "answer": "no"
+      },
+      {
+       "label": "Other",
+       "key": "o",
+       "answer": "other:"
+      }
+     ],
+     "holds": true,
+     "next": [
+      "whaleshark answer q7 yes --human"
+     ]
+    },
+    {
+     "id": "q9",
+     "form": "question",
+     "look": "needs you",
+     "task": "T6",
+     "name": "photo upload",
+     "source": "a question from the worker",
+     "since": "2026-10-08T21:13:00Z",
+     "text": "Which sizes should a photo be kept in?",
+     "line": true,
+     "holds": true,
+     "next": [
+      "whaleshark answer q9 \"<your answer>\" --human"
+     ]
+    },
+    {
+     "id": "n4",
+     "form": "signoff",
+     "look": "to check",
+     "task": "T8",
+     "name": "price list",
+     "source": "sign-off asked by the lead agent",
+     "since": "2026-10-08T21:14:00Z",
+     "text": "Prices load from the sheet and 14 tests pass. Put it with the finished work?",
+     "buttons": [
+      {
+       "label": "Approve",
+       "key": "y",
+       "answer": "approve"
+      },
+      {
+       "label": "Send back",
+       "key": "n",
+       "answer": "send back:"
+      }
+     ],
+     "next": [
+      "whaleshark answer n4 approve --human",
+      "whaleshark answer n4 \"send back: <why>\" --human"
+     ]
+    }
+   ],
+   "sections": [
+    {
+     "name": "NEEDS YOU",
+     "cards": [
+      {
+       "task": "T2",
+       "name": "sign-up page",
+       "look": "needs you",
+       "colour": "needs",
+       "since": "2026-10-08T21:11:00Z",
+       "item": "q7",
+       "progress": 40,
+       "said": "2026-10-08T21:06:00Z",
+       "ctx": 48,
+       "ctx_known": true,
+       "news": "must the old sign-up link keep working?",
+       "tab": "w1:t3",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T6",
+       "name": "photo upload",
+       "look": "needs you",
+       "colour": "needs",
+       "since": "2026-10-08T21:13:00Z",
+       "item": "q9",
+       "progress": 55,
+       "said": "2026-10-08T21:09:00Z",
+       "ctx": 61,
+       "ctx_known": true,
+       "news": "which sizes should a photo be kept in?",
+       "tab": "w1:t7",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "TO CHECK",
+     "cards": [
+      {
+       "task": "T7",
+       "name": "email sender",
+       "look": "check failed",
+       "colour": "failed",
+       "since": "2026-10-08T21:12:00Z",
+       "progress": 100,
+       "said": "2026-10-08T20:58:00Z",
+       "ctx": 72,
+       "ctx_known": true,
+       "news": "2 of 41 tests fail: bounce handling",
+       "tab": "w1:t8",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark show T7",
+        "whaleshark reject T7 \"<why>\""
+       ],
+       "actions": [
+        "go",
+        "send-back",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T8",
+       "name": "price list",
+       "look": "to check",
+       "colour": "check",
+       "since": "2026-10-08T21:10:00Z",
+       "flag": true,
+       "item": "n4",
+       "progress": 100,
+       "said": "2026-10-08T21:08:00Z",
+       "ctx": 39,
+       "ctx_known": true,
+       "news": "prices load from the sheet; 14 tests pass",
+       "tab": "w1:t9",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "accept",
+        "send-back",
+        "stop",
+        "note"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "BUILDING",
+     "cards": [
+      {
+       "task": "T1",
+       "name": "login page",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:30:00Z",
+       "progress": 80,
+       "said": "2026-10-08T21:05:00Z",
+       "ctx": 66,
+       "ctx_known": true,
+       "news": "form and checks written",
+       "tab": "w1:t2",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T3",
+       "name": "search box",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:32:00Z",
+       "progress": 60,
+       "said": "2026-10-08T21:08:00Z",
+       "ctx": 52,
+       "ctx_known": true,
+       "news": "tests written",
+       "clash": {
+        "task": "T4",
+        "name": "search results",
+        "file": "search.js",
+        "conflicts": false
+       },
+       "tab": "w1:t4",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T4",
+       "name": "search results",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:32:00Z",
+       "progress": 45,
+       "said": "2026-10-08T21:07:00Z",
+       "ctx": 44,
+       "ctx_known": true,
+       "news": "list and paging done",
+       "clash": {
+        "task": "T3",
+        "name": "search box",
+        "file": "search.js",
+        "conflicts": true
+       },
+       "tab": "w1:t5",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T5",
+       "name": "help pages",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:33:00Z",
+       "progress": 70,
+       "said": "2026-10-08T21:02:00Z",
+       "ctx": 88,
+       "ctx_known": true,
+       "news": "nine of twelve pages written",
+       "tab": "w1:t6",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T9",
+       "name": "site map",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:54:00Z",
+       "progress": 30,
+       "said": "2026-10-08T21:01:00Z",
+       "ctx": 21,
+       "ctx_known": true,
+       "news": "reading the page list",
+       "tab": "w1:t10",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T10",
+       "name": "checkout form",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T21:02:00Z",
+       "progress": 20,
+       "said": "2026-10-08T21:06:00Z",
+       "ctx": 0,
+       "ctx_known": false,
+       "news": "reading the existing code",
+       "tab": "w1:t11",
+       "try": 1,
+       "agent": "codex",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T11",
+       "name": "order emails",
+       "look": "asking",
+       "colour": "building",
+       "since": "2026-10-08T21:10:00Z",
+       "progress": 35,
+       "said": "2026-10-08T21:04:00Z",
+       "ctx": 33,
+       "ctx_known": true,
+       "news": "asked the lead: which sender address?",
+       "tab": "w1:t12",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "IDLE",
+     "cards": [
+      {
+       "task": "T12",
+       "name": "admin page",
+       "look": "idle",
+       "colour": "idle",
+       "since": "2026-10-08T21:02:00Z",
+       "progress": 50,
+       "said": "2026-10-08T21:00:00Z",
+       "pale": true,
+       "ctx": 57,
+       "ctx_known": true,
+       "news": "half the screens done",
+       "tab": "w1:t13",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      }
+     ]
+    }
+   ],
+   "strip": {},
+   "fresh": {
+    "checked": "2026-10-08T21:14:00Z"
+   }
+  },
+  "orchestrator": {
+   "version": 1,
+   "at": "2026-10-08T21:14:00Z",
+   "caller": "orchestrator",
+   "run": "r3",
+   "objective": "new shop site",
+   "counts": {
+    "agents": 12,
+    "need_you": 2,
+    "check_failed": 1,
+    "to_check": 1,
+    "waiting": 3,
+    "holding": 2,
+    "done_today": 5,
+    "elsewhere": 1
+   },
+   "items": [
+    {
+     "id": "q7",
+     "form": "choice",
+     "look": "needs you",
+     "task": "T2",
+     "name": "sign-up page",
+     "source": "a question from the worker",
+     "since": "2026-10-08T21:11:00Z",
+     "text": "Must the old sign-up link keep working?",
+     "buttons": [
+      {
+       "label": "Yes",
+       "key": "y",
+       "answer": "yes"
+      },
+      {
+       "label": "No",
+       "key": "n",
+       "answer": "no"
+      },
+      {
+       "label": "Other",
+       "key": "o",
+       "answer": "other:"
+      }
+     ],
+     "holds": true,
+     "next": [
+      "waiting for the human"
+     ]
+    },
+    {
+     "id": "q9",
+     "form": "question",
+     "look": "needs you",
+     "task": "T6",
+     "name": "photo upload",
+     "source": "a question from the worker",
+     "since": "2026-10-08T21:13:00Z",
+     "text": "Which sizes should a photo be kept in?",
+     "line": true,
+     "holds": true,
+     "next": [
+      "waiting for the human"
+     ]
+    },
+    {
+     "id": "n4",
+     "form": "signoff",
+     "look": "to check",
+     "task": "T8",
+     "name": "price list",
+     "source": "sign-off asked by the lead agent",
+     "since": "2026-10-08T21:14:00Z",
+     "text": "Prices load from the sheet and 14 tests pass. Put it with the finished work?",
+     "buttons": [
+      {
+       "label": "Approve",
+       "key": "y",
+       "answer": "approve"
+      },
+      {
+       "label": "Send back",
+       "key": "n",
+       "answer": "send back:"
+      }
+     ],
+     "next": [
+      "waiting for the human"
+     ]
+    }
+   ],
+   "sections": [
+    {
+     "name": "NEEDS YOU",
+     "cards": [
+      {
+       "task": "T2",
+       "name": "sign-up page",
+       "look": "needs you",
+       "colour": "needs",
+       "since": "2026-10-08T21:11:00Z",
+       "item": "q7",
+       "progress": 40,
+       "said": "2026-10-08T21:06:00Z",
+       "ctx": 48,
+       "ctx_known": true,
+       "news": "must the old sign-up link keep working?",
+       "tab": "w1:t3",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T6",
+       "name": "photo upload",
+       "look": "needs you",
+       "colour": "needs",
+       "since": "2026-10-08T21:13:00Z",
+       "item": "q9",
+       "progress": 55,
+       "said": "2026-10-08T21:09:00Z",
+       "ctx": 61,
+       "ctx_known": true,
+       "news": "which sizes should a photo be kept in?",
+       "tab": "w1:t7",
+       "try": 1,
+       "agent": "claude",
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "TO CHECK",
+     "cards": [
+      {
+       "task": "T7",
+       "name": "email sender",
+       "look": "check failed",
+       "colour": "failed",
+       "since": "2026-10-08T21:12:00Z",
+       "progress": 100,
+       "said": "2026-10-08T20:58:00Z",
+       "ctx": 72,
+       "ctx_known": true,
+       "news": "2 of 41 tests fail: bounce handling",
+       "tab": "w1:t8",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark show T7",
+        "whaleshark reject T7 \"<why>\""
+       ],
+       "actions": [
+        "go",
+        "send-back",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T8",
+       "name": "price list",
+       "look": "to check",
+       "colour": "check",
+       "since": "2026-10-08T21:10:00Z",
+       "flag": true,
+       "item": "n4",
+       "progress": 100,
+       "said": "2026-10-08T21:08:00Z",
+       "ctx": 39,
+       "ctx_known": true,
+       "news": "prices load from the sheet; 14 tests pass",
+       "tab": "w1:t9",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark show T8",
+        "whaleshark accept T8"
+       ],
+       "actions": [
+        "go",
+        "accept",
+        "send-back",
+        "stop",
+        "note"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "BUILDING",
+     "cards": [
+      {
+       "task": "T1",
+       "name": "login page",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:30:00Z",
+       "progress": 80,
+       "said": "2026-10-08T21:05:00Z",
+       "ctx": 66,
+       "ctx_known": true,
+       "news": "form and checks written",
+       "tab": "w1:t2",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark wait"
+       ],
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T3",
+       "name": "search box",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:32:00Z",
+       "progress": 60,
+       "said": "2026-10-08T21:08:00Z",
+       "ctx": 52,
+       "ctx_known": true,
+       "news": "tests written",
+       "clash": {
+        "task": "T4",
+        "name": "search results",
+        "file": "search.js",
+        "conflicts": false
+       },
+       "tab": "w1:t4",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark wait"
+       ],
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T4",
+       "name": "search results",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:32:00Z",
+       "progress": 45,
+       "said": "2026-10-08T21:07:00Z",
+       "ctx": 44,
+       "ctx_known": true,
+       "news": "list and paging done",
+       "clash": {
+        "task": "T3",
+        "name": "search box",
+        "file": "search.js",
+        "conflicts": true
+       },
+       "tab": "w1:t5",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark wait"
+       ],
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T5",
+       "name": "help pages",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:33:00Z",
+       "progress": 70,
+       "said": "2026-10-08T21:02:00Z",
+       "ctx": 88,
+       "ctx_known": true,
+       "news": "nine of twelve pages written",
+       "tab": "w1:t6",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark wait"
+       ],
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T9",
+       "name": "site map",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T20:54:00Z",
+       "progress": 30,
+       "said": "2026-10-08T21:01:00Z",
+       "ctx": 21,
+       "ctx_known": true,
+       "news": "reading the page list",
+       "tab": "w1:t10",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark wait"
+       ],
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T10",
+       "name": "checkout form",
+       "look": "building",
+       "colour": "building",
+       "since": "2026-10-08T21:02:00Z",
+       "progress": 20,
+       "said": "2026-10-08T21:06:00Z",
+       "ctx": 0,
+       "ctx_known": false,
+       "news": "reading the existing code",
+       "tab": "w1:t11",
+       "try": 1,
+       "agent": "codex",
+       "next": [
+        "whaleshark wait"
+       ],
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      },
+      {
+       "task": "T11",
+       "name": "order emails",
+       "look": "asking",
+       "colour": "building",
+       "since": "2026-10-08T21:10:00Z",
+       "progress": 35,
+       "said": "2026-10-08T21:04:00Z",
+       "ctx": 33,
+       "ctx_known": true,
+       "news": "asked the lead: which sender address?",
+       "tab": "w1:t12",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark answer q10 \"<answer>\"",
+        "whaleshark escalate q10"
+       ],
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      }
+     ]
+    },
+    {
+     "name": "IDLE",
+     "cards": [
+      {
+       "task": "T12",
+       "name": "admin page",
+       "look": "idle",
+       "colour": "idle",
+       "since": "2026-10-08T21:02:00Z",
+       "progress": 50,
+       "said": "2026-10-08T21:00:00Z",
+       "pale": true,
+       "ctx": 57,
+       "ctx_known": true,
+       "news": "half the screens done",
+       "tab": "w1:t13",
+       "try": 1,
+       "agent": "claude",
+       "next": [
+        "whaleshark show T12 --screen",
+        "whaleshark tell T12 --now \"report or ask\"",
+        "whaleshark stop T12"
+       ],
+       "actions": [
+        "go",
+        "stop",
+        "note"
+       ]
+      }
+     ]
+    }
+   ],
+   "strip": {},
+   "fresh": {
+    "checked": "2026-10-08T21:14:00Z"
+   }
+  }
+ }
+}

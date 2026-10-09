@@ -1,0 +1,18 @@
+# Local working files, not part of the product
+/CLAUDE.md
+/CLAUDE.local.md
+/HANDOVER.md
+/start-orchestrator.sh
+/reference/
+
+# Operating system clutter
+.DS_Store
+
+# Python caches
+__pycache__/
+
+# Go build outputs
+/bin/
+/dist/
+*.test
+*.out
