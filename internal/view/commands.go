@@ -1,7 +1,8 @@
-// Package view is not built yet. Its owner replaces this file.
+// Package view builds the one view model, which the panes, the plain text
+// and the page all print, and prints it as plain text.
 package view
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
 // Plug binds this package's handlers and puts its implementations into the kit.
-func Plug(*contract.Kit) {}
+func Plug(k *contract.Kit) { k.Handle("status", status) }
