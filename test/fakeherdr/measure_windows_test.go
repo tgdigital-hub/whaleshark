@@ -3,98 +3,129 @@ package fakeherdr
 import (
 	"context"
 	"fmt"
-	"net"
-	"path/filepath"
+	"math/rand/v2"
+	"runtime"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/herdr"
 )
 
 // A measurement, not a test: it fails on purpose so that the hosted Windows
-// machine prints what it found. It is removed once it has been read.
+// machine prints what it found. It is removed once it has been read. It
+// runs the random cuts many times over and notes where every goroutine
+// stood whenever the reader was slow to connect again.
 func TestMeasureACutOnWindows(t *testing.T) {
 	var out strings.Builder
-	say := func(name string, d []time.Duration) {
-		slices.Sort(d)
-		fmt.Fprintf(&out, "%-46s least %v  middle %v  most %v\n", name, d[0], d[len(d)/2], d[len(d)-1])
-	}
-
-	// Two bare connections on a socket file: how long until the reader on
-	// one side sees the other side close, with and without a read waiting
-	// on the side that closes.
-	l, err := net.Listen("unix", filepath.Join(t.TempDir(), "s"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer l.Close()
-	for _, waiting := range []bool{false, true} {
-		var dial, closing, seen []time.Duration
-		for range 30 {
-			began := time.Now()
-			client, err := net.Dial("unix", l.Addr().String())
-			if err != nil {
-				t.Fatal(err)
-			}
-			server, err := l.Accept()
-			if err != nil {
-				t.Fatal(err)
-			}
-			dial = append(dial, time.Since(began))
-			if waiting {
-				go server.Read(make([]byte, 1))
-			}
-			end := make(chan time.Time)
-			go func() {
-				client.Read(make([]byte, 1))
-				end <- time.Now()
-			}()
-			time.Sleep(5 * time.Millisecond)
-			began = time.Now()
-			server.Close()
-			closing = append(closing, time.Since(began))
-			select {
-			case at := <-end:
-				seen = append(seen, at.Sub(began))
-			case <-time.After(5 * time.Second):
-				seen = append(seen, time.Hour)
-			}
-			client.Close()
-		}
-		kind := fmt.Sprintf("bare, a read waiting on the closer %v: ", waiting)
-		say(kind+"dial", dial)
-		say(kind+"close returns", closing)
-		say(kind+"the other side sees it", seen)
-	}
-
-	// The fake itself: how long a subscription takes, and how long until
-	// its channel ends after a cut.
-	f := start(t)
-	var subscribe, cut []time.Duration
-	for range 30 {
-		began := time.Now()
-		_, events, err := f.Events(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
-		subscribe = append(subscribe, time.Since(began))
-		time.Sleep(5 * time.Millisecond)
-		began = time.Now()
-		f.Cut()
-		ended := make(chan bool)
+	var mu sync.Mutex
+	var took []time.Duration
+	dumps := 0
+	for round := range 40 {
+		f := start(t)
+		ctx, cancel := context.WithCancel(context.Background())
+		built := make(chan []contract.Pane, 1)
+		built <- nil
+		var connections atomic.Int32
+		var since atomic.Int64 // when the reader began to connect; 0 while it reads
 		go func() {
-			for range events {
+			for ctx.Err() == nil {
+				began := time.Now()
+				since.Store(began.UnixNano())
+				pic, events, err := f.Events(ctx)
+				if err != nil {
+					continue
+				}
+				since.Store(0)
+				mu.Lock()
+				took = append(took, time.Since(began))
+				mu.Unlock()
+				connections.Add(1)
+				<-built
+				built <- pic.Panes
+				for e := range events {
+					herdr.Apply(pic, e)
+					<-built
+					built <- pic.Panes
+				}
 			}
-			close(ended)
 		}()
-		select {
-		case <-ended:
-			cut = append(cut, time.Since(began))
-		case <-time.After(5 * time.Second):
-			cut = append(cut, time.Hour)
+		go func() {
+			for ctx.Err() == nil {
+				time.Sleep(5 * time.Millisecond)
+				at := since.Load()
+				if at == 0 || time.Since(time.Unix(0, at)) < 50*time.Millisecond {
+					continue
+				}
+				mu.Lock()
+				if dumps < 4 {
+					dumps++
+					where := make([]byte, 1<<16)
+					where = where[:runtime.Stack(where, true)]
+					fmt.Fprintf(&out, "round %d: connecting for %v, everything stood:\n%s\n", round, time.Since(time.Unix(0, at)), where)
+				}
+				mu.Unlock()
+				time.Sleep(200 * time.Millisecond)
+			}
+		}()
+		random := rand.New(rand.NewPCG(uint64(round), 2))
+		states := []string{contract.StatusWorking, contract.StatusIdle, contract.StatusDone, contract.StatusBlocked, "gone", "focused"}
+		began, cuts, behind := time.Now(), 0, time.Duration(0)
+		for step := range 1500 {
+			all := panes(t, f)
+			if len(all) == 0 {
+				f.TabCreate("/work/shop", "tab", nil)
+				continue
+			}
+			pick := all[random.IntN(len(all))]
+			switch n := random.IntN(100); {
+			case n < 4 && len(all) < 25:
+				tab, _ := f.TabCreate("/work/shop", "tab", nil)
+				f.AgentStart("agent-"+strings.ReplaceAll(tab.ID, ":", "-"), "claude", tab.ID, nil, time.Minute)
+			case n < 6 && len(all) < 25:
+				f.Split(pick.ID, "down", 0.5)
+			case n < 8 && len(all) > 3:
+				f.PaneClose(pick.ID)
+			case n < 10 && len(all) > 3:
+				f.TabClose(pick.Tab)
+			case n < 14:
+				f.TabRename(pick.Tab, "name "+pick.ID)
+			case n < 16:
+				f.TabFocus(pick.Tab)
+			case n < 18:
+				f.Cut()
+				cuts++
+			case n < 20 && pick.Agent == "":
+				f.AgentStart("again-"+strings.ReplaceAll(pick.ID, ":", "-"), "claude", pick.ID, nil, time.Minute)
+			default:
+				f.Push(states[random.IntN(len(states))], pick.ID)
+			}
+			if step%300 == 299 {
+				wait := time.Now()
+				for range 600 {
+					got := <-built
+					built <- got
+					if slices.Equal(got, panes(t, f)) {
+						break
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+				behind = max(behind, time.Since(wait))
+			}
 		}
+		fmt.Fprintf(&out, "round %2d: %v, %d cuts, %d connections, longest wait to catch up %v\n",
+			round, time.Since(began).Round(time.Millisecond), cuts, connections.Load(), behind.Round(time.Millisecond))
+		cancel()
+		f.Close()
 	}
-	say("the fake: a subscription", subscribe)
-	say("the fake: a cut is seen", cut)
+	mu.Lock()
+	slices.Sort(took)
+	fmt.Fprintf(&out, "%d subscriptions: middle %v, nine in ten under %v, the five longest %v\n",
+		len(took), took[len(took)/2], took[len(took)*9/10], took[len(took)-5:])
+	mu.Unlock()
 	t.Fatalf("measured:\n%s", out.String())
 }
