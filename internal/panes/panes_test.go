@@ -62,6 +62,7 @@ type world struct {
 	p     *pane
 	herdr *fakeherdr.Fake
 	fx    *testkit.Fixture
+	sys   *platform.System
 	file  string // the run's state.json
 	h     int
 	clock atomic.Int64
@@ -81,7 +82,8 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	wd := &world{t: t, s: termtest.New(w, h), h: h, fx: fx, view: *fx.Views[contract.Human]}
 	home := t.TempDir()
 	k := contract.NewKit()
-	k.Platform, k.Store = system(home, env), reader{dir: home, state: &fx.State, reads: &wd.reads}
+	wd.sys = system(home, env)
+	k.Platform, k.Store = wd.sys, reader{dir: home, state: &fx.State, reads: &wd.reads}
 	wd.file = filepath.Join(home, "r3", "state.json")
 	os.MkdirAll(filepath.Dir(wd.file), 0o700)
 	wd.touch()
@@ -114,9 +116,15 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	return wd
 }
 
-// touch replaces the record's file, as a command of ours does when it ends.
+// touch replaces the record's file, as a command of ours does when it ends:
+// a finished file is moved over it. Written in place it would be three
+// changes on Windows, cut short, written and closed, each with its notice.
 func (wd *world) touch() {
-	if err := os.WriteFile(wd.file, []byte(time.Now().String()), 0o600); err != nil {
+	err := os.WriteFile(wd.file+".tmp", []byte(time.Now().String()), 0o600)
+	if err == nil {
+		err = wd.sys.Replace(wd.file+".tmp", wd.file)
+	}
+	if err != nil {
 		wd.t.Fatal(err)
 	}
 }
