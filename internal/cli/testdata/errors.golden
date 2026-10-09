@@ -1,0 +1,138 @@
+$ whaleshark strat T1    # as the person
+There is no command "strat". Did you mean "start"?
+Next: whaleshark help
+exit 2
+
+$ whaleshark stpo T1    # as the person
+There is no command "stpo".
+Next: whaleshark help
+exit 2
+
+$ whaleshark clos --settled    # as the person
+There is no command "clos".
+Next: whaleshark help
+exit 2
+
+$ whaleshark help lnad    # as the person
+There is no command "lnad".
+Next: whaleshark help
+exit 2
+
+$ whaleshark help a b    # as the person
+help takes one command at most.
+Next: whaleshark help help
+exit 2
+
+$ whaleshark start --redy    # as the person
+start has no flag --redy. Its flags: --ready, --retry, --resume, --agent KIND, --model M, --allow-overlap, --json, --run ID, --root DIR, --help, --file PATH.
+Next: whaleshark help start
+exit 2
+
+$ whaleshark start --ready=yes    # as the person
+--ready takes no value.
+Next: whaleshark help start
+exit 2
+
+$ whaleshark wait --timeout    # as the person
+--timeout needs a value.
+Next: whaleshark help wait
+exit 2
+
+$ whaleshark wait --timeout soon    # as the person
+--timeout: number "soon" has a character or a form that is not allowed.
+Next: whaleshark help wait
+exit 2
+
+$ whaleshark task add T9 title --after T1,    # as the person
+--after: name "" is empty.
+Next: whaleshark help task
+exit 2
+
+$ whaleshark task add T9 title --cwd ../elsewhere    # as the person
+--cwd: path "../elsewhere" may not climb with "..".
+Next: whaleshark help task
+exit 2
+
+$ whaleshark task add T9 title --owns src/**,/etc/passwd    # as the person
+--owns: path "/etc/passwd" must be relative to the project.
+Next: whaleshark help task
+exit 2
+
+$ whaleshark status --run -r3    # as the person
+id "-r3" has a character or a form that is not allowed.
+exit 2
+
+$ whaleshark status --run r9    # as the person
+There is no run r9 here.
+Next: whaleshark run list
+exit 4
+
+$ whaleshark tell T3 --file testdata/none.md    # as the person
+tell is not built yet.
+exit 1
+
+$ whaleshark version now    # as the person
+version takes no argument.
+Next: whaleshark help version
+exit 2
+
+$ whaleshark strat --json    # as the person
+{"ok":false,"error":{"code":"usage","message":"There is no command \"strat\". Did you mean \"start\"?","next":["whaleshark help"],"data":{"did_you_mean":"start"}}}
+exit 2
+
+$ whaleshark start --redy --json    # as the lead agent
+{"ok":false,"error":{"code":"usage","message":"start has no flag --redy. Its flags: --ready, --retry, --resume, --agent KIND, --model M, --allow-overlap, --json, --run ID, --root DIR, --help, --file PATH.","next":["whaleshark help start"]}}
+exit 2
+
+$ whaleshark start T3    # as the lead agent
+start is not built yet.
+exit 1
+
+$ whaleshark pause    # as the lead agent
+pause is the person's to run, not an agent's.
+exit 5
+
+$ whaleshark pause --human    # as the lead agent
+--human is not for an agent's tab.
+exit 5
+
+$ whaleshark answer n1 --undo    # as the lead agent
+--undo is the person's to give, not an agent's.
+exit 5
+
+$ whaleshark report done ok    # as the lead agent
+report is a worker's command: it runs in the worker's own tab.
+exit 5
+
+$ whaleshark status    # as a worker
+This tab is a worker's, and status is not a worker's command.
+Next: whaleshark guide worker
+exit 5
+
+$ whaleshark accept T1 --json    # as a worker
+{"ok":false,"error":{"code":"not_for_worker","message":"This tab is a worker's, and accept is not a worker's command.","next":["whaleshark guide worker"]}}
+exit 5
+
+$ whaleshark accept T1 --human    # as a worker
+--human is not for an agent's tab.
+exit 5
+
+$ whaleshark status    # as a worker in a restored tab
+This tab is a worker's, and status is not a worker's command.
+Next: whaleshark guide worker
+exit 5
+
+$ whaleshark start T3    # as another tab
+Only the tab a run is bound to may change it.
+Next: whaleshark run takeover
+exit 5
+
+$ whaleshark start T3 --json    # as another tab
+{"ok":false,"error":{"code":"not_bound","message":"Only the tab a run is bound to may change it.","next":["whaleshark run takeover"]}}
+exit 5
+
+$ whaleshark accept T7    # as no tab and no terminal
+Only the tab a run is bound to may change it.
+Next: whaleshark run takeover
+exit 5
+
