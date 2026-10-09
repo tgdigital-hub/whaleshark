@@ -24,7 +24,7 @@ go test ./...
 - `internal/contract/testkit/`: the contracts of the tests: the fixture format and one fixture, the grammar of a scenario file, and how the fake herdr and the fake agents work together.
 - every other folder under `internal/`: one package each. A package that is not written yet is a `commands.go` with an empty `Plug`.
 - `build/ci/`: the gate, described below.
-- `test/`: a stand-in for herdr and a scripted agent, for tests that need neither the real herdr nor a real agent.
+- `test/`: a stand-in for herdr, a scripted agent and the runner of scripted scenarios, for tests that need neither the real herdr nor a real agent.
 
 ## Checks
 

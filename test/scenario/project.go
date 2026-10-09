@@ -9,9 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +17,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
+	"github.com/tgdigital-hub/whaleshark/internal/store"
 	"github.com/tgdigital-hub/whaleshark/test/fakeherdr"
 )
 
@@ -80,9 +79,10 @@ type Project struct {
 	restarted bool // herdr was restarted: no tab holds a variable of ours
 }
 
-// Prepare makes a project. With a fixture it writes the run's state.json,
-// the current pointer, ui.json and the context files, and gives the fake
-// herdr the fixture's picture. scripts is what the fake agents play, by
+// Prepare makes a project. With a fixture it creates the run through the
+// store and points at it, plants a token for every live attempt, writes
+// ui.json and the context files, and gives the fake herdr the fixture's
+// picture with the two panes ui.json names. scripts is what the fake agents play, by
 // attempt; one for an attempt the fixture shows in a tab is started there at
 // once, the way start will, in a tab of its own that the record then names.
 func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Project {
@@ -101,6 +101,7 @@ func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Proje
 	p := &Project{Root: filepath.Join(base, "project"), Kit: contract.NewKit(), Lead: "w1:p1", Own: "w1:p0",
 		t: t, clock: filepath.Join(base, "clock"), now: time.Now()}
 	platform.Plug(p.Kit)
+	store.Plug(p.Kit)
 	p.bin, _ = exec.LookPath("whaleshark")
 	if p.Herdr, err = fakeherdr.New(p.Kit); err != nil {
 		t.Fatal(err)
@@ -133,29 +134,30 @@ func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Proje
 	picture = slices.DeleteFunc(slices.Clone(picture), func(pane contract.Pane) bool {
 		return slices.ContainsFunc(own, func(a *contract.Attempt) bool { return a.Place.Pane == pane.ID })
 	})
-	// The fake herdr numbers what it opens from 1, as the picture of a
-	// fixture does: tabs are opened and forgotten until its numbers are past
-	// the picture's, or a tab opened later would be taken for one of those.
-	top := 0
-	for _, pane := range picture {
-		top = max(top, number(pane.ID), number(pane.Tab))
-	}
+	picture = append(picture, contract.Pane{ID: p.Own, Tab: "w1:t0", Label: "you", Cwd: p.Root})
 	if f != nil {
-		top = max(top, number(f.UI.FleetPane), number(f.UI.ActionsPane))
+		for label, id := range map[string]string{"fleet": f.UI.FleetPane, "actions": f.UI.ActionsPane} {
+			if id != "" && !slices.ContainsFunc(picture, func(pane contract.Pane) bool { return pane.ID == id }) {
+				picture = append(picture, contract.Pane{ID: id, Tab: "w1:t1", Label: label, Cwd: p.Root})
+			}
+		}
 	}
-	for n := 0; n <= top; {
-		spare, err := p.Herdr.TabCreate("", "", nil)
-		p.must(err)
-		n = number(spare.Tab)
-	}
-	p.Herdr.Load(&contract.Snapshot{Panes: append(picture, contract.Pane{ID: p.Own, Tab: "w1:t0", Label: "you", Cwd: p.Root})})
+	p.Herdr.Load(&contract.Snapshot{Panes: picture})
 	if f == nil {
 		return p
 	}
 
-	run := filepath.Join(p.Root, ".whaleshark", "runs", f.State.Run.ID)
+	run := p.Kit.Store.Dir(p.Root, f.State.Run.ID)
 	dirs, err := p.Kit.Platform.Dirs()
 	p.must(err)
+	for id, a := range f.State.Attempts {
+		if a.State.Live() {
+			token := filepath.Join(run, "attempts", id, "token")
+			p.must(os.MkdirAll(filepath.Dir(token), 0o700))
+			p.must(os.WriteFile(token, []byte("token-of-"+id+"\n"), 0o600))
+			a.TokenHash = contract.TokenHash("token-of-" + id)
+		}
+	}
 	ctx := maps.Clone(f.Ctx)
 	for _, a := range own {
 		prompt := filepath.Join(run, "attempts", a.ID, "prompt.md")
@@ -171,21 +173,13 @@ func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Proje
 		}
 		a.Place.Tab, a.Place.Pane, a.Place.Terminal, a.Place.Cwd = pane.Tab, pane.ID, pane.Terminal, p.Root
 	}
-	p.must(contract.WriteVersioned(os.Rename, filepath.Join(run, "state.json"), contract.StateVersion, &f.State))
-	p.must(os.WriteFile(filepath.Join(p.Root, ".whaleshark", "current"), []byte(f.State.Run.ID+"\n"), 0o600))
-	p.must(contract.WriteVersioned(os.Rename, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, f.UI))
+	p.must(p.Kit.Store.Create(p.Root, &f.State))
+	p.must(p.Kit.Store.SetCurrent(p.Root, f.State.Run.ID))
+	p.must(contract.WriteVersioned(p.Kit.Platform.Replace, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, f.UI))
 	for pane, c := range ctx {
-		p.must(contract.WriteVersioned(os.Rename, filepath.Join(dirs.State, "ctx", pane+".json"), contract.FileVersion, c))
+		p.must(contract.WriteVersioned(p.Kit.Platform.Replace, contract.CtxPath(dirs.State, pane), contract.FileVersion, c))
 	}
 	return p
-}
-
-var digits = regexp.MustCompile(`[0-9]+$`)
-
-// number is the number an id of herdr's ends in.
-func number(id string) int {
-	n, _ := strconv.Atoi(digits.FindString(id))
-	return n
 }
 
 func (p *Project) must(err error) {
@@ -195,11 +189,12 @@ func (p *Project) must(err error) {
 	}
 }
 
-// tab is what a worker's tab holds. The clock is among it because the fake
-// herdr hands a fake agent none of our variables but its tab's.
+// tab is what a worker's tab holds, as start gives it. The clock and the
+// notices switch are not among it: an agent has them from herdr's own
+// surroundings, which here are the test's.
 func (p *Project) tab(run string, a *contract.Attempt) []string {
 	return []string{contract.EnvRoot + "=" + p.Root, contract.EnvRun + "=" + run, contract.EnvTask + "=" + a.Task,
-		contract.EnvAttempt + "=" + a.ID, contract.EnvBin + "=" + p.bin, contract.EnvClock + "=" + p.clock}
+		contract.EnvAttempt + "=" + a.ID, contract.EnvBin + "=" + p.bin}
 }
 
 // Clock moves the clock every command and every pane of the project reads.
@@ -209,16 +204,15 @@ func (p *Project) Clock(by time.Duration) {
 	p.must(os.WriteFile(p.clock, []byte(p.now.Format(time.RFC3339Nano)), 0o600))
 }
 
-// Record reads the current run's state.json as it is on disk now, and names
-// the run's folder.
+// Record reads the current run as the store has it now, and names the run's
+// folder.
 func (p *Project) Record() (*contract.State, string) {
 	p.t.Helper()
-	id, err := os.ReadFile(filepath.Join(p.Root, ".whaleshark", "current"))
+	id, err := p.Kit.Store.Current(p.Root)
 	p.must(err)
-	dir := filepath.Join(p.Root, ".whaleshark", "runs", strings.TrimSpace(string(id)))
-	s := new(contract.State)
-	p.must(contract.ReadVersioned(filepath.Join(dir, "state.json"), contract.StateVersion, s))
-	return s, dir
+	s, err := p.Kit.Store.Read(p.Root, id)
+	p.must(err)
+	return s, p.Kit.Store.Dir(p.Root, id)
 }
 
 // Command is the real program with these arguments, ready to be run as that

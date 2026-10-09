@@ -30,7 +30,7 @@ human: answer n4 approve
 assert: T1 status done; attempts T1.1 accepted; no event lost
 ```
 
-**Where it starts.** `fixture <name>` starts from a prepared run: a fixture of the testkit is written as the run's `state.json`, the current pointer, `ui.json` and the context files, and its picture is handed to the fake herdr. Without that line the project is empty, with one tab for the lead agent, and the scenario makes its run itself (`orch: init`, `orch: run new "..."`).
+**Where it starts.** `fixture <name>` starts from a prepared run: a fixture of the testkit is created as a run through the program's own store, which also sets the current pointer, so the files are the ones a command would have written; `ui.json` and the context files are written beside it, every live attempt gets a token file whose hash the record holds, and the fixture's picture is handed to the fake herdr together with the two panes `ui.json` names. Without that line the project is empty, with one tab for the lead agent, and the scenario makes its run itself (`orch: init`, `orch: run new "..."`).
 
 **Fake agents.** `agent <attempt>: <step> | <step>` is what the fake agent of that attempt plays once `start` opens its tab. For an attempt the fixture already shows in a tab, the agent is started at once, in a tab of its own that the record then names. The steps are the testkit's `AgentSteps`. Those that are commands (`progress`, `ask`, `mail`, `report`) run the real program from the tab, so the worker's side is tested too.
 
@@ -47,7 +47,7 @@ assert: T1 status done; attempts T1.1 accepted; no event lost
 
 A command must end with exit code 0. `-> expect` at the end of the line says otherwise, or more: `-> expect exit 5 not_bound` wants that exit code, and every word after it must be somewhere in what the command printed. `--ack last` stands for the delivery id the last `wait` printed. A line that ends in `&` is left running, which is how a `wait` or an `ask` is made to block; `kill-wait` ends every waiting `wait`, and whatever still runs is ended with the scenario. A command that is not left running and has not ended after twenty seconds fails the test.
 
-**Time.** The clock stands still at the fixture's moment, or at the moment the scenario began. `clock +30s` moves it for every command and pane, and for a fake agent whose tab names the clock, as the tabs the runner opens do.
+**Time.** The clock stands still at the fixture's moment, or at the moment the scenario began. `clock +30s` moves it for every command and pane, and for every fake agent: the fake herdr hands an agent the clock and the notices switch of the test, as a real herdr hands an agent its own surroundings.
 
 **herdr.** `herdr-event <kind> <task>` changes the fake's picture and pushes the line; `herdr-drop` changes the picture and pushes nothing. The kind is `working`, `idle`, `done`, `blocked`, `unknown`, `gone` (the agent left its pane), `closed` (the pane was closed) or `focused`. In the place of a task, an attempt or `lead` may stand. `restart-herdr` does what the real one does: the same panes, none of our variables in any tab. `kill-orchestrator` ends the lead agent's commands and takes its agent out of its pane.
 
@@ -70,8 +70,8 @@ p := scenario.Prepare(t, f, nil)
 out, err := p.Command("T2.1", "progress", "50", "half").CombinedOutput()
 ```
 
-`Command` takes `scenario.Orch`, `Human`, `Page`, `Unbound` or an attempt's id. `p.Record()` reads the record back, `p.Clock(d)` moves the clock, and `p.Herdr` is the fake.
+`Command` takes `scenario.Orch`, `Human`, `Page`, `Unbound` or an attempt's id. `p.Record()` reads the record back through the store, `p.Clock(d)` moves the clock, `p.Herdr` is the fake, and `p.Kit` holds the real platform and the real store beside it. A test that opens the real panes plugs the view builder into that kit and hands `Run` a function that calls `panes.Run`; `testdata/join.scn` is the example.
 
 ## What is not played
 
-The fake herdr keeps no pane sizes, starts nothing for a command line typed into a pane, never answers that it is busy, and pushes its lines at once and in order: the lateness of the real one is not played. The project folder is not a git repository. Token files are not written for a fixture's attempts, whose token hashes are made up.
+The fake herdr keeps no pane sizes, starts nothing for a command line typed into a pane, never answers that it is busy, and pushes its lines at once and in order: the lateness of the real one is not played. The project folder is not a git repository. The token of a fixture's live attempt is `token-of-<attempt>`.

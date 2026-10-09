@@ -1,0 +1,18 @@
+# The four packages of the second wave on one another: the real status and
+# the real panes read the fixture through the real store and the fake herdr.
+fixture evening-2114
+
+orch: status                     -> expect "FOR YOU" "T7" "search box"
+human: status --all              -> expect "DONE" "--human"
+as-worker T1.1: status           -> expect exit 5 "not a worker's command"
+as-unbound: status               -> expect "T7"
+orch: status --json              -> expect '"run":"r3"' '"news":'
+orch: status --sweep --quiet --json -> expect '"ran":false'
+
+pane actions: 100x20
+expect-row "Must the old sign-up link keep working?"
+expect-row "[ Approve ]  [ Send back ]"
+pane fleet: 60x40
+expect-row "search box"
+expect-last-line "live"
+click "search box"

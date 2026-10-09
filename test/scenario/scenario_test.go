@@ -11,7 +11,9 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
+	"github.com/tgdigital-hub/whaleshark/internal/panes"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
+	"github.com/tgdigital-hub/whaleshark/internal/view"
 )
 
 func TestMain(m *testing.M) { Main(m) }
@@ -88,6 +90,24 @@ func TestSelf(t *testing.T) {
 	}
 }
 
+// The store, the view builder, status and the panes stand on one another:
+// each line of the scenario goes through all of them.
+func TestJoin(t *testing.T) {
+	p := Run(t, filepath.Join("testdata", "join.scn"), func(p *Project, name string, tm *term.Term) {
+		view.Plug(p.Kit)
+		panes.Run(name, tm, p.Kit, p.Root, "")
+	})
+	// The click on a card went to that card's tab, and nothing else was asked of herdr.
+	went := func(call []string) bool { return slices.Equal(call, []string{"tab", "focus", "w1:t4"}) }
+	for range 500 {
+		if slices.ContainsFunc(p.Herdr.Calls(), went) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Errorf("the click on the card of T3 did not go to its tab: %v", p.Herdr.Calls())
+}
+
 // After a restart of herdr a worker's tab holds its pane and none of our variables.
 func TestRestart(t *testing.T) {
 	p := Run(t, filepath.Join("testdata", "restart.scn"), tabs)
@@ -128,7 +148,7 @@ func TestPrepare(t *testing.T) {
 	}
 	state, _ := p.Kit.Platform.Dirs()
 	var ctx contract.CtxFile
-	if err := contract.ReadVersioned(filepath.Join(state.State, "ctx", "w1:p2.json"), contract.FileVersion, &ctx); err != nil || ctx != f.Ctx["w1:p2"] {
+	if err := contract.ReadVersioned(contract.CtxPath(state.State, "w1:p2"), contract.FileVersion, &ctx); err != nil || ctx != f.Ctx["w1:p2"] {
 		t.Errorf("the context file of w1:p2 is %+v (%v), the fixture says %+v", ctx, err, f.Ctx["w1:p2"])
 	}
 }

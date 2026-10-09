@@ -1,7 +1,6 @@
 package scenario
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -375,14 +374,14 @@ func (s *screen) all() string {
 // them; "attempts <id> <state>, ..."; "no event lost"; "no event twice".
 func (r *runner) assert(fact string) {
 	r.t.Helper()
-	s, dir := r.p.Record()
+	s, _ := r.p.Record()
 	var raw struct{ Tasks, Attempts, Questions map[string]map[string]any }
 	data, _ := json.Marshal(s)
 	json.Unmarshal(data, &raw)
 	w := words(fact)
 	switch {
 	case fact == "no event lost" || fact == "no event twice":
-		r.events(s, dir, fact)
+		r.events(s, fact)
 	case len(w) > 0 && w[0] == "attempts":
 		for _, pair := range strings.Split(strings.TrimPrefix(fact, "attempts"), ",") {
 			if p := words(pair); len(p) != 2 || raw.Attempts[p[0]]["state"] != p[1] {
@@ -409,19 +408,17 @@ func (r *runner) assert(fact string) {
 // events counts where every number given out since the scenario began is
 // now: an event still in the inbox, one acknowledged into history.jsonl, or
 // a message to a worker, which takes its number from the same counter.
-func (r *runner) events(s *contract.State, dir, fact string) {
+func (r *runner) events(s *contract.State, fact string) {
 	r.t.Helper()
 	seen := map[int]int{}
 	for _, e := range s.Inbox.Events {
 		seen[e.Seq]++
 	}
-	if file, err := os.Open(filepath.Join(dir, "history.jsonl")); err == nil {
-		defer file.Close()
-		for lines := bufio.NewScanner(file); lines.Scan(); {
-			var e contract.Event
-			if json.Unmarshal(lines.Bytes(), &e) == nil && slices.Contains(contract.EventKinds, e.Kind) {
-				seen[e.Seq]++
-			}
+	history, err := r.p.Kit.Store.History(r.p.Root, s.Run.ID)
+	r.p.must(err)
+	for _, e := range history {
+		if slices.Contains(contract.EventKinds, e.Kind) {
+			seen[e.Seq]++
 		}
 	}
 	for _, a := range s.Attempts {
