@@ -38,7 +38,16 @@ type Run struct {
 	Base         *GitRef      `json:"base"`
 	Integration  *Integration `json:"integration"`
 	Herdr        HerdrSeen    `json:"herdr"`
+	Lead         LeadSeen     `json:"lead,omitzero"`
 	Findings     []Finding    `json:"findings,omitempty"`
+}
+
+// LeadSeen is since when the lead agent's own pane has shown "done" with
+// nobody looking, and since when it has rested without waiting while events
+// were unread. Each raises its item for the person a minute later.
+type LeadSeen struct {
+	DoneSince   time.Time `json:"done_since,omitzero"`
+	SilentSince time.Time `json:"silent_since,omitzero"`
 }
 
 // Binding names the herdr pane that drives a run.
@@ -123,7 +132,19 @@ type Decision struct {
 	At       time.Time `json:"at"`
 }
 
-// Accepted says how a task became done: How is "check" or "by-hand".
+// How a task was accepted, and the two outcomes of a worker's report.
+const (
+	AcceptCheck  = "check"
+	AcceptByHand = "by-hand"
+	ReportDone   = "done"
+	ReportFailed = "failed"
+)
+
+// Lead is the word that addresses the lead agent where a task is named; no
+// task may have it as its id or its name.
+const Lead = "lead"
+
+// Accepted says how a task became done: How is AcceptCheck or AcceptByHand.
 type Accepted struct {
 	How    string    `json:"how"`
 	Note   string    `json:"note,omitempty"`
@@ -216,6 +237,10 @@ type AgentSeen struct {
 	GoneSince    time.Time `json:"gone_since,omitzero"`
 	QuietFlagged bool      `json:"quiet_flagged,omitempty"`
 	StaleFlagged bool      `json:"stale_flagged,omitempty"`
+	// OvertimeFlagged and StillFlagged: the overtime event was raised for
+	// this attempt, and still_running for this pause.
+	OvertimeFlagged bool `json:"overtime_flagged,omitempty"`
+	StillFlagged    bool `json:"still_flagged,omitempty"`
 }
 
 type Progress struct {
@@ -231,7 +256,7 @@ type CheckResult struct {
 	Tail string    `json:"tail"`
 }
 
-// Report is the worker's own word: Outcome is "done" or "failed".
+// Report is the worker's own word: Outcome is ReportDone or ReportFailed.
 type Report struct {
 	Outcome  string         `json:"outcome"`
 	Summary  string         `json:"summary"`

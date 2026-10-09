@@ -9,10 +9,10 @@ import (
 )
 
 const (
-	howCheck  = "check"
-	howByHand = "by-hand"
-	outDone   = "done"
-	outFailed = "failed"
+	howCheck  = contract.AcceptCheck
+	howByHand = contract.AcceptByHand
+	outDone   = contract.ReportDone
+	outFailed = contract.ReportFailed
 )
 
 func (r Rules) Start(s *contract.State, task string, retry, paneHoldsAgent bool, tokenHash string, a contract.Agent, gated bool, now time.Time) (string, error) {
@@ -141,27 +141,27 @@ func (Rules) Progress(s *contract.State, id string, pct int, note string, now ti
 // rejected event, so whoever calls it saves the run all the same. The one
 // exception is a report the worker can still mend, which is exit 1 and
 // leaves nothing behind.
-func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, evidence []contract.EvidenceFile, now time.Time) (bool, error) {
+func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, evidence []contract.EvidenceFile, now time.Time) (bool, *contract.Refusal, error) {
 	a, t, err := attempt(s, id)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	if outcome != outDone && outcome != outFailed {
-		return false, refuse(contract.ExitUsage, "bad_outcome", "A report is done or failed.")
+		return false, nil, refuse(contract.ExitUsage, "bad_outcome", "A report is done or failed.")
 	}
-	reject := func(e *contract.Refusal) (bool, error) {
+	reject := func(e *contract.Refusal) (bool, *contract.Refusal, error) {
 		raise(s, "rejected", t, a, e.Message, map[string]any{"outcome": outcome, "summary": summary}, now)
-		return false, e
+		return false, e, nil
 	}
 	switch {
 	case tokenHash == "" || tokenHash != a.TokenHash:
 		return reject(refused("bad_token", "The token does not match %s. Stop.", a.ID))
 	case a.Report != nil && a.Report.Outcome == outcome && (a.State == contract.AttemptReported || a.State == contract.AttemptFailed):
-		return true, nil
+		return true, nil, nil
 	case a.State != contract.AttemptWorking && a.State != contract.AttemptAsked:
 		return reject(gone(a))
 	case outcome == outDone && t.BrowserCheck && len(evidence) == 0:
-		return false, refuse(contract.ExitFailed, "no_evidence", "%s needs a browser check: save the evidence first, then report again.", t.ID)
+		return false, nil, refuse(contract.ExitFailed, "no_evidence", "%s needs a browser check: save the evidence first, then report again.", t.ID)
 	}
 	a.Report = &contract.Report{Outcome: outcome, Summary: summary, At: now, Evidence: evidence}
 	if outcome == outFailed {
@@ -173,7 +173,7 @@ func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, e
 		t.Status = contract.TaskReview
 	}
 	raise(s, outcome, t, a, summary, nil, now)
-	return false, nil
+	return false, nil, nil
 }
 
 // Checking may be run again on an attempt that is already being checked:
@@ -234,6 +234,20 @@ func (r Rules) Checked(s *contract.State, task string, result contract.CheckResu
 	how.At = now
 	t.Status, t.Accepted, t.SettledAt = contract.TaskDone, &how, now
 	return promote(s), nil
+}
+
+// Unchecked ends an accept in which no check ran: the result waits again.
+func (r Rules) Unchecked(s *contract.State, task string, now time.Time) error {
+	t, a, err := r.taskAttempt(s, task)
+	if err != nil {
+		return err
+	}
+	if a == nil || a.State != contract.AttemptChecking {
+		return next(refused("not_checking", "%s is not being checked.", t.ID), "whaleshark accept "+t.ID)
+	}
+	setState(a, contract.AttemptReported, now)
+	a.Accept = nil
+	return nil
 }
 
 func (r Rules) Reject(s *contract.State, task, why string, agent contract.Liveness, now time.Time) error {

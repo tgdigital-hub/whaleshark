@@ -123,11 +123,6 @@ func TestThousandChangesInAFolder(t *testing.T) {
 	}
 }
 
-// mute is a system whose notices start without complaint and never come.
-type mute struct{ silent }
-
-func (mute) add(string) error { return nil }
-
 func TestSilentNoticesAreFoundOut(t *testing.T) {
 	state := filepath.Join(t.TempDir(), "state.json")
 	replaceFile(t, state, "0")

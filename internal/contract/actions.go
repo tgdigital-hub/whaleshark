@@ -103,7 +103,7 @@ type ValueRule struct {
 	Value   string
 	Max     int    // characters; 0 is no limit
 	Words   int    // 0 is no limit
-	Pattern string // the whole value must match; empty is no pattern
+	Pattern string // the value must match; empty is no pattern
 	OneLine bool   // no line breaks and no control characters
 	Inside  bool   // a relative path with no "..", no leading "-", still inside the project once links are resolved
 }
@@ -111,9 +111,34 @@ type ValueRule struct {
 var ValueRules = []ValueRule{
 	{Value: "id", Max: 16, Pattern: `^[A-Za-z0-9_][A-Za-z0-9_-]*$`},
 	{Value: "title", Max: 80, OneLine: true},
-	{Value: "name", Max: 24, Words: 3, OneLine: true},
+	{Value: "name", Max: 24, Words: 3, Pattern: `^[^-]`, OneLine: true},
+	{Value: "number", Max: 9, Pattern: `^[0-9]+$`},
+	{Value: "attempt", Pattern: `^[A-Za-z0-9_][A-Za-z0-9_-]{0,15}\.[0-9]{1,9}$`},
+	{Value: "pane", Max: 64, Pattern: `^[A-Za-z0-9][A-Za-z0-9:._-]*$`},
 	{Value: "agent", Max: 32, Pattern: `^[a-z][a-z0-9_-]*$`},
 	{Value: "slug", Pattern: `^[a-z0-9-]+$`},
 	{Value: "path", Inside: true, OneLine: true},
 	{Value: "text"},
+}
+
+// List splits what a flag that takes a list was given: at every comma that
+// is not inside braces, so a pattern such as src/{a,b}/** stays whole. An
+// empty part is kept, for the validator to refuse.
+func List(values ...string) []string {
+	var out []string
+	for _, v := range values {
+		depth, from := 0, 0
+		for i, r := range v {
+			switch {
+			case r == '{':
+				depth++
+			case r == '}' && depth > 0:
+				depth--
+			case r == ',' && depth == 0:
+				out, from = append(out, v[from:i]), i+1
+			}
+		}
+		out = append(out, v[from:])
+	}
+	return out
 }

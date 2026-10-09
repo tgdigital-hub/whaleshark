@@ -101,7 +101,7 @@ func check(cmd *contract.Command, p parsed, root string) *contract.Refusal {
 			}
 			parts := []string{v}
 			if strings.Contains(f.Value, ",") {
-				parts = strings.Split(v, ",")
+				parts = contract.List(v)
 			}
 			for _, part := range parts {
 				if err := Valid(kind, part, root); err != nil {

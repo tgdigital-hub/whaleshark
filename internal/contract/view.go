@@ -1,6 +1,9 @@
 package contract
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // ViewVersion is raised by every change to the shape of the view model.
 const ViewVersion = 1
@@ -46,6 +49,37 @@ var Looks = []LookOf{
 	{LookQueued, "○", ".", "dim", "QUEUED"},
 	{LookDone, "✔", "v", "done", "DONE"},
 }
+
+// PlainMarks reports whether a printer must use the Plain marks: the person
+// asked for them (WHALESHARK_MARKS=plain), or the terminal's locale does not
+// say UTF-8. The page never needs them.
+func PlainMarks(getenv func(string) string) bool {
+	if m := getenv("WHALESHARK_MARKS"); m != "" {
+		return m == "plain"
+	}
+	for _, name := range []string{"LC_ALL", "LC_CTYPE", "LANG"} {
+		if v := strings.ToUpper(getenv(name)); v != "" {
+			return !strings.Contains(v, "UTF-8") && !strings.Contains(v, "UTF8")
+		}
+	}
+	return true
+}
+
+// Pale is the colour of a progress bar whose figure is old: the scheme's
+// "building" half-way to its ground, so a scheme stays sixteen colours.
+// With no colour the bar is drawn with BarPale in place of BarFull.
+func Pale(colour, ground uint32) uint32 {
+	var out uint32
+	for shift := 0; shift < 24; shift += 8 {
+		out |= ((colour>>shift&0xff + ground>>shift&0xff) / 2) << shift
+	}
+	return out
+}
+
+const (
+	BarFull = "█"
+	BarPale = "▒"
+)
 
 // The other words a card can carry in the place of its look's own.
 const (

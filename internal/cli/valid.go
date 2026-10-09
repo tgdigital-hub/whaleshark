@@ -18,16 +18,10 @@ type rule struct {
 	re *regexp.Regexp
 }
 
-// rules is the table of value rules by name: the shared ones, and three for
-// values that only the caller check meets.
+// rules is the contract's table of value rules, by name.
 var rules = sync.OnceValue(func() map[string]rule {
-	table := append([]contract.ValueRule{
-		{Value: "number", Max: 9, Pattern: `^[0-9]+$`},
-		{Value: "attempt", Pattern: `^[A-Za-z0-9_][A-Za-z0-9_-]{0,15}\.[0-9]{1,9}$`},
-		{Value: "pane", Max: 64, Pattern: `^[A-Za-z0-9][A-Za-z0-9:._-]*$`},
-	}, contract.ValueRules...)
-	m := make(map[string]rule, len(table))
-	for _, v := range table {
+	m := make(map[string]rule, len(contract.ValueRules))
+	for _, v := range contract.ValueRules {
 		r := rule{ValueRule: v}
 		if v.Pattern != "" {
 			r.re = regexp.MustCompile(v.Pattern)

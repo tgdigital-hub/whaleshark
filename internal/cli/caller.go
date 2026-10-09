@@ -40,7 +40,7 @@ func rootOf(c *contract.Call) (string, error) {
 	}
 	cwd, err := os.Getwd()
 	for dir := cwd; err == nil; dir = filepath.Dir(dir) {
-		if ours := c.Kit.Store.Dir(dir, ""); ours != "" {
+		if ours := c.Kit.Reader().Dir(dir, ""); ours != "" {
 			if _, err := os.Stat(ours); err == nil {
 				return dir, nil
 			}
@@ -77,7 +77,7 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 
 	// A problem with the record stops every command but those open to all.
 	var problem *contract.Refusal
-	store := c.Kit.Store
+	store := c.Kit.Reader()
 	runs, err := store.Runs(root)
 	if err != nil {
 		problem = unusable(err)

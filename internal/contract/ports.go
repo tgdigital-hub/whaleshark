@@ -10,9 +10,13 @@ import (
 // ErrNotBuilt is what a stand-in answers where it cannot answer with nothing.
 var ErrNotBuilt = errors.New("not built yet")
 
+// ErrNoRun is what the store answers for a run that does not exist.
+var ErrNoRun = errors.New("no such run")
+
 // Reader is the part of the store the panes, the page and the views use.
 type Reader interface {
-	// Read loads a run under the shared lock. A file newer than this program is ErrNewer.
+	// Read loads a run under the shared lock. A file newer than this program
+	// is ErrNewer; a run that does not exist is ErrNoRun.
 	Read(root, run string) (*State, error)
 	// Runs lists the ids of a project's runs, oldest first.
 	Runs(root string) ([]string, error)
@@ -84,16 +88,30 @@ type KeyEntry struct {
 	Argv      []string
 }
 
-// ErrAgentNotReady is herdr's answer when an agent stopped at a prompt while
-// starting, as opposed to a start that failed.
-var ErrAgentNotReady = errors.New("agent_not_ready")
+// herdr's refusals that callers tell apart; every other is just an error.
+// ErrAgentNotReady: an agent stopped at a prompt while starting, as opposed
+// to a start that failed; herdr also says it of a prompt or a pointer for an
+// agent that is no longer in front in its pane. ErrAgentBlocked: the agent is
+// at a prompt, so nothing is typed. ErrPromptStalled: the prompt was typed
+// and the agent did not start on it. ErrNoPane: the pane or its agent is
+// gone. ErrHerdrUnreachable: no herdr, or its server is not running.
+var (
+	ErrAgentNotReady    = errors.New("agent_not_ready")
+	ErrAgentBlocked     = errors.New("agent_blocked")
+	ErrPromptStalled    = errors.New("agent_prompt_stalled")
+	ErrNoPane           = errors.New("no such pane or agent")
+	ErrHerdrUnreachable = errors.New("herdr is not reachable")
+)
 
 // Herdr is the only way to herdr. It has no call that sends a key to an agent.
 type Herdr interface {
 	Version() (string, error)
 	Snapshot(ctx context.Context) (*Snapshot, error)
-	// Events takes one snapshot, then delivers every change until the server
-	// closes the connection, which closes the channel.
+	// Events takes one snapshot, then delivers every change herdr announces
+	// until the server closes the connection, which closes the channel. A
+	// pane's folder and an agent's session change with no line; only the
+	// next snapshot shows them. A status line can come a few tenths of a
+	// second late and after lines of things that happened later.
 	Events(ctx context.Context) (*Snapshot, <-chan HerdrEvent, error)
 	// TabCreate opens a tab without focusing it; env is KEY=VALUE.
 	TabCreate(cwd, label string, env []string) (Pane, error)
@@ -133,6 +151,20 @@ type Watcher interface {
 	Close() error
 }
 
+// ErrCannotTell: the system gives no way to know who else can write.
+// ErrNotOurs: a lock was asked for in a folder that belongs to another login.
+var (
+	ErrCannotTell = errors.New("cannot tell on this system")
+	ErrNotOurs    = errors.New("the folder belongs to another login")
+)
+
+// The shells Quote can write for; empty is the shell of this system.
+const (
+	ShellPosix      = "posix"
+	ShellPowerShell = "powershell"
+	ShellCmd        = "cmd"
+)
+
 // Platform is the operating system, for every package but the one that implements it.
 type Platform interface {
 	Dirs() (Dirs, error)
@@ -145,12 +177,14 @@ type Platform interface {
 	Private(path string) error
 	// PrivateTemp makes a fresh folder under the login's cache, never a shared one.
 	PrivateTemp() (string, error)
+	// WritableByOthers: another login owns it, anyone may write it, or its
+	// group may and has a member besides the owner. ErrCannotTell on Windows.
 	WritableByOthers(path string) (bool, error)
 	Synced(path string) bool
 	// PathKey is a path made comparable; never used as a real path.
 	PathKey(path string) string
-	// Quote joins arguments for the shell of this system.
-	Quote(argv []string) string
+	// Quote joins arguments into one line for a shell.
+	Quote(shell string, argv []string) string
 	Watch(paths ...string) (Watcher, error)
 	SelfPath() (string, error)
 }
@@ -299,7 +333,7 @@ func (NoPlatform) PrivateTemp() (string, error)          { return "", ErrNotBuil
 func (NoPlatform) WritableByOthers(string) (bool, error) { return false, ErrNotBuilt }
 func (NoPlatform) Synced(string) bool                    { return false }
 func (NoPlatform) PathKey(path string) string            { return path }
-func (NoPlatform) Quote(argv []string) string            { return strings.Join(argv, " ") }
+func (NoPlatform) Quote(_ string, argv []string) string  { return strings.Join(argv, " ") }
 func (NoPlatform) Watch(...string) (Watcher, error)      { return nil, ErrNotBuilt }
 func (NoPlatform) SelfPath() (string, error)             { return "", ErrNotBuilt }
 

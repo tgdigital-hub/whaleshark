@@ -83,7 +83,12 @@ func TestImports(t *testing.T) {
 
 	kit := "package middle\n\ntype Kit struct{ Store interface{ Change() } }\n\nfunc Do() { Kit{}.Store.Change() }\n"
 	check(tree(t, append(files, "internal/middle/m.go", kit)...),
-		"internal/middle/m.go:5: internal/panes reaches a call of Store.Change")
+		"internal/middle/m.go:5: internal/panes reaches the kit's Store")
+	held := "package middle\n\ntype Kit struct{ Store interface{ Change() } }\n\nfunc Do() {\n\ts := Kit{}.Store\n\ts.Change()\n}\n"
+	check(tree(t, append(files, "internal/middle/m.go", held)...),
+		"internal/middle/m.go:6: internal/panes reaches the kit's Store")
+	reads := "package middle\n\nimport \"sync/atomic\"\n\ntype Kit struct{ n atomic.Int64 }\n\nfunc (Kit) Reader() int { return 0 }\n\nfunc Do() {\n\tvar k Kit\n\tk.n.Store(1)\n\t_ = k.Reader()\n}\n"
+	check(tree(t, append(files, "internal/middle/m.go", reads)...))
 
 	system := "package middle\n\nimport \"runtime\"\n\nfunc Do() { _ = runtime.GOOS }\n"
 	check(tree(t, append(files, "internal/middle/m.go", system)...),

@@ -230,6 +230,14 @@ func pass(s *contract.State, t *contract.Task, now time.Time) error {
 	return nil
 }
 
+func (Rules) Shown(s *contract.State, id string, now time.Time) error {
+	q, err := question(s, id)
+	if err == nil && q.ShownAt.IsZero() {
+		q.ShownAt = now
+	}
+	return err
+}
+
 func (Rules) CloseQuestion(s *contract.State, id string, now time.Time) error {
 	q, err := question(s, id)
 	switch {

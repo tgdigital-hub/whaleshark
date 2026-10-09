@@ -37,8 +37,12 @@ func (r Rules) Seen(s *contract.State, id string, pane *contract.Pane, startLock
 	seq, items, withdrawn := s.Counters.Seq, s.Counters.Need, false
 	pause := s.Run.Paused
 
-	if due := a.StartedAt.Add(time.Duration(limits.Limits.MaxMinutes) * time.Minute); pause == nil && limits.Limits.MaxMinutes > 0 && crossed(h, due, now) {
-		raise(s, "overtime", t, a, "", nil, now)
+	if pause == nil {
+		h.StillFlagged = false
+		if max := time.Duration(limits.Limits.MaxMinutes) * time.Minute; max > 0 && !h.OvertimeFlagged && now.Sub(a.StartedAt) >= max {
+			h.OvertimeFlagged = true
+			raise(s, "overtime", t, a, "", nil, now)
+		}
 	}
 	switch {
 	case pane != nil && pane.Terminal != "" && a.Place.Terminal != "" && pane.Terminal != a.Place.Terminal:
@@ -80,7 +84,8 @@ func (r Rules) Seen(s *contract.State, id string, pane *contract.Pane, startLock
 			stale := time.Duration(limits.Limits.StaleMinutes) * time.Minute
 			switch {
 			case pause != nil:
-				if due := pause.At.Add(stillAfter); crossed(h, due, now) || was != contract.StatusWorking && !now.Before(due) {
+				if !h.StillFlagged && now.Sub(pause.At) >= stillAfter {
+					h.StillFlagged = true
 					raise(s, "still_running", t, a, "", nil, now)
 				}
 			case a.State == contract.AttemptWorking && stale > 0 && !h.StaleFlagged && now.Sub(lastNote(a)) >= stale:
@@ -121,12 +126,6 @@ func (r Rules) Seen(s *contract.State, id string, pane *contract.Pane, startLock
 		h.At = now
 	}
 	return changed
-}
-
-// crossed reports that a moment has passed since the attempt's block was
-// last written, which is how an event without a flag of its own is raised once.
-func crossed(h *contract.AgentSeen, due, now time.Time) bool {
-	return !now.Before(due) && h.At.Before(due)
 }
 
 func lastNote(a *contract.Attempt) time.Time {
@@ -183,9 +182,7 @@ func withdraw(s *contract.State, cause, attempt string) bool {
 }
 
 // LeadSeen raises and withdraws the two items about the lead agent's own
-// pane. Each waits a minute first. The record has no field for that minute,
-// so the item is written at the first sighting, closed and with the moment
-// it is due in settles_at, and opened when that moment comes.
+// pane. Each waits a minute first, counted from the moment kept on the run.
 func (Rules) LeadSeen(s *contract.State, pane *contract.Pane, waiting bool, now time.Time) bool {
 	status := ""
 	if open(s) != nil {
@@ -194,38 +191,39 @@ func (Rules) LeadSeen(s *contract.State, pane *contract.Pane, waiting bool, now 
 	if pane != nil {
 		status = pane.Status
 	}
-	resting := status == contract.StatusIdle || status == contract.StatusDone
-	unread := leadItem(s, contract.CauseLeadUnread, textUnread, status == contract.StatusDone, now)
-	silent := leadItem(s, contract.CauseLeadSilent, textSilent, resting && !waiting && len(s.Inbox.Events) > 0, now)
+	resting, l := status == contract.StatusIdle || status == contract.StatusDone, &s.Run.Lead
+	unread := leadItem(s, &l.DoneSince, contract.CauseLeadUnread, textUnread, status == contract.StatusDone, now)
+	silent := leadItem(s, &l.SilentSince, contract.CauseLeadSilent, textSilent, resting && !waiting && len(s.Inbox.Events) > 0, now)
 	return unread || silent
 }
 
-func leadItem(s *contract.State, cause, text string, on bool, now time.Time) bool {
+// leadItem keeps one record for its cause and opens it again for each new
+// episode; one the person dealt with is not raised again in the same episode.
+func leadItem(s *contract.State, since *time.Time, cause, text string, on bool, now time.Time) bool {
 	var q *contract.Question
 	for _, x := range s.Questions {
 		if x.From == contract.FromTool && x.Cause == cause {
 			q = x
 		}
 	}
-	armed := q != nil && q.State == contract.QuestionClosed && !q.SettlesAt.IsZero()
 	switch {
-	case on && q == nil:
+	case !on && since.IsZero():
+		return false
+	case !on:
+		if *since = (time.Time{}); q != nil {
+			q.State = contract.QuestionClosed
+		}
+	case since.IsZero():
+		*since = now
+	case now.Sub(*since) < leadAfter || q != nil && !q.CreatedAt.Before(*since):
+		return false
+	case q == nil:
 		item(s, cause, nil, nil, text, false, now)
-		q = find(s, cause, "")
-		q.State, q.SettlesAt = contract.QuestionClosed, now.Add(leadAfter)
-	case on && armed && !now.Before(q.SettlesAt):
-		q.State, q.SettlesAt = contract.QuestionOpen, time.Time{}
-	case on && q.State == contract.QuestionClosed && !armed:
+	default:
 		if q.Answer != "" {
 			shelve(q, q.AnsweredBy, now)
 		}
-		q.CreatedAt, q.ShownAt, q.UsedAt, q.SettlesAt = now, time.Time{}, time.Time{}, now.Add(leadAfter)
-	case !on && armed:
-		q.SettlesAt = time.Time{}
-	case !on && q != nil && q.State != contract.QuestionClosed:
-		q.State, q.SettlesAt = contract.QuestionClosed, time.Time{}
-	default:
-		return false
+		q.State, q.CreatedAt, q.ShownAt, q.UsedAt = contract.QuestionOpen, now, time.Time{}, time.Time{}
 	}
 	return true
 }

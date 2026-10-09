@@ -12,7 +12,7 @@ import (
 const (
 	maxWords = 3
 	maxName  = 24
-	lead     = "lead" // what tell and jump call the lead agent; no task may take it
+	lead     = contract.Lead // what tell and jump call the lead agent; no task may take it
 )
 
 func (r Rules) AddTask(s *contract.State, t contract.Task, taken []string, now time.Time) error {

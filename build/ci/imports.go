@@ -8,24 +8,9 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
-
-	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
-
-// storeWrites is every method the store has beyond reading.
-func storeWrites() map[string]bool {
-	store, reader := reflect.TypeFor[contract.Store](), reflect.TypeFor[contract.Reader]()
-	w := map[string]bool{}
-	for i := range store.NumMethod() {
-		if _, reads := reader.MethodByName(store.Method(i).Name); !reads {
-			w[store.Method(i).Name] = true
-		}
-	}
-	return w
-}
 
 func under(pkg, parent string) bool { return pkg == parent || strings.HasPrefix(pkg, parent+"/") }
 
@@ -69,7 +54,7 @@ func (g *gate) imports() error {
 				}
 			}
 			if strings.HasPrefix(pkg, mod) && pkg != mod+"internal/contract" {
-				errs = append(errs, g.writeCalls(row[0], strings.TrimPrefix(pkg, mod))...)
+				errs = append(errs, g.storeNamed(row[0], strings.TrimPrefix(pkg, mod))...)
 			}
 			for _, next := range graph[pkg] {
 				if _, seen := via[next]; !seen {
@@ -101,12 +86,14 @@ func (g *gate) imports() error {
 	return errors.Join(errs...)
 }
 
-// writeCalls finds, in one folder, each call of a writing method on a
-// value's Store field: the write path taken through the kit, which no
-// import shows.
-func (g *gate) writeCalls(from, dir string) []error {
+// storeNamed finds, in one folder, each place that names a value's Store
+// field: the write path taken through the kit, which no import shows. What
+// the panes, the page and the connection reach reads through the kit's
+// Reader and nothing else. A method called Store, as a counter has, is not
+// the field.
+func (g *gate) storeNamed(from, dir string) []error {
 	files, _ := filepath.Glob(filepath.Join(g.root, dir, "*.go"))
-	fset, writes := token.NewFileSet(), storeWrites()
+	fset := token.NewFileSet()
 	var errs []error
 	for _, name := range files {
 		if strings.HasSuffix(name, "_test.go") {
@@ -117,14 +104,14 @@ func (g *gate) writeCalls(from, dir string) []error {
 			errs = append(errs, err)
 			continue
 		}
+		called := map[ast.Expr]bool{}
 		ast.Inspect(file, func(n ast.Node) bool {
-			call, _ := n.(*ast.SelectorExpr)
-			if call == nil || !writes[call.Sel.Name] {
-				return true
+			if call, _ := n.(*ast.CallExpr); call != nil {
+				called[call.Fun] = true
 			}
-			if field, _ := call.X.(*ast.SelectorExpr); field != nil && field.Sel.Name == "Store" {
-				errs = append(errs, fmt.Errorf("%s/%s:%d: %s reaches a call of Store.%s; start a child command instead",
-					dir, filepath.Base(name), fset.Position(call.Pos()).Line, from, call.Sel.Name))
+			if field, _ := n.(*ast.SelectorExpr); field != nil && field.Sel.Name == "Store" && !called[field] {
+				errs = append(errs, fmt.Errorf("%s/%s:%d: %s reaches the kit's Store; read through Reader() and start a child command for a change",
+					dir, filepath.Base(name), fset.Position(field.Pos()).Line, from))
 			}
 			return true
 		})

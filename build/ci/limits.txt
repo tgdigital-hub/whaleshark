@@ -70,8 +70,8 @@ time 30ms hook statusline
 time 30ms hook gate
 
 # noimport <folder> <folder>...: nothing the first folder imports, however
-# far down, may be one of the others, and none of it may call a writing
-# method of the store.
+# far down, may be one of the others, and none of it may name the kit's
+# Store at all: it reads through the kit's Reader.
 noimport internal/panes internal/store internal/inbox
 noimport internal/dash internal/store internal/inbox
 noimport internal/connect internal/store internal/inbox

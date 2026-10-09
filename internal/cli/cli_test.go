@@ -374,6 +374,7 @@ func TestParse(t *testing.T) {
 	}{
 		{[]string{"task", "add", "T9", "a title", "--after=T1,T2", "--owns", "src/**,docs", "--shared", "--check", "make test"}, "",
 			[]string{"add", "T9", "a title"}, map[string][]string{"after": {"T1,T2"}, "owns": {"src/**,docs"}, "shared": {""}, "check": {"make test"}}},
+		{[]string{"task", "add", "T9", "t", "--owns", "src/{a,b}/**,docs"}, "", []string{"add", "T9", "t"}, map[string][]string{"owns": {"src/{a,b}/**,docs"}}},
 		{[]string{"tell", "T3", "--", "--not-a-flag", "-x"}, "", []string{"T3", "--not-a-flag", "-x"}, map[string][]string{}},
 		{[]string{"tell", "T3", "- a dash first"}, "", []string{"T3", "- a dash first"}, map[string][]string{}},
 		{[]string{"tell", "T3", "--file", note}, "", []string{"T3", "line one\nline two"}, map[string][]string{"file": {note}}},
@@ -471,7 +472,7 @@ func TestValid(t *testing.T) {
 		{"title", "two\nlines", false}, {"title", "bell\a", false}, {"title", "turned\u202e", false}, {"title", "\xff", false},
 		{"name", "sign-up page", true}, {"name", "one two three", true}, {"name", "one two three four", false},
 		{"name", "a name that is far too long", false}, {"name", "   ", false},
-		{"task", "T3", true}, {"task", "sign-up page", true}, {"task", "-x", true}, {"task", "a\tb\x00", false},
+		{"task", "T3", true}, {"task", "sign-up page", true}, {"task", "-x", false}, {"name", "-x", false}, {"name", "x -y", true}, {"task", "a\tb\x00", false},
 		{"agent", "claude", true}, {"agent", "Claude", false}, {"agent", "-claude", false},
 		{"slug", "url-parser", true}, {"slug", "url parser", false},
 		{"number", "540", true}, {"number", "-5", false}, {"number", "1e3", false},

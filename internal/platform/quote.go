@@ -1,26 +1,29 @@
 package platform
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
+)
 
 // The three ways a command line is spelled, and what a POSIX shell takes as it stands.
 const (
-	Posix      = "posix"
-	PowerShell = "powershell"
-	Cmd        = "cmd"
+	Posix      = contract.ShellPosix
+	PowerShell = contract.ShellPowerShell
+	Cmd        = contract.ShellCmd
 	plain      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@%+=:,./-"
 )
 
-func (s *System) Quote(argv []string) string {
-	if s.OS == onWindows {
-		return Quote(PowerShell, argv)
-	}
-	return Quote(Posix, argv)
-}
-
 // Quote joins arguments so that the shell hands each on unchanged and reads
-// none as its own. Nothing carries a line break into cmd, and the PowerShell
-// of Windows itself drops an empty argument and the double quotes inside one.
-func Quote(dialect string, argv []string) string {
+// none as its own; with no shell named it writes for this system's own.
+// Nothing carries a line break into cmd, and the PowerShell of Windows
+// itself drops an empty argument and the double quotes inside one.
+func (s *System) Quote(dialect string, argv []string) string {
+	if dialect == "" {
+		if dialect = Posix; s.OS == onWindows {
+			dialect = PowerShell
+		}
+	}
 	words := make([]string, len(argv))
 	for i, arg := range argv {
 		switch dialect {

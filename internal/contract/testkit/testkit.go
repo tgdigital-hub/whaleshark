@@ -128,13 +128,22 @@ type FakeAnswer struct {
 	Exit   int    `json:"exit"`
 }
 
+// What Push and Drop take besides a state: the agent left its pane, the
+// pane was closed, the pane got the focus.
+const (
+	PushGone    = "gone"
+	PushClosed  = "closed"
+	PushFocused = "focused"
+)
+
 // FakeHerdr is the fake as the scenario runner drives it in its own process.
 type FakeHerdr interface {
 	contract.Herdr
 	// Script registers what the fake agent of an attempt plays.
 	Script(attempt, script string)
 	// Push changes the picture of a pane and pushes the line; Drop changes
-	// the picture and pushes nothing.
+	// the picture and pushes nothing. kind is one of herdr's five states
+	// (the contract's Status constants), PushGone, PushClosed or PushFocused.
 	Push(kind, pane string)
 	Drop(kind, pane string)
 	// Lose drops the next pushed line silently.

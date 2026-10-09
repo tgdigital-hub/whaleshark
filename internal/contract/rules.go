@@ -4,7 +4,10 @@ import "time"
 
 // Rules is every legal change to a run, as pure functions on the record:
 // no file, no herdr, no clock. Each either changes s and returns nil, or
-// changes nothing and returns a *Refusal. Only the rules package implements it.
+// changes nothing and returns a *Refusal, so a function handed to
+// Store.Change returns that error and nothing is written. Report is the one
+// that can refuse and still have something to save, and says so in its own
+// result. Only the rules package implements it.
 type Rules interface {
 	// 6.2 Run.
 	NewRun(id, objective string, limit int, base *GitRef, by Binding, now time.Time) *State
@@ -34,12 +37,17 @@ type Rules interface {
 	Working(s *State, attempt string, now time.Time) error
 	StartFailed(s *State, attempt, why string, now time.Time) error
 	Progress(s *State, attempt string, pct int, note string, now time.Time) error
-	// Report records a worker's report; a refused one is kept as a rejected event.
-	Report(s *State, attempt, tokenHash, outcome, summary string, evidence []EvidenceFile, now time.Time) (already bool, err error)
+	// Report records a worker's report. kept is a refusal that was written
+	// into the record as a rejected event: the caller lets Store.Change save
+	// and then ends with it. With err nothing changed.
+	Report(s *State, attempt, tokenHash, outcome, summary string, evidence []EvidenceFile, now time.Time) (already bool, kept *Refusal, err error)
 	// Checking and Checked are the two locked steps of accept; a failed check
 	// is stored on the attempt and raises check_failed.
 	Checking(s *State, task string, c Checked, now time.Time) error
 	Checked(s *State, task string, result CheckResult, how Accepted, now time.Time) (ready []string, err error)
+	// Unchecked takes an attempt back from checking to reported when no
+	// check ran: a conflict, a folder that moved, a check that could not start.
+	Unchecked(s *State, task string, now time.Time) error
 	Reject(s *State, task, why string, agent Liveness, now time.Time) error
 	Stop(s *State, task string, keepTab bool, now time.Time) error
 	// Seen applies what one sweep saw of an attempt: the cached block, the
@@ -65,6 +73,9 @@ type Rules interface {
 	// false while the item is open, settling, or the run is paused.
 	Use(s *State, id string, now time.Time) (answer string, ok bool, err error)
 	CloseQuestion(s *State, id string, now time.Time) error
+	// Shown stamps the first moment an item was put in front of the person;
+	// whoever nudges calls it, since only it knows Do not disturb.
+	Shown(s *State, id string, now time.Time) error
 
 	// 6.8 Messages down to an attempt.
 	Tell(s *State, task, text, body string, now time.Time) (seq int, err error)

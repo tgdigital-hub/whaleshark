@@ -18,8 +18,8 @@ import (
 // platform is the two calls the adapter makes on the operating system.
 type platform struct{ contract.NoPlatform }
 
-func (platform) Replace(tmp, final string) error { return os.Rename(tmp, final) }
-func (platform) Quote(argv []string) string      { return "'" + strings.Join(argv, "' '") + "'" }
+func (platform) Replace(tmp, final string) error      { return os.Rename(tmp, final) }
+func (platform) Quote(_ string, argv []string) string { return "'" + strings.Join(argv, "' '") + "'" }
 
 // stub is an adapter whose herdr is a function; it keeps every command line.
 func stub(t *testing.T, answer func(env, args []string) (string, string, int)) (*Adapter, *[]string) {

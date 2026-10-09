@@ -33,4 +33,4 @@ func lockFile(path string, exclusive, wait bool) (*os.File, error) {
 }
 
 // owner cannot tell: who may write a file on Windows is not read yet.
-func owner(fs.FileInfo) (uint32, bool) { return 0, false }
+func owner(fs.FileInfo) (uid, gid uint32, ok bool) { return 0, 0, false }

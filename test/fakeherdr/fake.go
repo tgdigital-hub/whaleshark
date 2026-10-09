@@ -184,11 +184,11 @@ func (f *Fake) change(kind, id string, tell bool) {
 		f.subs = nil
 	}
 	switch kind {
-	case "gone":
+	case testkit.PushGone:
 		f.release(p)
-	case "closed":
+	case testkit.PushClosed:
 		f.closePane(p)
-	case "focused":
+	case testkit.PushFocused:
 		f.setFocus(id)
 	default:
 		f.setStatus(p, kind)

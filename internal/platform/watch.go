@@ -36,6 +36,12 @@ func (silent) events() <-chan string { return nil }
 func (silent) close()                {}
 func (silent) exact() bool           { return false }
 
+// mute is a system whose notices start without complaint and never come:
+// what a watcher is given when the notices are switched off for a test.
+type mute struct{ silent }
+
+func (mute) add(string) error { return nil }
+
 const checkEvery, slowEvery = time.Second, time.Second / 4
 
 // folder is one folder under notice. info is the folder as it was when its

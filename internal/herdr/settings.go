@@ -66,14 +66,14 @@ func withoutKeys(file string) string {
 	return file[:i] + file[j:]
 }
 
-func withKeys(file string, entries []contract.KeyEntry, quote func([]string) string) (string, error) {
+func withKeys(file string, entries []contract.KeyEntry, quote func(string, []string) string) (string, error) {
 	if len(entries) == 0 {
 		return file, nil
 	}
 	block := keysBegin + "\n"
 	for _, e := range entries {
 		block += "[[keys.command]]\n"
-		for _, kv := range [][2]string{{"key", e.Key}, {"type", e.Type}, {"command", quote(e.Argv)}} {
+		for _, kv := range [][2]string{{"key", e.Key}, {"type", e.Type}, {"command", quote("", e.Argv)}} {
 			if strings.ContainsFunc(kv[1], unicode.IsControl) {
 				return "", &Error{Failed, "a shortcut holds a control character"}
 			}

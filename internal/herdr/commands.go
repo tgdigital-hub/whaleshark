@@ -68,9 +68,15 @@ const (
 
 func (e *Error) Error() string { return "herdr: " + e.Message + " (" + e.Code + ")" }
 
-// Is makes herdr's "agent_not_ready" the contract's ErrAgentNotReady.
+// Is makes herdr's codes the contract's errors.
 func (e *Error) Is(target error) bool {
-	return target == contract.ErrAgentNotReady && e.Code == contract.ErrAgentNotReady.Error()
+	switch target {
+	case contract.ErrAgentNotReady, contract.ErrAgentBlocked, contract.ErrPromptStalled:
+		return e.Code == target.Error()
+	case contract.ErrNoPane:
+		return e.Code == "pane_not_found" || e.Code == "agent_not_found"
+	}
+	return target == contract.ErrHerdrUnreachable && e.Code == Unreachable
 }
 
 // Code returns herdr's code for an error of this package, or "".
@@ -212,7 +218,7 @@ func (a *Adapter) Point(pane string, p contract.Pointer, arg string) error {
 }
 
 func (a *Adapter) Run(pane string, argv []string) error {
-	return a.do("pane", "run", pane, a.kit.Platform.Quote(argv))
+	return a.do("pane", "run", pane, a.kit.Platform.Quote("", argv))
 }
 
 func (a *Adapter) Screen(pane string) (string, error) {

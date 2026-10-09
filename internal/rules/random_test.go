@@ -279,8 +279,12 @@ func (w *world) step() (name string, err error, mayChange bool) {
 		if some(15) {
 			tok = "wrong"
 		}
-		_, err = r.Report(s, id, tok, outcome, "summary", nil, now)
-		return "report", err, true
+		// Only a refusal the record keeps may change it.
+		_, kept, err := r.Report(s, id, tok, outcome, "summary", nil, now)
+		if kept != nil {
+			return "report", kept, true
+		}
+		return "report", err, false
 	case 15:
 		_, err = r.Ask(s, w.attempt(contract.AttemptWorking), "which?", nil, now)
 		return "ask", err, false

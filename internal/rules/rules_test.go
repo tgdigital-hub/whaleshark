@@ -86,7 +86,7 @@ func in(t *testing.T, state contract.AttemptState) *contract.State {
 	must(t, r.Placed(s, "T1.1", contract.Place{Tab: "w1:t2", Pane: "w1:p2", Terminal: "term1"}, t0))
 	must(t, r.Working(s, "T1.1", t0))
 	report := func(outcome string) {
-		_, err := r.Report(s, "T1.1", token, outcome, "summary", nil, t0)
+		_, err := report(r.Report(s, "T1.1", token, outcome, "summary", nil, t0))
 		must(t, err)
 	}
 	switch state {
@@ -142,19 +142,19 @@ func TestAttemptChanges(t *testing.T) {
 		{"progress", func(s *contract.State) error { return r.Progress(s, "T1.1", 40, "tests written", later) },
 			map[contract.AttemptState]string{"starting": "starting", "working": "working", "asked": "asked", "=": "!not_active"}, nil},
 		{"report done", func(s *contract.State) error {
-			_, err := r.Report(s, "T1.1", token, outDone, "ok", nil, later)
+			_, err := report(r.Report(s, "T1.1", token, outDone, "ok", nil, later))
 			return err
 		},
 			map[contract.AttemptState]string{"working": "reported", "asked": "reported", "reported": "reported", "=": "!not_active"},
 			map[contract.AttemptState]contract.TaskStatus{"working": "review", "asked": "review"}},
 		{"report failed", func(s *contract.State) error {
-			_, err := r.Report(s, "T1.1", token, outFailed, "no", nil, later)
+			_, err := report(r.Report(s, "T1.1", token, outFailed, "no", nil, later))
 			return err
 		},
 			map[contract.AttemptState]string{"working": "failed", "asked": "failed", "failed": "failed", "=": "!not_active"},
 			map[contract.AttemptState]contract.TaskStatus{"working": "ready", "asked": "ready"}},
 		{"report with a wrong token", func(s *contract.State) error {
-			_, err := r.Report(s, "T1.1", "other", outDone, "ok", nil, later)
+			_, err := report(r.Report(s, "T1.1", "other", outDone, "ok", nil, later))
 			return err
 		},
 			map[contract.AttemptState]string{"=": "!bad_token"}, nil},
@@ -246,7 +246,7 @@ func TestAttemptChanges(t *testing.T) {
 func TestEverythingElse(t *testing.T) {
 	t.Run("the same report twice is already recorded", func(t *testing.T) {
 		s := in(t, contract.AttemptReported)
-		already, err := r.Report(s, "T1.1", token, outDone, "again", nil, t0)
+		already, err := report(r.Report(s, "T1.1", token, outDone, "again", nil, t0))
 		if !already || err != nil || len(s.Inbox.Events) != 1 {
 			t.Errorf("already %v, err %v, %d events", already, err, len(s.Inbox.Events))
 		}
@@ -255,7 +255,7 @@ func TestEverythingElse(t *testing.T) {
 		for _, state := range []contract.AttemptState{contract.AttemptChecking, contract.AttemptStopped, contract.AttemptAccepted} {
 			s := in(t, state)
 			n := len(s.Inbox.Events)
-			_, err := r.Report(s, "T1.1", token, outDone, "late", nil, t0)
+			_, err := report(r.Report(s, "T1.1", token, outDone, "late", nil, t0))
 			if code(err) != "not_active" || len(s.Inbox.Events) != n+1 || s.Inbox.Events[n].Kind != "rejected" {
 				t.Errorf("%s: %v, events %v", state, err, s.Inbox.Events)
 			}
@@ -265,7 +265,7 @@ func TestEverythingElse(t *testing.T) {
 		s := in(t, contract.AttemptStopped)
 		_, err := r.Start(s, "T1", true, false, "second", agent, true, t0)
 		must(t, err)
-		if _, err := r.Report(s, "T1.1", token, outDone, "old", nil, t0); code(err) != "not_active" {
+		if _, err := report(r.Report(s, "T1.1", token, outDone, "old", nil, t0)); code(err) != "not_active" {
 			t.Errorf("got %v", err)
 		}
 		if a := s.Attempts["T1.2"]; a.RetryOf != "T1.1" || a.N != 2 || a.State != contract.AttemptStarting {
@@ -276,11 +276,11 @@ func TestEverythingElse(t *testing.T) {
 		s := in(t, contract.AttemptWorking)
 		s.Tasks["T1"].BrowserCheck = true
 		n := len(s.Inbox.Events)
-		_, err := r.Report(s, "T1.1", token, outDone, "ok", nil, t0)
+		_, err := report(r.Report(s, "T1.1", token, outDone, "ok", nil, t0))
 		if code(err) != "no_evidence" || exit(err) != contract.ExitFailed || len(s.Inbox.Events) != n {
 			t.Errorf("without evidence: %v", err)
 		}
-		_, err = r.Report(s, "T1.1", token, outDone, "ok", []contract.EvidenceFile{{Name: "home.png", Size: 9}}, t0)
+		_, err = report(r.Report(s, "T1.1", token, outDone, "ok", []contract.EvidenceFile{{Name: "home.png", Size: 9}}, t0))
 		must(t, err)
 		s.Attempts["T1.1"].Report.Evidence = nil
 		if err := r.Checking(s, "T1", contract.Checked{}, t0); code(err) != "no_evidence" || exit(err) != contract.ExitRefused {
@@ -311,7 +311,7 @@ func TestEverythingElse(t *testing.T) {
 	})
 	t.Run("words the rules do not know are usage errors", func(t *testing.T) {
 		s := in(t, contract.AttemptChecking)
-		if _, err := r.Report(s, "T1.1", token, "maybe", "", nil, t0); exit(err) != contract.ExitUsage {
+		if _, err := report(r.Report(s, "T1.1", token, "maybe", "", nil, t0)); exit(err) != contract.ExitUsage {
 			t.Errorf("a report that is neither done nor failed: %v", err)
 		}
 		if _, err := r.Checked(s, "T1", contract.CheckResult{OK: true}, contract.Accepted{How: "luck"}, t0); exit(err) != contract.ExitUsage {
@@ -369,7 +369,7 @@ func TestEverythingElse(t *testing.T) {
 			id, err := r.Start(s, "T1", n > 1, false, token, agent, true, t0)
 			must(t, err)
 			must(t, r.Working(s, id, t0))
-			_, err = r.Report(s, id, token, outFailed, "no", nil, t0)
+			_, err = report(r.Report(s, id, token, outFailed, "no", nil, t0))
 			must(t, err)
 		}
 		if task := s.Tasks["T1"]; task.Status != contract.TaskFailed || task.Failures != 3 {
@@ -518,7 +518,7 @@ func TestDependencies(t *testing.T) {
 		a, err := r.Start(s, id, false, false, token, agent, true, t0)
 		must(t, err)
 		must(t, r.Working(s, a, t0))
-		_, err = r.Report(s, a, token, outDone, "ok", nil, t0)
+		_, err = report(r.Report(s, a, token, outDone, "ok", nil, t0))
 		must(t, err)
 		must(t, r.Checking(s, id, contract.Checked{}, t0))
 		ready, err := r.Checked(s, id, contract.CheckResult{OK: true}, contract.Accepted{How: howCheck}, t0)
@@ -801,7 +801,7 @@ func TestPaused(t *testing.T) {
 	}
 	must(t, r.Undo(s, qid, human, after(time.Hour)))
 	must(t, r.Answer(s, qid, "release", orch, 0, after(time.Hour)))
-	_, err = r.Report(s, "T1.1", token, outDone, "ok", nil, t0)
+	_, err = report(r.Report(s, "T1.1", token, outDone, "ok", nil, t0))
 	must(t, err)
 	if err := r.Checking(s, "T1", contract.Checked{}, t0); code(err) != "paused" {
 		t.Errorf("a new accept while paused: %v", err)
@@ -842,4 +842,35 @@ func snapshot(s *contract.State) string {
 		panic(err)
 	}
 	return string(data)
+}
+
+// report gives a report's two kinds of refusal as one error, for the tests
+// that only ask whether it was refused.
+func report(already bool, kept *contract.Refusal, err error) (bool, error) {
+	if kept != nil {
+		return already, kept
+	}
+	return already, err
+}
+
+func TestUncheckedAndShown(t *testing.T) {
+	s := in(t, contract.AttemptReported)
+	if err := r.Unchecked(s, "T1", t0); code(err) != "not_checking" {
+		t.Errorf("unchecked while nothing is checked: %v", err)
+	}
+	must(t, r.Checking(s, "T1", contract.Checked{OID: "abc"}, t0))
+	must(t, r.Unchecked(s, "T1", after(time.Minute)))
+	if a := s.Attempts["T1.1"]; a.State != contract.AttemptReported || a.Accept != nil || a.Check != nil || s.Tasks["T1"].Status != contract.TaskReview {
+		t.Errorf("after an accept in which no check ran: %+v", a)
+	}
+	id, err := r.Need(s, contract.Question{Form: contract.FormTodo, Text: "look"}, t0)
+	must(t, err)
+	must(t, r.Shown(s, id, after(time.Second)))
+	must(t, r.Shown(s, id, after(time.Hour)))
+	if q := s.Questions[id]; q.ShownAt != after(time.Second) {
+		t.Errorf("shown at %v, want the first moment", q.ShownAt)
+	}
+	if err := r.Shown(s, "n99", t0); exit(err) != contract.ExitMissing {
+		t.Errorf("an item that is not there: %v", err)
+	}
 }

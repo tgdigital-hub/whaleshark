@@ -10,6 +10,8 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
 // lockFile opens and locks a lock file. Without wait it gives no file when
@@ -19,8 +21,8 @@ func lockFile(path string, exclusive, wait bool) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	if uid, _ := owner(dir); uid != uint32(os.Geteuid()) {
-		return nil, fmt.Errorf("%s: %w", path, ErrNotOurs)
+	if uid, _, _ := owner(dir); uid != uint32(os.Geteuid()) {
+		return nil, fmt.Errorf("%s: %w", path, contract.ErrNotOurs)
 	}
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
@@ -46,10 +48,10 @@ func lockFile(path string, exclusive, wait bool) (*os.File, error) {
 	return f, nil
 }
 
-func owner(info fs.FileInfo) (uint32, bool) {
+func owner(info fs.FileInfo) (uid, gid uint32, ok bool) {
 	st, ok := info.Sys().(*syscall.Stat_t)
 	if !ok {
-		return 0, false
+		return 0, 0, false
 	}
-	return st.Uid, true
+	return st.Uid, st.Gid, true
 }

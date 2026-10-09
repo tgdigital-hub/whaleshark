@@ -22,24 +22,19 @@ const (
 	replaceFor = 2 * time.Second // how long Replace keeps trying
 )
 
-// ErrCannotTell: the system gives no way to know. ErrNotOurs: a lock in another login's folder.
-var (
-	ErrCannotTell = errors.New("cannot tell on this system")
-	ErrNotOurs    = errors.New("the folder belongs to another login")
-)
-
-// System is one operating system as the program sees it. OS, Env and Home are
-// fields so that the rules of each system can be tested on any of them.
+// System is one operating system as the program sees it. OS, Env, Home and
+// Etc are fields so that the rules of each system can be tested on any of them.
 type System struct {
 	OS   string // "darwin", "linux" or "windows"
 	Env  func(string) string
 	Home string
+	Etc  string // where Linux keeps its passwd and group files
 }
 
 // New returns the system the program runs on, called by its Go name.
 func New(goos string) *System {
 	home, _ := os.UserHomeDir()
-	return &System{OS: goos, Env: os.Getenv, Home: home}
+	return &System{OS: goos, Env: os.Getenv, Home: home, Etc: "/etc"}
 }
 
 // join builds a path in the system's own spelling, whatever system this is.
@@ -156,15 +151,50 @@ func (s *System) WritableByOthers(path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	uid, ok := owner(info)
+	uid, gid, ok := owner(info)
 	if !ok || s.OS == onWindows {
-		return false, ErrCannotTell
+		return false, contract.ErrCannotTell
 	}
-	return othersCanWrite(info.Mode(), uid, uint32(os.Geteuid())), nil
+	return s.othersCanWrite(info.Mode(), uid, gid, uint32(os.Geteuid())), nil
 }
 
-func othersCanWrite(mode fs.FileMode, owner, me uint32) bool {
-	return owner != me || mode.Perm()&0o022 != 0
+// othersCanWrite: another login owns it, anyone may write it, or its group
+// may and is not the owner's alone. Only Linux says who is in a group
+// without asking a directory; anywhere else a group that may write counts.
+func (s *System) othersCanWrite(mode fs.FileMode, owner, group, me uint32) bool {
+	if owner != me || mode.Perm()&0o002 != 0 {
+		return true
+	}
+	return mode.Perm()&0o020 != 0 && (s.OS != "linux" || shared(s.Etc, owner, group))
+}
+
+// shared reports whether a group has a member besides one login: another
+// login whose own group it is, or another name on its line of the group
+// file. Files that cannot be read count as shared.
+func shared(etc string, uid, gid uint32) bool {
+	passwd, err := os.ReadFile(path.Join(etc, "passwd"))
+	groups, err2 := os.ReadFile(path.Join(etc, "group"))
+	if err != nil || err2 != nil {
+		return true
+	}
+	u, g, name := strconv.Itoa(int(uid)), strconv.Itoa(int(gid)), ""
+	for line := range strings.Lines(string(passwd)) {
+		if f := strings.Split(strings.TrimSpace(line), ":"); len(f) > 3 && f[2] == u {
+			name = f[0]
+		} else if len(f) > 3 && f[3] == g {
+			return true
+		}
+	}
+	for line := range strings.Lines(string(groups)) {
+		if f := strings.Split(strings.TrimSpace(line), ":"); len(f) > 3 && f[2] == g {
+			for member := range strings.SplitSeq(f[3], ",") {
+				if member != "" && member != name {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // Where syncing services keep their folders. syncNames are first folders of a
@@ -217,6 +247,9 @@ func (s *System) PathKey(p string) string {
 }
 
 func (s *System) Watch(paths ...string) (contract.Watcher, error) {
+	if s.Env(contract.EnvNotices) == contract.NoticesOff {
+		return watch(mute{}, paths), nil
+	}
 	n, err := newNotifier()
 	if err != nil {
 		n = silent{}

@@ -608,7 +608,7 @@ func TestLeadSeen(t *testing.T) {
 		}
 	}
 	q := item(s, contract.CauseLeadUnread)
-	if len(s.Questions) != 1 || q.Text != textUnread || q.From != contract.FromTool || q.Form != contract.FormTodo || q.CreatedAt != after(7*time.Minute) {
+	if len(s.Questions) != 1 || q.Text != textUnread || q.From != contract.FromTool || q.Form != contract.FormTodo || q.CreatedAt != after(8*time.Minute) {
 		t.Errorf("one item is kept for the cause: %+v", q)
 	}
 	must(t, r.Answer(s, q.ID, "done", human, 0, after(9*time.Minute)))
@@ -617,6 +617,7 @@ func TestLeadSeen(t *testing.T) {
 	}
 	r.LeadSeen(s, lead(contract.StatusIdle), true, after(11*time.Minute))
 	r.LeadSeen(s, lead(contract.StatusDone), true, after(12*time.Minute))
+	r.LeadSeen(s, lead(contract.StatusDone), true, after(13*time.Minute))
 	if q.Answer != "" || len(q.Earlier) != 1 || q.Earlier[0].Answer != "done" {
 		t.Errorf("the next episode starts clean and keeps what the person did: %+v", q)
 	}

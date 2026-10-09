@@ -124,7 +124,7 @@ func TestQuotePosix(t *testing.T) {
 		t.Skip("no sh on this system")
 	}
 	args := append([]string{"line\nbreak"}, hostile...)
-	line := on("linux", nil).Quote(args)
+	line := on("linux", nil).Quote("", args)
 	out, err := exec.Command("sh", "-c", "set -- "+line+`; printf '%s\0' "$@"`).Output()
 	if err != nil {
 		t.Fatal(err)
@@ -132,19 +132,19 @@ func TestQuotePosix(t *testing.T) {
 	if got := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00"); !reflect.DeepEqual(got, args) {
 		t.Errorf("the shell read\n%q\nfrom\n%s", got, line)
 	}
-	if got := Quote(Posix, []string{"/opt/bin/whaleshark", "report", "T3"}); got != "/opt/bin/whaleshark report T3" {
+	if got := on("linux", nil).Quote(Posix, []string{"/opt/bin/whaleshark", "report", "T3"}); got != "/opt/bin/whaleshark report T3" {
 		t.Errorf("plain words were quoted: %s", got)
 	}
 }
 
 func TestQuotePowerShell(t *testing.T) {
-	got := on(onWindows, nil).Quote([]string{`C:\Program Files\ws.exe`, "it's", "a\u2019b", "$env:X `n", ""})
+	got := on(onWindows, nil).Quote("", []string{`C:\Program Files\ws.exe`, "it's", "a\u2019b", "$env:X `n", ""})
 	want := `& 'C:\Program Files\ws.exe' 'it''s' 'a` + "\u2019\u2019" + `b' '$env:X ` + "`n" + `' ''`
 	if got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
 	for _, arg := range hostile {
-		q := strings.TrimPrefix(Quote(PowerShell, []string{arg}), "& ")
+		q := strings.TrimPrefix(on("linux", nil).Quote(PowerShell, []string{arg}), "& ")
 		inner := q[1 : len(q)-1]
 		for _, mark := range []string{"'", "\u2018", "\u2019", "\u201a", "\u201b"} {
 			inner = strings.ReplaceAll(inner, mark+mark, "")
@@ -223,10 +223,10 @@ func cmdReads(t *testing.T, line string) []string {
 }
 
 func TestQuoteCmd(t *testing.T) {
-	if got, want := Quote(Cmd, []string{`C:\bin\ws.exe`, "50%", `say "hi"`}), `"C:\bin\ws.exe" "50"^%"" "say ""hi"""`; got != want {
+	if got, want := on("linux", nil).Quote(Cmd, []string{`C:\bin\ws.exe`, "50%", `say "hi"`}), `"C:\bin\ws.exe" "50"^%"" "say ""hi"""`; got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
-	line := Quote(Cmd, hostile)
+	line := on("linux", nil).Quote(Cmd, hostile)
 	if got := cmdReads(t, line); !reflect.DeepEqual(got, hostile) {
 		t.Errorf("the model read\n%q\nfrom\n%s", got, line)
 	}
@@ -323,23 +323,42 @@ func TestPrivate(t *testing.T) {
 }
 
 func TestWritableByOthers(t *testing.T) {
+	// A server where each login has a group of its own, one group that two
+	// logins share by name, and one that is another login's own group.
+	etc := t.TempDir()
+	os.WriteFile(filepath.Join(etc, "passwd"), []byte("root:x:0:0::/root:/bin/sh\nana:x:1000:1000::/srv/ana:/bin/sh\nben:x:1001:1001::/srv/ben:/bin/sh\ncy:x:1002:2000::/srv/cy:/bin/sh\n"), 0o600)
+	os.WriteFile(filepath.Join(etc, "group"), []byte("ana:x:1000:\nben:x:1001:ben\nteam:x:1500:ana,ben\nshop:x:2000:\nsolo:x:1600:ana\n"), 0o600)
 	for _, c := range []struct {
-		mode      fs.FileMode
-		owner, me uint32
-		want      bool
+		system           string
+		mode             fs.FileMode
+		owner, group, me uint32
+		want             bool
 	}{
-		{0o700, 501, 501, false},
-		{0o755, 501, 501, false},
-		{0o775, 501, 501, true},
-		{0o757, 501, 501, true},
-		{0o700, 0, 501, true},
-		{fs.ModeDir | 0o1777, 501, 501, true},
+		{"linux", 0o700, 1000, 1000, 1000, false},
+		{"linux", 0o755, 1000, 1000, 1000, false},
+		{"linux", 0o775, 1000, 1000, 1000, false}, // the ordinary project folder: the group is the login's own
+		{"linux", 0o775, 1001, 1001, 1001, false}, // the same, with the login named on its own group's line
+		{"linux", 0o775, 1000, 1600, 1000, false}, // a second group with nobody else in it
+		{"linux", 0o775, 1000, 1500, 1000, true},  // a group two logins are named in
+		{"linux", 0o775, 1000, 2000, 1000, true},  // another login's own group
+		{"linux", 0o775, 1000, 4242, 1000, false}, // a group nobody is in
+		{"linux", 0o757, 1000, 1000, 1000, true},
+		{"linux", 0o700, 0, 0, 1000, true},
+		{"linux", fs.ModeDir | 0o1777, 1000, 1000, 1000, true},
+		{onMac, 0o755, 501, 20, 501, false},
+		{onMac, 0o775, 501, 20, 501, true}, // nothing here says who is in a group
 	} {
-		if got := othersCanWrite(c.mode, c.owner, c.me); got != c.want {
-			t.Errorf("%v owned by %d, asked by %d: %v", c.mode, c.owner, c.me, got)
+		s := on(c.system, nil)
+		s.Etc = etc
+		if got := s.othersCanWrite(c.mode, c.owner, c.group, c.me); got != c.want {
+			t.Errorf("%s: %v owned by %d:%d, asked by %d: %v", c.system, c.mode, c.owner, c.group, c.me, got)
 		}
 	}
-	if _, err := on(onWindows, nil).WritableByOthers(t.TempDir()); err != ErrCannotTell {
+	s := on("linux", nil)
+	if s.Etc = filepath.Join(etc, "none"); !s.othersCanWrite(0o775, 1000, 1000, 1000) {
+		t.Error("with no account files to read, a group that may write was taken to be the login's alone")
+	}
+	if _, err := on(onWindows, nil).WritableByOthers(t.TempDir()); err != contract.ErrCannotTell {
 		t.Errorf("windows answered: %v", err)
 	}
 }

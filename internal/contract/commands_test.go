@@ -178,3 +178,44 @@ func TestListOnly(t *testing.T) {
 		t.Errorf("an unknown command: exit %d, want %d", code, ExitUsage)
 	}
 }
+
+func TestList(t *testing.T) {
+	for in, want := range map[string][]string{
+		"T1,T2":             {"T1", "T2"},
+		"src/{a,b}/**,docs": {"src/{a,b}/**", "docs"},
+		"a,,b,":             {"a", "", "b", ""},
+		"x}{,y":             {"x}{,y"},
+		"":                  {""},
+	} {
+		if got := List(in); !slices.Equal(got, want) {
+			t.Errorf("%q: %q, want %q", in, got, want)
+		}
+	}
+	if got := List("a,b", "c"); !slices.Equal(got, []string{"a", "b", "c"}) {
+		t.Errorf("a flag given twice: %q", got)
+	}
+}
+
+func TestPaleAndPlainMarks(t *testing.T) {
+	if got := Pale(0x40c080, 0x000000); got != 0x206040 {
+		t.Errorf("half-way to a black ground: %06x", got)
+	}
+	if got := Pale(0x204060, 0xffffff); got != 0x8f9faf {
+		t.Errorf("half-way to a white ground: %06x", got)
+	}
+	for _, c := range []struct {
+		env  map[string]string
+		want bool
+	}{
+		{map[string]string{"LANG": "en_US.UTF-8"}, false},
+		{map[string]string{"LANG": "C.utf8"}, false},
+		{map[string]string{"LANG": "en_US.UTF-8", "LC_ALL": "C"}, true},
+		{map[string]string{"LANG": "en_US.UTF-8", "WHALESHARK_MARKS": "plain"}, true},
+		{map[string]string{"LANG": "C", "WHALESHARK_MARKS": "full"}, false},
+		{nil, true},
+	} {
+		if got := PlainMarks(func(k string) string { return c.env[k] }); got != c.want {
+			t.Errorf("%v: plain marks %v", c.env, got)
+		}
+	}
+}
