@@ -21,8 +21,14 @@ func TestProjects(t *testing.T) {
 	if got, err := ReadProjects(dir); err != nil || !slices.Equal(got, want) {
 		t.Fatalf("read back %v, %v", got, err)
 	}
-	path := filepath.Join(dir, "projects.json")
-	if info, _ := os.Stat(path); info.Mode().Perm() != 0o600 {
+	// Private as this system shows it: Windows keeps no such bits, and a
+	// file there is private by the folder of the login it lies in.
+	path, probe := filepath.Join(dir, "projects.json"), filepath.Join(t.TempDir(), "probe")
+	if err := os.WriteFile(probe, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	private, _ := os.Stat(probe)
+	if info, _ := os.Stat(path); info.Mode().Perm() != private.Mode().Perm() {
 		t.Errorf("projects.json is %v, want private", info.Mode().Perm())
 	}
 	if left, _ := filepath.Glob(path + ".*"); len(left) != 0 {

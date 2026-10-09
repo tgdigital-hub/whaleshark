@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -155,7 +156,7 @@ func TestEventsSplitLinesAndEndWithTheConnection(t *testing.T) {
 	defer listener.Close()
 	a, _ := stub(t, func(_, args []string) (string, string, int) {
 		if args[0] == "status" {
-			return `{"client":{"version":"0.9.1"},"server":{"running":true,"version":"0.9.1","socket":"` + socket + `"}}`, "", 0
+			return `{"client":{"version":"0.9.1"},"server":{"running":true,"version":"0.9.1","socket":` + strconv.Quote(socket) + `}}`, "", 0
 		}
 		return realSnapshot, "", 0
 	})
@@ -258,6 +259,7 @@ func TestKeysWrittenAndRemovedLeaveTheFileByteForByte(t *testing.T) {
 		var env []string
 		a, calls := stub(t, func(e, _ []string) (string, string, int) { env = e; return "config: ok\n", "", 0 })
 		os.WriteFile(a.Settings, []byte(before), 0o640)
+		was, _ := os.Stat(a.Settings) // 0640 where the system keeps such bits
 		if err := a.SetKeys(seven[:2]); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -281,7 +283,7 @@ func TestKeysWrittenAndRemovedLeaveTheFileByteForByte(t *testing.T) {
 		if !strings.HasPrefix(string(data), before) {
 			t.Errorf("%s: what was in the file was changed", name)
 		}
-		if info, _ := os.Stat(a.Settings); info.Mode().Perm() != 0o640 {
+		if info, _ := os.Stat(a.Settings); info.Mode().Perm() != was.Mode().Perm() {
 			t.Errorf("%s: the file's permissions became %v", name, info.Mode().Perm())
 		}
 		if len(env) != 1 || !strings.HasPrefix(env[0], "HERDR_CONFIG_PATH=") || env[0] == "HERDR_CONFIG_PATH="+a.Settings {

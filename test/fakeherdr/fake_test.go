@@ -39,13 +39,15 @@ func start(t *testing.T) *Fake {
 	return f
 }
 
-// build compiles one of the two test programs into a folder of its own.
+// build compiles one of the two test programs into a folder of its own. Go
+// names the file there after the program, with the ending the system wants
+// of a program, and a program is found by its name without it.
 func build(t *testing.T, pkg, name string) string {
-	out := filepath.Join(t.TempDir(), name)
-	if msg, err := exec.Command("go", "build", "-o", out, pkg).CombinedOutput(); err != nil {
+	dir := t.TempDir()
+	if msg, err := exec.Command("go", "build", "-o", dir+string(filepath.Separator), pkg).CombinedOutput(); err != nil {
 		t.Fatalf("building %s: %v\n%s", pkg, err, msg)
 	}
-	return out
+	return filepath.Join(dir, name)
 }
 
 // until waits for something another process or goroutine is doing.
