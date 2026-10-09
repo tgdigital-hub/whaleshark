@@ -1,0 +1,35 @@
+TEAM   run r3 "new shop site" · 12 agents · 2 need you · 1 check failed · 1 to check     8 Oct 21:14
+
+FOR YOU   3 waiting · 2 hold work up
+ ▲ q7   sign-up page       question       3m  must the old sign-up link keep working? (yes / no)
+        > whaleshark answer q7 yes --human
+ ▲ q9   photo upload       question       1m  which sizes should a photo be kept in?
+        > whaleshark answer q9 "<your answer>" --human
+ ● n4   price list         sign-off      now  prices load from the sheet and 14 tests pass. Put it
+                                              with the finished work?
+        > whaleshark answer n4 approve --human        or        answer n4 "send back: <why>" --human
+
+NEEDS YOU
+ ▲ T2   sign-up page       needs you      3m  must the old sign-up link keep working?            40%
+ ▲ T6   photo upload       needs you      1m  which sizes should a photo be kept in?             55%
+
+TO CHECK
+ ● T7   email sender       check failed   2m  2 of 41 tests fail: bounce handling
+        > whaleshark show T7        then        whaleshark reject T7 "<why>" --human
+ ● T8   price list ▲       to check       4m  prices load from the sheet; 14 tests pass
+                                              sign-off n4 waits for you
+
+BUILDING
+ ◐ T1   login page         80%           44m  form and checks written
+ ◐ T3   search box         60%           42m  tests written               also changes search.js: T4
+ ◐ T4   search results     45%           42m  list and paging done        clashes with T3: search.js
+ ◐ T5   help pages         70%           41m  nine of twelve pages written
+ ◐ T9   site map           30%           20m  reading the page list
+ ◐ T10  checkout form      20%           12m  reading the existing code
+ ◐ T11  order emails       asking         4m  asked the lead: which sender address?
+
+IDLE
+ ◌ T12  admin page         idle          12m  last said 14m ago: "half the screens done" (50%)
+
+12 agents · 5 done today (whaleshark status --all)         1 needs you in another job (--everywhere)
+live · checked 0s ago
