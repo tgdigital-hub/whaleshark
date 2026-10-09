@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -128,9 +129,76 @@ func TestMoveUnderNeverHidesTheName(t *testing.T) {
 	}
 }
 
-// TestPlainRenameUnderReaders says what the plain call does under the same
-// readers, which is why Replace does not start with it.
-func TestPlainRenameUnderReaders(t *testing.T) {
-	missing, opens, longest, refused := hammer(t, os.Rename)
-	t.Errorf("the plain call: %d of %d opens found no file, for %v at the longest; refused: %v", missing, opens, longest, refused)
+// TestReplaceGaps measures, for now as a failure so that a hosted run shows
+// it: every stretch in which a reader found the name without a file, and
+// every replace that was slow or met a refusal, each with its moment.
+func TestReplaceGaps(t *testing.T) {
+	dir := t.TempDir()
+	tmp, final := filepath.Join(dir, "count.new"), filepath.Join(dir, "count")
+	os.WriteFile(final, []byte("start"), 0o600)
+	start := time.Now()
+	var stop atomic.Bool
+	var readers sync.WaitGroup
+	var mu sync.Mutex
+	var report []string
+	note := func(format string, args ...any) {
+		mu.Lock()
+		defer mu.Unlock()
+		if len(report) < 60 {
+			report = append(report, fmt.Sprintf("%8.3fms ", float64(time.Since(start).Microseconds())/1000)+fmt.Sprintf(format, args...))
+		}
+	}
+	var opens atomic.Int64
+	for r := range 4 {
+		readers.Add(1)
+		go func() {
+			defer readers.Done()
+			var since time.Time
+			misses := 0
+			for !stop.Load() {
+				f, err := openShared(final)
+				opens.Add(1)
+				if err == nil {
+					f.Close()
+					if !since.IsZero() {
+						note("reader %d: no file for %v, %d opens", r, time.Since(since), misses)
+						since, misses = time.Time{}, 0
+					}
+					continue
+				}
+				if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
+					if misses++; since.IsZero() {
+						since = time.Now()
+					}
+					continue
+				}
+				note("reader %d refused: %v", r, err)
+			}
+		}()
+	}
+	for i := range 20000 {
+		if err := os.WriteFile(tmp, []byte(fmt.Sprint(i)), 0o600); err != nil {
+			note("write %d: %v", i, err)
+			continue
+		}
+		began := time.Now()
+		for try := 0; try < 50; try++ {
+			under := moveUnder(tmp, final)
+			if under == nil {
+				break
+			}
+			plain := os.Rename(tmp, final)
+			note("replace %d try %d: one-step: %v; plain: %v", i, try, under, plain)
+			if plain == nil {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if took := time.Since(began); took > 5*time.Millisecond {
+			note("replace %d took %v", i, took)
+		}
+	}
+	stop.Store(true)
+	readers.Wait()
+	t.Errorf("20000 replaces, %d opens in %v:\n%s", opens.Load(), time.Since(start), strings.Join(report, "\n"))
 }
