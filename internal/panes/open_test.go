@@ -86,11 +86,15 @@ func TestUIOpensBothPanesOnceAndClosesOnlyItsOwn(t *testing.T) {
 	if err != nil || o.Fleet == "" || o.Actions == "" {
 		t.Fatalf("ui: %+v, %v", o, err)
 	}
+	// The line typed into a pane is spelled for the shell of this system.
 	self, _ := d.k.Platform.SelfPath()
+	typed := func(kind string) string {
+		return d.k.Platform.Quote("", []string{"exec", self, "ui", "run", kind, "--root", "/project"})
+	}
 	want := "pane split " + d.me + " --direction right --ratio 0.7 --no-focus\n" +
-		"pane run " + o.Fleet + " exec " + self + " ui run fleet --root /project\n" +
+		"pane run " + o.Fleet + " " + typed("fleet") + "\n" +
 		"pane split " + d.me + " --direction down --ratio 0.75 --no-focus\n" +
-		"pane run " + o.Actions + " exec " + self + " ui run actions --root /project"
+		"pane run " + o.Actions + " " + typed("actions")
 	if got := d.did(); got != want {
 		t.Errorf("ui asked herdr for\n%s\nwant\n%s", got, want)
 	}
