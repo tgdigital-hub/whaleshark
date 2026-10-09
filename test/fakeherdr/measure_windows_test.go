@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand/v2"
+	"os"
+	"os/exec"
 	"runtime"
 	"slices"
 	"strings"
@@ -18,14 +20,34 @@ import (
 
 // A measurement, not a test: it fails on purpose so that the hosted Windows
 // machine prints what it found. It is removed once it has been read. It
-// runs the random cuts many times over and notes where every goroutine
-// stood whenever the reader was slow to connect again.
+// runs the random cuts many times over, first on a machine left alone and
+// then beside sixteen programs that do nothing but use a processor, and
+// notes where every goroutine stood whenever the reader was slow to connect
+// again.
 func TestMeasureACutOnWindows(t *testing.T) {
+	const busy = "WHALESHARK_MEASURE_BUSY"
+	if os.Getenv(busy) != "" {
+		for end := time.Now().Add(40 * time.Second); time.Now().Before(end); {
+		}
+		return
+	}
 	var out strings.Builder
 	var mu sync.Mutex
 	var took []time.Duration
 	dumps := 0
-	for round := range 40 {
+	for round := range 24 {
+		if round == 8 {
+			for range 16 {
+				spin := exec.Command(os.Args[0], "-test.run=TestMeasureACutOnWindows")
+				spin.Env = append(os.Environ(), busy+"=1")
+				if err := spin.Start(); err != nil {
+					t.Fatal(err)
+				}
+				defer spin.Process.Kill()
+			}
+			time.Sleep(time.Second)
+			fmt.Fprintln(&out, "from here on beside sixteen busy programs:")
+		}
 		f := start(t)
 		ctx, cancel := context.WithCancel(context.Background())
 		built := make(chan []contract.Pane, 1)
@@ -58,13 +80,13 @@ func TestMeasureACutOnWindows(t *testing.T) {
 			for ctx.Err() == nil {
 				time.Sleep(5 * time.Millisecond)
 				at := since.Load()
-				if at == 0 || time.Since(time.Unix(0, at)) < 50*time.Millisecond {
+				if at == 0 || time.Since(time.Unix(0, at)) < time.Second {
 					continue
 				}
 				mu.Lock()
-				if dumps < 4 {
+				if dumps < 2 {
 					dumps++
-					where := make([]byte, 1<<16)
+					where := make([]byte, 1<<15)
 					where = where[:runtime.Stack(where, true)]
 					fmt.Fprintf(&out, "round %d: connecting for %v, everything stood:\n%s\n", round, time.Since(time.Unix(0, at)), where)
 				}
