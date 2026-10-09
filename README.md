@@ -6,7 +6,7 @@ The aim is Orca's way of orchestrating many agents, with herdr's lightness: one 
 
 ## Status
 
-**Early: the foundation and the first layer. Nothing that runs an agent works yet.** This repository holds the shared contracts the rest is built on (the shapes of the files, the view model, the interfaces between the packages, the table of all 40 commands) and the first packages on top of them: the command line itself, the rules for every change to a run, the layer over the operating system, the adapter to herdr, the guides, the terminal layer, the build gate, the store, the view of a run and the first form of the two panes. `whaleshark help` lists every command and marks those not built yet.
+**Early: the foundation and the first layer. Nothing that runs an agent works yet.** This repository holds the shared contracts the rest is built on (the shapes of the files, the view model, the interfaces between the packages, the table of all 42 commands) and the first packages on top of them: the command line itself, the rules for every change to a run, the layer over the operating system, the adapter to herdr, the guides, the terminal layer, the build gate, the store, the view of a run and the first form of the two panes. `whaleshark help` lists every command and marks those not built yet.
 
 ## The terminal engine
 

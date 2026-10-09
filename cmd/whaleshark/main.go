@@ -11,28 +11,39 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/dash"
 	"github.com/tgdigital-hub/whaleshark/internal/dashweb"
 	"github.com/tgdigital-hub/whaleshark/internal/doctor"
+	"github.com/tgdigital-hub/whaleshark/internal/engine"
 	"github.com/tgdigital-hub/whaleshark/internal/evidence"
 	"github.com/tgdigital-hub/whaleshark/internal/gitwt"
 	"github.com/tgdigital-hub/whaleshark/internal/guide"
 	"github.com/tgdigital-hub/whaleshark/internal/herdr"
 	"github.com/tgdigital-hub/whaleshark/internal/hook"
 	"github.com/tgdigital-hub/whaleshark/internal/inbox"
+	"github.com/tgdigital-hub/whaleshark/internal/input"
 	"github.com/tgdigital-hub/whaleshark/internal/integrate"
+	"github.com/tgdigital-hub/whaleshark/internal/keeper"
 	"github.com/tgdigital-hub/whaleshark/internal/launch"
+	"github.com/tgdigital-hub/whaleshark/internal/layout"
 	"github.com/tgdigital-hub/whaleshark/internal/mail"
 	"github.com/tgdigital-hub/whaleshark/internal/notify"
 	"github.com/tgdigital-hub/whaleshark/internal/overlap"
+	"github.com/tgdigital-hub/whaleshark/internal/overlay"
 	"github.com/tgdigital-hub/whaleshark/internal/panes"
+	"github.com/tgdigital-hub/whaleshark/internal/pick"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
+	"github.com/tgdigital-hub/whaleshark/internal/pty"
 	"github.com/tgdigital-hub/whaleshark/internal/push"
 	"github.com/tgdigital-hub/whaleshark/internal/question"
+	"github.com/tgdigital-hub/whaleshark/internal/restore"
 	"github.com/tgdigital-hub/whaleshark/internal/rules"
 	"github.com/tgdigital-hub/whaleshark/internal/runtask"
+	"github.com/tgdigital-hub/whaleshark/internal/screen"
 	"github.com/tgdigital-hub/whaleshark/internal/store"
 	"github.com/tgdigital-hub/whaleshark/internal/team"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/theme"
 	"github.com/tgdigital-hub/whaleshark/internal/view"
+	"github.com/tgdigital-hub/whaleshark/internal/watch"
+	"github.com/tgdigital-hub/whaleshark/internal/window"
 	"github.com/tgdigital-hub/whaleshark/internal/worker"
 )
 
@@ -40,6 +51,8 @@ import (
 // an earlier one put there.
 var plugs = []func(*contract.Kit){
 	platform.Plug, rules.Plug, store.Plug, herdr.Plug, theme.Plug, term.Plug,
+	pty.Plug, screen.Plug, layout.Plug, watch.Plug, input.Plug, pick.Plug, overlay.Plug,
+	restore.Plug, keeper.Plug, engine.Plug, window.Plug,
 	guide.Plug, hook.Plug, notify.Plug, evidence.Plug, gitwt.Plug, integrate.Plug,
 	overlap.Plug, inbox.Plug, view.Plug, runtask.Plug, launch.Plug, worker.Plug,
 	question.Plug, mail.Plug, team.Plug, doctor.Plug, panes.Plug, dashweb.Plug,
