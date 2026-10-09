@@ -36,6 +36,23 @@ func (r reader) Read(string, string) (*contract.State, error) {
 func (r reader) Current(string) (string, error) { return "r3", nil }
 func (r reader) Dir(_, run string) string       { return filepath.Join(r.dir, run) }
 
+// system is this system with a home of its own and env for its environment.
+// Windows keeps a program's files in two folders its environment names and
+// has no rule without them, so there they lie inside the home too.
+func system(home string, env map[string]string) *platform.System {
+	sys := platform.New(runtime.GOOS)
+	sys.Home, sys.Env = home, func(name string) string {
+		switch name {
+		case "APPDATA":
+			return filepath.Join(home, "roaming")
+		case "LOCALAPPDATA":
+			return filepath.Join(home, "local")
+		}
+		return env[name]
+	}
+	return sys
+}
+
 // world is one pane on a pretended terminal, drawing the view model of the
 // evening fixture, with a fake herdr holding the fixture's picture and real
 // file notices on a folder of its own.
@@ -64,9 +81,7 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	wd := &world{t: t, s: termtest.New(w, h), h: h, fx: fx, view: *fx.Views[contract.Human]}
 	home := t.TempDir()
 	k := contract.NewKit()
-	sys := platform.New(runtime.GOOS)
-	sys.Home, sys.Env = home, func(name string) string { return env[name] }
-	k.Platform, k.Store = sys, reader{dir: home, state: &fx.State, reads: &wd.reads}
+	k.Platform, k.Store = system(home, env), reader{dir: home, state: &fx.State, reads: &wd.reads}
 	wd.file = filepath.Join(home, "r3", "state.json")
 	os.MkdirAll(filepath.Dir(wd.file), 0o700)
 	wd.touch()

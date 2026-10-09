@@ -5,12 +5,10 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
-	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/test/fakeherdr"
 )
 
@@ -27,9 +25,7 @@ func newDesk(t *testing.T) *desk {
 	t.Parallel()
 	home := t.TempDir()
 	k := contract.NewKit()
-	sys := platform.New(runtime.GOOS)
-	sys.Home, sys.Env = home, func(string) string { return "" }
-	k.Platform = sys
+	k.Platform = system(home, nil)
 	f, err := fakeherdr.New(k)
 	if err != nil {
 		t.Fatal(err)
