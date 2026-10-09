@@ -6,19 +6,24 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode/utf16"
 )
 
-// replaceFile changes a file as a command does: a new file renamed over it.
+var here = New(runtime.GOOS)
+
+// replaceFile changes a file as a command does: a new file put in its place
+// by Replace, which waits where a scanner or a reader holds the old one.
 func replaceFile(t *testing.T, path, text string) {
 	t.Helper()
 	if err := os.WriteFile(path+".new", []byte(text), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Rename(path+".new", path); err != nil {
+	if err := here.Replace(path+".new", path); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -52,7 +57,7 @@ func told(t *testing.T, w *watcher, within time.Duration, path string, ok func()
 
 func holds(path, text string) func() bool {
 	return func() bool {
-		data, _ := os.ReadFile(path)
+		data, _ := here.Read(path)
 		return string(data) == text
 	}
 }
@@ -95,7 +100,7 @@ func TestThousandChangesInAFolder(t *testing.T) {
 	go func() {
 		defer close(done)
 		for p := range w.Changes() {
-			data, _ := os.ReadFile(p)
+			data, _ := here.Read(p)
 			seen[p] = string(data)
 		}
 	}()
@@ -176,6 +181,50 @@ func TestNamedNoticeIsBelieved(t *testing.T) {
 	case p := <-w.Changes():
 		t.Errorf("told of %s, which did not change", filepath.Base(p))
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// ending is a system that names the file and can end a folder's notices.
+type ending struct {
+	named
+	added chan string
+	over  *atomic.Bool
+}
+
+func (e ending) add(dir string) error { e.over.Store(false); e.added <- dir; return nil }
+func (e ending) lost(string) bool     { return e.over.Load() }
+
+// TestFolderInsideAFolder: a folder named in a watched folder, removed and
+// made again, is told of as an entry on the notice that names it, so the
+// check finds nothing unheard; and a folder whose notices the system ended
+// gets new ones though it looks like the folder it was.
+func TestFolderInsideAFolder(t *testing.T) {
+	root := t.TempDir()
+	ctx := filepath.Join(root, "ctx")
+	n := ending{named{ch: make(chan string)}, make(chan string, 16), new(atomic.Bool)}
+	w := watch(n, []string{ctx})
+	defer w.Close()
+	for _, change := range []func(string) error{os.Remove, os.Remove} {
+		os.Mkdir(ctx, 0o700)
+		n.ch <- ctx
+		told(t, w, checkEvery/2, ctx, func() bool { return true })
+		time.Sleep(checkEvery + slowEvery) // by now the folder has its notices
+		change(ctx)
+		n.ch <- ctx
+		told(t, w, checkEvery/2, ctx, func() bool { return true })
+	}
+	time.Sleep(checkEvery + 2*slowEvery)
+	if w.Slow() {
+		t.Fatal("the watcher stopped trusting the notices")
+	}
+	for len(n.added) > 0 {
+		<-n.added
+	}
+	n.over.Store(true)
+	select {
+	case <-n.added:
+	case <-time.After(2 * checkEvery):
+		t.Error("ended notices were not started again")
 	}
 }
 

@@ -102,7 +102,7 @@ func (a *Adapter) SetKeys(entries []contract.KeyEntry) error {
 	if info, err := os.Stat(path); err == nil {
 		mode = info.Mode().Perm()
 	}
-	data, err := os.ReadFile(path)
+	data, err := a.kit.Platform.Read(path)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}

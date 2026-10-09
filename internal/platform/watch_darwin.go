@@ -66,6 +66,7 @@ func (k *kqueue) watch(path string, what uint32) error {
 }
 
 func (k *kqueue) exact() bool           { return false }
+func (k *kqueue) lost(string) bool      { return false }
 func (k *kqueue) events() <-chan string { return k.ch }
 
 func (k *kqueue) close() {

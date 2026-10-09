@@ -1,8 +1,10 @@
 package platform
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"golang.org/x/sys/unix"
@@ -40,12 +42,21 @@ func (i *inotify) add(dir string) error {
 	if err != nil {
 		return err
 	}
-	i.dir[int32(wd)] = dir
+	i.dir[int32(wd)] = dir // #nosec G115 -- a watch's number is small and above nought
 	return nil
 }
 
-func (i *inotify) file(string)           {}
-func (i *inotify) exact() bool           { return true }
+func (i *inotify) file(string) {}
+func (i *inotify) exact() bool { return true }
+
+// lost: a new folder under an old name can carry the old one's number, so
+// only the kernel's word that a watch is over tells the two apart.
+func (i *inotify) lost(dir string) bool {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return !slices.Contains(slices.Collect(maps.Values(i.dir)), dir)
+}
+
 func (i *inotify) events() <-chan string { return i.ch }
 
 func (i *inotify) close() {
@@ -70,6 +81,9 @@ func (i *inotify) read() {
 				}
 			case ok && name == "":
 				paths = append(paths, dir)
+				if mask&unix.IN_IGNORED != 0 {
+					delete(i.dir, watch)
+				}
 			case ok:
 				paths = append(paths, filepath.Join(dir, name))
 			}

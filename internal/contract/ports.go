@@ -3,6 +3,7 @@ package contract
 import (
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"time"
 )
@@ -173,6 +174,9 @@ type Platform interface {
 	TryLock(path string) (unlock func(), ok bool, err error)
 	// Replace renames tmp over final, retrying where another program holds it open.
 	Replace(tmp, final string) error
+	// Read reads a whole file that Replace may be replacing at that moment:
+	// it never stands in a replace's way and never fails because of one.
+	Read(path string) ([]byte, error)
 	// Private makes a file or folder readable by the login only.
 	Private(path string) error
 	// PrivateTemp makes a fresh folder under the login's cache, never a shared one.
@@ -328,6 +332,7 @@ func (NoPlatform) Dirs() (Dirs, error)                   { return Dirs{}, ErrNot
 func (NoPlatform) Lock(string, bool) (func(), error)     { return nil, ErrNotBuilt }
 func (NoPlatform) TryLock(string) (func(), bool, error)  { return nil, false, ErrNotBuilt }
 func (NoPlatform) Replace(string, string) error          { return ErrNotBuilt }
+func (NoPlatform) Read(path string) ([]byte, error)      { return os.ReadFile(path) }
 func (NoPlatform) Private(string) error                  { return ErrNotBuilt }
 func (NoPlatform) PrivateTemp() (string, error)          { return "", ErrNotBuilt }
 func (NoPlatform) WritableByOthers(string) (bool, error) { return false, ErrNotBuilt }

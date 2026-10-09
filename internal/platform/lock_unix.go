@@ -21,6 +21,7 @@ func lockFile(path string, exclusive, wait bool) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	// #nosec G115 -- where a login has a number it is never below nought
 	if uid, _, _ := owner(dir); uid != uint32(os.Geteuid()) {
 		return nil, fmt.Errorf("%s: %w", path, contract.ErrNotOurs)
 	}
@@ -47,6 +48,9 @@ func lockFile(path string, exclusive, wait bool) (*os.File, error) {
 	}
 	return f, nil
 }
+
+func readFile(path string) ([]byte, error) { return os.ReadFile(path) }
+func moveOver(tmp, final string) error     { return os.Rename(tmp, final) }
 
 func owner(info fs.FileInfo) (uid, gid uint32, ok bool) {
 	st, ok := info.Sys().(*syscall.Stat_t)

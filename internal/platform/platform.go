@@ -19,7 +19,7 @@ const (
 	app        = "whaleshark"
 	onWindows  = "windows"
 	onMac      = "darwin"
-	replaceFor = 2 * time.Second // how long Replace keeps trying
+	replaceFor = 2 * time.Second // how long Replace and Read keep trying
 )
 
 // System is one operating system as the program sees it. OS, Env, Home and
@@ -97,20 +97,33 @@ func (s *System) TryLock(path string) (func(), bool, error) {
 var heldOpen = []syscall.Errno{5, 32, 33}
 
 func (s *System) Replace(tmp, final string) error {
-	return s.replace(tmp, final, os.Rename, time.Sleep)
+	return s.replace(tmp, final, moveOver, time.Sleep)
 }
 
 func (s *System) replace(tmp, final string, rename func(string, string) error, sleep func(time.Duration)) error {
+	return s.patient(final, heldOpen, func() error { return rename(tmp, final) }, sleep)
+}
+
+// Read opens the file so that a replace goes on under it, and waits out
+// another program's hold on it as Replace does.
+func (s *System) Read(path string) (data []byte, err error) {
+	err = s.patient(path, heldOpen[1:], func() error { data, err = readFile(path); return err }, time.Sleep)
+	return data, err
+}
+
+// patient tries again, with growing pauses, what Windows refused with one of
+// the codes because another program holds the file open.
+func (s *System) patient(path string, codes []syscall.Errno, try func() error, sleep func(time.Duration)) error {
 	waited, pause := time.Duration(0), 10*time.Millisecond
 	for {
-		err := rename(tmp, final)
+		err := try()
 		var code syscall.Errno
-		if err == nil || s.OS != onWindows || !errors.As(err, &code) || !slices.Contains(heldOpen, code) {
+		if err == nil || s.OS != onWindows || !errors.As(err, &code) || !slices.Contains(codes, code) {
 			return err
 		}
 		if waited >= replaceFor {
 			return &contract.Refusal{Exit: contract.ExitEnv, Code: "state_busy",
-				Message: fmt.Sprintf("%s is held open by another program; nothing was changed", final)}
+				Message: fmt.Sprintf("%s is held open by another program; nothing was changed", path)}
 		}
 		pause = min(pause, replaceFor-waited)
 		sleep(pause)
@@ -126,7 +139,7 @@ func (s *System) Private(path string) error {
 		return err
 	}
 	if info.IsDir() {
-		return os.Chmod(path, 0o700)
+		return os.Chmod(path, 0o700) // #nosec G302 -- a folder: without its own last bit nobody can enter it
 	}
 	return os.Chmod(path, 0o600)
 }
@@ -155,7 +168,7 @@ func (s *System) WritableByOthers(path string) (bool, error) {
 	if !ok || s.OS == onWindows {
 		return false, contract.ErrCannotTell
 	}
-	return s.othersCanWrite(info.Mode(), uid, gid, uint32(os.Geteuid())), nil
+	return s.othersCanWrite(info.Mode(), uid, gid, uint32(os.Geteuid())), nil // #nosec G115 -- where a login has a number it is never below nought
 }
 
 // othersCanWrite: another login owns it, anyone may write it, or its group
