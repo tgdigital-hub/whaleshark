@@ -243,15 +243,20 @@ func ReadProjectFile(root string) (ProjectFile, error) {
 // about the screen, and nothing about the work.
 type UIFile struct {
 	Versioned
-	FleetPane   string            `json:"fleet_pane,omitempty"`
-	ActionsPane string            `json:"actions_pane,omitempty"`
-	FleetWidth  int               `json:"fleet_width,omitempty"`
-	Folded      bool              `json:"folded,omitempty"`
-	DND         bool              `json:"dnd,omitempty"`
-	DNDUntil    time.Time         `json:"dnd_until,omitzero"`
-	Mute        bool              `json:"mute,omitempty"`
-	Drafts      map[string]string `json:"drafts,omitempty"`
-	LastHere    time.Time         `json:"last_here,omitzero"`
+	FleetPane   string `json:"fleet_pane,omitempty"`
+	ActionsPane string `json:"actions_pane,omitempty"`
+	// The terminal of each pane as it was opened: a pane id alone can come
+	// back as somebody else's pane once herdr has been started afresh.
+	FleetTerminal   string `json:"fleet_terminal,omitempty"`
+	ActionsTerminal string `json:"actions_terminal,omitempty"`
+	// FleetWidth is the fleet's width in cells, frame included, as last seen.
+	FleetWidth int               `json:"fleet_width,omitempty"`
+	Folded     bool              `json:"folded,omitempty"`
+	DND        bool              `json:"dnd,omitempty"`
+	DNDUntil   time.Time         `json:"dnd_until,omitzero"`
+	Mute       bool              `json:"mute,omitempty"`
+	Drafts     map[string]string `json:"drafts,omitempty"`
+	LastHere   time.Time         `json:"last_here,omitzero"`
 }
 
 // CtxFile is the file CtxPath names: how full an agent's context is, as its own

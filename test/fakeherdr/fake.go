@@ -61,6 +61,8 @@ type Fake struct {
 	*herdr.Adapter
 	// Attached says a screen is attached, which decides the answer to a notification.
 	Attached bool
+	// Width is how many cells wide the fake says every pane is.
+	Width int
 
 	mu      sync.Mutex
 	dir     string
@@ -85,7 +87,7 @@ func New(k *contract.Kit) (*Fake, error) {
 	if err != nil {
 		return nil, err
 	}
-	f := &Fake{dir: dir, Attached: true, scripts: map[string]string{}}
+	f := &Fake{dir: dir, Attached: true, Width: 120, scripts: map[string]string{}}
 	if f.cli, err = net.Listen("unix", filepath.Join(dir, "cli.sock")); err == nil {
 		f.events, err = net.Listen("unix", filepath.Join(dir, "events.sock"))
 	}
@@ -327,9 +329,10 @@ func (f *Fake) agentInfo(p *pane) obj {
 	return o
 }
 
-// layout gives every pane of a tab the whole screen: the fake keeps no sizes.
+// layout gives every pane of a tab the whole screen, Width cells wide: the
+// fake keeps no sizes.
 func (f *Fake) layout(tab string) obj {
-	rect := obj{"x": 0, "y": 0, "width": 120, "height": 40}
+	rect := obj{"x": 0, "y": 0, "width": f.Width, "height": 40}
 	o := obj{"tab_id": tab, "workspace_id": "w1", "area": rect, "splits": []obj{}, "zoomed": false}
 	panes := []obj{}
 	for _, p := range f.panes {
@@ -643,7 +646,7 @@ func (f *Fake) answer(call testkit.FakeCall, flags map[string][]string, rest, af
 		return nil, nil
 	}
 	id := arg(2)
-	if arg(1) == "resize" || arg(1) == "focus" {
+	if arg(1) == "resize" || arg(1) == "focus" || arg(1) == "layout" {
 		id = one(flags, "--pane")
 	} else if arg(1) == "swap" {
 		id = one(flags, "--source-pane")
@@ -681,6 +684,8 @@ func (f *Fake) answer(call testkit.FakeCall, flags map[string][]string, rest, af
 			"source_pane_id": p.id, "target_pane_id": one(flags, "--target-pane")}}, nil
 	case "pane resize":
 		return obj{"type": "pane_resize", "resize": obj{"changed": true, "focused_pane_id": f.focus, "layout": f.layout(p.tab), "pane_id": p.id}}, nil
+	case "pane layout":
+		return obj{"type": "pane_layout", "layout": f.layout(p.tab)}, nil
 	case "pane close":
 		f.closePane(p)
 		return ok, nil

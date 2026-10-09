@@ -134,6 +134,8 @@ type Herdr interface {
 	// Resize moves a pane's dividing line by a fraction of its split.
 	Resize(pane, direction string, amount float64) error
 	PaneClose(pane string) error
+	// Size is a pane's width and height in cells, its frame included.
+	Size(pane string) (w, h int, err error)
 	// PaneFocus gives the keys to the pane beside pane in a direction (left,
 	// right, up, down), which is the one way herdr has, and returns the pane
 	// that then has them: pane's neighbour, or with none there whichever had
@@ -326,6 +328,7 @@ func (NoHerdr) Split(string, string, float64) (Pane, error)         { return Pan
 func (NoHerdr) Swap(string, string) error                           { return ErrNotBuilt }
 func (NoHerdr) Resize(string, string, float64) error                { return ErrNotBuilt }
 func (NoHerdr) PaneClose(string) error                              { return ErrNotBuilt }
+func (NoHerdr) Size(string) (int, int, error)                       { return 0, 0, ErrNotBuilt }
 func (NoHerdr) PaneFocus(string, string) (string, error)            { return "", ErrNotBuilt }
 func (NoHerdr) Notify(string, string, bool) (string, string, error) { return "", "", ErrNotBuilt }
 func (NoHerdr) SetKeys([]KeyEntry) error                            { return ErrNotBuilt }

@@ -180,7 +180,7 @@ func TestNoHerdr(t *testing.T) {
 	v := Build(in)
 	c, _ := card(t, v, "T12")
 	same(t, "card", []any{c.Look, c.Tab}, []any{contract.LookIdle, "w1:t13"})
-	same(t, "notes and alerts", []any{v.Fresh.Notes, v.Alerts}, []any{[]string{"herdr not reachable", "not checked yet", "nobody is watching"}, []string{"herdr cannot be reached"}})
+	same(t, "notes and alerts", []any{v.Fresh.Notes, v.Alerts}, []any{[]string{"herdr not reachable", "no sweep yet"}, []string{"herdr cannot be reached"}})
 
 	// A pane with no agent in it, or no pane at all, is silence: idle, never failed.
 	f = evening(t)
