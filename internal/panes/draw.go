@@ -296,7 +296,7 @@ func (p *pane) drawFleet(now time.Time) {
 	case !narrow:
 		show(3+t.Put(1, y, w-1, done, dim), y)
 		p.hintLine(y+1, w, keys, keys)
-		t.Put(1, y+2, w-1, age, ageSt)
+		t.Put(1, y+2, w-1, p.cut(age, w-1), ageSt)
 	case term.Width(done+" [show] · "+age) < w:
 		if foot == 2 {
 			p.hintLine(y, w, keys, keys)
@@ -308,7 +308,7 @@ func (p *pane) drawFleet(now time.Time) {
 			p.hintLine(y, w, keys, keys)
 		}
 		show(2+t.Put(1, h-2, w-1, done, dim), h-2)
-		t.Put(1, h-1, w-1, age, ageSt)
+		t.Put(1, h-1, w-1, p.cut(age, w-1), ageSt)
 	}
 }
 
@@ -412,6 +412,7 @@ func (p *pane) drawActions(now time.Time) {
 		return
 	}
 	age, ageSt := p.age(now, true)
+	age = p.cut(age, w-2)
 	aw := term.Width(age)
 	p.hintLine(h-1, w-aw-3, "j k choose · y n o answer · u undo · x fold · / all actions · ? keys",
 		"ctrl+b a to answer · / all actions · ? keys")
@@ -554,7 +555,12 @@ func (p *pane) strip(now time.Time) {
 			break
 		}
 	}
-	p.title("ACTIONS", counts, w-total-1)
+	if 10+term.Width(counts)+total > w {
+		// Too narrow for both: the counts stand where the name stood.
+		p.title(brief, "", w-total-1)
+	} else {
+		p.title("ACTIONS", counts, w-total-1)
+	}
 	x := w - total
 	for i, id := range ids {
 		x += p.button(x, 0, texts[i], styles[i], func() { p.notYet(label(id)) }) + 1

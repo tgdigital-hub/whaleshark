@@ -94,6 +94,14 @@ func TestAPaneFitsWhatItSaysToItsSize(t *testing.T) {
 	shows(p, "3 waiting · 2 hold work up", "[Catch up]", "[ Yes ]", "+2 more · j k")
 	p, _, _ = still(t, actions, 60, 3)
 	shows(p, "ACTIONS  3 · ▲2", "[Stop all]", "▲ sign-up page · Must the old sign-up link keep working?")
+	p, _, _ = still(t, actions, 47, 4)
+	shows(p, " 3 · ▲2  [Stop all] [Catch up] [DND] [Mute] [v]")
+	p, v, _ = still(t, fleet, 23, 30)
+	late := *v
+	late.Fresh.Notes = []string{"no sweep yet", "slow updates"}
+	p.make, p.stale = func(contract.ViewInput) contract.View { return late }, true
+	p.draw()
+	shows(p, "live · 0s · no sweep…")
 	p, _, _ = still(t, actions, 60, 4)
 	shows(p, "▲ sign-up page · Must", "+2 more · j k")
 }

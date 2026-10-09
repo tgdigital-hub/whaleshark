@@ -3,6 +3,7 @@ package panes
 import (
 	"context"
 	"fmt"
+	"math"
 	"path/filepath"
 	"strings"
 
@@ -10,11 +11,13 @@ import (
 )
 
 const (
-	// The fleet takes fleetShare of the width until the person has left it at
-	// another, and the conversation keeps talkShare of the height above the
-	// action pane. Under tightBelow cells the fleet takes a third at most, and
-	// under noneBelow no pane is opened at all.
+	// The fleet takes fleetShare of the width, or fleetLeast cells where that
+	// is more, until the person has left it at another, and the conversation
+	// keeps talkShare of the height above the action pane. Under tightBelow
+	// cells the fleet takes a third at most, and under noneBelow no pane is
+	// opened at all.
 	fleetShare = 0.3
+	fleetLeast = 34
 	talkShare  = 0.75
 	tightBelow = 90
 	noneBelow  = 60
@@ -124,11 +127,13 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 		share := fleetShare
 		if ui.FleetWidth > 0 && w > 0 {
 			share = float64(ui.FleetWidth) / float64(w)
+		} else if w > 0 {
+			share = max(share, fleetLeast/float64(w))
 		}
 		if w > 0 && w < tightBelow {
 			share = min(share, 1.0/3)
 		}
-		err = split(fleet, "right", 1-min(max(share, 0.1), 0.9), fl.pane, fl.term)
+		err = split(fleet, "right", math.Round(1000*(1-min(max(share, 0.1), 0.9)))/1000, fl.pane, fl.term)
 	}
 	if err == nil && wantActions && !ac.open {
 		err = split(actions, "down", talkShare, ac.pane, ac.term)

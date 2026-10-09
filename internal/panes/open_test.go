@@ -192,12 +192,13 @@ func TestUIFitsTheFleetToTheScreen(t *testing.T) {
 		width, kept int
 		split       string
 	}{
-		{150, 0, "--ratio 0.7 "},      // three tenths at first
-		{150, 60, "--ratio 0.6 "},     // then the width it was left at
-		{80, 60, "--ratio 0.6666666"}, // a third at most on a narrow screen
-		{80, 20, "--ratio 0.75 "},     // or less
-		{300, 20, "--ratio 0.9 "},     // never under herdr's tenth
-		{59, 0, ""},                   // and no panes at all under sixty columns
+		{150, 0, "--ratio 0.7 "},   // three tenths at first
+		{100, 0, "--ratio 0.66 "},  // or the cells a card needs
+		{150, 60, "--ratio 0.6 "},  // then the width it was left at
+		{80, 60, "--ratio 0.667 "}, // a third at most on a narrow screen
+		{80, 20, "--ratio 0.75 "},  // or less
+		{300, 20, "--ratio 0.9 "},  // never under herdr's tenth
+		{59, 0, ""},                // and no panes at all under sixty columns
 	} {
 		d.herdr.Width = c.width
 		dirs, _ := d.k.Platform.Dirs()
