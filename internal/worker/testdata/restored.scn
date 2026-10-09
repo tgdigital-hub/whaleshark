@@ -1,0 +1,8 @@
+# A tab the terminals have restored holds none of our variables: the worker
+# is known by its pane, and its token is still in the attempt's file.
+fixture evening-2114
+restart-terminals
+as-worker T1.1: progress 50 "after the restart"
+as-worker T1.1: report done "no result yet"         -> expect exit 1 "result file"
+as-worker T9.1: report failed "cannot be built"     -> expect recorded
+assert: attempts T1.1 working, T9.1 failed; T9 status ready failures 1
