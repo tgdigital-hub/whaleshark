@@ -157,6 +157,15 @@ func TestRunFoldersAndPointer(t *testing.T) {
 	if run, err := st.Current(root); run != "r2" || err != nil {
 		t.Fatalf("current: %q %v", run, err)
 	}
+	// The pointer is written under one name, so a writer killed in it leaves
+	// at most that file, and the next one takes it over.
+	os.WriteFile(filepath.Join(st.Dir(root, ""), "current.tmp"), []byte("half"), 0o600)
+	if err := st.SetCurrent(root, "r2"); err != nil {
+		t.Fatal(err)
+	}
+	if left, _ := os.ReadDir(st.Dir(root, "")); len(left) != 4 {
+		t.Fatalf("beside the pointer, the two locks and the runs there is more: %v", left)
+	}
 	for _, path := range []string{"", "lock", "current", "runs", "runs/r2", "runs/r2/state.json"} {
 		info, err := os.Stat(filepath.Join(st.Dir(root, ""), path))
 		if err != nil {
@@ -173,6 +182,8 @@ func TestRunFoldersAndPointer(t *testing.T) {
 	if err := st.Change(root, "r2", func(s *contract.State) error { s.Run.ClosedAt = time.Now(); return nil }); err != nil {
 		t.Fatal(err)
 	}
+	// What a removal of another run was cut off in goes with this one.
+	os.MkdirAll(filepath.Join(st.Dir(root, ""), "runs", ".gone-r7", "attempts"), 0o700)
 	if err := st.Remove(root, "r2"); err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +293,8 @@ func TestLockAndReplaceArePlatforms(t *testing.T) {
 	}
 	for i, step := range steps {
 		step()
-		if c.taken.Load() != int32(i+1) || c.held.Load() != 0 {
+		// Two each: the turn, given back as soon as the lock is had, and the lock.
+		if c.taken.Load() != int32(2*(i+1)) || c.held.Load() != 0 {
 			t.Fatalf("step %d: %d locks taken, %d still held", i, c.taken.Load(), c.held.Load())
 		}
 	}
@@ -340,6 +352,18 @@ func TestVersionRule(t *testing.T) {
 	}
 	if err := st.Remove(root, "r1"); !newerState(err) {
 		t.Fatalf("removing a newer record: %v", err)
+	}
+	// The history has the version of the record beside it and no other.
+	history := filepath.Join(st.Dir(root, "r1"), historyFile)
+	os.WriteFile(history, []byte("{\"seq\":1,\"shape\":\"of a later day\"}\n"), 0o600)
+	if _, err := st.History(root, "r1"); !errors.Is(err, contract.ErrNewer) {
+		t.Fatalf("reading the history of a newer run: %v", err)
+	}
+	if err := st.Append(root, "r1", []contract.Event{{Seq: 2}}); !newerState(err) {
+		t.Fatalf("adding to the history of a newer run: %v", err)
+	}
+	if lines, _ := os.ReadFile(history); bytes.Count(lines, []byte("\n")) != 1 {
+		t.Fatalf("the history of a newer run was added to:\n%s", lines)
 	}
 	if after, _ := os.ReadFile(file); !bytes.Equal(after, newer) {
 		t.Fatal("a newer record was written")
@@ -478,8 +502,8 @@ func TestLoadedValuesPassTheValidator(t *testing.T) {
 			t.Errorf("a run %q was created", run)
 		}
 	}
-	if left, _ := os.ReadDir(st.Dir(root, "")); len(left) != 2 {
-		t.Fatalf("a refused id left something: %v", left)
+	if left, _ := os.ReadDir(st.Dir(root, "")); len(left) != 3 {
+		t.Fatalf("a refused id left something besides the two locks and the runs: %v", left)
 	}
 }
 
@@ -677,4 +701,37 @@ func TestWriteTime(t *testing.T) {
 	t.Logf("one read (lock, load, check):                 middle %v, slowest %v", mid, worst)
 	mid, worst = middle(add)
 	t.Logf("one line of history, flushed:                 middle %v, slowest %v", mid, worst)
+}
+
+// Readers that never pause do not keep a writer out: everybody passes the
+// turn one at a time, and a writer keeps it while the readers inside leave.
+func TestReadersDoNotStarveAWriter(t *testing.T) {
+	st, root := project(t, "r1")
+	const readers, changes = 16, 100
+	var stop atomic.Bool
+	var reads atomic.Int64
+	var wg sync.WaitGroup
+	for range readers {
+		wg.Go(func() {
+			for r := real(); !stop.Load(); reads.Add(1) {
+				if _, err := r.Read(root, "r1"); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		})
+	}
+	began := time.Now()
+	for range changes {
+		if err := st.Change(root, "r1", func(s *contract.State) error { s.Counters.Seq++; return nil }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	took := time.Since(began)
+	stop.Store(true)
+	wg.Wait()
+	t.Logf("%d changes beside %d readers that never pause: %v each, %d reads meanwhile", changes, readers, took/changes, reads.Load())
+	if took > changes*100*time.Millisecond {
+		t.Errorf("a change waited %v on average behind readers", took/changes)
+	}
 }

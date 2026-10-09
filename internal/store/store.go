@@ -18,6 +18,7 @@ import (
 const (
 	ours        = ".whaleshark"
 	lockFile    = "lock"
+	turnFile    = "turn"
 	currentFile = "current"
 	runsDir     = "runs"
 	stateFile   = "state.json"
@@ -43,17 +44,25 @@ func (st *Store) Dir(root, run string) string {
 
 // locked runs fn on a run's folder, or on the project's own when run is
 // empty, under the project's one lock. It makes no folder: a project that
-// has none of ours has no run.
+// has none of ours has no run. Everybody waits for the lock holding the
+// turn, a second lock that one process has at a time: a writer that waits
+// for the readers inside to leave keeps every new reader out meanwhile, so
+// readers that never pause cannot hold a writer off.
 func (st *Store) locked(root, run string, exclusive bool, fn func(dir string) error) error {
 	if run != "" {
 		if err := cli.Valid("id", run, ""); err != nil {
 			return err
 		}
 	}
-	unlock, err := st.p.Lock(filepath.Join(st.Dir(root, ""), lockFile), exclusive)
+	turn, err := st.p.Lock(filepath.Join(st.Dir(root, ""), turnFile), true)
 	if errors.Is(err, fs.ErrNotExist) {
 		return contract.ErrNoRun
 	}
+	if err != nil {
+		return err
+	}
+	unlock, err := st.p.Lock(filepath.Join(st.Dir(root, ""), lockFile), exclusive)
+	turn()
 	if err != nil {
 		return err
 	}
@@ -205,9 +214,13 @@ func (st *Store) Remove(root, run string) error {
 		if s.Run.ClosedAt.IsZero() {
 			return fmt.Errorf("run %s is still open", run)
 		}
+		// What an earlier removal was cut off in, of any run, goes first.
 		away := filepath.Join(filepath.Dir(dir), gone+run)
-		if err := os.RemoveAll(away); err != nil {
-			return err
+		left, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), gone+"*"))
+		for _, old := range append(left, away) {
+			if err := os.RemoveAll(old); err != nil {
+				return err
+			}
 		}
 		if err := st.p.Replace(dir, away); err != nil {
 			return err
@@ -264,9 +277,16 @@ func (st *Store) SetCurrent(root, run string) error {
 		if _, err := os.Stat(filepath.Join(dir, stateFile)); run != "" && err != nil {
 			return contract.ErrNoRun
 		}
-		c := pointer{contract.Versioned{Version: contract.FileVersion}, run}
-		err := contract.WriteVersioned(st.p.Replace, filepath.Join(base, currentFile), contract.FileVersion, c)
-		flush(base)
-		return refused(err)
+		// A pointer from a newer program is not written over; the file is
+		// written under the one name the store's writers share, so a writer
+		// killed here leaves nothing that stays.
+		if err := contract.ReadVersioned(filepath.Join(base, currentFile), contract.FileVersion, new(contract.Versioned)); err != nil {
+			return refused(err)
+		}
+		data, err := json.MarshalIndent(pointer{contract.Versioned{Version: contract.FileVersion}, run}, "", " ")
+		if err != nil {
+			return err
+		}
+		return st.write(base, currentFile, append(data, '\n'))
 	})
 }

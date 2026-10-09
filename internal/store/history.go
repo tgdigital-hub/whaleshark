@@ -12,15 +12,26 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// version holds the history to the version of the record beside it, the one
+// version a run has: the lines of a run this program is too old for are
+// neither read nor added to. A run with no record is no run.
+func version(dir string) error {
+	err := contract.ReadVersioned(filepath.Join(dir, stateFile), contract.StateVersion, new(contract.Versioned))
+	if _, missing := os.Stat(filepath.Join(dir, stateFile)); err == nil && missing != nil {
+		return contract.ErrNoRun
+	}
+	return err
+}
+
 // History reads history.jsonl, one event to a line. A last line with no end
 // is one a writer was cut off in, and is left out.
 func (st *Store) History(root, run string) (events []contract.Event, err error) {
 	err = st.locked(root, run, false, func(dir string) error {
+		if err := version(dir); err != nil {
+			return err
+		}
 		data, err := os.ReadFile(filepath.Join(dir, historyFile))
 		if errors.Is(err, fs.ErrNotExist) {
-			if _, err := os.Stat(filepath.Join(dir, stateFile)); err != nil {
-				return contract.ErrNoRun
-			}
 			return nil
 		}
 		for n := 1; err == nil; n++ {
@@ -55,8 +66,8 @@ func (st *Store) Append(root, run string, events []contract.Event) error {
 		return nil
 	}
 	return st.locked(root, run, true, func(dir string) error {
-		if _, err := os.Stat(filepath.Join(dir, stateFile)); err != nil {
-			return contract.ErrNoRun
+		if err := version(dir); err != nil {
+			return refused(err)
 		}
 		path := filepath.Join(dir, historyFile)
 		f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
