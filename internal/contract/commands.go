@@ -199,7 +199,7 @@ var Commands = []Command{
 	{Name: "need", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 4, 5, 75},
 		Usage:   `need question|choice|signoff|todo "<text>" [--task T] [--holds] [--options a,b] [--urgent] [--wait [--timeout SEC]] / need close <id>`,
 		Help:    "put an item in front of the person, or withdraw one",
-		Flags:   flags("task=T", "holds@2", "options=a,b", "urgent", "wait", "timeout=SEC"),
+		Flags:   flags("task=T", "holds@2", "options=a,b", "urgent", "wait@2", "timeout=SEC@2"),
 		Example: `whaleshark need choice "ship with the old API kept?" --task T10 --holds`},
 	{Name: "tell", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 5},
 		Usage:   `tell <task> "<text>" [--now | --quiet] / tell lead "<text>"`,

@@ -78,7 +78,7 @@ func Pale(colour, ground uint32) uint32 {
 
 const (
 	BarFull = "█"
-	BarPale = "▒"
+	BarPale = "▓"
 )
 
 // The other words a card can carry in the place of its look's own.

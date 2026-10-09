@@ -1624,7 +1624,7 @@
        "agent": "claude",
        "next": [
         "whaleshark show T7",
-        "whaleshark reject T7 \"<why>\""
+        "whaleshark reject T7 \"<why>\" --human"
        ],
        "actions": [
         "go",

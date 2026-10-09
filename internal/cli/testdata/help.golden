@@ -140,6 +140,6 @@ Not built yet: it comes with phase 1.
 exit 0
 
 $ whaleshark help need --json    # as the lead agent
-{"ok":true,"result":{"name":"need","section":"runs","phase":1,"built":false,"who":["orchestrator","human"],"usage":"need question|choice|signoff|todo \"<text>\" [--task T] [--holds] [--options a,b] [--urgent] [--wait [--timeout SEC]] / need close <id>","help":"put an item in front of the person, or withdraw one","exits":[0,4,5,75],"flags":[{"name":"task","value":"T"},{"name":"holds","phase":2},{"name":"options","value":"a,b"},{"name":"urgent"},{"name":"wait"},{"name":"timeout","value":"SEC"},{"name":"json"},{"name":"run","value":"ID"},{"name":"root","value":"DIR"},{"name":"help"},{"name":"file","value":"PATH"}],"example":"whaleshark need choice \"ship with the old API kept?\" --task T10 --holds"}}
+{"ok":true,"result":{"name":"need","section":"runs","phase":1,"built":false,"who":["orchestrator","human"],"usage":"need question|choice|signoff|todo \"<text>\" [--task T] [--holds] [--options a,b] [--urgent] [--wait [--timeout SEC]] / need close <id>","help":"put an item in front of the person, or withdraw one","exits":[0,4,5,75],"flags":[{"name":"task","value":"T"},{"name":"holds","phase":2},{"name":"options","value":"a,b"},{"name":"urgent"},{"name":"wait","phase":2},{"name":"timeout","value":"SEC","phase":2},{"name":"json"},{"name":"run","value":"ID"},{"name":"root","value":"DIR"},{"name":"help"},{"name":"file","value":"PATH"}],"example":"whaleshark need choice \"ship with the old API kept?\" --task T10 --holds"}}
 exit 0
 
