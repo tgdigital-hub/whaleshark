@@ -6,9 +6,8 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"slices"
 	"strconv"
-	"syscall"
+	"time"
 
 	"golang.org/x/sys/windows"
 )
@@ -42,11 +41,18 @@ func lockFile(path string, exclusive, wait bool) (*os.File, error) {
 // read, which the standard library's own open does not allow.
 func readFile(path string) ([]byte, error) {
 	name, err := windows.UTF16PtrFromString(path)
-	if err == nil {
+	// A hosted run saw a name under replacement gone for an instant, once in
+	// 57,000 reads: a missing file is looked for again before it is believed.
+	for wait := time.Millisecond; err == nil; wait *= 2 {
 		var h windows.Handle
 		h, err = windows.CreateFile(name, windows.GENERIC_READ,
 			windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
 			nil, windows.OPEN_EXISTING, windows.FILE_ATTRIBUTE_NORMAL, 0)
+		if err == windows.ERROR_FILE_NOT_FOUND && wait < 8*time.Millisecond {
+			time.Sleep(wait)
+			err = nil
+			continue
+		}
 		if err == nil {
 			f := os.NewFile(uintptr(h), path)
 			defer f.Close()
@@ -56,17 +62,14 @@ func readFile(path string) ([]byte, error) {
 	return nil, &fs.PathError{Op: "open", Path: path, Err: err}
 }
 
-// moveOver renames tmp over final. The plain call is refused while anyone
-// has final open; then the newer call is tried, which puts the new file
-// under the name while those who opened the old one with leave to, as Read
-// does, keep the old one. Whoever opened it without that leave is waited for.
+// moveOver renames tmp over final with the newer call: one step, and those
+// who opened the old file with leave to, as Read does, keep it. Where that
+// is refused or not known, the plain call is made and its answer stands.
 func moveOver(tmp, final string) error {
-	err := os.Rename(tmp, final)
-	var code syscall.Errno
-	if errors.As(err, &code) && slices.Contains(heldOpen, code) && moveUnder(tmp, final) == nil {
+	if moveUnder(tmp, final) == nil {
 		return nil
 	}
-	return err
+	return os.Rename(tmp, final)
 }
 
 func moveUnder(tmp, final string) error {
@@ -82,8 +85,7 @@ func moveUnder(tmp, final string) error {
 		return err
 	}
 	defer windows.CloseHandle(h)
-	// What the call reads: how to rename, a folder handle we leave empty,
-	// the length of the new name in bytes, and the name with its end mark.
+	// How to rename, an empty folder handle, the name's length in bytes, the name.
 	word := strconv.IntSize / 8
 	rec := make([]byte, 2*word+4+2*len(to))
 	binary.LittleEndian.PutUint32(rec, windows.FILE_RENAME_REPLACE_IF_EXISTS|windows.FILE_RENAME_POSIX_SEMANTICS)
