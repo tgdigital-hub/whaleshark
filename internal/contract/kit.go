@@ -44,8 +44,9 @@ type Handler func(c *Call) (result any, err error)
 // handlers bound so far and the things behind each interface. A package's
 // commands.go has one function, Plug(*Kit), which binds its handlers with
 // Handle and puts its own implementation in place of a stand-in. The panes,
-// the page and the connection use Store as a Reader only; what they need
-// changed they start as a child command.
+// the page and the connection never name Store: they read through Reader,
+// and what they need changed they start as a child command. Rules has no
+// stand-in: the real ones are pure, so a test plugs them in.
 type Kit struct {
 	Rules         Rules
 	Store         Store
@@ -59,8 +60,9 @@ type Kit struct {
 	AgentSettings AgentSettings
 	Sweeper       Sweeper
 	// Main parses the arguments, works out the caller, runs the handler and
-	// returns the exit code. The cli package replaces the one NewKit sets.
-	Main func(k *Kit, args []string, out, errw io.Writer) int
+	// returns the exit code; in is the command's standard input. The cli
+	// package replaces the one NewKit sets.
+	Main func(k *Kit, args []string, in io.Reader, out, errw io.Writer) int
 
 	handlers map[string]Handler
 }
@@ -75,6 +77,9 @@ func NewKit() *Kit {
 	}
 }
 
+// Reader is the store with nothing on it that writes.
+func (k *Kit) Reader() Reader { return k.Store }
+
 // Handle binds the handler of a command.
 func (k *Kit) Handle(command string, h Handler) { k.handlers[command] = h }
 
@@ -83,7 +88,7 @@ func (k *Kit) Handler(command string) Handler { return k.handlers[command] }
 
 // listOnly is all the program does before the cli package exists: it lists
 // the commands and runs what is bound, with no flags and no caller check.
-func listOnly(k *Kit, args []string, out, errw io.Writer) int {
+func listOnly(k *Kit, args []string, in io.Reader, out, errw io.Writer) int {
 	if len(args) == 0 || args[0] == "help" {
 		for _, c := range Commands {
 			built := ""
@@ -103,7 +108,7 @@ func listOnly(k *Kit, args []string, out, errw io.Writer) int {
 		fmt.Fprintf(errw, "whaleshark %s: %v\n", args[0], ErrNotBuilt)
 		return ExitFailed
 	}
-	_, err := h(&Call{Kit: k, Command: Find(args[0]), Args: args[1:], Now: Now(), Out: out, Err: errw})
+	_, err := h(&Call{Kit: k, Command: Find(args[0]), Args: args[1:], Now: Now(), Stdin: in, Out: out, Err: errw})
 	if err != nil {
 		fmt.Fprintln(errw, err)
 		return ExitFailed

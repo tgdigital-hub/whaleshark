@@ -12,8 +12,8 @@ import (
 
 // Main runs one command line: it parses it, works out the caller, runs the
 // handler and prints the outcome, as text or as one envelope.
-func Main(k *contract.Kit, argv []string, out, errw io.Writer) int {
-	c := &contract.Call{Kit: k, Now: contract.Now(), Stdin: stdin, Out: out, Err: errw}
+func Main(k *contract.Kit, argv []string, in io.Reader, out, errw io.Writer) int {
+	c := &contract.Call{Kit: k, Now: contract.Now(), Stdin: in, Out: out, Err: errw}
 	for _, a := range argv {
 		if a == "--" {
 			break

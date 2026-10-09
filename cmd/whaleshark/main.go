@@ -51,5 +51,5 @@ func main() {
 	for _, plug := range plugs {
 		plug(k)
 	}
-	os.Exit(k.Main(k, os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(k.Main(k, os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }

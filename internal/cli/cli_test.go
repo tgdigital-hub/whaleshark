@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -43,9 +44,12 @@ func (s *fakeStore) Read(_, run string) (*contract.State, error) {
 
 // scene is the surroundings a command is run in.
 type scene struct {
-	pane, attempt, run, from string
-	terminal                 bool
+	pane, attempt, run, from, key string
+	terminal                      bool
 }
+
+// stdin is what the next command reads as its standard input.
+var stdin io.Reader = strings.NewReader("")
 
 var (
 	lead     = scene{pane: "w1:p1"}
@@ -78,11 +82,12 @@ func call(t *testing.T, k *contract.Kit, w scene, line ...string) (out, errw str
 	t.Setenv(contract.EnvPane, w.pane)
 	t.Setenv(contract.EnvAttempt, w.attempt)
 	t.Setenv(contract.EnvRun, w.run)
-	t.Setenv(EnvFrom, w.from)
+	t.Setenv(contract.EnvFrom, w.from)
+	t.Setenv(contract.EnvActivePane, w.key)
 	t.Setenv(contract.EnvRoot, "")
 	onTerminal = func() bool { return w.terminal }
 	var o, e bytes.Buffer
-	exit = k.Main(k, line, &o, &e)
+	exit = k.Main(k, line, stdin, &o, &e)
 	return o.String(), e.String(), exit
 }
 
@@ -279,14 +284,23 @@ func TestCallers(t *testing.T) {
 		{"the lead agent addressing another run", lead, "start T3 --run r1", "", "not_bound", contract.Caller{}, ""},
 		{"--human from a pane of the person's", other, "pause --human", contract.Human, "", contract.Caller{Pane: "w9:p9", Where: contract.WhereTyped}, "r3"},
 		{"--human from the pane of a closed run", two, "pause --human", contract.Human, "", contract.Caller{Pane: "w1:p20", Where: contract.WhereTyped}, "r3"},
-		{"--human from a key, with no pane and no terminal", nobody, "pause --human", contract.Human, "", contract.Caller{Where: contract.WhereTyped}, "r3"},
+		{"--human from a herdr shortcut, whichever pane is in front", scene{key: "w1:p2"}, "pause --human", contract.Human, "", contract.Caller{Where: contract.WhereTyped}, "r3"},
+		{"a shortcut's mark alone makes nobody the human", scene{key: "w1:p2"}, "pause", "", "human_only", contract.Caller{}, ""},
+		{"--human with no pane, no terminal and no shortcut", nobody, "pause --human", "", "not_human", contract.Caller{}, ""},
+		{"--human from a shortcut with a worker's variable", scene{attempt: "T1.1", key: "w1:p2"}, "accept T1 --human", "", "not_human", contract.Caller{}, ""},
 		{"--human from one of our panes", scene{pane: "w9:p9", from: "pane"}, "accept T7 --human", contract.Human, "", contract.Caller{Pane: "w9:p9", Where: contract.WherePane}, "r3"},
 		{"a pane's mark alone makes nobody the human", scene{pane: "w9:p9", from: "pane"}, "accept T7", "", "not_bound", contract.Caller{}, ""},
 		{"--human from the lead agent's pane", lead, "pause --human", "", "not_human", contract.Caller{}, ""},
 		{"--human from a worker's pane", restored, "accept T1 --human", "", "not_human", contract.Caller{}, ""},
 		{"--human with a worker's variable", scene{attempt: "T1.1", terminal: true}, "accept T1 --human", "", "not_human", contract.Caller{}, ""},
 		{"a child of the page", scene{from: "page"}, "pause", contract.Human, "", contract.Caller{Where: contract.WherePage}, "r3"},
-		{"a child of the page, from a phone", scene{pane: "w1:p1", from: "phone"}, "answer n1 yes --human", contract.Human, "", contract.Caller{Pane: "w1:p1", Where: contract.WherePhone}, "r3"},
+		{"a child of the page, from a phone", scene{from: "phone"}, "answer n1 yes --human", contract.Human, "", contract.Caller{Where: contract.WherePhone}, "r3"},
+		{"the page's mark in the lead agent's pane", scene{pane: "w1:p1", from: "page"}, "pause", "", "human_only", contract.Caller{}, ""},
+		{"the page's mark and --human in the lead agent's pane", scene{pane: "w1:p1", from: "phone"}, "answer n1 yes --human", "", "not_human", contract.Caller{}, ""},
+		{"the page's mark in a worker's pane", scene{pane: "w1:p2", from: "page"}, "accept T1", "", "not_for_worker", contract.Caller{}, ""},
+		{"the page's mark with a worker's variable", scene{attempt: "T1.1", from: "page"}, "accept T1", "", "not_for_worker", contract.Caller{}, ""},
+		{"the page's mark in a pane no run is bound to", scene{pane: "w9:p9", from: "page"}, "accept T7", "", "not_bound", contract.Caller{}, ""},
+		{"the page's mark leaves the lead agent the lead agent", scene{pane: "w1:p1", from: "page"}, "start T3", contract.Orchestrator, "", contract.Caller{Pane: "w1:p1"}, "r3"},
 		{"the lead agent may not pause", lead, "pause", "", "human_only", contract.Caller{}, ""},
 		{"the lead agent may not undo", lead, "answer n1 --undo", "", "human_only", contract.Caller{}, ""},
 		{"the person may undo", person, "answer n1 --undo", contract.Human, "", contract.Caller{Where: contract.WhereTyped}, "r3"},

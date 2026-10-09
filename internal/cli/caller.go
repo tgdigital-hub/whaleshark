@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,15 +12,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// EnvFrom is the variable in which a pane or the page's server says where
-// its child command comes from: "pane", "page" or "phone". The page's server
-// marks every child with it, and such a child is the human.
-const EnvFrom = "WHALESHARK_FROM"
-
-var (
-	stdin      io.Reader = os.Stdin
-	onTerminal           = func() bool { return term.IsTerminal(int(os.Stdin.Fd())) }
-)
+var onTerminal = func() bool { return term.IsTerminal(int(os.Stdin.Fd())) }
 
 func refuse(code, format string, a ...any) *contract.Refusal {
 	return &contract.Refusal{Exit: contract.ExitRefused, Code: code, Message: fmt.Sprintf(format, a...)}
@@ -66,10 +57,11 @@ func rootOf(c *contract.Call) (string, error) {
 // command, which decides who may be told about a record that cannot be read.
 func locate(c *contract.Call, sub string) *contract.Refusal {
 	pane, attempt, run := os.Getenv(contract.EnvPane), os.Getenv(contract.EnvAttempt), os.Getenv(contract.EnvRun)
+	key := os.Getenv(contract.EnvActivePane)
 	if f := c.Flags["run"]; f != nil {
 		run = f[len(f)-1]
 	}
-	for _, v := range [][2]string{{"pane", pane}, {"attempt", attempt}, {"id", run}} {
+	for _, v := range [][2]string{{"pane", pane}, {"pane", key}, {"attempt", attempt}, {"id", run}} {
 		if v[1] == "" {
 			continue
 		}
@@ -130,23 +122,32 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 		}
 	}
 
-	human, from := c.Flags["human"] != nil, os.Getenv(EnvFrom)
+	// Who is the human: a worker never; the page's mark only on a child that
+	// has no pane, which is how the page's server starts them; --human from a
+	// pane the record does not know as an agent's, or from the command of a
+	// herdr shortcut, which has no pane of its own and herdr's mark instead;
+	// and a person at a plain terminal. Nothing else, so a variable an agent
+	// inherited or a flag it added where it has no pane gains it nothing.
+	human, from := c.Flags["human"] != nil, os.Getenv(contract.EnvFrom)
 	who := contract.Caller{Kind: contract.Unbound, Pane: pane}
 	switch {
 	case attempt != "":
 		who.Kind, who.Attempt = contract.Worker, attempt
-	case from == contract.WherePage || from == contract.WherePhone:
+	case pane == "" && (from == contract.WherePage || from == contract.WherePhone):
 		who.Kind, who.Where = contract.Human, from
 	case human && len(leads) > 0:
-	case human && from == contract.WherePane:
+	case human && pane != "" && from == contract.WherePane:
 		who.Kind, who.Where = contract.Human, from
-	case human, pane == "" && onTerminal():
+	case human && (pane != "" || key != ""), pane == "" && onTerminal():
 		who.Kind, who.Where = contract.Human, contract.WhereTyped
 	case slices.Contains(leads, c.Run):
 		who.Kind = contract.Orchestrator
 	}
 	c.Caller = who
 	if human && who.Kind != contract.Human {
+		if pane == "" {
+			return refuse("not_human", "--human counts only in a tab of your own, at a terminal or from a herdr shortcut.")
+		}
 		return refuse("not_human", "--human is not for an agent's tab.")
 	}
 	if problem != nil && !(c.Command.May(contract.Worker, sub) && c.Command.May(contract.Unbound, sub)) {

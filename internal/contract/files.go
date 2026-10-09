@@ -46,8 +46,9 @@ func ReadVersioned(path string, max int, v any) error {
 }
 
 // WriteVersioned replaces a JSON file of ours, private to the login, by
-// renaming a finished file over it. It refuses to replace a newer file.
-func WriteVersioned(path string, max int, v any) error {
+// moving a finished file over it with replace, which is the platform's
+// Replace. It refuses to replace a newer file.
+func WriteVersioned(replace func(tmp, final string) error, path string, max int, v any) error {
 	if err := ReadVersioned(path, max, new(Versioned)); err != nil {
 		return err
 	}
@@ -72,7 +73,7 @@ func WriteVersioned(path string, max int, v any) error {
 	if err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	return replace(tmp.Name(), path)
 }
 
 // Projects is projects.json in the login's state folder: the project folders
@@ -92,9 +93,9 @@ func ReadProjects(stateDir string) ([]string, error) {
 }
 
 // WriteProjects replaces the login's list of project folders.
-func WriteProjects(stateDir string, roots []string) error {
+func WriteProjects(replace func(tmp, final string) error, stateDir string, roots []string) error {
 	p := Projects{Versioned{FileVersion}, roots}
-	return WriteVersioned(filepath.Join(stateDir, projectsFile), FileVersion, p)
+	return WriteVersioned(replace, filepath.Join(stateDir, projectsFile), FileVersion, p)
 }
 
 const pauseFile = "paused"
@@ -133,6 +134,20 @@ func SetPaused(stateDir string, p *Pause) error {
 
 // The variables a worker's tab is created with, herdr's own pane variable,
 // and the variable that names a file holding the time for a scripted test.
+//
+// EnvFrom is where a pane or the page's server says its child command comes
+// from: WherePane, WherePage or WherePhone. The page's server starts its
+// children without EnvPane and EnvAttempt, and the page's mark counts only
+// then. EnvActivePane is what herdr hands the command of a shortcut, which
+// has no pane of its own. EnvNotices set to NoticesOff makes a watcher lose
+// its file notices, so a test can see it find that out.
+const (
+	EnvFrom       = "WHALESHARK_FROM"
+	EnvActivePane = "HERDR_ACTIVE_PANE_ID"
+	EnvNotices    = "WHALESHARK_NOTICES"
+	NoticesOff    = "off"
+)
+
 const (
 	EnvRoot     = "WHALESHARK_ROOT"
 	EnvRun      = "WHALESHARK_RUN"

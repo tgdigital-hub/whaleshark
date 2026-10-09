@@ -165,16 +165,16 @@ func TestLooksAndColours(t *testing.T) {
 func TestListOnly(t *testing.T) {
 	k := NewKit()
 	var out, errw bytes.Buffer
-	if code := k.Main(k, []string{"help"}, &out, &errw); code != ExitOK {
+	if code := k.Main(k, []string{"help"}, nil, &out, &errw); code != ExitOK {
 		t.Fatalf("help: exit %d", code)
 	}
 	if n := strings.Count(out.String(), "(not built yet)"); n != 40 || strings.Count(out.String(), "\n") != 40 {
 		t.Errorf("help marks %d commands as not built, want 40", n)
 	}
-	if code := k.Main(k, []string{"start"}, &out, &errw); code != ExitFailed || !strings.Contains(errw.String(), "not built yet") {
+	if code := k.Main(k, []string{"start"}, nil, &out, &errw); code != ExitFailed || !strings.Contains(errw.String(), "not built yet") {
 		t.Errorf("start: exit %d, %q", code, errw.String())
 	}
-	if code := k.Main(k, []string{"strat"}, &out, &errw); code != ExitUsage {
+	if code := k.Main(k, []string{"strat"}, nil, &out, &errw); code != ExitUsage {
 		t.Errorf("an unknown command: exit %d, want %d", code, ExitUsage)
 	}
 }

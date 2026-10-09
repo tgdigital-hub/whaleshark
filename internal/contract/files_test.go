@@ -15,7 +15,7 @@ func TestProjects(t *testing.T) {
 		t.Fatalf("no file yet: %v, %v", roots, err)
 	}
 	want := []string{"/work/shop", "/work/api"}
-	if err := WriteProjects(dir, want); err != nil {
+	if err := WriteProjects(os.Rename, dir, want); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := ReadProjects(dir); err != nil || !slices.Equal(got, want) {
@@ -36,7 +36,7 @@ func TestProjects(t *testing.T) {
 	if roots, err := ReadProjects(dir); !errors.Is(err, ErrNewer) || roots != nil {
 		t.Errorf("a newer file must read as absent: %v, %v", roots, err)
 	}
-	if err := WriteProjects(dir, want); !errors.Is(err, ErrNewer) {
+	if err := WriteProjects(os.Rename, dir, want); !errors.Is(err, ErrNewer) {
 		t.Errorf("a newer file must not be written: %v", err)
 	}
 	if kept, _ := os.ReadFile(path); string(kept) != string(newer) {
