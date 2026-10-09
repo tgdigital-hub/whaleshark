@@ -59,7 +59,8 @@ type login struct {
 	dir string
 }
 
-func (l login) Dirs() (contract.Dirs, error) { return contract.Dirs{State: l.dir}, nil }
+func (l login) Dirs() (contract.Dirs, error)  { return contract.Dirs{State: l.dir}, nil }
+func (login) Replace(tmp, final string) error { return os.Rename(tmp, final) }
 
 // call prepares status on the evening fixture, as the front of every
 // command would hand it over, at 100 columns with the marks.
@@ -69,7 +70,7 @@ func call(t *testing.T, f *testkit.Fixture, caller contract.CallerKind, flags ..
 	t.Setenv("WHALESHARK_MARKS", "utf8")
 	dir := t.TempDir()
 	write := func(path string, v any) {
-		if err := contract.WriteVersioned(os.Rename, path, contract.FileVersion, v); err != nil {
+		if err := contract.WriteVersioned(login{}, path, contract.FileVersion, v); err != nil {
 			t.Fatal(err)
 		}
 	}

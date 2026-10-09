@@ -27,10 +27,12 @@ type Versioned struct {
 	Version int `json:"version" toml:"version"`
 }
 
-// ReadVersioned decodes a JSON file of ours into v. A missing file leaves v
-// untouched and is no error; a newer file is ErrNewer.
-func ReadVersioned(path string, max int, v any) error {
-	data, err := os.ReadFile(path)
+// ReadVersioned decodes a JSON file of ours into v, read with read: the
+// platform's Peek for a reader that shows the file, its Read for one that
+// will write it back. A missing file leaves v untouched and is no error; a
+// newer file is ErrNewer.
+func ReadVersioned(read func(path string) ([]byte, error), path string, max int, v any) error {
+	data, err := read(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -47,11 +49,17 @@ func ReadVersioned(path string, max int, v any) error {
 	return json.Unmarshal(data, v)
 }
 
+// Files is what of the platform a file of ours is written back with.
+type Files interface {
+	Read(path string) ([]byte, error)
+	Replace(tmp, final string) error
+}
+
 // WriteVersioned replaces a JSON file of ours, private to the login, by
-// moving a finished file over it with replace, which is the platform's
-// Replace. It refuses to replace a newer file.
-func WriteVersioned(replace func(tmp, final string) error, path string, max int, v any) error {
-	if err := ReadVersioned(path, max, new(Versioned)); err != nil {
+// moving a finished file over it with the platform's Replace. It refuses to
+// replace a newer file.
+func WriteVersioned(p Files, path string, max int, v any) error {
+	if err := ReadVersioned(p.Read, path, max, new(Versioned)); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(v, "", " ")
@@ -75,7 +83,7 @@ func WriteVersioned(replace func(tmp, final string) error, path string, max int,
 	if err != nil {
 		return err
 	}
-	return replace(tmp.Name(), path)
+	return p.Replace(tmp.Name(), path)
 }
 
 // Projects is projects.json in the login's state folder: the project folders
@@ -88,16 +96,16 @@ type Projects struct {
 const projectsFile = "projects.json"
 
 // ReadProjects returns the login's project folders, in the order they were added.
-func ReadProjects(stateDir string) ([]string, error) {
+func ReadProjects(read func(path string) ([]byte, error), stateDir string) ([]string, error) {
 	var p Projects
-	err := ReadVersioned(filepath.Join(stateDir, projectsFile), FileVersion, &p)
+	err := ReadVersioned(read, filepath.Join(stateDir, projectsFile), FileVersion, &p)
 	return p.Roots, err
 }
 
 // WriteProjects replaces the login's list of project folders.
-func WriteProjects(replace func(tmp, final string) error, stateDir string, roots []string) error {
-	p := Projects{Versioned{FileVersion}, roots}
-	return WriteVersioned(replace, filepath.Join(stateDir, projectsFile), FileVersion, p)
+func WriteProjects(p Files, stateDir string, roots []string) error {
+	list := Projects{Versioned{FileVersion}, roots}
+	return WriteVersioned(p, filepath.Join(stateDir, projectsFile), FileVersion, list)
 }
 
 const pauseFile = "paused"
@@ -277,11 +285,11 @@ func CtxPath(stateDir, pane string) string {
 
 // ReadCtx returns the context figure of every live attempt's pane that has
 // one, by pane id.
-func ReadCtx(stateDir string, s *State) map[string]CtxFile {
+func ReadCtx(read func(path string) ([]byte, error), stateDir string, s *State) map[string]CtxFile {
 	out := map[string]CtxFile{}
 	for _, a := range s.Attempts {
 		var f CtxFile
-		if a.State.Live() && a.Place.Pane != "" && ReadVersioned(CtxPath(stateDir, a.Place.Pane), FileVersion, &f) == nil && !f.At.IsZero() {
+		if a.State.Live() && a.Place.Pane != "" && ReadVersioned(read, CtxPath(stateDir, a.Place.Pane), FileVersion, &f) == nil && !f.At.IsZero() {
 			out[a.Place.Pane] = f
 		}
 	}

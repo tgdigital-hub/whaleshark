@@ -199,7 +199,7 @@ func TestUIFitsTheFleetToTheScreen(t *testing.T) {
 		d.herdr.Width = c.width
 		dirs, _ := d.k.Platform.Dirs()
 		file := filepath.Join(dirs.State, "ui.json")
-		if err := contract.WriteVersioned(d.k.Platform.Replace, file, contract.FileVersion, contract.UIFile{Versioned: contract.Versioned{Version: contract.FileVersion}, FleetWidth: c.kept}); err != nil {
+		if err := contract.WriteVersioned(d.k.Platform, file, contract.FileVersion, contract.UIFile{Versioned: contract.Versioned{Version: contract.FileVersion}, FleetWidth: c.kept}); err != nil {
 			t.Fatal(err)
 		}
 		d.did()

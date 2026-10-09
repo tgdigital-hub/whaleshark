@@ -11,14 +11,14 @@ import (
 
 func TestProjects(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "state")
-	if roots, err := ReadProjects(dir); err != nil || roots != nil {
+	if roots, err := ReadProjects(os.ReadFile, dir); err != nil || roots != nil {
 		t.Fatalf("no file yet: %v, %v", roots, err)
 	}
 	want := []string{"/work/shop", "/work/api"}
-	if err := WriteProjects(os.Rename, dir, want); err != nil {
+	if err := WriteProjects(plain{}, dir, want); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := ReadProjects(dir); err != nil || !slices.Equal(got, want) {
+	if got, err := ReadProjects(os.ReadFile, dir); err != nil || !slices.Equal(got, want) {
 		t.Fatalf("read back %v, %v", got, err)
 	}
 	// Private as this system shows it: Windows keeps no such bits, and a
@@ -39,10 +39,10 @@ func TestProjects(t *testing.T) {
 	if err := os.WriteFile(path, newer, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if roots, err := ReadProjects(dir); !errors.Is(err, ErrNewer) || roots != nil {
+	if roots, err := ReadProjects(os.ReadFile, dir); !errors.Is(err, ErrNewer) || roots != nil {
 		t.Errorf("a newer file must read as absent: %v, %v", roots, err)
 	}
-	if err := WriteProjects(os.Rename, dir, want); !errors.Is(err, ErrNewer) {
+	if err := WriteProjects(plain{}, dir, want); !errors.Is(err, ErrNewer) {
 		t.Errorf("a newer file must not be written: %v", err)
 	}
 	if kept, _ := os.ReadFile(path); string(kept) != string(newer) {
@@ -90,3 +90,8 @@ func TestClockAndProjectFile(t *testing.T) {
 		t.Errorf("read %+v, %v", p, err)
 	}
 }
+
+// plain is a platform that replaces with the plain rename.
+type plain struct{ NoPlatform }
+
+func (plain) Replace(tmp, final string) error { return os.Rename(tmp, final) }

@@ -276,14 +276,17 @@ func (p *pane) load() {
 	if p.readErr = err; dirs.State == "" {
 		return
 	}
-	wasFolded := p.ui.Folded
-	p.ui = contract.UIFile{}
-	contract.ReadVersioned(filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &p.ui)
-	if p.ui.Folded != wasFolded {
-		p.folded = p.ui.Folded
+	// A file that cannot be read at this moment, as one being replaced on
+	// Windows, leaves what the pane had; the next look reads it.
+	var ui contract.UIFile
+	if contract.ReadVersioned(p.k.Platform.Peek, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &ui) == nil {
+		if ui.Folded != p.ui.Folded {
+			p.folded = ui.Folded
+		}
+		p.ui = ui
 	}
 	if p.figures = nil; p.state != nil {
-		p.figures = contract.ReadCtx(dirs.State, p.state)
+		p.figures = contract.ReadCtx(p.k.Platform.Peek, dirs.State, p.state)
 	}
 	p.limits, _ = contract.ReadProjectFile(p.root)
 	cfg := contract.PersonDefaults()

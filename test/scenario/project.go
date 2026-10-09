@@ -175,9 +175,9 @@ func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Proje
 	}
 	p.must(p.Kit.Store.Create(p.Root, &f.State))
 	p.must(p.Kit.Store.SetCurrent(p.Root, f.State.Run.ID))
-	p.must(contract.WriteVersioned(p.Kit.Platform.Replace, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, f.UI))
+	p.must(contract.WriteVersioned(p.Kit.Platform, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, f.UI))
 	for pane, c := range ctx {
-		p.must(contract.WriteVersioned(p.Kit.Platform.Replace, contract.CtxPath(dirs.State, pane), contract.FileVersion, c))
+		p.must(contract.WriteVersioned(p.Kit.Platform, contract.CtxPath(dirs.State, pane), contract.FileVersion, c))
 	}
 	return p
 }

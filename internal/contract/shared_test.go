@@ -18,7 +18,7 @@ func TestCtxPathAndReadCtx(t *testing.T) {
 	}
 	at := time.Date(2026, 10, 8, 21, 13, 0, 0, time.UTC)
 	for _, pane := range []string{"w1:p2", "w1:p3", "w1:p4"} {
-		if err := WriteVersioned(os.Rename, CtxPath(dir, pane), FileVersion, CtxFile{Versioned{FileVersion}, 66, true, at}); err != nil {
+		if err := WriteVersioned(plain{}, CtxPath(dir, pane), FileVersion, CtxFile{Versioned{FileVersion}, 66, true, at}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -30,7 +30,7 @@ func TestCtxPathAndReadCtx(t *testing.T) {
 		"T4.1": {ID: "T4.1", State: AttemptWorking, Place: Place{Pane: "w1:p5"}},
 		"T5.1": {ID: "T5.1", State: AttemptWorking},
 	}}
-	got := ReadCtx(dir, s)
+	got := ReadCtx(os.ReadFile, dir, s)
 	if len(got) != 1 || got["w1:p2"].Pct != 66 || !got["w1:p2"].Known {
 		t.Errorf("of a live pane with a figure, a settled one, a newer file, a pane with no file and no pane at all, the figures read are %+v", got)
 	}

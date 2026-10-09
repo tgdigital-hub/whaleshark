@@ -148,7 +148,7 @@ func TestPrepare(t *testing.T) {
 	}
 	state, _ := p.Kit.Platform.Dirs()
 	var ctx contract.CtxFile
-	if err := contract.ReadVersioned(contract.CtxPath(state.State, "w1:p2"), contract.FileVersion, &ctx); err != nil || ctx != f.Ctx["w1:p2"] {
+	if err := contract.ReadVersioned(p.Kit.Platform.Peek, contract.CtxPath(state.State, "w1:p2"), contract.FileVersion, &ctx); err != nil || ctx != f.Ctx["w1:p2"] {
 		t.Errorf("the context file of w1:p2 is %+v (%v), the fixture says %+v", ctx, err, f.Ctx["w1:p2"])
 	}
 }

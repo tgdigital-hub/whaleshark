@@ -105,9 +105,9 @@ func (s *System) replace(tmp, final string, rename func(string, string) error, s
 }
 
 // Read opens the file so that a replace goes on under it, and waits out
-// another program's hold on it as Replace does. Measured on Windows: about
-// one replace in 10,000 stalls and leaves the name without a file for up to
-// 216 ms, so a missing file is looked for again there for half a second.
+// another program's hold as Replace does. Measured on Windows: one replace
+// in 10,000 leaves the name without a file for up to 216 ms, so a missing
+// file is looked for again there for half a second. Peek opens once.
 func (s *System) Read(path string) (data []byte, err error) {
 	for wait := time.Millisecond; ; wait *= 2 {
 		err = s.patient(path, heldOpen[1:], func() error { data, err = readFile(path); return err }, time.Sleep)
@@ -117,6 +117,7 @@ func (s *System) Read(path string) (data []byte, err error) {
 		time.Sleep(wait)
 	}
 }
+func (s *System) Peek(path string) ([]byte, error) { return readFile(path) }
 
 // patient tries again, with growing pauses, what Windows refused with one of
 // the codes because another program holds the file open.
