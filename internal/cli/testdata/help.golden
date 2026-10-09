@@ -1,0 +1,145 @@
+$ whaleshark     # as the person
+  init      set this project up, check what it needs, and offer the rules for the lead agent  (not built yet)
+  doctor    one line per check, each with its fix  (not built yet)
+  guide     the guide that matches this version  (not built yet)
+  trust     show what the project's settings would run or reach, and approve it  (not built yet)
+  help      this list, or one command in full
+  version   version, build, and the herdr version seen
+  dash      the page's server for this login, and its door for phones  (not built yet)
+  connect   from your own computer: keep one connection to the server for the page and the terminals  (not built yet)
+  server    for the administrator, with sudo, on the server: set it up, add people, upgrade  (not built yet)
+  ui        open or close the fleet pane and the action pane in the lead agent's tab  (not built yet)
+  set       your own settings: theme, dnd, mute, nudge.sound, nudge.popup, nudge.phone, actions, fleet.width  (not built yet)
+  hook      run by an agent's own harness, never typed  (not built yet)
+  run       start, list, show, switch, close or delete a run, or bind it to this pane  (not built yet)
+  task      add a task with its brief and its check, change it, cancel it or reset it  (not built yet)
+  start     start a worker for each task, each in a tab named after it; run it in the background  (not built yet)
+  wait      block until something happens, then hand out the oldest batch of events  (not built yet)
+  answer    answer a question or an item; --undo reopens one whose answer nothing has used yet  (not built yet)
+  escalate  mark a worker's question as one for the human  (not built yet)
+  need      put an item in front of the person, or withdraw one  (not built yet)
+  tell      send a worker a message; tell lead is the person's note to the lead agent  (not built yet)
+  accept    run the task's check and, when it passes, keep the work; several tasks at once from phase 2  (not built yet)
+  reject    send a result back to the same agent, or to ready if it is proven gone  (not built yet)
+  stop      stop a task's attempt and close its tab  (not built yet)
+  close     close the tabs of attempts that have ended  (not built yet)
+  pause     Stop all: every agent stops at its next step and nothing new starts  (not built yet)
+  resume    end the pause and tell each paused agent to carry on  (not built yet)
+  team      saved teams: a set of tasks kept as a file and added to a run in one step  (not built yet)
+  report    say that the task is finished, or that it could not be  (not built yet)
+  progress  note how far the work is  (not built yet)
+  ask       ask a question and wait for the answer  (not built yet)
+  mail      read the messages from the orchestrator  (not built yet)
+  status    the team, with what waits for the person on top  (not built yet)
+  graph     the plan: tasks in the order they depend on each other  (not built yet)
+  log       the messages both ways, newest last  (not built yet)
+  show      one task in full, with what to do next on top  (not built yet)
+  jump      go to a task's tab, or back to the lead agent's  (not built yet)
+  catchup   what happened while you were away  (not built yet)
+  overlap   files touched by more than one task, and pairs that would conflict  (not built yet)
+  sync      send a worker the brief for bringing its copy up to date  (not built yet)
+  land      check the collected work, then open one pull request or merge it; the lead agent only if the project allows  (not built yet)
+exit 0
+
+$ whaleshark help start    # as the person
+whaleshark start <task>... | --ready [--retry] [--resume] [--agent KIND] [--model M] [--allow-overlap]
+  start a worker for each task, each in a tab named after it; run it in the background
+
+For:      the lead agent, the person
+Flags:    --ready
+          --retry
+          --resume  (phase 2)
+          --agent KIND
+          --model M
+          --allow-overlap
+Always:   --json, --run ID, --root DIR, --help, --human, --file PATH
+Exits:    0 done, 1 failed, 3 environment unusable, 5 refused
+Example:  whaleshark start T3
+
+Not built yet: it comes with phase 1.
+exit 0
+
+$ whaleshark help run    # as the person
+whaleshark run new "<objective>" [--base REF] [--limit N] [--park]
+whaleshark run list
+whaleshark run show
+whaleshark run use <id>
+whaleshark run close [--abandon]
+whaleshark run rm <id>
+whaleshark run takeover
+  start, list, show, switch, close or delete a run, or bind it to this pane
+
+For:      the lead agent, the person
+          run new: the lead agent, the person, a tab not bound to a run
+          run takeover: the lead agent, the person, a tab not bound to a run
+          run use: the lead agent, the person, a tab not bound to a run
+          run list: the lead agent, the person, a tab not bound to a run
+          run show: the lead agent, the person, a tab not bound to a run
+Flags:    --base REF
+          --limit N
+          --park
+          --abandon
+Always:   --json, --run ID, --root DIR, --help, --human, --file PATH
+Exits:    0 done, 4 not found, 5 refused
+Example:  whaleshark run close
+
+Not built yet: it comes with phase 1.
+exit 0
+
+$ whaleshark pause --help    # as the person
+whaleshark pause [--everywhere]
+  Stop all: every agent stops at its next step and nothing new starts
+
+For:      the person
+Flags:    --everywhere
+Always:   --json, --run ID, --root DIR, --help, --human, --file PATH
+Exits:    0 done
+Example:  whaleshark pause --human
+
+Not built yet: it comes with phase 1.
+exit 0
+
+$ whaleshark help pause    # as the lead agent
+whaleshark pause [--everywhere]
+  Stop all: every agent stops at its next step and nothing new starts
+
+For:      the person
+Flags:    --everywhere
+Always:   --json, --run ID, --root DIR, --help, --file PATH
+Exits:    0 done
+Example:  whaleshark pause
+
+Not built yet: it comes with phase 1.
+exit 0
+
+$ whaleshark help answer    # as the lead agent
+whaleshark answer <id> "<text>" [--relayed]
+whaleshark answer <id> --undo
+  answer a question or an item; --undo reopens one whose answer nothing has used yet
+
+For:      the lead agent, the person
+Flags:    --relayed
+          --undo  (the person only)
+Always:   --json, --run ID, --root DIR, --help, --file PATH
+Exits:    0 done, 2 usage error, 4 not found, 5 refused
+Example:  whaleshark answer q7 "use main"
+
+Not built yet: it comes with phase 1.
+exit 0
+
+$ whaleshark help report    # as a worker
+whaleshark report done|failed "<summary>"
+  say that the task is finished, or that it could not be
+
+For:      a worker
+Always:   --json, --run ID, --root DIR, --help, --file PATH
+Exits:    0 done, 1 failed, 5 refused
+Example:  whaleshark report done "Parser handles IPv6; 41 tests pass."
+
+Not built yet: it comes with phase 1.
+exit 0
+
+$ whaleshark help need --json    # as the lead agent
+{"ok":true,"result":{"name":"need","section":"runs","phase":1,"built":false,"who":["orchestrator","human"],"usage":"need question|choice|signoff|todo \"<text>\" [--task T] [--holds] [--options a,b] [--urgent] [--wait [--timeout SEC]] / need close <id>","help":"put an item in front of the person, or withdraw one","exits":[0,4,5,75],"flags":[{"name":"task","value":"T"},{"name":"holds","phase":2},{"name":"options","value":"a,b"},{"name":"urgent"},{"name":"wait"},{"name":"timeout","value":"SEC"},{"name":"json"},{"name":"run","value":"ID"},{"name":"root","value":"DIR"},{"name":"help"},{"name":"file","value":"PATH"}],"example":"whaleshark need choice \"ship with the old API kept?\" --task T10 --holds"}}
+exit 0
+
