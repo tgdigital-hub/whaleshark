@@ -1,0 +1,5 @@
+# top, held to one process (process 1) and five columns, redrawing once a
+# second for six seconds, then q.
+wait 6.5
+send "q"
+end 3

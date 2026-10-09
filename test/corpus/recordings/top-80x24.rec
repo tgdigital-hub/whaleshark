@@ -1,0 +1,14 @@
+whaleshark recording 1
+size 80x24
+argv ["/usr/bin/top" "-pid" "1" "-stats" "pid,command,cpu,time,mem" "-s" "1"]
+env ["PATH=/usr/bin:/bin" "TERM=xterm-256color" "LANG=en_US.UTF-8" "HOME"]
+0.010522 o "\x1b[?1049h\x1b[1;24r\x1b(B\x1b[m\x1b[4l\x1b[?7h\x1b[?1034h\x1b[?1h\x1b="
+0.583275 o "\x1b[H\x1b[2JProcesses: 663 total, 3 running, 660 sleeping, 4283 threads\x1b[1;72H14:46:48\r\x1b[2dLoad Avg: 3.13, 4.39, 5.54  CPU usage: 16.17% user, 11.39% sys, 72.42% idle\r\x1b[3dSharedLibs: 399M resident, 84M data, 65M linkedit.\r\x1b[4dMemRegions: 640564 total, 4187M resident, 208M private, 1131M shared.\r\x1b[5dPhysMem: 15G used (2148M wired, 5318M compressor), 102M unused.\r\x1b[6dVM: 351T vsize, 57G framework vsize, 2120563(0) swapins, 2641576(0) swapouts.\r\x1b[7dNetworks: packets: 31797866/22G in, 26489115/16G out.\r\x1b[8dDisks: 56785272/1358G read, 25742544/352G written.\r\x1b[10dPID\x1b[10;14HCOMMAND\x1b[10;35H\x1b(B\x1b[0;7m%CPU\x1b[10;48H\x1b(B\x1b[mTIME\x1b[10;65HMEM\r\x1b[11d1\x1b[11;14Hlaunchd\x1b[11;35H0.0\x1b[11;48H55:22.07\x1b[11;65H27M"
+1.673162 o "\x1b[1;23H4\x1b[1;35H59\x1b[1;50H77\x1b[78G50\x1b[2;11H2.96, 4.34, 5.51\x1b[2;41H8.9% user, 4.95% sys, 76.95\x1b[2P\x1b[4;13H0 total, 0B\x1b[8P\x1b[5d\b7\x1b[5;36H3\x1b[5;54H3\x1b[7;25H9\x1b[7;42H212\x1b[8;14H97\x1b[8;34H656\x1b[11d1\x1b[11;55H8\x1b[11;68H"
+2.774443 o "\x1b[1;23H3\x1b[1;35H60\x1b[1;50H11\x1b[79G1\x1b[2;41H7.48% user, 4.9\x1b[2;64H8.41\x1b[5;54H6\x1b[7;24H8057\x1b[7;43H90\x1b[8;13H300\x1b[8;34H764\x1b[11d0\x1b[11;68H-"
+3.874603 o "\x1b[1;23H4\x1b[1;35H59\x1b[1;50H07\x1b[79G2\x1b[2;41H8.56\x1b[2;55H0\x1b[2;64H7.43\x1b[5;22H33\x1b[5;54H9\x1b[7;25H133\x1b[7;42H387\x1b[8;15H5\x1b[8;35H72\x1b[11;68H \b"
+4.988751 o "\x1b[1;23H3\x1b[1;35H60\x1b[1;51H2\x1b[79G3\x1b[2;41H7.65\x1b[2;53H3.51% sys, 78.82% idle\x1b[7;25H255\x1b[7;42H480\x1b[8;14H10\x1b[8;36H3\x1b[11;68H-"
+6.104606 o "\x1b[1;49H19\x1b[79G4\x1b[2;13H80, 4.28, 5.49\x1b[2;43H86\x1b[2;53H4.3% sys, 78.9\x1b[2P\x1b[5;23H2\x1b[7d8361\x1b[7;42H579\x1b[8;15H4\x1b[8;34H942\x1b[11;68H \b"
+6.506092 i "q"
+6.506192 o "\x1b[24;1H\x1b[?1049l\r\x1b[?1l\x1b>"
+6.507116 x 0

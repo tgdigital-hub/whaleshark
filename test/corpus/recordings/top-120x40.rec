@@ -1,0 +1,14 @@
+whaleshark recording 1
+size 120x40
+argv ["/usr/bin/top" "-pid" "1" "-stats" "pid,command,cpu,time,mem" "-s" "1"]
+env ["PATH=/usr/bin:/bin" "TERM=xterm-256color" "LANG=en_US.UTF-8" "HOME"]
+0.008252 o "\x1b[?1049h\x1b[1;40r\x1b(B\x1b[m\x1b[4l\x1b[?7h\x1b[?1034h\x1b[?1h\x1b="
+0.575103 o "\x1b[H\x1b[2JProcesses: 655 total, 4 running, 651 sleeping, 4155 threads\x1b[1;112H14:47:41\r\x1b[2dLoad Avg: 3.94, 4.37, 5.45  CPU usage: 15.79% user, 10.78% sys, 73.42% idle\r\x1b[3dSharedLibs: 398M resident, 85M data, 65M linkedit.\r\x1b[4dMemRegions: 639887 total, 4061M resident, 201M private, 1126M shared.\r\x1b[5dPhysMem: 15G used (2164M wired, 5337M compressor), 358M unused.\r\x1b[6dVM: 348T vsize, 57G framework vsize, 2120563(0) swapins, 2641576(0) swapouts.\r\x1b[7dNetworks: packets: 31802340/22G in, 26493574/16G out. Disks: 56801691/1358G read, 25749308/352G written.\r\x1b[9dPID\x1b[9;22HCOMMAND\x1b[9;51H\x1b(B\x1b[0;7m%CPU\x1b[9;72H\x1b(B\x1b[mTIME\x1b[9;97HMEM\r\x1b[10d1\x1b[10;22Hlaunchd\x1b[10;51H0.0\x1b[10;72H55:22.52\x1b[10;97H27M"
+1.675167 o "\r\x1b[4d\x1b[M\x1b[1;50H44\x1b[119G3\x1b[2;41H7.54\x1b[2;53H3.73% sys, 78.71\x1b[1P\x1b[3;52HMemRegions: 0 total, 0B resident, 201M private, 1126M shared.\x1b[4;36H6\x1b[4;54H7\x1b[6;25H424\x1b[6;42H655\x1b[6;69H3\x1b[6;89H14\x1b[9;100H"
+2.784481 o "\x1b[1;50H37\x1b[119G4\x1b[2;43H49\x1b[2;55H62\x1b[2;67H87\x1b[6;25H547\x1b[6;42H766\x1b[6;67H705\x1b[6;90H5\x1b[9;100H"
+3.860159 o "\x1b[1;23H3\x1b[1;36H2\x1b[1;50H50\x1b[119G5\x1b[2;11H4.43, 4.46, 5.48\x1b[2;43H97\x1b[2;53H5.1\x1b[2;65H6.90\x1b[4;21H230\x1b[4;53H48\x1b[6;25H641\x1b[6;42H854\x1b[6;68H14\x1b[6;88H627\x1b[9;53H1\x1b[9;100H-"
+4.954333 o "\x1b[1;51H1\x1b[119G6\x1b[2;43H52\x1b[2;53H6.97\x1b[2;65H5.5\x1b[4;21H159\x1b[4;54H6\x1b[6;25H724\x1b[6;42H938\x1b[6;69H5\x1b[6;88H951\x1b[9;51H30.4\x1b[9;78H85\x1b[9;100H\x1b[K"
+6.072580 o "\x1b[1;51H3\x1b[119G7\x1b[2;41H8.17\x1b[2;53H4.11\x1b[2;65H7.7\x1b[4;21H262\x1b[4;53H39\x1b[6;25H838\x1b[6;41H4052\x1b[6;69H7\x1b[6;90H2\x1b[9;51H0.0 \x1b[9;100H"
+6.504533 i "q"
+6.504886 o "\x1b[40;1H\x1b[?1049l\r\x1b[?1l\x1b>"
+6.507464 x 0

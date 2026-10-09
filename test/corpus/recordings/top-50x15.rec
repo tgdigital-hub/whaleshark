@@ -1,0 +1,14 @@
+whaleshark recording 1
+size 50x15
+argv ["/usr/bin/top" "-pid" "1" "-stats" "pid,command,cpu,time,mem" "-s" "1"]
+env ["PATH=/usr/bin:/bin" "TERM=xterm-256color" "LANG=en_US.UTF-8" "HOME"]
+0.003542 o "\x1b[?1049h\x1b[1;15r\x1b(B\x1b[m\x1b[4l\x1b[?7h\x1b[?1034h\x1b[?1h\x1b="
+0.605924 o "\x1b[H\x1b[2JProcesses: 669 total, 4 running, 665 sleeping, 429\x1b[2;1H14:48:34 Load Avg: 6.41, 4.99, 5.62\r\x1b[3dCPU usage: 19.33% user, 17.92% sys, 62.74% idle\r\x1b[4dSharedLibs: 401M resident, 85M data, 65M linkedit.\x1b[5;1HMemRegions: 641886 total, 4247M resident, 198M pri\x1b[6;1HPhysMem: 15G used (2095M wired, 5310M compressor),\x1b[7;1HVM: 354T vsize, 57G framework vsize, 2120563(0) sw\x1b[8;1HNetworks: packets: 31807167/22G in, 26497953/16G o\x1b[9;1HDisks: 56826674/1359G read, 25930005/353G written.\x1b[11;1HPID    COMMAND\x1b[11;23H\x1b(B\x1b[0;7m%CPU\x1b(B\x1b[m   TIME\x1b[41GMEM\r\x1b[12d1\x1b[8Glaunchd\x1b[12;23H0.0    55:23.18   27M"
+1.677338 o "\x1b[1;13H71\x1b[1;36H7\x1b[49G30\x1b[2;8H5\x1b[3;13H8.84\x1b[3;26H0.97\x1b[37G70.17\x1b[5;13H705 total, 100M resident, 198M private\x1b[6;34H282\x1b[7;7H5\x1b[8;25H213\x1b[43G90\x1b[9;11H3562\x1b[9;35H48\x1b[12;25H2\x1b[44G-"
+2.750049 o "\x1b[1;13H69\x1b[1;23H3\x1b[1;36H6\x1b[49G28\x1b[2;8H7\x1b[3;15H70\x1b[3;25H9.2% sys, 72.2\x1b[2P\x1b[5;13H40 total, 928K resident, 198M private,\x1b[6;23H4\x1b[6;34H313\x1b[7;7H4\x1b[8;26H62\x1b[8;41H8048\x1b[9;11H43707/1360\x1b[9;34H555\x1b[12d9\x1b[44G\x1b[K"
+3.814706 o "\x1b[1;14H8\x1b[1;23H4\x1b[1;36H4\x1b[50G9\x1b[2;8H8\x1b[3;12H22.0% user, 14.63% sys, 63.36% idle\x1b[5;14H3\x1b[5;24H76\x1b[6;23H3\x1b[6;35H06\x1b[8;25H31\x1b[43G97\x1b[9;12H4431\x1b[9;33H1350\x1b[12;25H5\x1b[44G+"
+4.875263 o "\x1b[1;14H3\x1b[1;35H59\x1b[50G3\x1b[2;8H9\x1b[3;13H1.26% user, 11.53% sys, 67.20% idle\x1b[5;13H0 total, 0B resident, 198M private, 11\x1b[6;22H89\x1b[7;7H1\x1b[8;25H404\x1b[8;42H195\x1b[9;14H94\x1b[9;35H66\x1b[12;25H3\x1b[12;36H20\x1b[44G\x1b[K"
+5.944178 o "\x1b[1;23H5\x1b[1;36H8\x1b[2;7H40\x1b[2;22H30\x1b[2;35H1\x1b[3;12H18.90\x1b[3;25H9.78% sys, 71.3\x1b[1P\x1b[8;26H63\x1b[8;42H243\x1b[9;13H503\x1b[9;34H519\x1b[12;25H0\x1b[44G"
+6.503278 i "q"
+6.503391 o "\x1b[15;1H\x1b[?1049l\r\x1b[?1l\x1b>"
+6.503892 x 0

@@ -1,0 +1,45 @@
+# vim on a made-up file: its questions to the terminal are answered, then
+# moving, searching, typing, deleting, line numbers, two splits, paging, quit.
+reply "\x1b[c" "\x1b[?62;22c"
+reply "\x1b[>c" "\x1b[>1;10;0c"
+reply "\x1b]11;?\x07" "\x1b]11;rgb:0000/0000/0000\x1b\\"
+reply "\x1b]11;?\x1b\\" "\x1b]11;rgb:0000/0000/0000\x1b\\"
+reply "\x1b]10;?\x07" "\x1b]10;rgb:ffff/ffff/ffff\x1b\\"
+reply "\x1b]10;?\x1b\\" "\x1b]10;rgb:ffff/ffff/ffff\x1b\\"
+quiet 1 8
+send "G"
+wait 0.4
+send "gg"
+wait 0.4
+send "/line 42\r"
+wait 0.6
+send "n"
+wait 0.4
+send "o"
+wait 0.3
+send "a new line typed in insert mode"
+wait 0.4
+send "\x1b"
+wait 0.4
+send "dd"
+wait 0.4
+send ":set number\r"
+wait 0.6
+send "\x06"
+wait 0.5
+send "\x02"
+wait 0.5
+send ":split demo.go\r"
+wait 0.8
+send ":syntax on\r"
+wait 0.8
+send "\x17j"
+wait 0.4
+send ":vsplit wide.txt\r"
+wait 0.8
+send "\x1b[<64;10;5M\x1b[<64;10;5M\x1b[<65;10;5M"
+wait 0.5
+send "\x0c"
+wait 0.6
+send ":qa!\r"
+end 3

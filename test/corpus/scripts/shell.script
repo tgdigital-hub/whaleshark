@@ -1,0 +1,53 @@
+# A shell at its prompt: typing, output that scrolls, colours, a line that
+# wraps, completion, history, an interrupted command, wide characters, clear.
+quiet 0.5 5
+send "echo hello world\r"
+quiet 0.3 5
+send "ls\r"
+quiet 0.3 5
+send "cat alpha.txt\r"
+quiet 0.3 5
+send "seq 1 60\r"
+quiet 0.5 5
+send "printf '\\033[31mred \\033[1;32mbold green\\033[0m \\033[4munderlined\\033[0m \\033[7mreversed\\033[0m\\n'\r"
+quiet 0.3 5
+send "printf '\\033[38;5;208m256 colours\\033[0m \\033[38;2;10;200;255mfull colour\\033[0m \\033[48;2;60;0;90mon a background\\033[0m\\n'\r"
+quiet 0.3 5
+send "cat long.txt\r"
+quiet 0.3 5
+send "cat wide.txt\r"
+quiet 0.3 5
+send "cat al"
+wait 0.3
+send "\t"
+wait 0.5
+send "\r"
+quiet 0.3 5
+send "\x1b[A"
+wait 0.4
+send "\x1b[A"
+wait 0.4
+send "\x15"
+wait 0.3
+send "echo one two three"
+wait 0.3
+send "\x01"
+wait 0.2
+send "\x1b[C\x1b[C\x1b[C\x1b[C\x1b[C"
+wait 0.2
+send "big "
+wait 0.3
+send "\r"
+quiet 0.3 5
+send "sleep 30\r"
+wait 0.8
+send "\x03"
+quiet 0.5 5
+send "printf 'a\\tb\\tc\\n\\a'\r"
+quiet 0.3 5
+send "clear\r"
+quiet 0.5 5
+send "echo after clear\r"
+quiet 0.3 5
+send "exit\r"
+end 3

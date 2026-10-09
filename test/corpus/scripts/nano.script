@@ -1,0 +1,25 @@
+# The system's nano (pico on a Mac) on a made-up file: typing, moving, a
+# search, cutting a line, leaving without saving.
+quiet 0.8 5
+send "typed at the top "
+wait 0.4
+send "\x1b[B\x1b[B"
+wait 0.3
+send "\x05"
+wait 0.3
+send " and at the end of a line"
+wait 0.4
+send "\x17"
+wait 0.4
+send "three\r"
+wait 0.6
+send "\x0b"
+wait 0.5
+send "\x16"
+wait 0.5
+send "\x19"
+wait 0.5
+send "\x18"
+wait 0.6
+send "n"
+end 3

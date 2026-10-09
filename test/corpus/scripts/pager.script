@@ -1,0 +1,42 @@
+# A second pager session: less on a made-up page whose headings are bold
+# and whose marked words are underlined (written the old way, by
+# overstriking). Paging, a search that lights its matches, long lines cut
+# instead of folded and the view moved sideways, only the matching lines
+# shown, a mark and the jump back to it, the status line, quit.
+quiet 0.8 5
+send " "
+wait 0.6
+send "/lamp\r"
+wait 0.7
+send "n"
+wait 0.5
+send "N"
+wait 0.5
+send "-S"
+wait 0.4
+send "\r"
+wait 0.6
+send "\x1b[C"
+wait 0.5
+send "\x1b[C"
+wait 0.5
+send "\x1b[D\x1b[D"
+wait 0.5
+send "ma"
+wait 0.3
+send "G"
+wait 0.6
+send "'a"
+wait 0.6
+send "&Section\r"
+wait 0.8
+send "&\r"
+wait 0.6
+send "="
+wait 0.7
+send "d"
+wait 0.4
+send "u"
+wait 0.4
+send "q"
+end 3

@@ -1,0 +1,29 @@
+# less on a 200-line file: paging down and up, a search, the next match,
+# the end, the start, line numbers on, a jump, quit.
+quiet 0.6 5
+send " "
+wait 0.5
+send " "
+wait 0.5
+send "b"
+wait 0.5
+send "/line 150\r"
+wait 0.6
+send "n"
+wait 0.4
+send "G"
+wait 0.5
+send "g"
+wait 0.5
+send "-N"
+wait 0.6
+send "50g"
+wait 0.5
+send "j"
+wait 0.2
+send "j"
+wait 0.2
+send "k"
+wait 0.4
+send "q"
+end 3
