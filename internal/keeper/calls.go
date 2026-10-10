@@ -89,6 +89,9 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		if k.lost != nil {
 			r.Text += "; the layout file: " + k.lost.Error()
 		}
+		if k.foreign() {
+			r.Text += "; the settings file can be written by another login and is not used"
+		}
 		if k.saver == nil {
 			r.Text += "; nothing is saved"
 		} else if err := k.saver.Err(); err != nil {

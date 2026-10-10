@@ -3,7 +3,9 @@ package keeper
 import (
 	"cmp"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -72,9 +74,24 @@ func (k *Keeper) forget(p *pane) {
 }
 
 // settings are the person's own, or what holds when the file says nothing.
+// The file names programs the keeper starts, a pane's shell and a
+// shortcut's command: one that another login can write, or put there, is
+// not used.
 func (k *Keeper) settings() contract.Settings {
-	s, _ := contract.ReadSettings(k.kit.Platform.Peek, k.dirs)
+	read := k.kit.Platform.Peek
+	if k.foreign() {
+		read = func(string) ([]byte, error) { return nil, fs.ErrNotExist }
+	}
+	s, _ := contract.ReadSettings(read, k.dirs)
 	return s
+}
+
+// foreign reports whether another login can write the settings file or its folder.
+func (k *Keeper) foreign() bool {
+	path := contract.SettingsPath(k.dirs)
+	file, _ := k.kit.Platform.WritableByOthers(path)
+	dir, _ := k.kit.Platform.WritableByOthers(filepath.Dir(path))
+	return file || dir
 }
 
 // shell is what a new pane starts: the person's setting, else the login's
