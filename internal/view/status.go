@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -143,7 +144,7 @@ func options(c *contract.Call) Options {
 		o.Colours = map[string]uint32{}
 		if dirs, err := c.Kit.Platform.Dirs(); err == nil && os.Getenv("NO_COLOR") == "" {
 			person, _ := contract.ReadPerson(c.Kit.Platform.Peek, dirs.Config)
-			o.Colours = theme.Get(person.UI.Theme).Colours
+			maps.Copy(o.Colours, theme.Get(person.UI.Theme).Colours)
 		}
 	}
 	return o
