@@ -3,7 +3,6 @@ package view
 import (
 	"fmt"
 	"io"
-	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -16,11 +15,12 @@ import (
 
 // show prints one task in full, what to do next on top, and marks it seen.
 func show(c *contract.Call) (any, error) {
-	if c.Flags["diff"] != nil || c.Flags["stat"] != nil {
-		return nil, notBuilt("diff", "show")
-	}
-	if len(c.Args) != 1 {
+	diff, stat := c.Flags["diff"] != nil, c.Flags["stat"] != nil
+	switch {
+	case len(c.Args) != 1:
 		return nil, usage("show takes one task, or one try of it: T3 or T3.2.")
+	case stat && !diff:
+		return nil, usage("--stat goes with --diff.")
 	}
 	s, _, v, err := look(c)
 	if err != nil {
@@ -40,6 +40,21 @@ func show(c *contract.Call) (any, error) {
 	if only != "" && !slices.Contains(t.Attempts, only) {
 		return nil, missing("no_such_attempt", "%s has no try %s.", t.ID, only)
 	}
+	if diff {
+		// What the task changed, as git says it and with nothing in it that
+		// could rewrite the terminal.
+		text, err := c.Kit.Integrator.Diff(c.Root, s, t.ID, stat)
+		if _, ok := err.(*contract.Refusal); err != nil && !ok {
+			err = missing("no_diff", "What %s changed cannot be shown: %v.", t.ID, err)
+		}
+		if err != nil {
+			return nil, err
+		}
+		text = strings.TrimRight(cli.Plain(text), "\n") + "\n"
+		io.WriteString(c.Out, text)
+		looked(c, t.ID)
+		return map[string]string{"task": t.ID, "diff": text}, nil
+	}
 	dir := c.Kit.Reader().Dir(c.Root, c.Run)
 	if rel, err := filepath.Rel(c.Root, dir); err == nil {
 		dir = rel
@@ -55,7 +70,7 @@ func show(c *contract.Call) (any, error) {
 			}
 		}
 	}
-	taskText(c.Out, tv, c.Now, Options{Width: width(), PlainMarks: contract.PlainMarks(os.Getenv)})
+	taskText(c.Out, tv, c.Now, options(c))
 	looked(c, t.ID)
 	return tv, nil
 }
@@ -117,7 +132,7 @@ func taskView(v *contract.View, s *contract.State, t *contract.Task, only, dir s
 // taskText prints a task in full: what to do, what the worker says, the
 // proof, then the background.
 func taskText(w io.Writer, tv *contract.TaskView, now time.Time, o Options) {
-	p := &printer{out: new(strings.Builder), o: o, v: &contract.View{At: now}, forms: map[string]string{}, idw: 5, namew: 19, wordw: 12, agew: 3}
+	p := newPrinter(&contract.View{At: now}, o)
 	c, clock := tv.Card, func(t time.Time) string { return t.In(now.Location()).Format("15:04") }
 	var newest contract.Try
 	parts := []string{p.mark(c.Look) + " " + clean(wordOf(c))}

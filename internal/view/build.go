@@ -105,8 +105,7 @@ func Build(in contract.ViewInput) *contract.View {
 		}
 	}
 	slices.SortFunc(seats, func(x, y *seat) int {
-		return cmp.Or(cmp.Compare(order[x.card.Look], order[y.card.Look]),
-			cmp.Compare(len(x.task.ID), len(y.task.ID)), strings.Compare(x.task.ID, y.task.ID))
+		return cmp.Or(cmp.Compare(order[x.card.Look], order[y.card.Look]), natural(x.task.ID, y.task.ID))
 	})
 	for _, st := range seats {
 		name := contract.Looks[order[st.card.Look]].Section
@@ -138,7 +137,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 		if t.Status == contract.TaskCancelled {
 			c.Look = contract.LookStopped
 		}
-		if waits := b.unmet(t); len(waits) > 0 {
+		if waits := unmet(b.s, t); len(waits) > 0 {
 			c.News = "after " + strings.Join(waits, ", ")
 		}
 		return st
@@ -233,7 +232,7 @@ func (b *builder) items(v *contract.View) {
 		qs = append(qs, q)
 	}
 	slices.SortFunc(qs, func(x, y *contract.Question) int {
-		return cmp.Or(x.CreatedAt.Compare(y.CreatedAt), cmp.Compare(len(x.ID), len(y.ID)), strings.Compare(x.ID, y.ID))
+		return cmp.Or(x.CreatedAt.Compare(y.CreatedAt), natural(x.ID, y.ID))
 	})
 	ui := b.in.UI
 	quiet := ui.DND && (ui.DNDUntil.IsZero() || b.in.Now.Before(ui.DNDUntil))
@@ -404,6 +403,9 @@ func (b *builder) finish(st *seat) {
 	stale := time.Duration(b.in.Limits.Limits.StaleMinutes) * time.Minute
 	old := stale > 0 && b.in.Now.Sub(c.Said) >= stale
 	c.Pale = st.live && !c.Said.IsZero() && !reported && (c.Look == contract.LookIdle || old)
+	// A task that was started is unseen from the moment its look changes
+	// until the person looks at it.
+	c.Unseen = a != nil && c.Since.After(t.SeenAt)
 
 	paused := b.s.Run.Paused != nil
 	if c.Tab != "" {
@@ -487,6 +489,9 @@ func (b *builder) finish(st *seat) {
 // and what the age line says about its sources.
 func (b *builder) around(v *contract.View) {
 	in, run := b.in, b.s.Run
+	if slices.ContainsFunc(in.Limits.Agent.Args, unasked) {
+		v.Alerts = append(v.Alerts, "workers in this project run without permission prompts")
+	}
 	if run.Paused != nil {
 		v.Strip.Paused = true
 		line := "all work is paused"
@@ -500,7 +505,7 @@ func (b *builder) around(v *contract.View) {
 		case contract.CauseLeadSilent:
 			v.Alerts = append(v.Alerts, fmt.Sprintf("the lead agent is not listening · %s waiting", plural(len(b.s.Inbox.Events), "event", "events")))
 		case contract.CauseTogether:
-			v.Alerts = append(v.Alerts, "most workers stopped together; check your usage limit")
+			v.Lines = append(v.Lines, "most workers stopped together; check your usage limit")
 		}
 	}
 	if in.Terms == nil {
@@ -528,11 +533,19 @@ func (b *builder) around(v *contract.View) {
 	}
 }
 
+// unasked reports whether an argument of the project's approved agent line
+// switches an agent's permission prompts off: the words the agents' own
+// manuals use for that.
+func unasked(arg string) bool {
+	arg = strings.ToLower(arg)
+	return strings.Contains(arg, "skip-permissions") || strings.Contains(arg, "bypass") || strings.Contains(arg, "yolo")
+}
+
 // unmet lists the tasks a task still waits for.
-func (b *builder) unmet(t *contract.Task) []string {
+func unmet(s *contract.State, t *contract.Task) []string {
 	var out []string
 	for _, id := range t.After {
-		if d := b.s.Tasks[id]; d != nil && d.Status != contract.TaskDone {
+		if d := s.Tasks[id]; d != nil && d.Status != contract.TaskDone {
 			out = append(out, id)
 		}
 	}

@@ -37,12 +37,8 @@ func catchup(c *contract.Call) (any, error) {
 	if len(c.Args) > 0 {
 		return nil, usage("catchup takes no argument.")
 	}
-	s, in, v, err := look(c)
-	if r, ok := err.(*contract.Refusal); ok && r.Code == "no_run" {
-		fmt.Fprintln(c.Out, noRun)
-		return nil, nil
-	}
-	if err != nil {
+	s, in, v, err := lookOr(c)
+	if s == nil {
 		return nil, err
 	}
 	past, err := c.Kit.Reader().History(c.Root, c.Run)

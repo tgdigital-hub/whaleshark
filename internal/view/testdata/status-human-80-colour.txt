@@ -1,0 +1,50 @@
+TEAM   run r3 "new shop site" · 12 agents · 2 need you · 1 check failed · 1 to
+       check                                                         8 Oct 21:14
+
+FOR YOU   3 waiting · 2 hold work up
+ [38;2;255;127;107m▲[39m q7   sign-up page       [38;2;255;127;107mquestion[39m       3m  must the old sign-up link keep
+                                              working? (yes / no)
+        > whaleshark answer q7 yes --human
+ [38;2;255;127;107m▲[39m q9   photo upload       [38;2;255;127;107mquestion[39m       1m  which sizes should a photo be kept
+                                              in?
+        > whaleshark answer q9 "<your answer>" --human
+ [38;2;185;156;255m●[39m n4   price list         [38;2;185;156;255msign-off[39m      now  prices load from the sheet and 14
+                                              tests pass. Put it with the
+                                              finished work?
+        > whaleshark answer n4 approve --human
+          or answer n4 "send back: <why>" --human
+
+NEEDS YOU
+ [38;2;255;127;107m▲[39m T2   sign-up page       [38;2;255;127;107mneeds you[39m      3m  must the old sign-up link keep
+                                              working?                       40%
+ [38;2;255;127;107m▲[39m T6   photo upload       [38;2;255;127;107mneeds you[39m      1m  which sizes should a photo be kept
+                                              in?                            55%
+
+TO CHECK
+ [38;2;255;92;108m●[39m T7   [1memail sender[22m       [38;2;255;92;108mcheck failed[39m   2m  2 of 41 tests fail: bounce
+                                              handling
+        > whaleshark show T7
+          then whaleshark reject T7 "<why>" --human
+ [38;2;185;156;255m●[39m T8   price list ▲       [38;2;185;156;255mto check[39m       4m  prices load from the sheet; 14
+                                              tests pass
+                                              sign-off n4 waits for you
+
+BUILDING
+ [38;2;62;207;154m◐[39m T1   login page         [38;2;62;207;154m80%[39m           44m  form and checks written
+ [38;2;62;207;154m◐[39m T3   search box         [38;2;62;207;154m60%[39m           42m  tests written
+                                              also changes search.js: T4
+ [38;2;62;207;154m◐[39m T4   search results     [38;2;62;207;154m45%[39m           42m  list and paging done
+                                              clashes with T3: search.js
+ [38;2;62;207;154m◐[39m T5   help pages         [38;2;62;207;154m70%[39m           41m  nine of twelve pages written
+ [38;2;62;207;154m◐[39m T9   site map           [38;2;62;207;154m30%[39m           20m  reading the page list
+ [38;2;62;207;154m◐[39m T10  checkout form      [38;2;62;207;154m20%[39m           12m  reading the existing code
+ [38;2;62;207;154m◐[39m T11  order emails       [38;2;62;207;154masking[39m         4m  answered, not read yet: orders, at
+                                              the shop's own name
+
+IDLE
+ [38;2;169;189;208m◌[39m T12  admin page         [38;2;169;189;208midle[39m          12m  last said 14m ago: "half the
+                                              screens done" (50%)
+
+12 agents · 5 done today (whaleshark status --all)
+1 needs you in another job (--everywhere)
+live · checked 0s ago

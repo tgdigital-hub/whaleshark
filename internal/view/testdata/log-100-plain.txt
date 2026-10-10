@@ -1,0 +1,49 @@
+MESSAGES  7 new · today                                                                  8 Oct 21:14
+
+ 19:05  >  P1   brief         set up the project
+ 19:05  >  P2   brief         agree the page list
+ 19:05  >  P3   brief         pick the colours
+ 19:05  >  P4   brief         sketch the layout
+ 19:05  >  P5   brief         write the words
+ 20:20 v   P1   check passed  ok
+ 20:21 v   P2   check passed  ok
+ 20:22 v   P3   check passed  ok
+ 20:23 v   P4   check passed  ok
+ 20:24 v   P5   check passed  ok
+ 20:30  >  T1   brief         login page
+ 20:30  >  T2   brief         sign-up page
+ 20:32  >  T3   brief         search box
+ 20:32  >  T4   brief         search results
+ 20:32  >  T7   brief         email sender
+ 20:33  >  T5   brief         help pages
+ 20:33  >  T6   brief         photo upload
+ 20:34  >  T12  brief         admin page
+ 20:34  >  T8   brief         price list
+ 20:40  >  T11  brief         order emails
+ 20:44  >  T7   message       the bounce address is in the settings file
+ 20:54  >  T9   brief         site map
+ 20:58  <  T7   100%          templates done
+ 21:00  <  T12  50%           half the screens done
+ 21:01  <  T9   30%           reading the page list
+ 21:02  >  T10  brief         checkout form
+ 21:02  <  T5   70%           nine of twelve pages written
+ 21:04  <  T11  35%           templates listed
+ 21:05  <  T1   80%           form and checks written
+ 21:06  <  T10  20%           reading the existing code
+ 21:06  <  T2   40%           form written
+ 21:07  <  T4   45%           list and paging done
+ 21:08  <  T3   60%           tests written
+ 21:08  <  T8   100%          tests pass
+ 21:09  <  T6   55%           upload form written
+ 21:09 *<  T7   done          all sending paths covered
+ 21:10 *<  T8   done          prices load from the sheet; 14 tests pass
+ 21:10 ~<  T11  question      which sender address?
+ 21:11 !<  T2   question      must the old sign-up link keep working?                            NEW
+ 21:12  >  T11  answer        the old one (taken back)                            by you, typed  NEW
+ 21:12 *   T7   check failed  2 of 41 tests fail: bounce handling                                NEW
+ 21:13  >  T11  answer        orders, at the shop's own name              by you, from the pane  NEW
+ 21:13 !<  T6   question      which sizes should a photo be kept in?                             NEW
+ 21:13     T9   stop          The person ran stop themselves.           by you, from your phone  NEW
+ 21:14 !   T8   sign-off      prices load from the sheet and 14 tests pass. Put it with the finished
+                              work?                                                              NEW
+live · checked 0s ago
