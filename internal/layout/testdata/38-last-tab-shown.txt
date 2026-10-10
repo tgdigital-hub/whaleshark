@@ -1,0 +1,125 @@
+== 150x44 keys=q13 zoom=
+ +3 │ email sender │ price list │ login page │ search box │ search results │ checkout form │ help pages │ site map │ order emails │ admin page
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+q13 150x42
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+== 100x29 keys=q13 zoom=
+ +7 │ search results │ checkout form │ help pages │ site map │ order emails │ admin page
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+q13 100x27
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+== 80x24 keys=q13 zoom=
+ +8 │ checkout form │ help pages │ site map │ order emails │ admin page
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+q13 80x22
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+== 50x15 keys=q13 zoom=
+ +10 │ site map │ order emails │ admin page
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+q13 50x13
+
+
+
+
+
+
+
+
+
+
+
+
+== 24x8 keys=q13 zoom=
+ +12 │ admin page
+━━━━━━━━━━━━━━━━━━━━━━━━
+q13 24x6
+
+
+
+
+

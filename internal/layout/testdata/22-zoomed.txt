@@ -1,0 +1,125 @@
+== 150x44 keys=p2 zoom=p2
+ Lead │ sign-up page │ photo upload │ email sender │ price list │ login page │ search box │ search results │ checkout form │ help pages │ +3
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+p2 150x42
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+== 100x29 keys=p2 zoom=p2
+ Lead │ sign-up page │ photo upload │ email sender │ price list │ login page │ search box │ +6
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+p2 100x27
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+== 80x24 keys=p2 zoom=p2
+ Lead │ sign-up page │ photo upload │ email sender │ price list │ +8
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+p2 80x22
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+== 50x15 keys=p2 zoom=p2
+ Lead │ sign-up page │ photo upload │ +10
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+p2 50x13
+
+
+
+
+
+
+
+
+
+
+
+
+== 24x8 keys=p2 zoom=p2
+ Lead │ +12
+━━━━━━━━━━━━━━━━━━━━━━━━
+p2 24x6
+
+
+
+
+
