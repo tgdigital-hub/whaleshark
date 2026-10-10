@@ -2,7 +2,8 @@
 // view model, one style sheet, one script, and the two small files of a
 // phone. It prints what the view says and keeps no state. Nothing in it is
 // inline and nothing names another address, so the page's server can forbid
-// both by header.
+// both by header. A phone is drawn from the same templates in one column:
+// the style sheet alone lays it out, and nothing is in another order.
 package dashweb
 
 import (
@@ -30,12 +31,20 @@ var pages = template.Must(template.New("page.html").Funcs(template.FuncMap{
 	"scheme": scheme, "each": each, "cards": cards, "join": strings.Join, "base": filepath.Base,
 	"elsewhere": func(n int) string { return plural(n, "needs you in another job", "need you in other jobs") },
 	"needs":     func() contract.LookOf { return contract.Looks[0] },
+	"nudge":     func() bool { return pushKey() != "" },
 	"open":      func(c contract.Card) string { return contract.RouteTask + c.Task },
 	"shot":      func(t contract.Try, i int) string { return contract.RouteEvidence + t.Attempt + "/" + fmt.Sprint(i) },
 }).ParseFS(files, "page.html"))
 
+// pushKey is the kit's own reader of the login's key for nudges, once Plug
+// has run: with no key a phone is offered no nudge of the page's own.
+var pushKey = func() string { return "" }
+
 // Plug puts the screens and their fixed files into the kit; it binds nothing.
-func Plug(k *contract.Kit) { k.Page, k.Asset = Page, Asset }
+func Plug(k *contract.Kit) {
+	k.Page, k.Asset = Page, Asset
+	pushKey = func() string { return k.PushKey() }
+}
 
 // Page draws one screen.
 func Page(w io.Writer, p *contract.Page) error { return pages.Execute(w, p) }

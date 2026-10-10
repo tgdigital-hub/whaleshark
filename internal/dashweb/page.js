@@ -49,8 +49,9 @@
 				new Notification(a.dataset.title, { body: a.dataset.text, tag: a.id });
 			}
 		});
-		const b = $('notice');
-		if (b) b.hidden = !window.Notification || Notification.permission !== 'default';
+		// A phone keeps its button while it may be nudged: a tap hands over again.
+		const b = $('notice'), leave = window.Notification && Notification.permission;
+		if (b) b.hidden = leave !== 'default' && !(leave === 'granted' && root.classList.contains('phone'));
 		started = true;
 	}
 

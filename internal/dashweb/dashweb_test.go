@@ -498,3 +498,88 @@ func TestWriteThePageOut(t *testing.T) {
 		os.WriteFile(filepath.Join(dir, "a", name), body, 0o600)
 	}
 }
+
+// The evening at 21:14 on a phone: the rows of the design's picture, from
+// the same templates and in the order of the laptop's page. One column is
+// the style sheet's doing; the four buttons, as the picture writes them, fit
+// a line of forty characters; a card's news is hidden only where the agent
+// is simply building; the foot is the lead agent's last words, the way to
+// read more and the box for a note.
+func TestTheEveningOnAPhoneFortyColumnsWide(t *testing.T) {
+	f := load(t, testkit.Evening)
+	if f.Now.Format("15:04") != "21:14" {
+		t.Fatalf("the fixture is of %s", f.Now.Format("15:04"))
+	}
+	wide := team(f)
+	wide.Lead = "Twelve workers are running.\nTwo of them need a word from you."
+	narrow := *wide
+	narrow.Phone = true
+	laptop, phone := draw(t, wide), draw(t, &narrow)
+	order := regexp.MustCompile(` id="(top|fresh|main|you|foot|[ic]-[^"]+)"`)
+	rows := order.FindAllStringSubmatch(phone, -1)
+	if got, want := fmt.Sprint(rows), fmt.Sprint(order.FindAllStringSubmatch(laptop, -1)); got != want {
+		t.Errorf("the phone's rows %s\nthe laptop's %s", got, want)
+	}
+	var ids []string
+	for _, m := range rows {
+		ids = append(ids, m[1])
+	}
+	picture := []string{"top", "fresh", "main", "you", "i-q7", "i-q9", "i-n4", "c-T2", "c-T6", "c-T7", "c-T8", "c-T1"}
+	if len(ids) < len(picture) || !slices.Equal(ids[:len(picture)], picture) || ids[len(ids)-1] != "foot" {
+		t.Errorf("the rows of the phone's page: %v", ids)
+	}
+	// Stop all asks once: its word stands on what opens the question and on the button inside.
+	_, strip, _ := strings.Cut(phone, `<span class="strip">`)
+	strip, _, _ = strings.Cut(strip, "</header>")
+	line := ""
+	for _, label := range regexp.MustCompile(`<(?:button|summary) class="b[^>]*>([^<]+)<`).FindAllStringSubmatch(strip, -1) {
+		if !strings.Contains(line, "["+label[1]+"]") {
+			line += "[" + label[1] + "] "
+		}
+	}
+	if line != "[Stop all] [Catch up] [DND] [Mute] " || len(line) > 40 {
+		t.Errorf("the four buttons: %q", line)
+	}
+	for _, want := range []string{`class="t-reef phone"`, `FOR YOU <span class="c-dim">3 waiting · 2 hold work up`, `<pre class="lead">Twelve workers are running.`,
+		`<a href="/lead">read more</a>`, `action="/do/note-lead"`, `class="card k-building plain" id="c-T1"`, `class="card k-building" id="c-T4"`, `class="card k-building" id="c-T11"`,
+		`class="card k-failed" id="c-T7"`} {
+		if !strings.Contains(phone, want) {
+			t.Errorf("the phone's page does not hold %s", want)
+		}
+	}
+	if strings.Contains(phone, `id="keys"`) || strings.Contains(phone, "localhost") {
+		t.Error("the phone's page lists the keys of a keyboard, or links to a site it cannot reach")
+	}
+	css, _, _ := Asset("page.css")
+	for _, rule := range []string{".phone .card { grid-template-columns: 1.6rem 1fr auto; }", ".phone .plain .news { display: none; }", ".phone .news { grid-column: 2 / 4; }"} {
+		if !bytes.Contains(css, []byte(rule)) {
+			t.Errorf("the style sheet has no rule %s", rule)
+		}
+	}
+}
+
+// A phone is offered the page's own nudge only while the login has a key
+// for it, and a number's screen asks again by itself, with no script.
+func TestThePhonesNudgeAndTheNumbersScreen(t *testing.T) {
+	f := load(t, testkit.Evening)
+	p := team(f)
+	p.Phone = true
+	k := contract.NewKit()
+	Plug(k)
+	t.Cleanup(func() { pushKey = func() string { return "" } })
+	if out := draw(t, p); strings.Contains(out, `id="notice"`) {
+		t.Error("a nudge is offered with no key")
+	}
+	k.PushKey = func() string { return "BK" }
+	if out := draw(t, p); !strings.Contains(out, `<button class="b" id="notice" hidden>Nudge me on this phone</button>`) {
+		t.Error("no nudge is offered with a key")
+	}
+	p.Phone = false
+	if out := draw(t, p); !strings.Contains(out, `<button class="b" id="notice" hidden>Notify me here</button>`) || !strings.Contains(out, `id="keys"`) {
+		t.Error("the laptop's page lost its notice button or its keys")
+	}
+	pair := draw(t, &contract.Page{Screen: contract.ScreenPair, Phone: true, Pair: "493 201"})
+	if !strings.Contains(pair, `<meta http-equiv="refresh" content="3">`) || strings.Contains(draw(t, p), "http-equiv") {
+		t.Error("the number's screen does not ask again, or another screen does")
+	}
+}
