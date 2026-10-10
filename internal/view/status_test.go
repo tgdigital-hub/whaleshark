@@ -160,13 +160,6 @@ func TestStatusFlags(t *testing.T) {
 		t.Errorf("a failed sweep ends with %v and prints %q", err, out)
 	}
 
-	for _, flag := range []string{"everywhere"} {
-		c, _, sw := call(t, f, contract.Human, flag)
-		var r *contract.Refusal
-		if _, err := k(c); !errors.As(err, &r) || r.Code != "not_built" || sw.n != 0 {
-			t.Errorf("--%s: %v", flag, err)
-		}
-	}
 	c, _, _ = call(t, f, contract.Human)
 	c.Args = []string{"T1"}
 	var r *contract.Refusal

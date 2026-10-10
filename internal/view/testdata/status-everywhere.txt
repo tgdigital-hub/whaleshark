@@ -1,0 +1,9 @@
+JOBS   3 open runs · 2 need you                                                          8 Oct 21:14
+
+ ▲ r3   shop               3 waiting          "new shop site"
+        > whaleshark status --root /work/shop --run r3
+ ▲ r8   api                3 waiting          "api clean-up"
+        > whaleshark status --root /work/api --run r8
+ ◐ r1   docs               12 agents          "tidy the docs"
+        > whaleshark status --root /work/docs --run r1
+live · checked 0s ago

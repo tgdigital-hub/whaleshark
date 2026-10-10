@@ -1,0 +1,34 @@
+PLAN   run r3 · 19 tasks · 5 done · 12 open · 2 queued · 3 things for you                8 Oct 21:14
+
+FOR YOU
+ ▲ q7   sign-up page       question       3m  must the old sign-up link keep working? (yes / no)
+        > whaleshark answer q7 yes --human
+ ▲ q9   photo upload       question       1m  which sizes should a photo be kept in?
+        > whaleshark answer q9 "<your answer>" --human
+ ● n4   price list         sign-off      now  prices load from the sheet and 14 tests pass. Put it
+                                              with the finished work?
+        > whaleshark answer n4 approve --human        or        answer n4 "send back: <why>" --human
+
+ ✔ P1   the project        done
+ ✔ P2   page list          done
+ ✔ P3   the colours        done
+ ✔ P4   the layout         done
+ ✔ P5   the words          done
+ ◐ T1   login page         80%                after P1
+ ▲ T2   sign-up page       ▲ q7               after P1
+ ◐ T3   search box         60%                after P2                    also changes search.js: T4
+ ◐ T4   search results     45%                after P2                    clashes with T3: search.js
+ ◐ T5   help pages         70%                after P2
+ ▲ T6   photo upload       ▲ q9               after P1
+ ● T7   email sender       check failed       after P1
+ ● T8   price list         ▲ n4               after P2
+ ◐ T9   site map           30%                after P2
+ ◐ T10  checkout form      20%                after P1
+ ◐ T11  order emails       asking             after P1
+ ◌ T12  admin page         idle               after P1
+ ○ T13  whole site         queued             after T1 ... T12 (waits on 12)
+ ○ T14  go live            queued             after T13
+
+Longest chain left: T2 > T13 > T14.
+Nothing new can start until T1, T2, T3 and 9 more are done.
+live · checked 0s ago

@@ -319,9 +319,6 @@ func TestShow(t *testing.T) {
 	c, _, _, _ = view(t, f, "show", contract.Human, "T7")
 	c.Run = ""
 	refusal(t, c, contract.ExitMissing, "no_run")
-	c, _, _, _ = view(t, f, "show", contract.Human, "T7")
-	c.Flags["diff"] = []string{""}
-	refusal(t, c, contract.ExitFailed, "not_built")
 }
 
 // A task that was tried before shows each try, newest first.

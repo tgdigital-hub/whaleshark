@@ -23,6 +23,17 @@ func look(c *contract.Call) (*contract.State, contract.ViewInput, *contract.View
 	return s, in, c.Kit.View(in), nil
 }
 
+// lookOr is look for a screen that has something to say where there is no
+// run: how to start one. It then returns no record and no error.
+func lookOr(c *contract.Call) (*contract.State, contract.ViewInput, *contract.View, error) {
+	s, in, v, err := look(c)
+	if r, ok := err.(*contract.Refusal); ok && r.Code == "no_run" {
+		fmt.Fprintln(c.Out, noRun)
+		return nil, in, nil, nil
+	}
+	return s, in, v, err
+}
+
 func cardOf(v *contract.View, task string) *contract.Card {
 	for _, s := range v.Sections {
 		for i := range s.Cards {

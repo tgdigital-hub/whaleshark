@@ -15,6 +15,15 @@ human: jump lead                    -> expect "in front: lead agent"
 human: jump P1                      -> expect exit 4 "no open tab"
 orch: jump T7                       -> expect exit 5
 
+# The plan, the messages, every open run and what a task changed.
+orch: graph                         -> expect "PLAN   run r3" "Longest chain left"
+as-unbound: graph --ready           -> expect "PLAN"
+human: log                          -> expect "MESSAGES" "sign-off"
+orch: log --all --task T7           -> expect "all · T7" "check failed"
+human: log --task T99               -> expect exit 4 "no task"
+human: status --everywhere          -> expect "JOBS   1 open run" "whaleshark status --root"
+human: show T7 --stat               -> expect exit 2
+
 clock +66m
 orch: catchup                       -> expect "WHILE YOU WERE AWAY   1h 06m  (21:14 to 22:20)" "Still building"
 human: catchup --since 22:00        -> expect "20m  (22:00 to 22:20)" "Done as you           0"

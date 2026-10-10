@@ -3,6 +3,7 @@ package view
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +18,10 @@ type Options struct {
 	Width      int
 	PlainMarks bool // the terminal cannot show the marks (contract.PlainMarks)
 	Items      bool // only what waits for the person
+	// Colours is the scheme's colours by name where the text goes to a
+	// terminal that takes them: empty for one that wants no colour, which
+	// still shows what is unseen in bold; nil for anything else.
+	Colours map[string]uint32
 }
 
 // row is one line of the team list or of what waits for the person, before
@@ -24,6 +29,8 @@ type Options struct {
 type row struct {
 	mark, id, name, word, age, text, trail string
 	next                                   []string
+	colour                                 string // of the mark and the word
+	bold                                   bool   // the name: unseen
 }
 
 type printer struct {
@@ -39,7 +46,7 @@ type printer struct {
 // by section, then how fresh it is. It computes no order, count or word of
 // its own, and everything a person or an agent wrote is made harmless first.
 func Text(w io.Writer, v *contract.View, o Options) {
-	p := &printer{out: new(strings.Builder), o: o, v: v, forms: map[string]string{}, idw: 5, namew: 19, wordw: 12, agew: 3}
+	p := newPrinter(v, o)
 	var items []row
 	for _, it := range v.Items {
 		items = append(items, p.item(it))
@@ -54,9 +61,7 @@ func Text(w io.Writer, v *contract.View, o Options) {
 		}
 	}
 
-	for _, line := range v.Alerts {
-		p.line("", clean(line), "")
-	}
+	p.alerts()
 	if !o.Items {
 		c := v.Counts
 		parts := []string{fmt.Sprintf("run %s %q", clean(v.Run), clean(v.Objective)), plural(c.Agents, "agent", "agents")}
@@ -94,8 +99,28 @@ func Text(w io.Writer, v *contract.View, o Options) {
 			trail = plural(c.Elsewhere, "needs you in another job", "need you in other jobs") + " (--everywhere)"
 		}
 		p.out.WriteByte('\n')
+		for _, line := range v.Lines {
+			p.line("", clean(line), "")
+		}
 		p.line("", strings.Join(parts, " · "), trail)
 	}
+	p.fresh(w)
+}
+
+func newPrinter(v *contract.View, o Options) *printer {
+	return &printer{out: new(strings.Builder), o: o, v: v, forms: map[string]string{}, idw: 5, namew: 19, wordw: 12, agew: 3}
+}
+
+// alerts prints the lines that stand on top of every screen.
+func (p *printer) alerts() {
+	for _, line := range p.v.Alerts {
+		p.line("", p.paint("blocked", clean(line)), "")
+	}
+}
+
+// fresh ends a screen with how fresh it is, and hands it over.
+func (p *printer) fresh(w io.Writer) {
+	v := p.v
 	fresh := "live · checked " + seconds(v.At.Sub(v.Fresh.Checked)) + " ago"
 	if v.At.Sub(v.Fresh.Checked) > contract.StaleAfter {
 		fresh = "STALE since " + v.Fresh.Checked.Format("15:04")
@@ -105,6 +130,24 @@ func Text(w io.Writer, v *contract.View, o Options) {
 	}
 	p.line("", fresh, "")
 	io.WriteString(w, p.out.String())
+}
+
+// paint gives a text one of the scheme's colours, where there is colour.
+func (p *printer) paint(colour, s string) string {
+	rgb, ok := p.o.Colours[colour]
+	if !ok || s == "" {
+		return s
+	}
+	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm%s\x1b[39m", rgb>>16&0xff, rgb>>8&0xff, rgb&0xff, s)
+}
+
+// styled puts a text between two of a terminal's own switches, such as
+// bold on and off, where the text goes to a terminal.
+func (p *printer) styled(on bool, start, end, s string) string {
+	if !on || p.o.Colours == nil {
+		return s
+	}
+	return "\x1b[" + start + "m" + s + "\x1b[" + end + "m"
 }
 
 // item is what waits for the person as a row, a choice with its options.
@@ -120,14 +163,16 @@ func (p *printer) item(it contract.Item) row {
 		}
 		text += "  (" + strings.Join(options, " / ") + ")"
 	}
-	return p.measure(row{mark: p.mark(it.Look), id: it.ID, name: it.Name, word: formWord(it.Form), age: age(p.v.At.Sub(it.Since)), text: text, next: it.Next})
+	return p.measure(row{mark: p.mark(it.Look), id: it.ID, name: it.Name, word: formWord(it.Form), age: age(p.v.At.Sub(it.Since)), text: text, next: it.Next,
+		colour: contract.Looks[order[it.Look]].Colour})
 }
 
 // card is a card as a row: its word is the figure while it builds, and what
 // stands after its news is what it clashes with, what waits about it, or how
 // far it had got.
 func (p *printer) card(c contract.Card) row {
-	r := row{mark: p.mark(c.Look), id: c.Task, name: c.Name, word: string(c.Look), age: age(p.v.At.Sub(c.Since)), text: clean(c.News), next: c.Next}
+	r := row{mark: p.mark(c.Look), id: c.Task, name: c.Name, word: string(c.Look), age: age(p.v.At.Sub(c.Since)), text: clean(c.News), next: c.Next,
+		colour: c.Colour, bold: c.Unseen}
 	pct := fmt.Sprint(c.Progress, "%")
 	figure := c.Look == contract.LookBuilding && !c.Said.IsZero()
 	switch {
@@ -146,10 +191,8 @@ func (p *printer) card(c contract.Card) row {
 		}
 	}
 	var trail []string
-	if x := c.Clash; x != nil && x.Conflicts {
-		trail = append(trail, "clashes with "+clean(x.Task)+": "+clean(x.File))
-	} else if x != nil {
-		trail = append(trail, "also changes "+clean(x.File)+": "+clean(x.Task))
+	if c.Clash != nil {
+		trail = append(trail, clash(c.Clash))
 	}
 	switch {
 	case c.Flag:
@@ -159,6 +202,14 @@ func (p *printer) card(c contract.Card) row {
 	}
 	r.trail = strings.Join(trail, " · ")
 	return r
+}
+
+// clash is the note of two tasks that change the same file.
+func clash(x *contract.Clash) string {
+	if x.Conflicts {
+		return "clashes with " + clean(x.Task) + ": " + clean(x.File)
+	}
+	return "also changes " + clean(x.File) + ": " + clean(x.Task)
 }
 
 func (p *printer) mark(l contract.Look) string {
@@ -179,10 +230,12 @@ func (p *printer) measure(r row) row {
 // block prints a heading and its rows, each with the lines its reader may
 // run under it.
 func (p *printer) block(heading string, rows []row) {
-	fmt.Fprintf(p.out, "\n%s\n", heading)
+	if p.out.WriteByte('\n'); heading != "" {
+		p.out.WriteString(heading + "\n")
+	}
 	for _, r := range rows {
-		prefix := " " + r.mark + " " + pad(r.id, p.idw) + pad(r.name, p.namew) + pad(r.word, p.wordw) +
-			strings.Repeat(" ", 2+p.agew-cells(r.age)) + r.age + "  "
+		prefix := " " + p.paint(r.colour, r.mark) + " " + pad(r.id, p.idw) + pad(p.styled(r.bold, "1", "22", r.name), p.namew) +
+			pad(p.paint(r.colour, r.word), p.wordw) + strings.Repeat(" ", 2+p.agew-cells(r.age)) + r.age + "  "
 		p.line(prefix, r.text, r.trail)
 		p.steps(strings.Repeat(" ", 3+p.idw), r.next)
 	}
@@ -190,9 +243,14 @@ func (p *printer) block(heading string, rows []row) {
 
 // line prints text after a prefix, wrapped under itself, and then trail: at
 // the right edge where the last line has room, else on a line of its own.
-// The words come in the same order at every width.
+// Where the screen is too narrow for the text beside its row, it goes under
+// the row. The words come in the same order at every width.
 func (p *printer) line(prefix, text, trail string) {
-	room := max(p.o.Width-cells(prefix), 20)
+	if p.o.Width-cells(prefix) < narrow && text+trail != "" {
+		p.out.WriteString(strings.TrimRight(prefix, " ") + "\n")
+		prefix = strings.Repeat(" ", 3+p.idw)
+	}
+	room := max(p.o.Width-cells(prefix), narrow)
 	lines := wrap(text, room)
 	if last := lines[len(lines)-1]; trail != "" && last == "" {
 		lines[len(lines)-1] = trail
@@ -249,7 +307,15 @@ func clean(s string) string {
 	return strings.Join(strings.Fields(cli.Plain(s)), " ")
 }
 
-func cells(s string) int { return uniseg.StringWidth(s) }
+// narrow is the least room a text is wrapped in.
+const narrow = 20
+
+// switches are the colour and bold sequences this printer writes itself;
+// everything else of that kind was taken out of the text before.
+var switches = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+// cells is how wide a text stands on the screen.
+func cells(s string) int { return uniseg.StringWidth(switches.ReplaceAllString(s, "")) }
 
 func pad(s string, w int) string {
 	return s + strings.Repeat(" ", max(w-cells(s), 0))

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -41,13 +42,13 @@ func golden(t *testing.T, name, got string) {
 
 var callers = []contract.CallerKind{contract.Human, contract.Orchestrator, contract.Unbound}
 
-// The fixture as plain text, at 100 and at 80 columns, for each reader, with
+// The fixture as plain text, at 100, 80 and 60 columns, for each reader, with
 // the marks and without them: the golden files, and the layout rules of the
 // design held on every one of them.
 func TestEveningText(t *testing.T) {
 	f := evening(t)
 	for _, caller := range callers {
-		for _, width := range []int{100, 80} {
+		for _, width := range widths {
 			for _, plain := range []bool{false, true} {
 				v := Build(f.Input(caller))
 				got := text(v, Options{Width: width, PlainMarks: plain})
@@ -236,7 +237,11 @@ func hostile(t *testing.T, bad string) {
 	s.Run.Findings[0].Files[0] += bad
 	v := Build(whole(f.Input(contract.Human)))
 	wide := text(v, Options{Width: 100})
-	all := wide + text(v, Options{Width: 40, PlainMarks: true}) + indent(t, v)
+	var more bytes.Buffer
+	pl, list := plan(v, s), said(s, nil, f.Now.Add(-time.Hour))
+	planText(&more, v, pl, Options{Width: 60})
+	saidText(&more, v, list, "all", Options{Width: 60, PlainMarks: true})
+	all := wide + text(v, Options{Width: 40, PlainMarks: true}) + indent(t, v) + more.String() + indent(t, pl) + indent(t, list)
 	for i, r := range all {
 		if r != '\n' && (unicode.IsControl(r) || r >= 0x2028 && r <= 0x202e || r >= 0x2066 && r <= 0x2069) {
 			t.Fatalf("%U reaches the terminal after %q", r, all[max(i-60, 0):i])
