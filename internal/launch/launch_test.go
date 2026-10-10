@@ -683,7 +683,7 @@ func approve(t *testing.T, p *scenario.Project, toml string) {
 func TestTwoKindsThroughStopAllAndResume(t *testing.T) {
 	p := evening(t, 2, nil)
 	toml := "[agent]\nargs = [\"--permission-mode\", \"acceptEdits\", \"--allowedTools\", \"Bash({whaleshark}:*)\", \"Bash(git:*)\"]\n" +
-		"[check]\ntimeout_seconds = 86400\n[worktrees]\nshare = [\"node_modules\"]\n"
+		"[check]\ntimeout_seconds = 86400\n[worktrees]\nshare = [\"node_modules\"]\n[limits]\nagents = 99\n"
 	if err := os.WriteFile(filepath.Join(p.Root, "whaleshark.toml"), []byte(toml), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -713,7 +713,7 @@ func TestTwoKindsThroughStopAllAndResume(t *testing.T) {
 	}
 	// Every other setting nobody approved says so as well, once; one that
 	// is for copies of the code only where a task has one.
-	if got := strings.Join(kindsOf(s, "untrusted"), "\n"); strings.Count(got, "[check] timeout_seconds") != 1 || strings.Contains(got, "[worktrees]") {
+	if got := strings.Join(kindsOf(s, "untrusted"), "\n"); strings.Count(got, "[check] timeout_seconds") != 1 || strings.Count(got, "[limits] agents") != 1 || strings.Contains(got, "[worktrees]") {
 		t.Errorf("the settings nobody approved were said as:\n%s", got)
 	}
 

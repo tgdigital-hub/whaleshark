@@ -72,6 +72,7 @@ var heldSays = [][2]string{
 	{"worktrees.dir", "[worktrees] dir is not approved, so copies of the code are made in the usual place"},
 	{"worktrees.share", "[worktrees] share is not approved, so nothing is shared into a copy of the code"},
 	{"check.timeout_seconds", "[check] timeout_seconds is not approved, so a check is ended after the usual time"},
+	{"limits.agents", "[limits] agents is above the usual number and not approved, so no more agents than usual run at once"},
 }
 
 type launcher struct {

@@ -416,11 +416,18 @@ func TestTrust(t *testing.T) {
 		t.Fatalf("after the approval the project reads as %q", got)
 	}
 	person(0, "", "Nothing has changed since you approved", "  setup.script = make deps")
-	// A limit is nobody's to approve; a team file's content is.
+	// A limit up to the usual one is nobody's to approve; a team file's content is.
 	write(t, filepath.Join(p.Root, "whaleshark.toml"), "[setup]\nscript = \"make deps\"\n[limits]\nagents = 9\n")
 	if got := script(); got != "make deps|" {
 		t.Fatalf("a changed limit took the approval away: %q", got)
 	}
+	// More agents at once than usual is: it is held like the rest and shown.
+	write(t, filepath.Join(p.Root, "whaleshark.toml"), "[setup]\nscript = \"make deps\"\n[limits]\nagents = 21\n")
+	if got := script(); got != "|setup.script,limits.agents,"+contract.TeamsDir+"/review.toml" {
+		t.Fatalf("a limit above the usual one left the approval standing: %q", got)
+	}
+	person(1, "no\n", "+ limits.agents = 21")
+	write(t, filepath.Join(p.Root, "whaleshark.toml"), "[setup]\nscript = \"make deps\"\n[limits]\nagents = 9\n")
 	write(t, filepath.Join(p.Root, contract.TeamsDir, "review.toml"), "about = \"y\"\n")
 	if got := script(); !strings.HasPrefix(got, "|setup.script,") {
 		t.Fatalf("a changed team file left the approval standing: %q", got)

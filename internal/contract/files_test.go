@@ -94,6 +94,15 @@ func TestClockAndProjectFile(t *testing.T) {
 	if p, err = ReadProjectFile(root); err != nil || p.Held != nil || !slices.Equal(p.Agent.Args, []string{"--x"}) {
 		t.Errorf("once approved, read %+v, %v", p, err)
 	}
+	// More agents at once than usual is the person's to approve; fewer is not.
+	os.WriteFile(filepath.Join(root, "whaleshark.toml"), []byte("[limits]\nagents = 500\nstale_minutes = 5\n"), 0o600)
+	if p, err = ReadProjectFile(root); err != nil || p.Limits.Agents != 20 || p.Limits.StaleMinutes != 5 || !slices.Equal(p.Held, []string{"limits.agents"}) {
+		t.Errorf("a limit above the usual one, before anybody approved it, read %+v, %v", p, err)
+	}
+	WriteTrust(plain{}, root, []string{"limits.agents = 500"}, Now())
+	if p, err = ReadProjectFile(root); err != nil || p.Limits.Agents != 500 || p.Held != nil {
+		t.Errorf("a limit above the usual one, once approved, read %+v, %v", p, err)
+	}
 }
 
 // approvals gives the test a folder of a login's own to keep approvals in.
