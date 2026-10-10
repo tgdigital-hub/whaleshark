@@ -1,0 +1,89 @@
+# What an agent can and cannot do, and what is and is not protected
+
+Three security reviews have tried this program, each on one Mac. **None of it has been tried with a second login, on Linux or Windows, on a real server, from the public internet, or with a real phone.** What follows is what the program does, and what it cannot do for you.
+
+## The two limits
+
+They are true of this tool and of every tool of its kind.
+
+1. **An agent runs as the person it works for, and inside one login there is no wall.** Everything your login can reach, an agent can reach, the tool's own controls included.
+2. **An agent believes what it reads.** A web page, a file in a repository or a message can hold text written to steer it. No tool filters that reliably.
+
+So the rules below are fences against **mistakes**. Read "the tool never does X by itself" as exactly that, never as "X cannot happen".
+
+## What the rules do for an honest agent
+
+Every command works out who is calling: a worker, the lead agent, a person, or a tab that belongs to no run.
+
+| Caller | May |
+|---|---|
+| a worker | report, note its progress, ask a question, read its mail. Nothing else: it cannot accept its own work, answer its own question or start agents |
+| the lead agent | plan tasks, start and stop workers, accept or send back results, answer workers, put items in front of you |
+| a tab bound to no run | look, and change nothing in a run |
+| you | everything; and some things are yours alone: Stop all and Resume, `trust`, undoing an answer, a note to the lead agent, and, unless the project's approved settings say otherwise, `land` |
+
+A second lead agent started by mistake can look and cannot change the run. `--human` marks a command as yours; the tool never prints it to an agent, refuses it from a pane it knows as an agent's, and for Claude Code the agent's own harness turns down a command line that names it. A worker's work reaches the collected branch only after its check has passed on the merged result.
+
+## What an agent that goes wrong, or is steered, can still do
+
+| It can | How | What the tool does about it |
+|---|---|---|
+| call itself you | add `--human` in a pane of its own making or through a wrapper; clear the variables that mark it as a worker; run the command under a pretended terminal | records every action taken as you with where the command **says** it came from, hands it to the lead agent, shows it in the task's history, and counts those that came from neither a pane nor the page under "done as you" on the strip and in every catch-up |
+| pass as a button on the page | clear its variables and set the page's mark | the record says "page". **This one is not counted under "done as you"** |
+| answer an item, approve a sign-off, pair a phone, press Stop all | the same; or type into the action pane | the same record. An answer typed into the pane looks exactly like yours; it can be undone until something has used it |
+| type into any other tab, the lead agent's included, and so answer another agent's permission prompt | every agent of a login can reach that login's keeper | a call that types, focuses or closes is refused when it comes from a pane the keeper knows as an agent's; an agent that leaves the pane's name out passes |
+| approve a project's settings | `whaleshark trust`, and "yes" | shows what changed since the last approval; the approval stays on every screen, in red, until the next |
+| accept its own work | as you, or with another attempt's token file | the check still runs on the merged work; the record says who accepted |
+| merge into your main branch on that machine | `git merge`, with or without the tool | nothing |
+| change the record, another worker's copy of the code, or the approvals file | edit the files; they are its login's | nothing, and an edited record leaves no trace |
+| make git run its program inside the lead agent's commands | write the repository's own git settings or hooks, which git obeys | nothing |
+| read the page's key, and sign in or approve a phone as you | the key is a file of its login | nothing |
+
+**One steered worker can type into every other tab of its login. This is not solved.**
+
+## What the tool never does by itself, under any setting
+
+1. Answer or dismiss an agent's permission prompt or its question whether it trusts a folder, or send any key to an agent. Stop all types nothing and ends no program: each agent stops at its next step.
+2. Start an agent with wider permissions than the project's approved settings say. It has no default that widens anything.
+3. Run a project's setup script, landing check, team file or changed agent arguments that you have not approved by content with `whaleshark trust`. A change needs approval again. The approval is kept in your login's own folder, never in the project.
+4. Use a `.whaleshark` folder your login did not make. One that came with a repository, an archive or a copy is refused by every command until you type `whaleshark init --adopt`.
+5. Put work into your main branch, or push anything, outside `land`.
+6. Delete work that is not proven merged.
+7. Install software or change another login's files, outside `whaleshark server`, which only the administrator can run.
+8. Restart, stop or retry an agent on a guess.
+9. Send anything about you anywhere. There is no telemetry, no crash upload and no update check. The only calls out are ones you set up (a notice address, a paired phone's nudge, on the Cloudflare road its public keys and one request of `doctor` to your own public name) or typed (`land --pr`, `connect`).
+
+## The real wall: what you give the login
+
+| Thing | Give the login the agents run in | Not |
+|---|---|---|
+| your git host | a token limited to the repositories being worked on, able to push branches and open pull requests | a token for the whole account; the right to push to main or to change its protection |
+| the main branch | protected at your git host: changes arrive by pull request, approved by a person | trust in the tool's `land` rule, which an agent can step over |
+| SSH | no keys that open other machines; agent forwarding off | your laptop's own key copied to the server |
+| `sudo` | none; on a server the administrator login is separate and runs no agents | |
+| other secrets (cloud, production) | none; test values only | real ones in `.env` files |
+
+On your own computer the same holds with less to hold it: the agents run as you, with everything your login can reach.
+
+## Who could attack, and what is left
+
+| Who | The defence | What is left |
+|---|---|---|
+| another person on the same server | a login each, private homes, socket files, a port block of your own, a cap on agents and memory | the port rules are **unproven**; until `doctor --server` has proven them, a neighbour can reach your agent's site or stand in for it. The administrator and the kernel cross every wall |
+| a hostile web page or link an agent opens | a browser profile of the task's own; narrow tokens; a protected main branch | a steered agent can do everything in the table above |
+| a hostile repository | settings that can run or reach something count only after `trust`; a record the login did not make is not used; paths are held inside the project; names and titles are shown with control characters removed | `trust` does not keep an agent the repository has steered from approving it; the approval is at least shown in red |
+| a compromised dependency | four modules, pinned with checksums; no code loaded at run time | the agent programs and, on a server, Node and Chromium are other people's software |
+| someone on the network | on a server only SSH answers, keys only; downloads are checked against a signed list | a flaw in SSH, Tailscale or Cloudflare themselves |
+| Cloudflare, or whoever takes over your Cloudflare account or its mailbox | pairing, which the account does not reach; routing in a root-owned file on the server | **against Cloudflare itself there is none**: it could do what a paired phone can |
+| a stolen phone or laptop | `dash phone forget`, `dash stop --forget`, removing the SSH key | until then the thief is you, for what that device could do |
+| a web page open in your own browser | the page has a host name of its own and accepts no other; every change needs the session's token and the page's own origin | |
+
+More of the same kind, for the page and the phone, is in [phone.md](phone.md); for a shared machine, in [server.md](server.md).
+
+## What the terminal engine holds
+
+Nothing a program prints is passed on to your terminal: the keeper reads it into cells and the window draws only what the keeper composes. A program in a pane cannot retitle or lock your terminal or make it type text back, and can write your clipboard only if you allowed it (`programs` under `[clipboard]` in the engine's `settings.toml`, off unless set). The keeper opens no network port; its socket is a file only your login can open. On Windows the folder's permissions are the whole of that defence, and it is unproven on a shared Windows machine.
+
+## Files
+
+Everything of ours is created private to your login: the `.whaleshark` folder in a project, the settings, state and cache folders, the socket, the key, the tokens, the evidence and the tasks' copies of the code. Nothing of ours is created in a shared temp folder. `init` refuses a syncing folder and a project folder another login can write to. Briefs, results, logs and evidence are never put in git and never written to a system log. Free text typed on a command line can be seen in the process list of a shared machine: use `--file` there.
