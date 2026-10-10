@@ -11,6 +11,12 @@ You may change only:  {{join .Owns}}
 {{- end}}
 {{- if .Shared}}
 Other workers are working in this folder at the same moment: change no file that is not yours.
+{{- else}}
+The folder is your own copy of the code, on a branch of its own. Stay on that branch: never switch,
+rebase, delete or push a branch, and never touch the project's own folder or another task's copy.
+The brief, this prompt and the result file lie outside your folder, at the paths given. Read them
+there. The result file is the one file you write outside your folder: write it with your file
+tool, never with a shell redirect.
 {{- end}}
 {{- if .Decisions}}
 
@@ -24,6 +30,7 @@ These are already decided for this task. Do not ask them again.
 {{- if .Sync}}
 
 ## Sync
+An earlier attempt at this task was sent the brief below and did not finish it. Do it first.
 {{.Sync}}
 {{- end}}
 {{- if .Browser}}
@@ -34,6 +41,9 @@ These are already decided for this task. Do not ask them again.
 
 # At each real milestone (this also shows you are alive), with your own number and words:
 {{.Bin}} progress 40 "<what is done so far>"
+{{- if not .Shared}}
+# Commit your work at each milestone too: work that is not committed can be seen by nobody but you.
+{{- end}}
 
 # Blocked on a decision or a missing fact? Ask and WAIT. Give this command a 10-minute timeout.
 # If it ends with "still open", run the resume command it prints, once. If that also ends with
@@ -45,7 +55,12 @@ These are already decided for this task. Do not ask them again.
 # Before each new file, and once before you report, read messages from the orchestrator:
 {{.Bin}} mail
 
+{{if .Shared -}}
 # Finished and checked by you? Write the result file, then exactly once:
+{{- else -}}
+# Finished and checked by you? Write the result file, commit everything in your folder, then
+# exactly once (commit, then report: a report is refused while anything is left uncommitted):
+{{- end}}
 {{.Bin}} report done "<three plain sentences of your own>"
 # Could not finish:
 {{.Bin}} report failed "<what went wrong>"

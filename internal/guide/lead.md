@@ -8,7 +8,8 @@ only through these commands, and a worker sees you only through them.
 ## Start here, and again whenever you have lost the thread of the conversation
     whaleshark status
 It says whose tab this is and what is open. Then:
-- No job is open: `whaleshark run new "<what the person wants, in one line>"`.
+- No job is open: `whaleshark run new "<what the person wants, in one line>"`. The work begins
+  from the branch the project is on; add `--base REF` to begin from another.
 - A job is open and this tab is its lead agent's: carry on with `whaleshark wait`.
 - You are the lead agent in another tab than before, and a command is refused as `not_bound`:
   `whaleshark run takeover`.
@@ -24,8 +25,12 @@ Target, Change, Constraints, Ownership, Acceptance. Then:
 - `--check` is required: the command that proves the work. Write `--check none` only when no
   command can prove it, never to save effort.
 - `--after T1,T2` makes a task wait for others. `--owns` says which files it may change.
-- Every worker works in the project folder unless you give one another with `--cwd DIR`. So give
-  tasks that run side by side different files, and say which with `--owns`.
+- In a git project every task gets a copy of the code of its own, on its own branch, made at
+  `start` from the work collected so far. `--shared` or `--cwd DIR` puts a task in a folder with
+  others, where nothing protects one worker's files from another. Either way give tasks that run
+  side by side different files with `--owns`; where two tasks' patterns meet, `task add` says so
+  and `--after` is the cure.
+- A set of tasks the person saved as a team is added in one step: `whaleshark team run "<name>"`.
 A task that has not started is changed with `whaleshark task edit` and dropped with
 `whaleshark task cancel`.
 
@@ -42,7 +47,8 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
 - `done`: run `whaleshark show T3` and read the result against the brief. Good: `whaleshark accept T3`.
   Not good: `whaleshark reject T3 "<what is missing>"`. Nothing is finished until `accept` has
   checked it. Where the check is `none`: `whaleshark accept T3 --by-hand "<what I ran or read>"`.
-  Then `whaleshark close T3`. Only now tell the person that it is done.
+  Then `whaleshark close T3`: the tab goes, and a done task's copy of the code with it (its
+  branch stays). Only now tell the person that it is done.
 - `check_failed`: read the log in `whaleshark show T3`, then `reject` with the reason.
 - `question`: a worker is blocked on you. If you know: `whaleshark answer q7 "<the answer>"`.
   If only the person can say: `whaleshark escalate q7`, and do not ask it again in this chat.
@@ -53,11 +59,43 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   person's to answer: never answer a prompt in another tab.
 - `failed`, `exited`, `start_failed`: read `whaleshark show T3`, mend the brief if the brief was
   the cause (`task edit`), then `whaleshark start T3 --retry`. After three failures the task
-  stays failed until `whaleshark task reset T3`.
+  stays failed until `whaleshark task reset T3`. A failed or cancelled task's copy, with whatever
+  it had not committed, goes only with `whaleshark close T3 --discard`.
+- A start that ends "at a prompt" in a project nobody has opened in Claude Code: the agent asks
+  whether it trusts the folder, and only the person can say. The cure is theirs and is needed
+  once: they start an agent in the project's own folder and say yes. After that no copy of the
+  code is asked about; then `whaleshark start T3 --retry`.
+- `overlap`, `scope`: see "When tasks touch the same files".
 - `stuck`: nothing can run, because a task waits on one that failed or was cancelled. Edit, reset
   or cancel.
 - `paused`: the person pressed Stop all. Start nothing and change nothing until `resumed`. You
   may still read, and talk with the person.
+
+## Several results at once
+    whaleshark accept T1 T2 T3
+The tasks are merged together and checked together: the run's check once, then each task's own.
+This works only where `whaleshark.toml` has a `[land] check` and the person has approved it; if
+not, it is refused and says which. Ask for the approval, do not go round it:
+    whaleshark need todo "Approve the run's check: whaleshark trust"
+A task whose check is `none` is never accepted with others. If a merge clashes or a check fails,
+nothing is kept and the tool falls back to one task at a time by itself, so the one at fault shows.
+
+## When tasks touch the same files
+`whaleshark overlap` lists it at any time; an `overlap` event says it unasked, and a `scope` event
+says that a worker changed a file outside its `--owns`. What to do:
+- The same file, and it merges cleanly: no stop. Accept in any order. Read both changes with
+  `whaleshark show T3 --diff` when the file is small or both edits are in one function.
+- One task moved a file that another edits: the same, and `tell` the editing worker where it went.
+- A true conflict: never keep both as they are. Accept the one that is done; if neither or both
+  are, the one whose `--owns` holds the file, else the smaller. Then `whaleshark sync T7` for the
+  other. If both still work, `tell` the later one now which files are contested.
+- Only work not yet committed overlaps: `tell` the worker to commit. Never stop a worker for this.
+- A task no longer lands on the collected work: `whaleshark sync T7` now, before it reports done.
+- Two names that differ only in capital letters: `tell` one worker to rename its file.
+- A task that was synced twice because others were accepted first goes next: accept it before any
+  other task that touches its files.
+`sync` sends the worker what to merge in and the rules. The worker mends it in its own copy;
+never you, and never the tool. Worker gone: `whaleshark start T7 --retry` hands the brief on.
 
 ## What you need from the person
 All of it goes into the action pane, and none of it into this chat:
@@ -86,4 +124,6 @@ away. Every row prints the command to run next.
 - Never call work finished that `accept` has not checked.
 - Never ask in this chat what belongs in the action pane.
 
-When every task is done: `whaleshark close --settled`, tell the person, then `whaleshark run close`.
+When every task is done: `whaleshark close --settled`, and tell the person the work is collected
+on the run's branch. Bringing it to their own branch is `whaleshark land --pr` or `--local`, and
+it is the person's to type unless the project says otherwise. Then `whaleshark run close`.
