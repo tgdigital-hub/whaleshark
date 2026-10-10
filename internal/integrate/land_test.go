@@ -106,7 +106,9 @@ func TestLandNeedsGitAndWork(t *testing.T) {
 
 // One pull request: the branch is pushed to where the base comes from and gh
 // is handed a title of ours and the body on its standard input. A check
-// nobody approved is not run, and the record says so.
+// nobody approved is not run, and nothing lands without it: this test held
+// the opposite (landed unchecked, with a word) until the second security
+// review's first decision.
 func TestLandPullRequest(t *testing.T) {
 	r := open(t, map[string]string{"a.txt": "one\n"})
 	if r.k.Platform.System() == "windows" {
@@ -124,8 +126,18 @@ func TestLandPullRequest(t *testing.T) {
 	_, err := r.accept("A", nil)
 	must(t, err)
 	write(t, filepath.Join(r.root, "whaleshark.toml"), "[land]\ncheck = \"exit 1\"\n")
-	// Whoever lands is told that the check was left out, not only the lead agent.
-	play(t, r.p.Command(scenario.Human, "land", "--pr"), 0, "https://example.test/pull/1", "whaleshark/r1", "is NOT run", "whaleshark trust")
+	out := play(t, r.p.Command(scenario.Human, "land", "--pr"), 5, "Nothing was landed", "not approved", "whaleshark trust")
+	if _, err := os.Stat(said); err == nil || strings.Contains(out, "example.test") || r.state().Run.Integration.Landed != "" {
+		t.Fatalf("a landing went on without the check nobody approved:\n%s", out)
+	}
+	if heads := testkit.Git(t, remote, "for-each-ref"); heads != "" {
+		t.Fatalf("the remote was handed %s", heads)
+	}
+	// Approved, the check is run; taken out, there is none to wait for.
+	r.approve("[land]\ncheck = \"exit 1\"\n")
+	play(t, r.p.Command(scenario.Human, "land", "--pr"), 1, "failed")
+	write(t, filepath.Join(r.root, "whaleshark.toml"), "")
+	play(t, r.p.Command(scenario.Human, "land", "--pr"), 0, "https://example.test/pull/1", "whaleshark/r1")
 
 	if pushed := testkit.Git(t, remote, "rev-parse", "whaleshark/r1"); pushed != r.branch() || r.git(r.root, "rev-parse", "main") == pushed {
 		t.Fatalf("the remote has the branch at %s", pushed)
@@ -136,7 +148,7 @@ func TestLandPullRequest(t *testing.T) {
 			t.Fatalf("gh was not handed %q:\n%s", want, text)
 		}
 	}
-	if s := r.state(); s.Run.Integration.Landed != r.branch() || !strings.Contains(r.kinds(), "untrusted") {
+	if s := r.state(); s.Run.Integration.Landed != r.branch() || strings.Contains(r.kinds(), "untrusted") {
 		t.Fatalf("landed %q, events %s", s.Run.Integration.Landed, r.kinds())
 	}
 }

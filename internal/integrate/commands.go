@@ -116,15 +116,9 @@ func (g integrator) land(c *contract.Call) (any, error) {
 	}
 
 	out := landed{Run: s.Run.ID, Branch: in.Branch, Tip: tip, Onto: onto, How: "local"}
+	// A check nobody approved is not run, and nothing lands without it.
 	if slices.Contains(project.Held, "land.check") {
-		fmt.Fprintln(c.Out, "This project's [land] check is not approved as it stands, so it is NOT run: the collected work goes on unchecked as a whole. To have it checked, approve the file first: whaleshark trust.")
-		err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
-			k.Rules.Raise(s, contract.Event{Kind: "untrusted", Text: "[land] check is not approved, so the collected work is landed without it"}, c.Now)
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
+		return nil, refuse(contract.ExitRefused, "untrusted", "Nothing was landed: this project's [land] check is not approved as it stands, and the collected work does not go on without its check. The person approves the file, or takes the check out of whaleshark.toml; then land again.", "whaleshark trust")
 	}
 	if project.Land.Check != "" {
 		dir, err := g.scratch(c.Root, s)

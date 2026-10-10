@@ -76,7 +76,9 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
 - `together`: most workers stopped in the same minute, which is usually the usage limit. The
   person has been told. Start nothing new until the workers answer again.
 - `untrusted`: a setting of `whaleshark.toml` is not used, because the person has not approved
-  the file as it stands. If the work needs it, ask as for the run's check below.
+  the file as it stands. If the work needs it, ask as for the run's check below. A `land` or an
+  `accept` of several refused with this word ran and moved nothing: the project's `[land] check`
+  waits for the person's approval. Ask for it as below; do not land round it.
 - `stuck`: nothing can run, because a task waits on one that failed or was cancelled. Edit, reset
   or cancel.
 - `paused`: the person pressed Stop all. Start nothing and change nothing until `resumed`. You

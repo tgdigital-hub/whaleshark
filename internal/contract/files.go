@@ -226,7 +226,7 @@ func Now() time.Time {
 // names what ReadProjectFile left at its default because the project as it
 // stands was not approved: keys such as "setup.script", and each team file
 // as "whaleshark-teams/<file>". Whoever would have used one says so with an
-// untrusted event and goes on without.
+// untrusted event and goes on without; a landing is refused instead.
 type ProjectFile struct {
 	Held      []string `toml:"-"`
 	Worktrees struct {
