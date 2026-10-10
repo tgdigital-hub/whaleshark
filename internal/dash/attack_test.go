@@ -197,18 +197,19 @@ func TestASessionIsRenewedByUse(t *testing.T) {
 	b.refused("a session left alone for thirty days", b.ask("GET", contract.RouteTeam, nil, nil), http.StatusForbidden)
 }
 
-// Flooding: after five wrong codes the next is not looked at, right or
-// wrong; and a body over the cap is not read.
+// Flooding: after five wrong codes the next wrong one is not looked at,
+// while the right one, which nobody can guess, is taken at once; and a body
+// over the cap is not read.
 func TestFlooding(t *testing.T) {
 	b := evening(t)
 	for range slowFrom {
 		b.refused("a wrong code", b.ask("GET", contract.RouteIn+"?code=1.x", nil, nil), http.StatusForbidden)
 	}
-	right := contract.RouteIn + "?code=" + newCode(b.s.key, "in", contract.Now())
-	b.refused("the right code straight after five wrong ones", b.ask("GET", right, nil, nil), http.StatusTooManyRequests)
+	b.refused("a wrong code straight after five wrong ones", b.ask("GET", contract.RouteIn+"?code=1.x", nil, nil), http.StatusTooManyRequests)
 	b.s.failed = time.Now().Add(-2 * time.Second)
-	w := b.ask("GET", right, nil, nil)
-	b.refused("the right code a moment later", w, http.StatusSeeOther)
+	b.refused("a wrong code a moment later", b.ask("GET", contract.RouteIn+"?code=1.x", nil, nil), http.StatusForbidden)
+	w := b.ask("GET", contract.RouteIn+"?code="+newCode(b.s.key, "in", contract.Now()), nil, nil)
+	b.refused("the right code straight after six wrong ones", w, http.StatusSeeOther)
 
 	b.cookie = w.Result().Cookies()
 	before, _ := b.p.Record()

@@ -106,11 +106,13 @@ func codeNumber(key []byte, purpose, code string, now time.Time) int64 {
 func (s *server) signIn(code string, now time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.fails >= slowFrom && time.Since(s.failed) < time.Second<<min(s.fails-slowFrom, slowMost) {
+	// Only a code that is not rightly signed waits: any page in the person's
+	// browser can send wrong ones, and must not keep the right one out.
+	n := codeNumber(s.key, "in", code, now)
+	if n == 0 && s.fails >= slowFrom && time.Since(s.failed) < time.Second<<min(s.fails-slowFrom, slowMost) {
 		return errSlow
 	}
 	path := filepath.Join(s.dirs.State, countFile)
-	n := codeNumber(s.key, "in", code, now)
 	data, err := s.k.Platform.Read(path)
 	last, _ := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
 	if n == 0 || n <= last || err != nil && !errors.Is(err, fs.ErrNotExist) {
