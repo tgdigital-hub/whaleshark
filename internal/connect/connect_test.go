@@ -510,3 +510,44 @@ func TestNoAgentAndNoScreenAreHandedOver(t *testing.T) {
 		}
 	}
 }
+
+// A site's port that is taken on this computer is said once, not at every
+// question of five seconds: by connect in its own words, and by ssh, whose
+// lines about it are passed on a single time. Once the port is free the
+// site is forwarded, and a port taken again later is said again.
+func TestATakenPortIsSaidOnce(t *testing.T) {
+	_, c, out := login(t)
+	old := sshArgv
+	t.Cleanup(func() { sshArgv = old })
+	l := &link{c: c, target: "box", port: 7780, sites: map[int]bool{}, taken: map[int]bool{}}
+	count := func(text string) int { return strings.Count(out.String(), text) }
+	sshArgv = []string{"false"}
+	for range 3 {
+		l.forward(context.Background(), []int{20020, 20021})
+	}
+	if count("port 20020 of the server, and that port is taken") != 1 || count("port 20021 of the server") != 1 || count("\n") != 2 {
+		t.Fatalf("two taken ports, asked three times:\n%s", out)
+	}
+	sshArgv = []string{"true"}
+	l.forward(context.Background(), []int{20020, 20021})
+	if !l.sites[20020] || l.taken[20020] || count("a site is running: http://") != 2 {
+		t.Fatalf("the ports came free:\n%s", out)
+	}
+	l.forward(context.Background(), nil)
+	sshArgv = []string{"false"}
+	l.forward(context.Background(), []int{20020})
+	if count("port 20020 of the server, and that port is taken") != 2 {
+		t.Errorf("taken again after it was free, the port is not said again:\n%s", out)
+	}
+
+	var passed bytes.Buffer
+	o := &once{out: &passed, seen: map[string]bool{}}
+	for range 3 {
+		io.WriteString(o, "bind: Address already in use\nchannel_setup: cannot listen to port: 200")
+		io.WriteString(o, "20\n")
+	}
+	io.WriteString(o, "another line\n")
+	if want := "bind: Address already in use\nchannel_setup: cannot listen to port: 20020\nanother line\n"; passed.String() != want {
+		t.Errorf("ssh's lines were passed on as %q", passed.String())
+	}
+}

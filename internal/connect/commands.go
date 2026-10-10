@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -107,12 +108,32 @@ func pause(ctx context.Context, out io.Writer, since time.Time, try *int) bool {
 // link is the page's one master connection: through its control socket ctl
 // forwards are added and dropped. sites are the ports forwarded now.
 type link struct {
-	c           *contract.Call
-	target, ctl string
-	port        int
-	local       string
-	sites       map[int]bool
-	live, shown bool
+	c            *contract.Call
+	target, ctl  string
+	port         int
+	local        string
+	sites, taken map[int]bool
+	live, shown  bool
+}
+
+// once passes each line on a single time: ssh says a port that is taken on
+// this computer again at every try, every five seconds for as long as it is.
+type once struct {
+	out  io.Writer
+	seen map[string]bool
+	part string
+}
+
+func (o *once) Write(p []byte) (int, error) {
+	lines := strings.SplitAfter(o.part+string(p), "\n")
+	o.part = lines[len(lines)-1]
+	for _, line := range lines[:len(lines)-1] {
+		if !o.seen[line] {
+			o.seen[line] = true
+			io.WriteString(o.out, line)
+		}
+	}
+	return len(p), nil
 }
 
 func page(ctx context.Context, c *contract.Call, target string, port int) error {
@@ -161,7 +182,7 @@ func (l *link) mux(ctx context.Context, opts []string, command ...string) *exec.
 func (l *link) up(ctx context.Context) error {
 	os.Remove(l.ctl)
 	master := ssh(ctx, slices.Concat([]string{"-M", "-S", l.ctl, "-N"}, keep, []string{l.target})...)
-	master.Stderr = l.c.Err
+	master.Stderr = &once{out: l.c.Err, seen: map[string]bool{}}
 	if err := master.Start(); err != nil {
 		return refuse(contract.ExitEnv, "no_ssh", "ssh could not be started on this computer: "+err.Error())
 	}
@@ -208,7 +229,7 @@ func (l *link) up(ctx context.Context) error {
 	} else {
 		fmt.Fprintf(l.c.Out, "connected to %s · the page is open in your browser: %s/\n", l.target, at)
 	}
-	l.live, l.shown, l.sites = true, true, map[int]bool{}
+	l.live, l.shown, l.sites, l.taken = true, true, map[int]bool{}, map[int]bool{}
 	for last, fails := now(), 0; ; last = now() {
 		select {
 		case <-ctx.Done():
@@ -261,10 +282,16 @@ func (l *link) forward(ctx context.Context, ports []int) {
 		return net.JoinHostPort(contract.Loopback, strconv.Itoa(port)) + ":" + net.JoinHostPort(siteHost, strconv.Itoa(port))
 	}
 	for _, p := range ports {
-		if p >= 1024 && p <= 65535 && p != l.port && !l.sites[p] && l.mux(ctx, []string{"-O", "forward", "-L", spec(p)}).Run() == nil {
+		if p < 1024 || p > 65535 || p == l.port || l.sites[p] {
+			continue
+		}
+		if l.mux(ctx, []string{"-O", "forward", "-L", spec(p)}).Run() == nil {
 			l.sites[p] = true
 			fmt.Fprintf(l.c.Out, "a site is running: http://%s\n", net.JoinHostPort(contract.Loopback, strconv.Itoa(p)))
+		} else if !l.taken[p] && ctx.Err() == nil {
+			fmt.Fprintf(l.c.Out, "a site is running on port %d of the server, and that port is taken on this computer: it is shown here once the port is free\n", p)
 		}
+		l.taken[p] = !l.sites[p]
 	}
 	for p := range l.sites {
 		if !slices.Contains(ports, p) {
@@ -272,4 +299,5 @@ func (l *link) forward(ctx context.Context, ports []int) {
 			delete(l.sites, p)
 		}
 	}
+	maps.DeleteFunc(l.taken, func(p int, _ bool) bool { return !slices.Contains(ports, p) })
 }
