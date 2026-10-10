@@ -21,7 +21,9 @@ as-unbound: graph --ready           -> expect "PLAN"
 human: log                          -> expect "MESSAGES" "sign-off"
 orch: log --all --task T7           -> expect "all · T7" "check failed"
 human: log --task T99               -> expect exit 4 "no task"
-human: status --everywhere          -> expect "JOBS   1 open run" "whaleshark status --root"
+# The line to go on with is spelled for the system's own shell, which on
+# Windows puts every word in quotes: the words are looked for one by one.
+human: status --everywhere          -> expect "JOBS   1 open run" "whaleshark" "status" "--root"
 human: show T7 --stat               -> expect exit 2
 
 clock +66m

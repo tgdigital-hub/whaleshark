@@ -7,7 +7,7 @@ agent C.1: edit c.txt | commit | write-result | report done "c is in"
 
 file brief.md: Target: three files | Change: yours | Constraints: none | Ownership: your own file | Acceptance: the check passes
 file .gitignore: *.made
-file whaleshark.toml: [setup] | script = "touch setup.made"
+file whaleshark.toml: [setup] | script = "touch setup.made" | script_windows = "type nul > setup.made"
 git
 orch: init
 orch: run new "three files"                         -> expect r1
@@ -23,7 +23,7 @@ orch: start B                                       -> expect "(B.1)"
 await: attempts B.1 reported
 orch: wait --ack last --timeout 10                  -> expect done
 orch: accept B
-file whaleshark.toml: [setup] | script = "touch other.made"
+file whaleshark.toml: [setup] | script = "touch other.made" | script_windows = "type nul > other.made"
 orch: start C                                       -> expect "(C.1)"
 await: attempts C.1 reported
 orch: wait --ack last --timeout 10                  -> expect done
