@@ -18,8 +18,8 @@ import (
 // the record without one.
 const snapshotWait = 2 * time.Second
 
-func notBuilt(flag string) *contract.Refusal {
-	return &contract.Refusal{Exit: contract.ExitFailed, Code: "not_built", Message: "status --" + flag + " is " + contract.ErrNotBuilt.Error() + "."}
+func notBuilt(flag, command string) *contract.Refusal {
+	return &contract.Refusal{Exit: contract.ExitFailed, Code: "not_built", Message: command + " --" + flag + " is " + contract.ErrNotBuilt.Error() + "."}
 }
 
 // status runs one sweep, then prints the team with what waits for the person
@@ -29,16 +29,16 @@ func status(c *contract.Call) (any, error) {
 	has := func(flag string) bool { return c.Flags[flag] != nil }
 	switch {
 	case len(c.Args) > 0:
-		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "status takes no argument.", Next: []string{"whaleshark help status"}}
+		return nil, usage("status takes no argument.")
 	case has("brief"):
-		return nil, notBuilt("brief")
+		return nil, notBuilt("brief", "status")
 	case has("everywhere"):
-		return nil, notBuilt("everywhere")
+		return nil, notBuilt("everywhere", "status")
 	}
 	quiet := has("quiet")
 	none := func() (any, error) {
 		if !quiet {
-			fmt.Fprintln(c.Out, "No run is open in this project.\n> whaleshark run new \"<objective>\"")
+			fmt.Fprintln(c.Out, noRun)
 		}
 		return nil, nil
 	}
@@ -49,18 +49,45 @@ func status(c *contract.Call) (any, error) {
 	if quiet {
 		return swept, err
 	}
-	s, err := c.Kit.Reader().Read(c.Root, c.Run)
+	s, err := load(c)
 	if errors.Is(err, contract.ErrNoRun) {
 		return none()
 	}
 	if err != nil {
-		return nil, &contract.Refusal{Exit: contract.ExitEnv, Code: "state_unreadable", Message: "The record cannot be read: " + err.Error() + "."}
+		return nil, err
 	}
 	in := input(c, s, swept)
 	in.All = has("all")
 	v := Build(in)
 	Text(c.Out, v, Options{Width: width(), PlainMarks: contract.PlainMarks(os.Getenv), Items: has("items")})
 	return v, nil
+}
+
+const noRun = "No run is open in this project.\n> whaleshark run new \"<objective>\""
+
+// load reads the run a command addresses: ErrNoRun when there is none.
+func load(c *contract.Call) (*contract.State, error) {
+	if c.Run == "" {
+		return nil, contract.ErrNoRun
+	}
+	s, err := c.Kit.Reader().Read(c.Root, c.Run)
+	if err != nil && !errors.Is(err, contract.ErrNoRun) {
+		err = unreadable("record", err)
+	}
+	return s, err
+}
+
+func unreadable(what string, err error) *contract.Refusal {
+	return &contract.Refusal{Exit: contract.ExitEnv, Code: "state_unreadable", Message: "The " + what + " cannot be read: " + err.Error() + "."}
+}
+
+// missing is how show and jump end when what was named is not there.
+func missing(code, format string, args ...any) *contract.Refusal {
+	return &contract.Refusal{Exit: contract.ExitMissing, Code: code, Message: fmt.Sprintf(format, args...), Next: []string{"whaleshark status"}}
+}
+
+func usage(message string) *contract.Refusal {
+	return &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: message}
 }
 
 // input gathers what the view is built from besides the run: herdr's

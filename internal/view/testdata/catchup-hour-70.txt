@@ -1,0 +1,14 @@
+ WHILE YOU WERE AWAY   1h 04m  (21:16 to 22:20)
+
+ Waiting for you now   1   a question from checkout form
+ Finished and checked  5   login page, search box, search results,
+                           help pages, site map
+ Check failed          1   email sender: sent back at 21:16, passed at
+                           21:44
+ Clashes               1   search box and search results both changed
+                           search.js; sorted, both accepted
+ Went idle             1   admin page, 9 minutes; building again
+ Answered by the lead  3
+ Done as you           0   (answers and approvals recorded as yours
+                           that did not come from a pane or the page)
+ Still building        4   Stopped  0   Failed  0

@@ -1,0 +1,21 @@
+# show, jump and catchup as the real program runs them: through the real
+# front, the real store and rules, and the stand-in for herdr.
+fixture evening-2114
+
+orch: show T7                       -> expect "check failed" 'whaleshark reject T7 "<why>"' "briefs/T7.md"
+human: show "email sender"          -> expect "--human" "check.log"
+as-unbound: show T7.1               -> expect "all sending paths covered"
+orch: show T7 --screen              -> expect "SCREEN"
+human: show T99                     -> expect exit 4 "no task"
+as-worker T1.1: show T7             -> expect exit 5
+orch: show T7 --json                -> expect '"Says":"all sending paths covered"'
+
+human: jump "search box"            -> expect "in front: search box"
+human: jump lead                    -> expect "in front: lead agent"
+human: jump P1                      -> expect exit 4 "no open tab"
+orch: jump T7                       -> expect exit 5
+
+clock +66m
+orch: catchup                       -> expect "WHILE YOU WERE AWAY   1h 06m  (21:14 to 22:20)" "Still building"
+human: catchup --since 22:00        -> expect "20m  (22:00 to 22:20)" "Done as you           0"
+human: catchup --since noon         -> expect exit 2

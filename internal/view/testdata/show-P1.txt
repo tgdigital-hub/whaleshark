@@ -1,0 +1,7 @@
+P1  the project             ✔ done · try 1 · claude · 2h 09m · context unknown                run r3
+
+ Check     npm test · passed 20:20 · ok
+ Brief     .whaleshark/runs/r3/briefs/P1.md
+ Check log .whaleshark/runs/r3/attempts/P1.1/check.log
+
+ 19:05 started · 20:20 check passed · 20:20 accepted

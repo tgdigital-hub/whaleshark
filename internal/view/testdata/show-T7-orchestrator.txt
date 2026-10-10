@@ -1,0 +1,12 @@
+T7  email sender            ● check failed · try 1 · claude · 42m · context 72%               run r3
+
+ > whaleshark reject T7 "<why>"
+
+ Says      "all sending paths covered"
+ Check     npm test -- email · FAILED 21:12 · 2 of 41 tests fail: bounce handling
+ May edit  src/email-sender/**
+ Brief     .whaleshark/runs/r3/briefs/T7.md
+ Result    .whaleshark/runs/r3/attempts/T7.1/result.md
+ Check log .whaleshark/runs/r3/attempts/T7.1/check.log
+
+ 20:32 started · 20:58 100% templates done · 21:09 done · 21:12 check failed

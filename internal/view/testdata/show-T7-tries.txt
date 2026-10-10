@@ -1,0 +1,11 @@
+T7  email sender            ◐ starting · try 2 · claude · 4m · context unknown                run r3
+
+ > whaleshark wait
+
+ Check     npm test -- email
+ May edit  src/email-sender/**
+ Brief     .whaleshark/runs/r3/briefs/T7.md
+
+ T7.2 starting: 21:15 started
+ T7.1 stopped: 20:32 started · 20:58 100% templates done · 21:09 done · 21:12 check failed · 21:14
+               stopped
