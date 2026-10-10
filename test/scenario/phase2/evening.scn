@@ -1,0 +1,83 @@
+# The evening of 9.10 with scripted agents, each task in a copy of the code
+# of its own: a question the person answers, a failed check mended by a
+# second attempt, two tasks that clash on one file and are sorted with a
+# sync, a sign-off that holds a task, four results accepted together, the
+# keeper started again in the middle, the work landed, and the plan saved
+# as a team and run into the next job.
+agent T1.1: progress 40 "the form is drawn" | edit login.txt | commit | write-result | report done "the login page is in"
+agent T2.1: ask "Must the old sign-up link keep working?" | expect-answer yes | edit signup.txt | commit | write-result | report done "the sign-up page is in, the old link kept"
+agent T3.1: edit email.txt | commit | write-result | report done "the email sender is in"
+agent T3.2: edit bounce.txt | commit | write-result | report done "bounce handling is mended"
+agent T4.1: edit search.txt | commit | write-result | report done "the search box is in"
+agent T5.1: edit search.txt | commit | write-result | report done "the search results are in"
+agent T5.2: merge whaleshark/r1 | write-result | report done "merged, and both kept"
+agent T6.1: edit prices.txt | commit | write-result | report done "the price list is in"
+agent T7.1: edit help.txt | commit | write-result | report done "the help pages are in"
+
+file brief.md: Target: the new shop site | Change: your page | Constraints: none | Ownership: your own file | Acceptance: the check passes
+file search.txt: the search page
+file whaleshark.toml: [land] | check = "test -f search.txt"
+git
+orch: init
+approve
+orch: run new "new shop site"                       -> expect r1
+task T1 "Build the login page" --name "login page" --owns login.txt --check "test -f login.txt" --brief brief.md
+task T2 "Build the sign-up page" --name "sign-up page" --owns signup.txt --check "test -f signup.txt" --brief brief.md
+task T3 "Build the email sender" --name "email sender" --owns "email.txt,bounce.txt" --check "test -f email.txt && test -f bounce.txt" --brief brief.md
+task T4 "Build the search box" --name "search box" --owns search.txt --check "grep -q T4 search.txt" --brief brief.md
+task T5 "Build the search results" --name "search results" --owns search.txt --check "grep -q T5 search.txt" --brief brief.md -> expect "T5 may change files that T4 may change too"
+task T6 "Write the price list" --name "price list" --owns prices.txt --check "test -f prices.txt" --brief brief.md
+task T7 "Write the help pages" --name "help pages" --owns help.txt --after T1 --check "test -f help.txt" --brief brief.md
+orch: need signoff "The price list changes what customers see. Ready?" --task T6 --holds -> expect n1
+orch: start --ready                                 -> expect exit 5 "(T1.1)" "(T5.1)" "held by n1"
+human: graph                                        -> expect "price list" "held by n1"
+
+# 21:11, the first question; 21:12, the failed check; 21:13, the clash.
+await: attempts T1.1 reported, T2.1 asked, T3.1 reported, T4.1 reported, T5.1 reported
+orch: wait --timeout 10                             -> expect question q1 done overlap search.txt
+orch: escalate q1                                   -> expect "for the person"
+orch: accept T3                                     -> expect exit 1 "The check of T3 failed"
+orch: status                                        -> expect "check failed" "needs you"
+human: answer n1 approve
+human: answer q1 yes
+await: attempts T2.1 reported
+orch: start T6                                      -> expect "(T6.1)"
+orch: stop T3
+orch: start T3 --retry                              -> expect "(T3.2)"
+await: attempts T3.2 reported, T6.1 reported
+orch: wait --ack last --timeout 10                  -> expect answered done
+
+# The keeper is started again while six tabs are open; nothing is lost and
+# the next start works as before.
+restart-terminals
+orch: status --sweep --quiet
+human: log                                          -> expect "old sign-up link keep working" "check failed" "overlap"
+
+# Four results at once on the run's check, then the clash is sorted.
+orch: accept T1 T2 T4 T6                            -> expect "T1" "T6"
+orch: accept T3                                     -> expect "T3 is done, checked"
+orch: sync T5                                       -> expect "Sent to T5"
+orch: stop T5
+orch: start T5 --retry                              -> expect "(T5.2)"
+orch: start --ready                                 -> expect "(T7.1)"
+await: attempts T5.2 reported, T7.1 reported
+orch: wait --ack last --timeout 10                  -> expect done
+orch: accept T5                                     -> expect "T5 is done, checked"
+orch: accept T7                                     -> expect "T7 is done, checked"
+orch: overlap                                       -> expect "everything lands"
+orch: wait --ack last --timeout 0
+human: catchup                                      -> expect "Finished and checked"
+human: team save shop                               -> expect shop
+orch: close --settled
+human: land --local                                 -> expect "main"
+orch: run close
+
+# Facts of the first job, held where the line stands: the next job is another record.
+await: T1 status done; T2 status done; T3 status done failures 0; T4 status done; T5 status done synced 1; T6 status done; T7 status done
+await: q1 state used answer yes; n1 state used; no event lost; no event twice
+
+# The saved plan, run into the next job.
+orch: run new "the shop site again"                 -> expect r2
+orch: team run shop                                 -> expect "login page" "help pages"
+orch: graph                                         -> expect "help pages"
+assert: T1 status ready; T7 status pending

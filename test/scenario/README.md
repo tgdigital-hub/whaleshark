@@ -35,7 +35,9 @@ assert: T1 status done; attempts T1.1 accepted; no event lost
 
 **Fake agents.** `agent <attempt>: <step> | <step>` is what the fake agent of that attempt plays once `start` opens its tab. For an attempt the fixture already shows in a tab, the agent is started at once, in a tab of its own that the record then names. The steps are the testkit's `AgentSteps`. Those that are commands (`progress`, `ask`, `mail`, `report`) run the real program from the tab, so the worker's side is tested too.
 
-**A real repository.** `git` makes the project folder a git repository, with what the scenario has written so far committed on `main`. From then on a task gets a copy of the code of its own, as in any project with git, and a fake agent's `edit <file>` and `commit` work in that copy. Without the line the project has no git and every task works in the one folder.
+**A real repository.** `git` makes the project folder a git repository, with what the scenario has written so far committed on `main`. From then on a task gets a copy of the code of its own, as in any project with git, and a fake agent's `edit <file>` and `commit` work in that copy; `merge <branch>` brings a branch into it and, where the two clash, keeps the lines of both, as a worker does with a sync brief. Without the line the project has no git and every task works in the one folder.
+
+**Approval.** `approve` is the person running `trust` and typing yes: everything the project's own files would run or reach, as it stands at that line, is approved. A scenario that sets a held key of `whaleshark.toml`, or runs a team that comes with the project, needs it first; a file changed afterwards is held again.
 
 **Files.** `file brief.md: Target | Change | Constraints | Ownership | Acceptance` writes a file into the project folder, one line for each part between the bars: a task needs a brief with those five headings.
 
@@ -60,7 +62,7 @@ A command must end with exit code 0. `-> expect` at the end of the line says oth
 
 **Facts at the end.** `assert:` lines are checked once every step has run, against the record on disk. An `await:` line takes the same facts and waits where it stands, up to twenty seconds, until the record says so: a fake agent reports when it gets there, not when the next line runs. Facts are separated by `;`:
 
-- `<id> <field> <value> ...` for a task, an attempt, a question or an item, with the fields named as in `state.json`: `T2 failures 1 status ready`;
+- `<id> <field> <value> ...` for a task, an attempt, a question or an item, with the fields named as in `state.json`: `T2 failures 1 status ready`; a field inside a field is named with dots: `T2 worktree.setup ok`;
 - `attempts T2.1 exited, T2.2 reported`: the state of each;
 - `no event lost`, `no event twice`: every number given out since the scenario began is in the inbox, in the history or on a message to a worker, and none is there twice.
 

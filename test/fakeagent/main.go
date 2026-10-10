@@ -159,6 +159,24 @@ func main() {
 		case "commit":
 			exec.Command("git", "add", "-A").Run()
 			exec.Command("git", "commit", "-q", "-m", "work of "+os.Getenv(contract.EnvAttempt)).Run()
+		case "merge":
+			// What a worker does with a sync brief: where the two sides clash,
+			// the lines of both are kept and git's marks taken out.
+			if exec.Command("git", "merge", "-q", "--no-edit", arg(1)).Run() != nil {
+				clashed, _ := exec.Command("git", "diff", "--name-only", "--diff-filter=U").Output()
+				for _, file := range strings.Fields(string(clashed)) {
+					data, _ := os.ReadFile(file)
+					var both strings.Builder
+					for line := range strings.Lines(string(data)) {
+						if !strings.HasPrefix(line, "<<<<<<<") && !strings.HasPrefix(line, "=======") && !strings.HasPrefix(line, ">>>>>>>") {
+							both.WriteString(line)
+						}
+					}
+					os.WriteFile(file, []byte(both.String()), 0o600)
+				}
+				exec.Command("git", "add", "-A").Run()
+				exec.Command("git", "commit", "-q", "--no-edit").Run()
+			}
 		default:
 			fmt.Println("fakeagent: unknown step:", step)
 			os.Exit(2)

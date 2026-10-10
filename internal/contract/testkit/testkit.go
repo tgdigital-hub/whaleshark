@@ -70,6 +70,7 @@ var Lines = map[string]string{
 	"human:":            `human: <command>                   a real command, run as the human`,
 	"as-worker":         `as-worker <attempt>: <command>     a real command, run from that attempt's tab`,
 	"as-unbound:":       `as-unbound: <command>              a real command, run from a pane no run is bound to`,
+	"approve":           `approve                            the person runs trust and types yes: the project as it stands is approved`,
 	"clock":             `clock +<duration>                  move the injected clock`,
 	"kill-wait":         `kill-wait                          kill the running wait`,
 	"kill-orchestrator": `kill-orchestrator                  end the orchestrator's session`,
@@ -102,6 +103,7 @@ var AgentSteps = map[string]string{
 	"block":             `block                  the pane's agent is at a prompt`,
 	"edit":              `edit <file>`,
 	"commit":            `commit`,
+	"merge":             `merge <branch>         merge it in, keeping both sides' lines where the two clash`,
 }
 
 // How the engine's double and the fake agent find each other. The scenario

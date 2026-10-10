@@ -1,0 +1,33 @@
+# 8f end to end: two tasks change one file. The scan after their reports
+# finds that the two would clash; the first done is accepted, the second is
+# sent the sync brief, a new attempt of it merges the collected work in and
+# keeps both, and then it is accepted and the work is landed.
+agent A.1: edit search.txt | commit | write-result | report done "the search box is in"
+agent B.1: edit search.txt | commit | write-result | report done "the search results are in"
+agent B.2: merge whaleshark/r1 | write-result | report done "merged, and both kept"
+
+file brief.md: Target: the search page | Change: your part of it | Constraints: none | Ownership: search.txt | Acceptance: the check passes
+file search.txt: the search page
+git
+orch: init
+orch: run new "the search page"                     -> expect r1
+task A "Add the search box" --name "search box" --owns search.txt --check "grep -q A.1 search.txt" --brief brief.md
+task B "Add the search results" --name "search results" --owns search.txt --check "grep -q A.1 search.txt && grep -q B search.txt" --brief brief.md -> expect "B may change files that A may change too"
+orch: start --ready                                 -> expect "(A.1)" "(B.1)"
+await: attempts A.1 reported, B.1 reported
+orch: wait --timeout 10                             -> expect done overlap search.txt
+orch: overlap                                       -> expect exit 6 "would conflict" search.txt "whaleshark sync"
+orch: accept A                                      -> expect "A is done, checked"
+orch: sync B                                        -> expect "Sent to B" "1 commits behind whaleshark/r1"
+orch: stop B
+orch: start B --retry                               -> expect "(B.2)"
+await: attempts B.2 reported
+orch: wait --ack last --timeout 10                  -> expect done B.2
+orch: overlap                                       -> expect "everything lands"
+orch: accept B                                      -> expect "B is done, checked"
+orch: close --settled
+orch: wait --ack last --timeout 0
+human: land --local                                 -> expect "main"
+orch: run close
+
+assert: A status done; B status done synced 1; attempts A.1 accepted, B.2 accepted; no event lost; no event twice

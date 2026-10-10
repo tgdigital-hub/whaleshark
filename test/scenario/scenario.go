@@ -184,6 +184,15 @@ func (r *runner) step(kind, rest string) {
 		} else {
 			r.command(Human, rest)
 		}
+	case "approve":
+		// The person's yes to everything the project brings along, typed
+		// where trust asks for it.
+		cmd := r.p.Command(Human, "trust")
+		cmd.Stdin = strings.NewReader("yes\n")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			r.fail("trust: %v\n%s", err, out)
+		}
+		r.p.Log = append(r.p.Log, fmt.Sprintf("%s %s: trust: exit 0", r.at, Human))
 	case "as-unbound:":
 		r.command(Unbound, rest)
 	case "as-worker":
@@ -479,7 +488,13 @@ func (r *runner) assert(fact string) string {
 			}
 		}
 		for i := 1; i < len(w); i += 2 {
-			if got := fmt.Sprint(thing[w[i]]); thing == nil || got != w[i+1] {
+			// A field inside a field is named with dots: worktree.setup.
+			var at any = thing
+			for _, name := range strings.Split(w[i], ".") {
+				in, _ := at.(map[string]any)
+				at = in[name]
+			}
+			if got := fmt.Sprint(at); thing == nil || got != w[i+1] {
 				return fmt.Sprintf("not so: %s (the record says %s %s)", fact, w[i], got)
 			}
 		}
