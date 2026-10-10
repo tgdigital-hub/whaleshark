@@ -26,9 +26,12 @@ import (
 const (
 	certs = "/cdn-cgi/access/certs"
 	// The keys are asked for again when a pass names one that is not held,
-	// but not more often than keysEvery. skew is the allowance for two
-	// clocks that disagree.
+	// but not more often than keysEvery, and whatever a pass names once they
+	// are keysLife old, so that a key Cloudflare took back is not held for as
+	// long as the server runs. skew is the allowance for two clocks that
+	// disagree.
 	keysEvery = time.Minute
+	keysLife  = 24 * time.Hour
 	skew      = time.Minute
 	// More than refusalsMost requests without a valid pass in a minute shut
 	// the door for shutFor, and the person is told for contract.ShutShown.
@@ -74,7 +77,8 @@ func (g *guard) find(issuer, id string, now time.Time) *rsa.PublicKey {
 	if g.issuer != issuer {
 		g.issuer, g.asked, g.keys = issuer, time.Time{}, nil
 	}
-	if g.keys[id] != nil || now.Sub(g.asked) < keysEvery {
+	old := now.Sub(g.asked) >= keysLife
+	if g.keys[id] != nil && !old || now.Sub(g.asked) < keysEvery {
 		return g.keys[id]
 	}
 	g.asked = now
@@ -82,6 +86,9 @@ func (g *guard) find(issuer, id string, now time.Time) *rsa.PublicKey {
 		Keys []struct{ Kid, Kty, N, E string }
 	}
 	if data, err := fetch(issuer + certs); err != nil || json.Unmarshal(data, &set) != nil {
+		if old {
+			g.keys = nil // a day without Cloudflare's word: no key is held on to
+		}
 		return g.keys[id]
 	}
 	g.keys = map[string]*rsa.PublicKey{}

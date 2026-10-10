@@ -1,10 +1,12 @@
 package dash
 
 import (
+	"crypto/rsa"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -42,6 +44,32 @@ func TestANumberIsShownOnlyToWhoAskedForIt(t *testing.T) {
 	if again := theirs.knock(); again != number {
 		t.Errorf("the one who asked is shown %s and no longer %s", again, number)
 	}
+}
+
+// A key Cloudflare has taken back is not held for as long as the server
+// runs: the keys are asked for again once a day, and what is no longer
+// published signs nothing.
+func TestAKeyCloudflareTookBackIsNotKept(t *testing.T) {
+	b, cf := tunnel(t)
+	p := b.through(signed(cloud(), heading, nil))
+	if w := p.ask("GET", contract.RouteTeam, nil, nil); w.Code != http.StatusOK {
+		t.Fatalf("the paired browser: %d", w.Code)
+	}
+	cf.keys = map[string]*rsa.PrivateKey{"k2": stranger()}
+	b.p.Clock(keysLife - time.Hour)
+	p.pass = signed(cloud(), heading, nil)
+	if w := p.ask("GET", contract.RouteTeam, nil, nil); w.Code != http.StatusOK {
+		t.Errorf("within the day the keys are not asked for at every request: %d", w.Code)
+	}
+	b.p.Clock(2 * time.Hour)
+	p.pass = signed(cloud(), heading, nil)
+	nothing(t, "a pass signed with a key Cloudflare took back a day ago", p.ask("GET", contract.RouteTeam, nil, nil))
+	// And with the keys out of reach on that day nothing passes either.
+	b.calm()
+	cf.keys, cf.down = map[string]*rsa.PrivateKey{"k1": cloud()}, true
+	b.p.Clock(keysLife + time.Hour)
+	p.pass = signed(cloud(), heading, nil)
+	nothing(t, "a pass while the keys are a day old and cannot be fetched", p.ask("GET", contract.RouteTeam, nil, nil))
 }
 
 // The way back after a button is a path of this page, whatever the request
