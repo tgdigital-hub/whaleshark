@@ -1,11 +1,14 @@
 package view
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,6 +63,11 @@ func show(c *contract.Call) (any, error) {
 		dir = rel
 	}
 	tv := taskView(v, s, t, only, filepath.ToSlash(dir))
+	// Only work of the task's own is counted: a shared folder holds everybody's.
+	if t.Worktree != nil || t.Accepted != nil && t.Accepted.Commit != "" {
+		stat, _ := c.Kit.Integrator.Diff(c.Root, s, t.ID, true)
+		tv.Changed = changed(stat)
+	}
 	if c.Flags["screen"] != nil {
 		tv.Screen = "its tab is closed"
 		if tv.Card.Tab != "" && len(tv.Tries) > 0 {
@@ -73,6 +81,18 @@ func show(c *contract.Call) (any, error) {
 	taskText(c.Out, tv, c.Now, options(c))
 	looked(c, t.ID)
 	return tv, nil
+}
+
+var statLine = regexp.MustCompile(`(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?\s*$`)
+
+// changed is the last line of git's count in our words: "9 files, +410 -12".
+func changed(stat string) string {
+	m := statLine.FindStringSubmatch(stat)
+	if m == nil {
+		return ""
+	}
+	n, _ := strconv.Atoi(m[1])
+	return fmt.Sprintf("%s, +%s -%s", plural(n, "file", "files"), cmp.Or(m[2], "0"), cmp.Or(m[3], "0"))
 }
 
 // taskView is one task in full: its card of the view, then each try, the
@@ -162,7 +182,7 @@ func taskText(w io.Writer, tv *contract.TaskView, now time.Time, o Options) {
 		evidence = append(evidence, clean(e.Name))
 	}
 	for _, f := range [][2]string{
-		{"Says", says}, {"Check", check}, {"By hand", clean(tv.ByHand)}, {"May edit", clean(strings.Join(tv.Owns, ", "))}, {"Brief", clean(tv.Brief)},
+		{"Says", says}, {"Changed", tv.Changed}, {"Check", check}, {"By hand", clean(tv.ByHand)}, {"May edit", clean(strings.Join(tv.Owns, ", "))}, {"Brief", clean(tv.Brief)},
 		{"Result", clean(newest.Result)}, {"Check log", clean(newest.CheckLog)}, {"Evidence", strings.Join(evidence, ", ")},
 	} {
 		if f[1] != "" {

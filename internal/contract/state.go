@@ -270,11 +270,13 @@ type Progress struct {
 	At   time.Time `json:"at"`
 }
 
-// CheckResult is how the last check of an attempt ended, with the last line of its log.
+// CheckResult is how the last check of an attempt ended, with the last line
+// of its log. Took is how long the command ran, in whole seconds.
 type CheckResult struct {
-	OK   bool      `json:"ok"`
-	At   time.Time `json:"at"`
-	Tail string    `json:"tail"`
+	OK   bool          `json:"ok"`
+	At   time.Time     `json:"at"`
+	Tail string        `json:"tail"`
+	Took time.Duration `json:"took,omitzero"`
 }
 
 // Report is the worker's own word: Outcome is ReportDone or ReportFailed.

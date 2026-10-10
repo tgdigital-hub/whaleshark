@@ -320,13 +320,21 @@ func (p *pane) drawFleet(now time.Time) {
 			y++
 		}
 	}
+	// The view's plain sentences: how long checking will take, and that
+	// most workers stopped together.
+	for _, line := range v.Lines {
+		if y < h-foot {
+			t.Put(1, y, w-1, p.cut(line, w-1), p.st("text"))
+			y++
+		}
+	}
 	room := h - foot - y
 	if !narrow && h > 12 {
 		y, room = y+1, room-2
 	} else if len(p.cards)*3 < room {
 		y, room = y+1, room-1
 	}
-	if len(p.cards) == 0 && len(v.Alerts) == 0 && room > 0 {
+	if len(p.cards) == 0 && len(v.Alerts)+len(v.Lines) == 0 && room > 0 {
 		t.Put(3, y, w-3, "no agents yet", dim)
 	}
 	rows := 3
@@ -415,6 +423,9 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 		p.goTo(c.Tab)
 	}})
 	name := st("text")
+	if c.Unseen {
+		name = bold(name) // until the person has looked at it
+	}
 	if c.Task == p.sel {
 		name = bold(name)
 		for i := range rows {

@@ -260,6 +260,51 @@ func TestLinesAndAlerts(t *testing.T) {
 	}
 }
 
+// How long the waiting results take is said only from a check that was timed.
+func TestTheQueueLine(t *testing.T) {
+	f := evening(t)
+	s, waiting := &f.State, 0
+	for _, task := range s.Tasks {
+		if task.Status == contract.TaskReview {
+			waiting++
+		}
+	}
+	for id := range s.Tasks {
+		if waiting >= 3 {
+			break
+		}
+		if s.Tasks[id].Status == contract.TaskPending {
+			s.Tasks[id].Status = contract.TaskReview
+			waiting++
+		}
+	}
+	line := func() string {
+		for _, l := range Build(f.Input(contract.Human)).Lines {
+			if strings.HasPrefix(l, "to check") {
+				return l
+			}
+		}
+		return ""
+	}
+	if got := line(); got != "" {
+		t.Fatalf("no check was timed, yet: %q", got)
+	}
+	for _, a := range s.Attempts {
+		a.Check = &contract.CheckResult{OK: true, At: f.Now, Took: 100 * time.Second}
+		break
+	}
+	want := fmt.Sprintf("to check: %d, about %d min one by one, about 2 min together", waiting, (waiting*100+59)/60)
+	if got := line(); got != want {
+		t.Fatalf("the line is %q, want %q", got, want)
+	}
+	if got := changed(" a.txt | 3 ++-\n b.txt | 9 ---------\n 2 files changed, 2 insertions(+), 10 deletions(-)\n"); got != "2 files, +2 -10" {
+		t.Errorf("git's count reads %q", got)
+	}
+	if got := changed(" 1 file changed, 4 insertions(+)\n") + changed("nothing"); got != "1 file, +4 -0" {
+		t.Errorf("git's count of one file reads %q", got)
+	}
+}
+
 // several is a store with more than one project in it.
 type several struct {
 	ledger

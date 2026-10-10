@@ -326,6 +326,7 @@ type TaskView struct {
 	Says      string       `json:"says,omitempty"`
 	Check     string       `json:"check,omitempty"`
 	Result    *CheckResult `json:"result,omitempty"`
+	Changed   string       `json:"changed,omitempty"` // "9 files, +410 -12", as git counts it
 	ByHand    string       `json:"by_hand,omitempty"`
 	Owns      []string     `json:"owns,omitempty"`
 	Brief     string       `json:"brief,omitempty"`

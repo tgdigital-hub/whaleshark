@@ -508,6 +508,23 @@ func (b *builder) around(v *contract.View) {
 			v.Lines = append(v.Lines, "most workers stopped together; check your usage limit")
 		}
 	}
+	// How long the waiting results take to check, by the longest check that
+	// passed in this run; with none measured there is no line.
+	waiting, longest := 0, time.Duration(0)
+	for _, t := range b.s.Tasks {
+		if t.Status == contract.TaskReview {
+			waiting++
+		}
+	}
+	for _, a := range b.s.Attempts {
+		if k := a.Check; k != nil && k.OK {
+			longest = max(longest, k.Took)
+		}
+	}
+	if minutes := func(d time.Duration) int { return int((d + time.Minute - 1) / time.Minute) }; waiting > 1 && longest > 0 {
+		v.Lines = append(v.Lines, fmt.Sprintf("to check: %d, about %d min one by one, about %d min together",
+			waiting, minutes(time.Duration(waiting)*longest), minutes(longest)))
+	}
 	if in.Terms == nil {
 		v.Fresh.Notes = append(v.Fresh.Notes, "the engine is not running")
 		if in.Now.Sub(run.Terms.SeenAt) >= time.Minute {

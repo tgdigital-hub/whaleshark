@@ -300,6 +300,7 @@ func check(c *contract.Call, line, dir, log string) (contract.CheckResult, error
 	limit := time.Duration(project.Check.TimeoutSeconds) * time.Second
 	cmd := c.Kit.Platform.Shell(line)
 	cmd.Dir, cmd.Stdout, cmd.Stderr = dir, file, file
+	began := time.Now()
 	if err := cmd.Start(); err != nil {
 		return contract.CheckResult{}, fmt.Errorf("the check could not be started: %w", err)
 	}
@@ -308,7 +309,7 @@ func check(c *contract.Call, line, dir, log string) (contract.CheckResult, error
 	if err = cmd.Wait(); !over.Stop() {
 		fmt.Fprintf(file, "\nwhaleshark: the check was stopped after %v\n", limit)
 	}
-	return contract.CheckResult{OK: err == nil, At: c.Now, Tail: tail(log)}, nil
+	return contract.CheckResult{OK: err == nil, At: c.Now, Tail: tail(log), Took: time.Since(began).Round(time.Second)}, nil
 }
 
 // maxTail is the most of a log's end that is read and kept, in bytes.

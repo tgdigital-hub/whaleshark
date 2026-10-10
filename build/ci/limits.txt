@@ -50,8 +50,11 @@ lines 700 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the
 # other runs of a login are three screens that 186 lines could not hold;
 # status --brief, which nobody asked for, left the command table instead of
-# being built.
-lines 2100 view internal/view
+# being built. 160 more at the join of phase 2: views 2 came to 2,154 with
+# nothing cut that its row asks for, and the line that says how long the
+# waiting results take to check and what a task changed are 37 more; 69 are
+# left for the look round and the browser check. screen pays.
+lines 2260 view internal/view
 lines 620 question internal/question
 lines 380 mail internal/mail
 lines 420 notify internal/notify
@@ -92,14 +95,18 @@ lines 1180 install install
 # Each is built whole and far under its line (1,366, 446 and 763), and keeps
 # room for the look round; the screen reader's reserve is untouched. They
 # pay for contract, cli, runtask, launch, view, panes and hook, with inbox,
-# question and notify: 1,390 lines moved, none added.
-lines 1950 screen internal/screen
+# question and notify: 1,390 lines moved, none added. 160 more to view at
+# the join of phase 2; the screen reader stands at 1,366.
+lines 1790 screen internal/screen
 lines 1820 keeper internal/keeper
 lines 900 layout internal/layout
-lines 850 pty internal/pty
+# pty gives 50 to restore at the join of phase 2; it is built whole at 617.
+lines 800 pty internal/pty
 lines 650 watch internal/watch
 lines 750 input internal/input
-lines 460 restore internal/restore
+# restore: 50 more at the join of phase 2. Saving the layout lightly (a file
+# of lines a pane, written only for a pane that printed) came to 493.
+lines 510 restore internal/restore
 lines 450 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick

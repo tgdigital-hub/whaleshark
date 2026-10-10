@@ -224,3 +224,23 @@ func TestSetMovesAnOpenActionPane(t *testing.T) {
 		t.Errorf("set actions top with no engine said %q", out.String())
 	}
 }
+
+// The fleet prints the view's plain sentences under the alerts, and a card
+// the person has not looked at since it changed has its name in bold.
+func TestTheFleetShowsTheLinesAndWhatIsUnseen(t *testing.T) {
+	p, _, _ := still(t, fleet, 60, 40)
+	p.view.Lines = []string{"to check: 3, about 6 min one by one, about 2 min together"}
+	p.sel = ""
+	for i := range p.cards {
+		p.cards[i].Unseen = i == 0
+	}
+	p.dirty = true
+	p.draw()
+	p.find(t, "to check: 3, about 6 min one by one")
+	for i, c := range p.cards[:2] {
+		x, y := p.find(t, c.Name)
+		if got := p.t.At(x, y).Style.Bold; got != (i == 0) {
+			t.Errorf("%s is bold: %v\n%s", c.Name, got, frame(p))
+		}
+	}
+}
