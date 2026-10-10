@@ -254,7 +254,7 @@ func TestAPhoneThatAsksInTheActionPane(t *testing.T) {
 	wd.s.Type("\x1b[I")
 	wd.shows("KEYS GO HERE")
 	asking := &contract.Pairing{Number: "493 201", Identity: "robin@example.com", Name: "iPhone", At: wd.fx.Now}
-	if err := contract.ChangePhones(wd.sys, func(list *contract.Phones) error { list.Asking = asking; return nil }); err != nil {
+	if err := contract.ChangePhones(wd.sys, func(list *contract.Phones) error { list.Asking, list.Shut = asking, wd.fx.Now; return nil }); err != nil {
 		t.Fatal(err)
 	}
 	for end := time.Now().Add(10 * time.Second); ; time.Sleep(5 * time.Millisecond) {
@@ -272,10 +272,13 @@ func TestAPhoneThatAsksInTheActionPane(t *testing.T) {
 		}
 	}
 	wd.touch()
-	wd.shows("A phone wants to connect: 493 201 · robin@example.com · iPhone")
+	wd.shows("A phone wants to connect: 493 201 · robin@example.com · iPhone", "Requests without a valid pass are reaching your page")
 	for range 6 { // up to the first item, wherever the selection stood
 		wd.key("k")
 	}
+	// The door's warning has no button: a key on it starts nothing.
+	wd.key("y")
+	wd.key("j")
 	wd.key("y")
 	wd.ran("dash phone approve pair493201")
 	wd.key("n")

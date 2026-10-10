@@ -158,7 +158,7 @@ var Commands = []Command{
 	{Name: "version", Section: "setup", Phase: 1, Who: all, Exits: []int{0},
 		Usage: "version", Help: "version, build, and the engine's version seen",
 		Example: "whaleshark version"},
-	{Name: "dash", Section: "setup", Phase: 3, Who: H | U, Exits: []int{0, 3},
+	{Name: "dash", Section: "setup", Phase: 3, Who: H | U, Exits: []int{0, 3, 4},
 		Usage:   "dash start|stop [--forget]|url|status / dash phone on|off|list|forget <phone>|approve <number>|refuse <number>",
 		Help:    "the page's server for this login, and its door for phones",
 		Flags:   flags("forget"),
