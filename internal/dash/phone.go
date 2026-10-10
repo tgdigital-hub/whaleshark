@@ -21,6 +21,10 @@ const (
 	// as seen, and its cookie given a new end, once every seenEvery.
 	pairLife  = 2 * time.Minute
 	seenEvery = 5 * time.Minute
+	// bound begins the name of every cookie set at the door: a browser takes
+	// such a one only over HTTPS and only from the very name it is for, so
+	// that no other name of the same domain can set or replace it.
+	bound = "__Host-"
 )
 
 // pairing is the one request to pair that can be open: the number the phone
@@ -64,20 +68,40 @@ func (s *server) doors() {
 	}
 	s.door, s.port = &http.Server{Handler: http.HandlerFunc(s.phone), ReadHeaderTimeout: 10 * time.Second}, port
 	go s.door.Serve(l)
+	if a, known := srv.Access(s.login); known {
+		go s.find(a.Issuer(), "", contract.Now())
+	}
 }
 
 // phone answers at the door. What comes in there was handed over by the
 // road's own program on this machine, over HTTPS from the phone: on
-// Tailscale's road its header says who is calling. A phone that is not
-// paired is shown a number; a paired one gets the page, in one column.
+// Tailscale's road its header says who is calling, on Cloudflare's the pass
+// the door checks itself, and what fails that check is answered with
+// nothing. A phone that is not paired is shown a number; a paired one gets
+// the page, in one column.
 func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 	head(w, r)
 	now, peek, path := contract.Now(), s.k.Platform.Peek, r.URL.Path
 	srv, err := contract.ReadServer(peek)
 	phones, perr := contract.ReadPhones(peek, s.dirs.State)
 	post := r.Method == http.MethodPost
-	if err != nil || perr != nil || srv == nil || srv.Road != contract.RoadTailscale || !phones.On {
-		// The other road has a check of its own before anything is answered.
+	open := err == nil && perr == nil && srv != nil && phones.On
+	var who string
+	switch {
+	case open && srv.Road == contract.RoadTailscale:
+		who = contract.Identity(srv.Road, r.Header.Get)
+	case open && srv.Road == contract.RoadCloudflare:
+		var until time.Time
+		if who, until, open = s.pass(r, srv, now); open {
+			// A held-open connection ends when its pass runs out.
+			ctx, cancel := context.WithTimeout(r.Context(), until.Sub(now))
+			defer cancel()
+			r = r.WithContext(ctx)
+		}
+	default:
+		open = false
+	}
+	if !open {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -88,8 +112,8 @@ func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 		s.asset(w, name)
 		return
 	}
-	who, secret := contract.Identity(srv.Road, r.Header.Get), ""
-	if c, err := r.Cookie(s.cookie); err == nil {
+	secret := ""
+	if c, err := r.Cookie(bound + s.cookie); err == nil {
 		secret = c.Value
 	}
 	s.mu.Lock()
@@ -103,7 +127,7 @@ func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 	}
 	ph := phones.Paired[at]
 	if ph.Identity != who {
-		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("other_identity", "This phone was paired by somebody else in the private network.")})
+		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("other_identity", "This phone was paired by somebody else.")})
 		return
 	}
 	if now.Sub(ph.SeenAt) >= seenEvery && s.record(ph.ID, func(p *contract.Phone) { p.SeenAt = now }) == nil {
@@ -136,7 +160,7 @@ func (s *server) record(id string, set func(*contract.Phone)) error {
 // is HTTPS, so the cookie is one a browser sends over nothing else; scripts
 // cannot read it and no other site's request carries it.
 func (s *server) bake(w http.ResponseWriter, secret string) {
-	http.SetCookie(w, &http.Cookie{Name: s.cookie, Value: secret, Path: "/", MaxAge: int(sessionLife / time.Second),
+	http.SetCookie(w, &http.Cookie{Name: bound + s.cookie, Value: secret, Path: "/", MaxAge: int(sessionLife / time.Second),
 		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode})
 }
 
@@ -180,7 +204,7 @@ func (s *server) knock(w http.ResponseWriter, r *http.Request, srv *contract.Ser
 		if who == "" {
 			p.notes = append(p.notes, "the private network names nobody for this phone: its session will stand alone")
 		}
-		if srv.Rules != contract.RulesProven {
+		if srv.Road == contract.RoadTailscale && srv.Rules != contract.RulesProven {
 			p.notes = append(p.notes, "this server's port rules are unproven: pairing and the session are the only wall between its logins")
 		}
 		s.pair, fresh = p, true
@@ -233,8 +257,17 @@ func (s *server) decide(id, answer string, now time.Time) (ok bool, err error) {
 func (s *server) withPhones(v *contract.View, run bool) {
 	s.mu.Lock()
 	p := s.pair
+	shut := s.shut
 	s.mu.Unlock()
 	item := contract.Item{Form: contract.FormChoice, Look: contract.LookNeedsYou, Source: "from the tool itself"}
+	if !shut.IsZero() && v.At.Sub(shut) < shutShown {
+		warn := item
+		warn.ID, warn.Since = "pass", shut
+		warn.Text = "Requests without a valid pass are reaching your page; check the Cloudflare set-up."
+		warn.News = warn.Text
+		v.Items = append([]contract.Item{warn}, v.Items...)
+		v.Counts.Waiting++
+	}
 	if p.hash != "" && v.At.Sub(p.at) < pairLife {
 		ask := item
 		ask.ID, ask.Since = p.id(), p.at
@@ -292,6 +325,7 @@ func (s *server) push(w http.ResponseWriter, r *http.Request, ph contract.Phone)
 type listed struct {
 	On     bool     `json:"on"`
 	Port   int      `json:"port,omitempty"`
+	Name   string   `json:"name,omitempty"`
 	Phones []paired `json:"phones"`
 }
 
@@ -318,12 +352,13 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 		id = c.Args[len(c.Args)-1]
 	}
 	srv, err := contract.ReadServer(k.Platform.Peek)
+	a, public := srv.Access(login)
 	out := listed{Phones: []paired{}}
 	var line string
 	switch {
 	case len(c.Args) != words, word != "on" && word != "off" && word != "list" && word != "forget":
 		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "dash phone takes on, off, list or forget <phone>.", Next: []string{"whaleshark help dash"}}
-	case word == "on" && (err != nil || srv == nil || srv.Login[login].Phone == 0):
+	case word == "on" && (err != nil || srv == nil || srv.Login[login].Phone == 0 && !public):
 		return nil, refuse("no_door", "This login has no door for a phone: the administrator of a server sets one.", "sudo whaleshark server phone --user "+login)
 	}
 	found := word != "forget"
@@ -355,11 +390,14 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 		}
 	}
 	if out.On && srv != nil {
-		out.Port = srv.Login[login].Phone
+		out.Port, out.Name = srv.Login[login].Phone, a.Name
 	}
 	switch word {
 	case "on":
 		line = fmt.Sprintf("The door for your phone is open. On the phone, inside the private network, open\n  https://<this machine's name there>:%d/\nand approve its number on the page here: whaleshark dash url", out.Port)
+		if public {
+			line = "The door for your phone is open. In any browser, open\n  https://" + a.Name + "/\nlog in at Cloudflare, and approve its number on the page here: whaleshark dash url"
+		}
 	case "off":
 		line = "The door for phones is closed. Paired phones stay paired."
 	case "forget":

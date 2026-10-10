@@ -59,9 +59,11 @@
 		if (asking || doc.hidden) return;
 		asking = true;
 		tried = Date.now();
-		fetch(location.href, { credentials: 'same-origin', cache: 'no-store' }).then(r => {
-			// Signed out, or a screen that is gone: the server's own answer is shown.
-			if (r.redirected || r.status >= 400 && r.status < 500) return location.reload();
+		fetch(location.href, { credentials: 'same-origin', cache: 'no-store', redirect: 'manual' }).then(r => {
+			// Signed out, a screen that is gone, or sent on elsewhere, as by a
+			// login in front of the page that has run out: the answer itself is
+			// shown, by loading the page as a person would.
+			if (r.type === 'opaqueredirect' || r.status >= 400 && r.status < 500) return location.reload();
 			if (!r.ok) throw new Error(r.status);
 			return r.text().then(html => {
 				got = Date.now();

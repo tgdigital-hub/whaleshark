@@ -12,9 +12,10 @@
 // nobody is looking. While the person has phone access on, on a server
 // whose administrator set it up, it also listens on one loopback port of the
 // login's own block, the door: the private network's own program hands a
-// phone's connection to it and says who is calling. A phone is paired once,
-// by a number the person approves where they are signed in already, and is
-// then shown the same page in one column. The tunnel's door is not built yet.
+// phone's connection to it and says who is calling, or Cloudflare's does,
+// with a signed pass that the door checks itself on every request. A phone
+// is paired once, by a number the person approves where they are signed in
+// already, and is then shown the same page in one column.
 //
 // A server that holds a connection open and says a line when something
 // changed is the ordinary shape of a live page (the HTML standard's
@@ -120,6 +121,12 @@ func dash(c *contract.Call) (any, error) {
 			st.Since.Format("15:04"), st.Memory>>20, st.Tabs, st.Runs)
 		if st.Door != 0 {
 			fmt.Fprintf(c.Out, "The door for phones is open on port %d of this machine itself; the last caller there was %s.\n", st.Door, whose(st.Caller))
+		}
+		if st.Refused != "" {
+			fmt.Fprintf(c.Out, "The last request the door refused: %s.\n", st.Refused)
+		}
+		if !st.Shut.IsZero() {
+			fmt.Fprintf(c.Out, "The door shut itself for a minute at %s: more than twenty requests in a minute came without a valid pass.\n", st.Shut.Local().Format("15:04"))
 		}
 		return st, nil
 	case word == "status":
