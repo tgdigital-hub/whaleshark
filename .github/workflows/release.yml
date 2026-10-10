@@ -1,0 +1,217 @@
+# A release, on hosted machines. A tag v1.2.3 makes the real one, as a draft
+# that a person publishes; anything else is a dry run, which signs with keys
+# made in the run and thrown away with it, and publishes nothing. A dry run
+# starts by hand, or by itself when what makes a release has changed.
+#
+# No step here is written by anyone else (see gate.yml). No file passes from
+# one job to the next: every job builds the files again from the commit,
+# which gives the same bytes, and only the two signatures travel. So the job
+# that holds the keys can write nothing, and the job that can write the
+# draft holds no key.
+name: release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+    branches: ['**']
+    paths: ['build/release/**', '.github/workflows/release.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0-dry' }}
+
+jobs:
+  sign:
+    runs-on: ubuntu-24.04
+    # The real keys are secrets of the environment "release", which a
+    # person approves each time; a dry run has no environment and no secret.
+    environment: ${{ github.ref_type == 'tag' && 'release' || '' }}
+    outputs:
+      signer: ${{ steps.sign.outputs.signer }}
+      list: ${{ steps.sign.outputs.list }}
+      sig: ${{ steps.sign.outputs.sig }}
+      index: ${{ steps.sign.outputs.index }}
+      key: ${{ steps.sign.outputs.key }}
+    steps:
+      - name: Fetch this commit
+        run: |
+          git init -q .
+          git config core.autocrlf false
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch -q --depth 1 origin "$GITHUB_SHA" || git fetch -q --depth 1 origin "$GITHUB_REF"
+          git checkout -q FETCH_HEAD
+      - name: The Go that go.mod names, and no other
+        run: |
+          command -v go || ls -d "$RUNNER_TOOL_CACHE"/go/*/*/bin | sort -V | tail -1 >> "$GITHUB_PATH"
+          echo "GOTOOLCHAIN=go$(sed -n 's/^go //p' go.mod)" >> "$GITHUB_ENV"
+      - name: The keys
+        env:
+          RELEASE_KEY: ${{ secrets.RELEASE_KEY }}
+          APT_KEY: ${{ secrets.APT_KEY }}
+        run: |
+          umask 077
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir "$GNUPGHOME"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            printf '%s\n' "$RELEASE_KEY" > "$RUNNER_TEMP/key"
+            printf '%s\n' "$APT_KEY" | gpg --batch --import
+          else
+            ssh-keygen -q -t ed25519 -N '' -C '' -f "$RUNNER_TEMP/key"
+            gpg --batch --passphrase '' --quick-generate-key 'a dry run' ed25519 sign never
+            echo "SIGNER=release namespaces=\"file\" $(cut -d' ' -f1,2 "$RUNNER_TEMP/key.pub")" >> "$GITHUB_ENV"
+          fi
+      - name: The files
+        run: go run ./build/release -version "${TAG#v}" ${SIGNER:+-signer "$SIGNER"}
+      - name: Sign the list of checksums and the apt index
+        id: sign
+        run: |
+          ssh-keygen -q -Y sign -f "$RUNNER_TEMP/key" -n file dist/SHA256SUMS
+          # The signature must answer to the line install.sh carries.
+          sed -n "s/^SIGNER='\(.*\)'$/\1/p" dist/install.sh > "$RUNNER_TEMP/signers"
+          ssh-keygen -Y verify -f "$RUNNER_TEMP/signers" -I release -n file -s dist/SHA256SUMS.sig < dist/SHA256SUMS
+          gpg --batch --clearsign -o "$RUNNER_TEMP/InRelease" dist/apt/dists/stable/Release
+          gpg --batch --export > "$RUNNER_TEMP/apt.gpg"
+          {
+            echo "signer=$(cat "$RUNNER_TEMP/signers")"
+            echo "list=$(base64 -w0 dist/SHA256SUMS)"
+            echo "sig=$(base64 -w0 dist/SHA256SUMS.sig)"
+            echo "index=$(base64 -w0 "$RUNNER_TEMP/InRelease")"
+            echo "key=$(base64 -w0 "$RUNNER_TEMP/apt.gpg")"
+          } >> "$GITHUB_OUTPUT"
+
+  install:
+    needs: sign
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    env:
+      SIGNER: ${{ needs.sign.outputs.signer }}
+      LIST: ${{ needs.sign.outputs.list }}
+      SIG: ${{ needs.sign.outputs.sig }}
+      INDEX: ${{ needs.sign.outputs.index }}
+      KEY: ${{ needs.sign.outputs.key }}
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_ANALYTICS: 1
+    steps:
+      - name: Fetch this commit
+        run: |
+          git init -q .
+          git config core.autocrlf false
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch -q --depth 1 origin "$GITHUB_SHA" || git fetch -q --depth 1 origin "$GITHUB_REF"
+          git checkout -q FETCH_HEAD
+      - name: The Go that go.mod names, and no other
+        run: |
+          command -v go || ls -d "$RUNNER_TOOL_CACHE"/go/*/*/bin | sort -V | tail -1 >> "$GITHUB_PATH"
+          echo "GOTOOLCHAIN=go$(sed -n 's/^go //p' go.mod)" >> "$GITHUB_ENV"
+      - name: A second build gives the files that were signed
+        run: |
+          go run ./build/release -version "${TAG#v}" -signer "$SIGNER" -site "file://$PWD/site"
+          echo "$LIST" | base64 -d | cmp - dist/SHA256SUMS
+          echo "$SIG" | base64 -d > dist/SHA256SUMS.sig
+          echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
+          echo "$KEY" | base64 -d > dist/apt/whaleshark.gpg
+          mkdir site
+          cp -R dist "site/$TAG"
+      - name: install.sh installs it for one login, and it runs
+        if: runner.os != 'Windows'
+        run: |
+          export HOME="$RUNNER_TEMP/home"
+          mkdir "$HOME"
+          sh dist/install.sh --from dist
+          "$HOME/.local/bin/whaleshark" version | grep -F "whaleshark ${TAG#v} "
+      - name: On Windows the signature and the checksum are checked by hand, and it runs
+        if: runner.os == 'Windows'
+        run: |
+          sed -n "s/^SIGNER='\(.*\)'$/\1/p" dist/install.sh > "$RUNNER_TEMP/signers"
+          ssh-keygen -Y verify -f "$RUNNER_TEMP/signers" -I release -n file -s dist/SHA256SUMS.sig < dist/SHA256SUMS
+          (cd dist && sha256sum -c SHA256SUMS)
+          dist/whaleshark-windows-amd64.exe version | grep -F "whaleshark ${TAG#v} "
+          if command -v winget >/dev/null; then
+            winget validate --manifest dist/winget --disable-interactivity
+          else
+            echo "no winget on this machine: nothing read the three files"
+          fi
+      - name: apt installs it from the repository's files, and it runs
+        if: runner.os == 'Linux'
+        run: |
+          echo "deb [signed-by=$PWD/dist/apt/whaleshark.gpg] file://$PWD/dist/apt stable main" |
+            sudo tee /etc/apt/sources.list.d/whaleshark.list
+          sudo apt-get update -o Dir::Etc::sourcelist=sources.list.d/whaleshark.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
+          sudo apt-get install -y whaleshark
+          dpkg -S /usr/bin/whaleshark
+          /usr/bin/whaleshark version | grep -F "whaleshark ${TAG#v} "
+      - name: Homebrew installs it from the formula, and it runs
+        if: runner.os == 'macOS'
+        run: |
+          brew tap-new --no-git dry/whaleshark
+          cp dist/brew/whaleshark.rb "$(brew --repository dry/whaleshark)/Formula/"
+          brew install dry/whaleshark/whaleshark
+          "$(brew --prefix)/bin/whaleshark" version | grep -F "whaleshark ${TAG#v} "
+      - name: A file changed by one byte is refused
+        run: |
+          f=dist/$(cd dist && ls | grep "^whaleshark-$(go env GOOS)-$(go env GOARCH)")
+          was=$(dd if="$f" bs=1 skip=4096 count=1 2>/dev/null | od -An -tu1)
+          printf "\\$(printf '%03o' $(((was + 1) % 256)))" | dd of="$f" bs=1 seek=4096 conv=notrunc 2>/dev/null
+          export HOME="$RUNNER_TEMP/second-home"
+          mkdir "$HOME"
+          if [ "$RUNNER_OS" = Windows ]; then
+            (cd dist && sha256sum -c SHA256SUMS) || exit 0
+          else
+            sh dist/install.sh --from dist || [ -e "$HOME/.local/bin/whaleshark" ] || exit 0
+          fi
+          echo "the changed file was taken"
+          exit 1
+
+  # Only a tag comes here. The draft is public to nobody until a person
+  # publishes it.
+  draft:
+    if: github.ref_type == 'tag'
+    needs: [sign, install]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SIGNER: ${{ needs.sign.outputs.signer }}
+      LIST: ${{ needs.sign.outputs.list }}
+      SIG: ${{ needs.sign.outputs.sig }}
+      INDEX: ${{ needs.sign.outputs.index }}
+      KEY: ${{ needs.sign.outputs.key }}
+    steps:
+      - name: Fetch this commit
+        run: |
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch -q --depth 1 origin "$GITHUB_SHA" || git fetch -q --depth 1 origin "$GITHUB_REF"
+          git checkout -q FETCH_HEAD
+      - name: The Go that go.mod names, and no other
+        run: |
+          command -v go || ls -d "$RUNNER_TOOL_CACHE"/go/*/*/bin | sort -V | tail -1 >> "$GITHUB_PATH"
+          echo "GOTOOLCHAIN=go$(sed -n 's/^go //p' go.mod)" >> "$GITHUB_ENV"
+      - name: A build once more gives the files that were signed
+        run: |
+          go run ./build/release -version "${TAG#v}" -signer "$SIGNER"
+          echo "$LIST" | base64 -d | cmp - dist/SHA256SUMS
+          echo "$SIG" | base64 -d > dist/SHA256SUMS.sig
+          echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
+          echo "$KEY" | base64 -d > dist/apt/whaleshark.gpg
+      - name: The draft, and its files fetched back and checked
+        run: |
+          tar -czf packages.tar.gz -C dist apt brew winget
+          gh release create "$TAG" --draft --verify-tag --title "$TAG" --notes "" \
+            dist/whaleshark-* dist/install.sh dist/SHA256SUMS dist/SHA256SUMS.sig packages.tar.gz
+          gh release download "$TAG" -D back -p 'whaleshark-*' -p install.sh -p 'SHA256SUMS*'
+          (cd back && sha256sum -c SHA256SUMS)
+          cmp back/SHA256SUMS.sig dist/SHA256SUMS.sig

@@ -1,0 +1,14 @@
+# What a release is made with. One setting a line: a name, then its value.
+
+# The public half of the release key, as one allowed-signers line:
+#   release namespaces="file" ssh-ed25519 AAAA...
+# install.sh carries this line and checks the list of checksums against it.
+# The private half is never in the repository. Until a key is chosen the
+# line is empty, and a release is only made with -signer, as a dry run.
+signer
+
+# Cloudflare's connector, for a server's public name: its version, and the
+# SHA-256 of the key its packages are signed with, written in two halves
+# with a space between. Empty, a server installs no connector.
+connector
+connector-key
