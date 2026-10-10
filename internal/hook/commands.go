@@ -165,7 +165,8 @@ func gate(c *contract.Call, stateDir string, kind contract.Gate) {
 		} `json:"tool_input"`
 	}
 	message(c, &m)
-	words := strings.Fields(m.Input.Command)
+	// Quotes and brackets are no part of a word: "--human" is the flag still.
+	words := strings.Fields(strings.NewReplacer(`"`, "", "'", "", "(", " ", ")", " ").Replace(m.Input.Command))
 	for i, w := range words {
 		starts := i == 0 || strings.ContainsAny(words[i-1][len(words[i-1])-1:], ";&|")
 		switch {
