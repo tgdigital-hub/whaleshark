@@ -391,7 +391,8 @@ func TestAStartKilledHalfway(t *testing.T) {
 		t.Errorf("the retry: %+v", retried)
 	}
 	if !slices.ContainsFunc(calls(p, "agent", "start"), func(c []string) bool {
-		return c[2] == retried.Agent.Name && slices.Equal(c[len(c)-3:], []string{"--", "--model", "fast-1"})
+		// After the "--" come the settings of the hooks and then the model.
+		return c[2] == retried.Agent.Name && slices.Contains(c, "--") && slices.Equal(c[len(c)-2:], []string{"--model", "fast-1"})
 	}) {
 		t.Errorf("the model is not on the agent's own line: %v", calls(p, "agent", "start"))
 	}
@@ -542,13 +543,14 @@ func TestAButtonsStartRunsInATabOfItsOwn(t *testing.T) {
 		t.Fatalf("the tab %v and the line typed into it %v", made, typed)
 	}
 
-	// The same line, run in such a tab, closes the tab when it ends well.
+	// The same line, run in such a tab, is still the button's and is not
+	// moved again; it closes the tab when it ends well.
 	pane, err := p.Herdr.TabCreate(p.Root, "start ready 2", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	cmd := p.Command(scenario.Human, "start", "R2")
-	cmd.Env = append(cmd.Env, contract.EnvPane+"="+pane.ID, ownTabEnv+"=1")
+	cmd.Env = append(cmd.Env, contract.EnvPane+"="+pane.ID, contract.EnvOwnTab+"="+contract.WherePane)
 	must(t, cmd, 0)
 	attempt(t, p, "R2.1", contract.AttemptWorking)
 	if tabOpen(t, p, pane.Tab) {
