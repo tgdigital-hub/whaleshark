@@ -650,6 +650,9 @@ func TestServiceEntries(t *testing.T) {
 			t.Errorf("%s: the entry %s is\n%s", system, name, text)
 		}
 	}
+	if name, _ := restore.Service("linux", self, os.Getenv); name != contract.UnitKeeper {
+		t.Errorf("linux: the entry is called %s, and a server's set-up and doctor call it %s", name, contract.UnitKeeper)
+	}
 	if name, text := restore.Service("windows", self, os.Getenv); name != "" || text != "" {
 		t.Errorf("windows has an entry: %s", name)
 	}

@@ -3,6 +3,8 @@ package restore
 import (
 	"html"
 	"strings"
+
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
 // label names the keeper's entry among the login's services.
@@ -78,7 +80,7 @@ func Service(system, self string, getenv func(string) string) (name, text string
 		// mixed: a stop asks the keeper alone, which ends its panes in its
 		// own order; what is left after that is ended by the system.
 		b.WriteString("Restart=on-failure\nKillMode=mixed\n\n[Install]\nWantedBy=default.target\n")
-		return "whaleshark-engine.service", b.String()
+		return contract.UnitKeeper, b.String() // the one name a server's set-up and doctor know it by
 	}
 	return "", ""
 }
