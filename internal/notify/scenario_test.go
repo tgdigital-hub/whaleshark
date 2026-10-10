@@ -516,23 +516,15 @@ func TestNews(t *testing.T) {
 		t.Fatalf("news a window showed went on to the next channel: %q", e.after)
 	}
 
-	// The terminals out of reach: nothing for the first minute, then once,
-	// by the next channel, and through Do not disturb.
-	ui.DND = true
-	if err := contract.WriteVersioned(e.Kit.Platform, file, contract.FileVersion, ui); err != nil {
-		t.Fatal(err)
-	}
+	// The terminals out of reach is the sweep's to say, which knows since
+	// when no picture could be had: the pass adds no second nudge to it.
 	change(func(s *contract.State) { s.Run.Terms.SeenAt = e.now })
 	e.Kit.Terms = gone{e.Kit.Terms}
 	e.n.k = e.Kit
-	e.pass(59 * time.Second)
-	if len(e.after) != 0 {
-		t.Fatalf("out of reach for under a minute was news: %q", e.after)
-	}
-	e.pass(time.Second)
 	e.pass(time.Minute)
-	if want := []string{"the engine is not running"}; !slices.Equal(e.after, want) {
-		t.Fatalf("the next channel was handed %q, want %q", e.after, want)
+	e.pass(time.Minute)
+	if slices.Contains(e.after, contract.ErrEngineUnreachable.Error()) {
+		t.Fatalf("the pass said the engine's outage itself: %q", e.after)
 	}
 }
 

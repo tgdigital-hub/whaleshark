@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
@@ -25,8 +24,6 @@ const (
 	// reach is all the time the hook programs and the phone's request get
 	// for one nudge: no command waits longer for it.
 	reach = 10 * time.Second
-	// dark is how long the terminals are out of reach before that is news.
-	dark = time.Minute
 )
 
 // Nudger is the kit's Notifier. Its Items is the pass that runs after each
@@ -50,15 +47,12 @@ type sentFile struct {
 	Said map[string][]string  `json:"said,omitempty"`
 }
 
-// settings is the person's switches, what ui.json says of Do not disturb
-// and Mute, and the phone's address with the link a tap opens: [notify] url
-// and link of config.toml, read here because the contract's PersonConfig
-// does not carry them.
+// settings is the person's switches with the phone's address, and what
+// ui.json says of Do not disturb and Mute.
 type settings struct {
 	contract.PersonConfig
-	ui        contract.UIFile
-	dirs      contract.Dirs
-	url, link string
+	ui   contract.UIFile
+	dirs contract.Dirs
 }
 
 func (n Nudger) settings() (set settings, err error) {
@@ -66,14 +60,9 @@ func (n Nudger) settings() (set settings, err error) {
 	if set.dirs, err = n.k.Platform.Dirs(); err != nil {
 		return set, err
 	}
-	data, err := n.k.Platform.Peek(filepath.Join(set.dirs.Config, contract.ConfigFile))
-	set.PersonConfig, err = contract.ReadPerson(func(string) ([]byte, error) { return data, err }, set.dirs.Config)
-	if err != nil {
+	if set.PersonConfig, err = contract.ReadPerson(n.k.Platform.Peek, set.dirs.Config); err != nil {
 		return set, err
 	}
-	var service struct{ Notify struct{ URL, Link string } }
-	toml.Unmarshal(data, &service)
-	set.url, set.link = service.Notify.URL, service.Notify.Link
 	// Read, not Peek: a file missed at the moment it is replaced would read
 	// as Do not disturb switched off.
 	err = contract.ReadVersioned(n.k.Platform.Read, filepath.Join(set.dirs.State, contract.UIFileName), contract.FileVersion, &set.ui)
@@ -148,9 +137,9 @@ func (n Nudger) Nudge(c contract.Nudge) error {
 }
 
 // news is what the record shows that the person is nudged for and that is
-// no item: a task that failed for good, the whole job finished, and the
-// terminals out of reach for a minute.
-func news(s *contract.State, snap *contract.Snapshot, now time.Time) (out []contract.Nudge) {
+// no item: a task that failed for good and the whole job finished. The
+// terminals out of reach is the sweep's to say, which knows since when.
+func news(s *contract.State) (out []contract.Nudge) {
 	settled := len(s.Tasks) > 0
 	for _, id := range slices.Sorted(maps.Keys(s.Tasks)) {
 		t := s.Tasks[id]
@@ -162,9 +151,6 @@ func news(s *contract.State, snap *contract.Snapshot, now time.Time) (out []cont
 	}
 	if settled {
 		out = append(out, contract.Nudge{Title: s.Run.Objective + " — finished", Body: "every task is done, failed or cancelled"})
-	}
-	if seen := s.Run.Terms.SeenAt; snap == nil && !seen.IsZero() && now.Sub(seen) >= dark {
-		out = append(out, contract.Nudge{Title: contract.ErrEngineUnreachable.Error(), Body: "`whaleshark open` starts it", Urgent: true})
 	}
 	return out
 }
@@ -202,7 +188,7 @@ func (n Nudger) Items(root, run string, snap *contract.Snapshot, now time.Time) 
 	var fresh []contract.Nudge
 	err = n.remember(set, func(sent *sentFile) bool {
 		key, said := root+"|"+run, []string(nil)
-		for _, c := range news(s, snap, now) {
+		for _, c := range news(s) {
 			switch c.Root, c.Run = root, run; {
 			case slices.Contains(sent.Said[key], c.Title):
 			case set.ui.DND && !c.Urgent:

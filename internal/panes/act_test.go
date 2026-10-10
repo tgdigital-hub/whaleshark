@@ -788,6 +788,14 @@ func TestSet(t *testing.T) {
 		}
 		return -1
 	}
+	// The phone's address is the person's own line of the file: set keeps it.
+	address := "[notify]\nurl = \"http://localhost/nudge\"\n"
+	if err := os.MkdirAll(dirs.Config, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dirs.Config, contract.ConfigFile), []byte(address), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	for _, args := range [][]string{{"theme", "paper"}, {"actions", "top"}, {"nudge.sound", "off"}, {"nudge.phone", "off"}, {"mute", "on"},
 		{"dnd", "until", "9:00"}, {"fleet.width", "48"}, {"folded", "on"}, {"draft.q7", "half an answer"}, {"draft.q9", "x"}, {"draft.q9"}, {"here", "now"}} {
 		if out, err := run(args...); err != nil || (out == "") != (args[0] == "folded" || args[0] == "here" || strings.HasPrefix(args[0], "draft.")) {
@@ -804,7 +812,8 @@ func TestSet(t *testing.T) {
 		t.Errorf("ui.json holds %+v", ui)
 	}
 	cfg := person(d.k, dirs)
-	if cfg.UI.Theme != "paper" || cfg.UI.Actions != "top" || cfg.Nudge.Sound || cfg.Nudge.Phone || !cfg.Nudge.Popup || cfg.UI.SettleSeconds != 4 {
+	if cfg.UI.Theme != "paper" || cfg.UI.Actions != "top" || cfg.Nudge.Sound || cfg.Nudge.Phone || !cfg.Nudge.Popup || cfg.UI.SettleSeconds != 4 ||
+		cfg.Notify.URL != "http://localhost/nudge" {
 		t.Errorf("config.toml holds %+v", cfg)
 	}
 	if _, err := run("dnd", "off"); err != nil {

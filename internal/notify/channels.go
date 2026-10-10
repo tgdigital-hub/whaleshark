@@ -30,7 +30,7 @@ type channel func(ctx context.Context, set settings, c contract.Nudge) bool
 // given one that way. An address without {text} gets the message as the
 // request's body.
 func phone(ctx context.Context, set settings, c contract.Nudge) bool {
-	if !set.Nudge.Phone || set.url == "" {
+	if !set.Nudge.Phone || set.Notify.URL == "" {
 		return false
 	}
 	text := c.Title
@@ -40,10 +40,10 @@ func phone(ctx context.Context, set settings, c contract.Nudge) bool {
 		}
 	}
 	var body io.Reader
-	if !strings.Contains(set.url, "{text}") {
+	if !strings.Contains(set.Notify.URL, "{text}") {
 		body = strings.NewReader(text)
 	}
-	address := strings.NewReplacer("{text}", url.QueryEscape(text), "{link}", url.QueryEscape(set.link)).Replace(set.url)
+	address := strings.NewReplacer("{text}", url.QueryEscape(text), "{link}", url.QueryEscape(set.Notify.Link)).Replace(set.Notify.URL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, address, body)
 	if err != nil {
 		return false

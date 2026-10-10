@@ -382,6 +382,12 @@ type PersonConfig struct {
 		Phone       bool `toml:"phone"`
 		LeadMinutes int  `toml:"lead_minutes"`
 	} `toml:"nudge"`
+	// Notify is the phone's channel: the address one request goes to, and
+	// the link a tap on the notice opens.
+	Notify struct {
+		URL  string `toml:"url,omitempty"`
+		Link string `toml:"link,omitempty"`
+	} `toml:"notify,omitempty"`
 }
 
 // ConfigFile and UIFileName are the person's two files of ours.
