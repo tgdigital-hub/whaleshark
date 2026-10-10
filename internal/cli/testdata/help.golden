@@ -1,4 +1,4 @@
-$ whaleshark     # as the person
+$ whaleshark     # as a program
   init      set this project up, check what it needs, and offer the rules for the lead agent  (not built yet)
   doctor    one line per check, each with its fix  (not built yet)
   guide     the guide that matches this version  (not built yet)

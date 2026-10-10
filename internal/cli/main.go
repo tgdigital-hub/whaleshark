@@ -72,7 +72,31 @@ func logged(c *contract.Call, exit int, took time.Duration) {
 	}
 }
 
+// first is the program typed alone by a person at a terminal of their own,
+// outside the window: it opens the window, and before that sets the project
+// up where the folder is one by the look of it (a repository, or a folder
+// with our settings file) and was not set up yet. It asks nothing itself
+// and types nothing into any program: init asks what init asks, and whatever
+// an agent's own program asks afterwards is the person's to answer. Typed
+// anywhere else, or by anything that is no person, it is the help list.
+func first(c *contract.Call) (any, error) {
+	root, err := rootOf(c)
+	if _, known := os.Stat(c.Kit.Reader().Dir(root, "")); err == nil && known != nil {
+		_, git := os.Stat(filepath.Join(root, ".git"))
+		_, file := os.Stat(filepath.Join(root, "whaleshark.toml"))
+		if git == nil || file == nil {
+			if result, err := run(c, []string{"init"}); err != nil {
+				return result, err
+			}
+		}
+	}
+	return run(c, []string{"open"})
+}
+
 func run(c *contract.Call, argv []string) (any, error) {
+	if pane, key := contract.PaneOf(os.Getenv); len(argv) == 0 && pane == "" && key == "" && os.Getenv(contract.EnvAttempt) == "" && onTerminal() {
+		return first(c)
+	}
 	if len(argv) == 0 || argv[0] == "--help" || argv[0] == "-h" {
 		argv = append([]string{"help"}, argv[min(1, len(argv)):]...)
 	}

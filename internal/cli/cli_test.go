@@ -139,7 +139,7 @@ func TestHelpGolden(t *testing.T) {
 		w    scene
 		line string
 	}{
-		{"the person", person, ""},
+		{"a program", nobody, ""},
 		{"the person", person, "help start"},
 		{"the person", person, "help run"},
 		{"the person", person, "pause --help"},
@@ -724,5 +724,83 @@ func TestWhatThePersonDoesIsRecorded(t *testing.T) {
 	call(t, k, other, "need", "todo", "a longer text, no id", "--human")
 	if got := events(); len(got) != 1 || got[0].Data["what"] != "need todo" || got[0].Data["on"] != nil {
 		t.Errorf("an argument that is no id is named in the event: %+v", got)
+	}
+}
+
+// placed is the test's store with a project's folder of ours where the real one has it.
+type placed struct{ *fakeStore }
+
+func (placed) Dir(root, _ string) string { return filepath.Join(root, contract.ProjectDir) }
+
+// listed is a platform that has a state folder, for the login's list of projects.
+type listed struct {
+	contract.NoPlatform
+	state string
+}
+
+func (l listed) Dirs() (contract.Dirs, error) { return contract.Dirs{State: l.state}, nil }
+
+// The program typed alone by a person at a terminal opens the window, and
+// first sets up a folder that is a project by the look of it and has no
+// folder of ours yet. Anybody else, and a person inside the window, gets
+// the help list: nothing but a person's own typing sets a project up.
+func TestTheProgramTypedAlone(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		who   scene
+		make  []string // what the folder holds
+		calls string
+	}{
+		{"a repository not set up", person, []string{".git"}, "init open "},
+		{"a folder with our settings file", person, []string{"whaleshark.toml"}, "init open "},
+		{"a project that is set up", person, []string{".git", contract.ProjectDir}, "open "},
+		{"a folder that is no project", person, nil, "open "},
+		{"a folder of ours this login did not make", person, []string{".git", contract.ProjectDir, "foreign"}, "refused"},
+		{"an agent's shell with no terminal", nobody, []string{".git"}, ""},
+		{"a tab of the window", scene{pane: "w9:p9", terminal: true}, []string{".git"}, ""},
+		{"a shortcut's command", scene{key: "w9:p9", terminal: true}, []string{".git"}, ""},
+		{"a worker", scene{attempt: "T3.1", terminal: true}, []string{".git"}, ""},
+	} {
+		dir := t.TempDir()
+		t.Chdir(dir)
+		for _, name := range tc.make {
+			if err := os.Mkdir(filepath.Join(dir, name), 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		k, store := world(t)
+		k.Store, k.Platform = placed{store}, listed{state: t.TempDir()}
+		if here, _ := os.Getwd(); slices.Contains(tc.make, contract.ProjectDir) && !slices.Contains(tc.make, "foreign") {
+			list, _ := json.Marshal(contract.Projects{Versioned: contract.Versioned{Version: contract.FileVersion}, Roots: []string{here}})
+			os.WriteFile(filepath.Join(k.Platform.(listed).state, "projects.json"), list, 0o600)
+		}
+		calls := ""
+		for _, name := range []string{"init", "open"} {
+			k.Handle(name, func(c *contract.Call) (any, error) {
+				if calls += name + " "; c.Caller.Kind != contract.Human || c.Caller.Where != contract.WhereTyped {
+					t.Errorf("%s: %s was run as %+v", tc.name, name, c.Caller)
+				}
+				return nil, nil
+			})
+		}
+		out, errw, exit := call(t, k, tc.who)
+		if tc.calls == "refused" {
+			if calls != "" || exit != contract.ExitEnv || !strings.Contains(errw, "init --adopt") {
+				t.Errorf("%s: ran %q, exit %d, said\n%s", tc.name, calls, exit, errw)
+			}
+		} else if calls != tc.calls || exit != 0 || (calls == "") != strings.Contains(out, "the guide that matches") {
+			t.Errorf("%s: ran %q, exit %d, printed\n%s", tc.name, calls, exit, out)
+		}
+	}
+	// What init refuses stops it: the window is not opened over a refusal.
+	dir := t.TempDir()
+	t.Chdir(dir)
+	os.Mkdir(filepath.Join(dir, ".git"), 0o700)
+	k, store := world(t)
+	k.Store = placed{store}
+	k.Handle("init", func(*contract.Call) (any, error) { return nil, refuse("shared_folder", "no") })
+	opened := seen(k, "open")
+	if _, errw, exit := call(t, k, person); exit != contract.ExitRefused || errw != "no\n" || opened.Command != nil {
+		t.Errorf("a refused init: exit %d, %q, opened %v", exit, errw, opened.Command != nil)
 	}
 }
