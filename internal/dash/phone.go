@@ -183,8 +183,8 @@ func (s *server) knock(w http.ResponseWriter, r *http.Request, srv *contract.Ser
 	p := s.pair
 	open := p.hash != "" && now.Sub(p.at) < pairLife
 	switch {
-	case open && p.hash == hash:
-	case open:
+	case open && p.hash == hash && p.who == who:
+	case open: // also the asker's secret under another name: a number is shown to who asked for it
 		no = said("pairing_busy", "Another phone is being paired. Try again in two minutes.")
 	case p.hash == hash:
 		s.pair, code = pairing{}, http.StatusForbidden
