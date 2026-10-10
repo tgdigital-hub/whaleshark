@@ -260,7 +260,11 @@ func TestAScriptedSessionOfAHundredCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer script.Close()
-	pid := regexp.MustCompile(`pid \d+`)
+	// What a pane's program is doing is found on a clock of its own, so the
+	// log leaves out the word for it, the events that only bring it, and
+	// the events' numbers, which the test itself holds to their order.
+	pid, own := regexp.MustCompile(`pid \d+`), regexp.MustCompile(`,?"status":"[a-z]+"|"seq":\d+,?`)
+	terminal := map[string]string{}
 	var log bytes.Buffer
 	seen, count := uint64(0), 0
 	for lines := bufio.NewScanner(script); lines.Scan(); {
@@ -293,7 +297,7 @@ func TestAScriptedSessionOfAHundredCalls(t *testing.T) {
 				reply.Snapshot.At = time.Time{}
 			}
 			body, _ := json.Marshal(reply)
-			fmt.Fprintf(&log, "  < %s\n", pid.ReplaceAll(body, []byte("pid N")))
+			fmt.Fprintf(&log, "  < %s\n", own.ReplaceAll(pid.ReplaceAll(body, []byte("pid N")), nil))
 		}
 		var last uint64
 		r.locked(func() bool { last = r.k.seq; return true })
@@ -304,8 +308,12 @@ func TestAScriptedSessionOfAHundredCalls(t *testing.T) {
 			}
 			seen = ev.Seq
 			contract.Apply(picture, *ev)
+			if was := terminal[ev.Pane.ID]; ev.Kind == contract.EvState && was == ev.Pane.Terminal {
+				continue
+			}
+			terminal[ev.Pane.ID] = ev.Pane.Terminal
 			body, _ := json.Marshal(ev)
-			fmt.Fprintf(&log, "  * %s\n", body)
+			fmt.Fprintf(&log, "  * %s\n", own.ReplaceAll(body, nil))
 		}
 	}
 	if count < 100 {

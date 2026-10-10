@@ -178,8 +178,10 @@ func TestAWindowIsServed(t *testing.T) {
 	if reply := c.call(contract.WireCall{Op: contract.OpNotify, Title: "T3", Text: "needs \x1b[31myou", Sound: true}); reply.Text != contract.NotifyShown {
 		t.Errorf("a notice with two windows: %+v", reply)
 	}
-	w.shows("T3: needs you")
-	small.shows("T3: needs you")
+	w.shows("┐")
+	w.shows("T3")
+	w.shows("needs you")
+	small.shows("needs you")
 	r.until("the bell", func() bool { w.mu.Lock(); defer w.mu.Unlock(); return w.bells == 1 })
 	small.conn.Close()
 	w.conn.Close()

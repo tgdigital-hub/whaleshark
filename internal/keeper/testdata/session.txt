@@ -50,11 +50,11 @@
 {"op":"swap","pane":"p1","target":"p2"}
 {"op":"run","pane":"p3"}
 {"op":"dance"}
-{"op":"agent-start","name":"quiet otter","kind":"claude","pane":"p1"}
-{"op":"prompt","name":"quiet otter","text":"read the task"}
-{"op":"point","pane":"p1","pointer":"mail"}
-{"op":"hook","kind":"Stop","pane":"p1"}
-{"op":"overlay","argv":["whaleshark","ui","run","actions"],"w":0.5,"h":0.5}
+{"op":"agent-start","name":"quiet otter","kind":"claude","pane":"p77"}
+{"op":"prompt","name":"nobody","text":"read the task"}
+{"op":"point","pane":"p77","pointer":"mail"}
+{"op":"hook","kind":"Stop","pane":"p77"}
+{"op":"overlay"}
 {"op":"notify","title":"T3","text":"needs you","sound":true}
 
 # A program of ours in a pane, in place of the shell.
@@ -132,3 +132,15 @@
 {"op":"snapshot"}
 {"op":"tab-create","label":"start again"}
 {"op":"status"}
+
+# An agent in a pane, a pane drawn over the tab, and the calls an agent may
+# not make from its own pane.
+{"op":"agent-start","name":"quiet otter","kind":"claude","pane":"p9","argv":["--model","small"]}
+{"op":"overlay","argv":["whaleshark","ui","run","actions"],"w":0.5,"h":0.5}
+{"op":"overlay","argv":["whaleshark","ui","run","actions"]}
+{"op":"pane-focus","pane":"p1","from":"p9"}
+{"op":"pane-close","pane":"p9","from":"p9"}
+{"op":"prompt","name":"quiet otter","text":"read this","from":"p9"}
+{"op":"snapshot","from":"p9"}
+{"op":"pane-close","pane":"p10"}
+{"op":"snapshot"}

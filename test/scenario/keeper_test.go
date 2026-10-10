@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -16,6 +17,8 @@ import (
 // session makes one round of calls through the interface and writes down
 // every answer and, at the end, every event, without what differs from one
 // start of a keeper to the next: the time, the instance, a terminal's id.
+// What a pane's program is doing the keeper finds on a clock of its own, so
+// the word for it and the events that only bring it are left out too.
 func session(t *testing.T, terms contract.Terminals, root string) []string {
 	t.Helper()
 	var log []string
@@ -23,7 +26,7 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 		log = append(log, strings.TrimSpace(fmt.Sprintf("%s: %s %q", what, fmt.Sprint(answer...), contract.ErrCode(err))))
 	}
 	show := func(p contract.Pane) string {
-		return fmt.Sprintf("%s in %s %q %s focused=%v", p.ID, p.Tab, p.Label, p.Status, p.Focused)
+		return fmt.Sprintf("%s in %s %q focused=%v", p.ID, p.Tab, p.Label, p.Focused)
 	}
 	picture := func(what string, s *contract.Snapshot, err error) {
 		if say(what, err); s != nil {
@@ -90,7 +93,15 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 			if e.Seq != first.Seq+1 {
 				t.Fatalf("event %d came after event %d", e.Seq, first.Seq)
 			}
-			log = append(log, fmt.Sprintf("event %s: %s", e.Kind, show(e.Pane)))
+			was := ""
+			for _, p := range first.Panes {
+				if p.ID == e.Pane.ID {
+					was = p.Terminal
+				}
+			}
+			if e.Kind != contract.EvState || e.Pane.Terminal != was {
+				log = append(log, fmt.Sprintf("event %s: %s", e.Kind, show(e.Pane)))
+			}
 			if contract.Apply(first, e); e.Seq < last.Seq {
 				continue
 			}
@@ -104,8 +115,8 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 
 // The double answers as the keeper does: the same calls, made through the
 // adapter to the real keeper and to the double, give the same answers and
-// the same events. And the calls the keeper does not answer yet are exactly
-// the ones the scenarios with agents wait for.
+// the same events. And the keeper answers every call of the interface: none
+// is left that it has not built.
 func TestTheDoubleAnswersAsTheKeeper(t *testing.T) {
 	p := PrepareOn(t, Keeper, nil, nil)
 	real := session(t, p.Kit.Terms, p.Root)
@@ -127,8 +138,8 @@ func TestTheDoubleAnswersAsTheKeeper(t *testing.T) {
 		contract.OpOverlay:    p.Kit.Terms.Overlay([]string{"whaleshark", "ask"}, 0.5, 0.5),
 		contract.OpHook:       contract.ErrOf(hook),
 	} {
-		if err != contract.ErrNotBuilt {
-			t.Errorf("%s is answered by the keeper now (%v): the scenarios that wait for it can be played on it", call, err)
+		if errors.Is(err, contract.ErrNotBuilt) {
+			t.Errorf("%s is not answered by the keeper", call)
 		}
 	}
 }

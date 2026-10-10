@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -17,6 +16,8 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
+	"github.com/tgdigital-hub/whaleshark/internal/overlay"
+	"github.com/tgdigital-hub/whaleshark/internal/restore"
 	"github.com/tgdigital-hub/whaleshark/internal/screen"
 )
 
@@ -45,21 +46,26 @@ type Keeper struct {
 	done     chan struct{} // closed when the keeper starts to stop
 	stopped  chan struct{} // closed when it has
 
-	mu     sync.Mutex
-	lay    layout.Layout
-	tabs   map[string][]string // a tab's own variables
-	panes  map[string]*pane
-	conns  map[net.Conn]struct{}
-	subs   map[chan contract.WireReply]reader
-	wins   []*window
-	last   *window // the window used last, whose size the panes have
-	seq    uint64
-	nTab   int
-	nPane  int
-	nTerm  int
-	focus  string // the pane with the keys
-	note   string // the notice on the tab row, shown from noteAt
-	noteAt time.Time
+	mu    sync.Mutex
+	lay   layout.Layout
+	tabs  map[string][]string // a tab's own variables
+	panes map[string]*pane
+	conns map[net.Conn]struct{}
+	subs  map[chan contract.WireReply]reader
+	wins  []*window
+	last  *window // the window used last, whose size the panes have
+	seq   uint64
+	nTab  int
+	nPane int
+	nTerm int
+	focus string // the pane with the keys
+	pop   overlay.Popup
+	over  *pane             // the pane drawn over the tab that shows, if one is
+	overW float64           // its size as it was asked for
+	overH float64           //
+	set   contract.Settings // the person's own, read again when their file changes
+	saver *restore.Saver    // nil beside a layout file of a newer program
+	lost  error             // what the layout file could not be read for
 }
 
 // open makes the keeper of this login: the one lock, the socket file that
@@ -104,14 +110,13 @@ func open(kit *contract.Kit) (*Keeper, error) {
 	}
 	id := make([]byte, 6)
 	rand.Read(id)
-	k := &Keeper{kit: kit, dirs: dirs, instance: hex.EncodeToString(id), version: "dev", listener: ln, unlock: unlock,
+	k := &Keeper{kit: kit, dirs: dirs, instance: hex.EncodeToString(id), version: contract.Version, listener: ln, unlock: unlock,
 		done: make(chan struct{}), stopped: make(chan struct{}), tabs: map[string][]string{}, panes: map[string]*pane{},
 		conns: map[net.Conn]struct{}{}, subs: map[chan contract.WireReply]reader{}}
-	// The contract has no name for the program's version; the build has one.
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
-		k.version = info.Main.Version
-	}
 	screen.Version = k.version
+	k.set = k.settings()
+	k.back()
+	go k.notice()
 	return k, nil
 }
 
@@ -139,10 +144,16 @@ func (k *Keeper) stop() {
 	k.once.Do(func() {
 		close(k.done)
 		k.listener.Close()
+		// The last save first, while the panes are there: a stop on purpose
+		// is how an upgrade goes, and everything must come back after it.
+		if k.saver != nil {
+			k.saver.Stop()
+		}
 		k.mu.Lock()
 		var all []contract.Pty
 		for _, p := range k.panes {
 			all = append(all, p.tty)
+			p.quit()
 		}
 		k.panes = map[string]*pane{}
 		k.mu.Unlock()
@@ -373,11 +384,20 @@ func (k *Keeper) changed() {
 	if now != k.focus {
 		if p := k.panes[k.focus]; p != nil {
 			p.rec.Focused = false
+			p.told(false)
 		}
 		k.focus = now
 		if p := k.panes[now]; p != nil {
 			p.rec.Focused = true
+			p.told(true)
 			k.emit(contract.EvFocus, p.rec)
+		}
+	}
+	k.lay.Over = ""
+	if o := k.over; o != nil {
+		k.lay.Over, k.lay.OverAt = o.rec.ID, k.overAt()
+		if at := k.lay.OverAt; at.W > 0 && at.H > 0 {
+			o.size(at.W, at.H)
 		}
 	}
 	for _, t := range k.lay.Tabs {
@@ -389,9 +409,27 @@ func (k *Keeper) changed() {
 		}
 	}
 	for _, p := range k.panes {
-		p.shown.Store(tab != nil && p.rec.Tab == tab.ID)
+		p.shown.Store(tab != nil && p.rec.Tab == tab.ID || p == k.over)
 	}
+	k.saved()
 	k.wake()
+}
+
+// overAt is the inside of the pane drawn over the tab, in the window used last.
+func (k *Keeper) overAt() layout.Rect {
+	r := overlay.Place(k.lay.W, k.lay.H, k.overW, k.overH)
+	return layout.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
+}
+
+// popup shows words in the corner of every window for a few seconds.
+func (k *Keeper) popup(title, body string) {
+	k.pop.Show(title, body, true, 1, time.Now())
+	k.wake()
+	time.AfterFunc(overlay.For, func() {
+		k.mu.Lock()
+		k.wake()
+		k.mu.Unlock()
+	})
 }
 
 // wake has every window drawn again, as soon as it can take a frame.

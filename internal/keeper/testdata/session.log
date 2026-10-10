@@ -5,12 +5,12 @@
 {"op":"status"}
   < {"text":"pid N, 0 tabs, 0 panes, 0 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[]}}
 {"op":"tab-create","label":"fix login bug","cwd":"/work/app","env":["COLOUR=teal"]}
-  < {"pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}}
-  * {"seq":1,"kind":"pane-opened","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
-  * {"seq":2,"kind":"focus","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}}
+  < {"pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true}}
+  * {"kind":"pane-opened","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"}}
+  * {"kind":"focus","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"tab-create","label":"write the tests","cwd":"/work/site"}
-  < {"pane":{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"write the tests","cwd":"/work/site","status":"unknown"}}
-  * {"seq":3,"kind":"pane-opened","pane":{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"write the tests","cwd":"/work/site","status":"unknown"}}
+  < {"pane":{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"write the tests","cwd":"/work/site"}}
+  * {"kind":"pane-opened","pane":{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"write the tests","cwd":"/work/site"}}
 {"op":"screen","pane":"p1"}
   < {"text":"the-shell in \"/work/app\" at 80x24 pane=p1 colour=teal outer=\"\""}
 {"op":"screen","pane":"p2"}
@@ -18,45 +18,49 @@
 {"op":"size","pane":"p1"}
   < {"w":80,"h":24}
 {"op":"split","pane":"p1","dir":"right","ratio":0.7}
-  < {"pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
-  * {"seq":4,"kind":"pane-opened","pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
+  < {"pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app"}}
+  * {"kind":"pane-opened","pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app"}}
 {"op":"split","pane":"p1","dir":"down","ratio":4}
-  < {"pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
-  * {"seq":5,"kind":"pane-opened","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
+  < {"pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app"}}
+  * {"kind":"pane-opened","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app"}}
 {"op":"screen","pane":"p3"}
   < {"text":"the-shell in \"/work/app\" at 80x24 pane=p3 colour=teal outer=\"\""}
 {"op":"screen","pane":"p4"}
   < {"text":"the-shell in \"/work/app\" at 80x24 pane=p4 colour=teal outer=\"\""}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":5,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"write the tests","cwd":"/work/site","status":"unknown"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","status":"unknown"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"write the tests","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app"},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app"}]}}
 {"op":"pane-focus","pane":"p1","dir":"right"}
-  < {"text":"p1"}
+  < {"text":"p3"}
+  * {"kind":"focus","pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"pane-focus","pane":"p3","dir":"right"}
-  < {"text":"p1"}
+  < {"text":"p3"}
 {"op":"pane-focus","pane":"p3","dir":"left"}
   < {"text":"p1"}
+  * {"kind":"focus","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"pane-focus","pane":"p1","dir":"down"}
-  < {"text":"p1"}
+  < {"text":"p4"}
+  * {"kind":"focus","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"pane-focus","pane":"p4","dir":"up"}
   < {"text":"p1"}
+  * {"kind":"focus","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"pane-focus","pane":"p4"}
   < {"text":"p4"}
-  * {"seq":6,"kind":"focus","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}}
+  * {"kind":"focus","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"pane-focus","pane":"p2"}
   < {"text":"p2"}
-  * {"seq":7,"kind":"focus","pane":{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"write the tests","cwd":"/work/site","focused":true,"status":"unknown"}}
+  * {"kind":"focus","pane":{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"write the tests","cwd":"/work/site","focused":true}}
 {"op":"pane-focus","pane":"p1","dir":"sideways"}
   < {"text":"p2"}
 {"op":"tab-focus","tab":"t1"}
   < {}
-  * {"seq":8,"kind":"focus","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}}
+  * {"kind":"focus","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"tab-focus","tab":"t1"}
   < {}
 {"op":"tab-rename","tab":"t2","label":"tests for login"}
   < {}
-  * {"seq":9,"kind":"renamed","pane":{"pane":"","tab":"t2","workspace":"","terminal":"","label":"tests for login","cwd":"","status":""}}
+  * {"kind":"renamed","pane":{"pane":"","tab":"t2","workspace":"","terminal":"","label":"tests for login","cwd":"","status":""}}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":9,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site","status":"unknown"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.3","label":"fix login bug","cwd":"/work/app"},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}]}}
 {"op":"tab-rename","tab":"t77","label":"nobody"}
   < {"err":"no such pane or agent"}
 {"op":"tab-focus","tab":"t77"}
@@ -89,27 +93,27 @@
   < {"err":"failed","message":"no program to run"}
 {"op":"dance"}
   < {"err":"failed","message":"the keeper has no call \"dance\""}
-{"op":"agent-start","name":"quiet otter","kind":"claude","pane":"p1"}
-  < {"err":"not built yet"}
-{"op":"prompt","name":"quiet otter","text":"read the task"}
-  < {"err":"not built yet"}
-{"op":"point","pane":"p1","pointer":"mail"}
-  < {"err":"not built yet"}
-{"op":"hook","kind":"Stop","pane":"p1"}
-  < {"err":"not built yet"}
-{"op":"overlay","argv":["whaleshark","ui","run","actions"],"w":0.5,"h":0.5}
-  < {"err":"not built yet"}
+{"op":"agent-start","name":"quiet otter","kind":"claude","pane":"p77"}
+  < {"err":"no such pane or agent"}
+{"op":"prompt","name":"nobody","text":"read the task"}
+  < {"err":"no such pane or agent"}
+{"op":"point","pane":"p77","pointer":"mail"}
+  < {"err":"no such pane or agent"}
+{"op":"hook","kind":"Stop","pane":"p77"}
+  < {"err":"no such pane or agent"}
+{"op":"overlay"}
+  < {"err":"failed","message":"no program to draw over the tab, or one is there already"}
 {"op":"notify","title":"T3","text":"needs you","sound":true}
   < {"text":"no_window","delivery":"on"}
 {"op":"swap","pane":"p1","target":"p3"}
   < {}
 {"op":"run","pane":"p3","argv":["whaleshark","ui","run","fleet"]}
   < {}
-  * {"seq":10,"kind":"state","pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
+  * {"kind":"state","pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true}}
 {"op":"screen","pane":"p3"}
   < {"text":"whaleshark ui run fleet in \"/work/app\" at 80x24 pane=p3 colour=teal outer=\"\""}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":10,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site","status":"unknown"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}]}}
 !fail
 {"op":"run","pane":"p4","argv":["missing"]}
   < {"err":"failed","message":"the program is not there"}
@@ -122,10 +126,10 @@
 {"op":"split","pane":"p2","dir":"left"}
   < {"err":"failed","message":"the program is not there"}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":10,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site","status":"unknown"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}]}}
 !window 120 40
 {"op":"status"}
-  < {"text":"pid N, 2 tabs, 4 panes, 1 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":10,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site","status":"unknown"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}]}}
+  < {"text":"pid N, 2 tabs, 4 panes, 1 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}]}}
 {"op":"size","pane":"p1"}
   < {"w":36,"h":38}
 {"op":"size","pane":"p3"}
@@ -141,11 +145,11 @@
 {"op":"split","pane":"p4","dir":"down","ratio":0.5}
   < {"err":"failed","message":"no room for another pane there"}
 {"op":"split","pane":"p2","dir":"left","ratio":36}
-  < {"pane":{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site","status":"unknown"}}
-  * {"seq":11,"kind":"pane-opened","pane":{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site","status":"unknown"}}
+  < {"pane":{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site"}}
+  * {"kind":"pane-opened","pane":{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site"}}
 {"op":"split","pane":"p2","dir":"up","ratio":0.25}
-  < {"pane":{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","status":"unknown"}}
-  * {"seq":12,"kind":"pane-opened","pane":{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","status":"unknown"}}
+  < {"pane":{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site"}}
+  * {"kind":"pane-opened","pane":{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site"}}
 {"op":"size","pane":"p2"}
   < {"w":83,"h":9}
 {"op":"size","pane":"p5"}
@@ -172,10 +176,10 @@
   < {"err":"failed","message":"no such direction"}
 {"op":"pane-focus","pane":"p2","dir":"left"}
   < {"text":"p5"}
-  * {"seq":13,"kind":"focus","pane":{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site","focused":true,"status":"unknown"}}
+  * {"kind":"focus","pane":{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site","focused":true}}
 {"op":"pane-focus","pane":"p2","dir":"up"}
   < {"text":"p6"}
-  * {"seq":14,"kind":"focus","pane":{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","focused":true,"status":"unknown"}}
+  * {"kind":"focus","pane":{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","focused":true}}
 {"op":"pane-focus","pane":"p2","dir":"down"}
   < {"text":"p6"}
 {"op":"swap","pane":"p2","target":"p6"}
@@ -192,7 +196,7 @@
   < {}
 !window 60 20
 {"op":"status"}
-  < {"text":"pid N, 2 tabs, 6 panes, 2 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":14,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site","status":"unknown"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site","status":"unknown"},{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","focused":true,"status":"unknown"}]}}
+  < {"text":"pid N, 2 tabs, 6 panes, 2 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app"},{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site"},{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","focused":true}]}}
 {"op":"size","pane":"p2"}
   < {"w":35,"h":10}
 {"op":"size","pane":"p5"}
@@ -203,47 +207,68 @@
   < {"text":"the-shell in \"/work/site\nane=p5 colour= outer=\"\"\nsize 24x38\nsize 24x18"}
 {"op":"pane-close","pane":"p4"}
   < {}
-  * {"seq":15,"kind":"pane-closed","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
+  * {"kind":"pane-closed","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app"}}
 {"op":"pane-close","pane":"p4"}
   < {"err":"no such pane or agent"}
 {"op":"size","pane":"p1"}
   < {"w":18,"h":18}
 !end p3
-  * {"seq":16,"kind":"pane-closed","pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
+  * {"kind":"pane-closed","pane":{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true}}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":16,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site","status":"unknown"},{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site","status":"unknown"},{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","focused":true,"status":"unknown"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site"},{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","focused":true}]}}
 {"op":"tab-create","label":"third tab","cwd":"/work/app","env":["COLOUR=coral"]}
-  < {"pane":{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app","status":"unknown"}}
-  * {"seq":17,"kind":"pane-opened","pane":{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app","status":"unknown"}}
+  < {"pane":{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app"}}
+  * {"kind":"pane-opened","pane":{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app"}}
 {"op":"screen","pane":"p7"}
   < {"text":"the-shell in \"/work/app\" at 60x18 pane=p7 colour=coral outer\n=\"\""}
 {"op":"split","pane":"p7","dir":"up","ratio":0.5}
-  < {"pane":{"pane":"p8","tab":"t3","workspace":"","terminal":"one.9","label":"third tab","cwd":"/work/app","status":"unknown"}}
-  * {"seq":18,"kind":"pane-opened","pane":{"pane":"p8","tab":"t3","workspace":"","terminal":"one.9","label":"third tab","cwd":"/work/app","status":"unknown"}}
+  < {"pane":{"pane":"p8","tab":"t3","workspace":"","terminal":"one.9","label":"third tab","cwd":"/work/app"}}
+  * {"kind":"pane-opened","pane":{"pane":"p8","tab":"t3","workspace":"","terminal":"one.9","label":"third tab","cwd":"/work/app"}}
 {"op":"tab-focus","tab":"t3"}
   < {}
-  * {"seq":19,"kind":"focus","pane":{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app","focused":true,"status":"unknown"}}
+  * {"kind":"focus","pane":{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app","focused":true}}
 {"op":"tab-close","tab":"t2"}
   < {}
-  * {"seq":20,"kind":"tab-closed","pane":{"pane":"","tab":"t2","workspace":"","terminal":"","label":"","cwd":"","status":""}}
+  * {"kind":"tab-closed","pane":{"pane":"","tab":"t2","workspace":"","terminal":"","label":"","cwd":"","status":""}}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":20,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","status":"unknown"},{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app","focused":true,"status":"unknown"},{"pane":"p8","tab":"t3","workspace":"","terminal":"one.9","label":"third tab","cwd":"/work/app","status":"unknown"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app","focused":true},{"pane":"p8","tab":"t3","workspace":"","terminal":"one.9","label":"third tab","cwd":"/work/app"}]}}
 {"op":"pane-close","pane":"p8"}
   < {}
-  * {"seq":21,"kind":"pane-closed","pane":{"pane":"p8","tab":"t3","workspace":"","terminal":"one.9","label":"third tab","cwd":"/work/app","status":"unknown"}}
+  * {"kind":"pane-closed","pane":{"pane":"p8","tab":"t3","workspace":"","terminal":"one.9","label":"third tab","cwd":"/work/app"}}
 !end p7
-  * {"seq":22,"kind":"pane-closed","pane":{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app","focused":true,"status":"unknown"}}
-  * {"seq":23,"kind":"focus","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}}
+  * {"kind":"pane-closed","pane":{"pane":"p7","tab":"t3","workspace":"","terminal":"one.8","label":"third tab","cwd":"/work/app","focused":true}}
+  * {"kind":"focus","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":23,"panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true}]}}
 {"op":"pane-close","pane":"p1"}
   < {}
-  * {"seq":24,"kind":"pane-closed","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true,"status":"unknown"}}
+  * {"kind":"pane-closed","pane":{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app","focused":true}}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":24,"panes":[]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[]}}
 {"op":"tab-create","label":"start again"}
-  < {"pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true,"status":"unknown"}}
-  * {"seq":25,"kind":"pane-opened","pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","status":"unknown"}}
-  * {"seq":26,"kind":"focus","pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true,"status":"unknown"}}
+  < {"pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true}}
+  * {"kind":"pane-opened","pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":""}}
+  * {"kind":"focus","pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true}}
 {"op":"status"}
-  < {"text":"pid N, 1 tabs, 1 panes, 2 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","seq":26,"panes":[{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true,"status":"unknown"}]}}
+  < {"text":"pid N, 1 tabs, 1 panes, 2 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true}]}}
+{"op":"agent-start","name":"quiet otter","kind":"claude","pane":"p9","argv":["--model","small"]}
+  < {"err":"failed","message":"the agent did not start in time"}
+  * {"kind":"state","pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.11","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}}
+{"op":"overlay","argv":["whaleshark","ui","run","actions"],"w":0.5,"h":0.5}
+  < {}
+  * {"kind":"pane-opened","pane":{"pane":"p10","tab":"t4","workspace":"","terminal":"one.12","label":"start again","cwd":"","ours":true}}
+{"op":"overlay","argv":["whaleshark","ui","run","actions"]}
+  < {"err":"failed","message":"no program to draw over the tab, or one is there already"}
+{"op":"pane-focus","pane":"p1","from":"p9"}
+  < {"err":"failed","message":"pane-focus is not a call for an agent to make from its pane"}
+{"op":"pane-close","pane":"p9","from":"p9"}
+  < {"err":"failed","message":"pane-close is not a call for an agent to make from its pane"}
+{"op":"prompt","name":"quiet otter","text":"read this","from":"p9"}
+  < {"err":"failed","message":"prompt is not a call for an agent to make from its pane"}
+{"op":"snapshot","from":"p9"}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p10","tab":"t4","workspace":"","terminal":"one.12","label":"start again","cwd":"","ours":true},{"pane":"p9","tab":"t4","workspace":"","terminal":"one.11","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}]}}
+{"op":"pane-close","pane":"p10"}
+  < {}
+  * {"kind":"pane-closed","pane":{"pane":"p10","tab":"t4","workspace":"","terminal":"one.12","label":"start again","cwd":"","ours":true}}
+{"op":"snapshot"}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p9","tab":"t4","workspace":"","terminal":"one.11","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}]}}

@@ -6,12 +6,14 @@ import (
 	"io"
 	"slices"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/input"
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
+	"github.com/tgdigital-hub/whaleshark/internal/overlay"
+	"github.com/tgdigital-hub/whaleshark/internal/pick"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/theme"
 )
@@ -20,15 +22,36 @@ import (
 const frameGap = 16 * time.Millisecond
 
 // window is one person's terminal, as the keeper draws it. w and h are its
-// size, under the keeper's lock; the grid of t is its drawing goroutine's.
+// size and in its keys on their way in, under the keeper's lock; the grid
+// of t is its drawing goroutine's.
 type window struct {
-	link *link
-	t    *term.Term
-	w, h int
-	look layout.Look
-	wake chan struct{}
-	gone chan struct{}
-	bell atomic.Bool
+	link  *link
+	t     *term.Term
+	w, h  int
+	look  layout.Look
+	wake  chan struct{}
+	gone  chan struct{}
+	in    input.In
+	sys   string              // the system the person sits at
+	env   func(string) string // what the window said of its terminal
+	board pick.Board          // the person's clipboard, as this window reaches it
+
+	mu   sync.Mutex
+	tail []byte // what follows the next frame: the bell, a notice, a copy
+}
+
+// later sends a window bytes of the keeper's own making after its next
+// frame, never in the middle of one. Bells in a row are one.
+func (w *window) later(b []byte) {
+	w.mu.Lock()
+	if string(b) != "\a" || !strings.HasSuffix(string(w.tail), "\a") {
+		w.tail = append(w.tail, b...)
+	}
+	w.mu.Unlock()
+	select {
+	case w.wake <- struct{}{}:
+	default:
+	}
 }
 
 func side(v float64) int { return min(max(int(v), 1), maxSide) }
@@ -59,10 +82,16 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	}
 	bytes, feed := io.Pipe()
 	w := &window{link: l, w: side(c.W), h: side(c.H), wake: make(chan struct{}, 1), gone: make(chan struct{}),
-		look: layout.Look{Text: in("text"), Dim: in("dim"), Frame: in("frame"), Accent: in("accent"), Plain: !known}}
+		look: layout.Look{Text: in("text"), Dim: in("dim"), Frame: in("frame"), Accent: in("accent"), Plain: !known},
+		sys:  c.System, env: env}
+	// Only a window that says it is on the keeper's own computer, or comes
+	// through connect, is at a clipboard the keeper can be sure of.
+	w.board = pick.Board{System: c.System, Connect: c.Reach == contract.ReachConnect,
+		Remote: c.Reach != contract.ReachLocal && c.Reach != contract.ReachConnect}
 	w.t = term.New(bytes, l, w.w, w.h, term.ModeOf(env))
 	w.t.Sync = known
 	k.mu.Lock()
+	w.in.Keys = input.New(k.set, w.sys)
 	k.wins = append(k.wins, w)
 	k.use(w)
 	if len(k.lay.Tabs) == 0 {
@@ -120,8 +149,12 @@ func (w *window) draw(k *Keeper) {
 		began := time.Now()
 		k.compose(w)
 		err := w.t.Flush()
-		if err == nil && w.bell.Swap(false) {
-			_, err = w.link.Write([]byte{'\a'})
+		w.mu.Lock()
+		tail := w.tail
+		w.tail = nil
+		w.mu.Unlock()
+		if err == nil && len(tail) > 0 {
+			_, err = w.link.Write(tail)
 		}
 		if err != nil {
 			w.link.conn.Close()
@@ -132,9 +165,11 @@ func (w *window) draw(k *Keeper) {
 }
 
 // compose draws the tab that shows into a window's grid: the tab row and
-// the dividing lines, each pane's picture in its place, and the cursor of
-// the pane with the keys. A window of another size than the panes have gets
-// the same picture cut or padded, and words on the tab row that say so.
+// the dividing lines, each pane as the person looks at it, the name of a
+// pane program of ours in the line above it, where no program can write,
+// the pane drawn over the tab, the cursor of whichever has the keys, and
+// the pop-up. A window of another size than the panes have gets the same
+// picture cut or padded, and words on the tab row that say so.
 func (k *Keeper) compose(w *window) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -146,132 +181,35 @@ func (k *Keeper) compose(w *window) {
 	}
 	k.lay.Draw(g.Grid, w.look)
 	g.CurShown = false
+	// The cells are the screen's own until its next write, so they are
+	// copied under the pane's lock.
+	paint := func(p *pane, at layout.Rect, keys bool) {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if x, y, on := p.pick.Paint(g.Grid, at, p.scr, w.look.Accent); on && keys {
+			g.CurX, g.CurY, g.CurShown = at.X+x, at.Y+y, true
+		}
+	}
 	if tab := k.shown(); tab != nil {
 		for _, at := range k.lay.Places(tab) {
 			p := k.panes[at.Pane]
 			if p == nil {
 				continue
 			}
-			// The cells are the screen's own until its next write, so
-			// they are copied under the pane's lock.
-			p.mu.Lock()
-			pic := p.scr.Picture()
-			g.Paint(at.X, at.Y, at.W, at.H, pic)
-			if at.Pane == tab.Focus && pic.CurShown && pic.CurX < at.W && pic.CurY < at.H {
-				g.CurX, g.CurY, g.CurShown = at.X+pic.CurX, at.Y+pic.CurY, true
+			paint(p, at.Rect, at.Pane == tab.Focus && k.over == nil)
+			if p.rec.Ours && at.Y > 0 && at.W > 4 {
+				g.Put(at.X+1, at.Y-1, at.W-2, " whaleshark "+p.argv[3]+" ", w.look.Accent)
 			}
-			p.mu.Unlock()
 		}
 	}
-	words := ""
-	if time.Since(k.noteAt) < noteFor {
-		words = k.note
-	} else if w.w != k.lay.W || w.h != k.lay.H {
-		words = fmt.Sprintf("sized for another window, %d by %d", k.lay.W, k.lay.H)
+	if o := k.over; o != nil {
+		paint(o, overlay.Box(g.Grid, w.look, overlay.Place(w.w, w.h, k.overW, k.overH), strings.Join(o.argv, " ")), true)
 	}
-	if words != "" {
-		st := w.look.Accent
+	k.pop.Draw(g.Grid, w.look, time.Now())
+	if w.w != k.lay.W || w.h != k.lay.H {
+		words, st := fmt.Sprintf(" sized for another window, %d by %d ", k.lay.W, k.lay.H), w.look.Accent
 		st.Reverse = true
-		x := max(g.W-term.Width(words)-2, 0)
-		g.Put(x, 0, g.W-x, " "+words+" ", st)
+		x := max(g.W-term.Width(words), 0)
+		g.Put(x, 0, g.W-x, words, st)
 	}
-}
-
-// What follows stands in for the input package until it is built: keys and
-// pastes go to the pane with the keys in the plain form every program
-// reads, and the left button shows a tab, gives a pane the keys or drags a
-// dividing line. Nothing is sent in the form a program asked for yet.
-
-// keys are the keys that are no character, as a terminal sends them.
-var keys = map[string]string{"enter": "\r", "tab": "\t", "esc": "\x1b", "space": " ", "backspace": "\x7f",
-	"up": "\x1b[A", "down": "\x1b[B", "right": "\x1b[C", "left": "\x1b[D", "home": "\x1b[H", "end": "\x1b[F",
-	"insert": "\x1b[2~", "delete": "\x1b[3~", "pageup": "\x1b[5~", "pagedown": "\x1b[6~"}
-
-// typed is a key press as bytes for a program; none for a key held with Cmd.
-func typed(ev term.Event) string {
-	if ev.Rune != 0 {
-		return string(ev.Rune)
-	}
-	key, ctrl := strings.CutPrefix(ev.Key, "ctrl+")
-	key, alt := strings.CutPrefix(key, "alt+")
-	key, shift := strings.CutPrefix(key, "shift+")
-	out := keys[key]
-	switch {
-	case shift && key == "tab":
-		out = "\x1b[Z"
-	case ctrl && key == "space":
-		out = "\x00"
-	case ctrl && len(key) == 1 && key[0] >= '@':
-		out = string(rune(key[0] & 0x1f))
-	case out == "" && utf8.RuneCountInString(key) == 1:
-		out = key
-	}
-	if alt && out != "" {
-		out = "\x1b" + out
-	}
-	return out
-}
-
-// input takes what a window's terminal reported, until its input ends.
-func (k *Keeper) input(w *window) {
-	var drag layout.Hit
-	for ev := range w.t.Events {
-		out := ""
-		k.mu.Lock()
-		switch ev.Kind {
-		case term.End:
-			k.mu.Unlock()
-			return
-		case term.KeyPress:
-			k.use(w)
-			out = typed(ev)
-		case term.Paste:
-			// No program is given marks yet, so a line break is Enter.
-			k.use(w)
-			out = strings.NewReplacer("\r\n", "\r", "\n", "\r").Replace(ev.Text)
-		case term.Mouse:
-			if k.mouse(w, ev, &drag) {
-				k.changed()
-			}
-		}
-		var tty contract.Pty
-		if p := k.panes[k.focus]; p != nil && out != "" {
-			tty = p.tty
-		}
-		k.mu.Unlock()
-		if tty != nil {
-			io.WriteString(tty, out)
-		}
-	}
-}
-
-// mouse acts on the engine's own parts and reports whether anything moved.
-func (k *Keeper) mouse(w *window, ev term.Event, drag *layout.Hit) bool {
-	switch {
-	case ev.Action == term.Move && ev.Button == term.Left && drag.Kind == layout.OnLine:
-		k.lay.Drag(*drag, ev.X, ev.Y)
-		return true
-	case ev.Action != term.Press:
-		*drag = layout.Hit{}
-		return false
-	}
-	k.use(w)
-	wheel := map[term.Button]int{term.WheelUp: -1, term.WheelDown: 1}[ev.Button]
-	switch h := k.lay.At(ev.X, ev.Y); {
-	case wheel != 0 && ev.Y == 0:
-		k.lay.Wheel(wheel)
-	case ev.Button != term.Left:
-		return false
-	case h.Kind == layout.OnTab:
-		k.lay.Show(h.Tab)
-	case h.Kind == layout.OnMore:
-		k.lay.Wheel(h.Step)
-	case h.Kind == layout.OnLine:
-		*drag = h
-	case h.Kind == layout.OnPane:
-		k.lay.Focus(h.Pane)
-	default:
-		return false
-	}
-	return true
 }

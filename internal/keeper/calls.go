@@ -1,6 +1,7 @@
 package keeper
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -12,24 +13,55 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
-	"github.com/tgdigital-hub/whaleshark/internal/term"
+	"github.com/tgdigital-hub/whaleshark/internal/overlay"
 )
-
-// How long a notice stays on the tab row.
-const noteFor = 5 * time.Second
 
 // onPane are the calls that are about one pane, which must be there.
 var onPane = []string{contract.OpRun, contract.OpScreen, contract.OpSplit, contract.OpSwap, contract.OpResize,
-	contract.OpPaneClose, contract.OpSize, contract.OpPaneFocus}
+	contract.OpPaneClose, contract.OpSize, contract.OpPaneFocus, contract.OpAgentStart, contract.OpPoint, contract.OpHook}
+
+// fenced are the calls that are not for an agent the tool started to make
+// from its own pane: they type what the caller likes, start a program, move
+// the person's keys or close something. A fence against mistakes, no wall:
+// whoever runs as the login can leave the pane's name out.
+var fenced = []string{contract.OpPrompt, contract.OpRun, contract.OpAgentStart, contract.OpTabFocus, contract.OpPaneFocus,
+	contract.OpPaneClose, contract.OpTabClose, contract.OpSetKeys}
 
 // call answers one call. The terminals it ended are closed after the lock
-// is given back and before the answer goes out.
+// is given back and before the answer goes out; and an agent is waited for,
+// or typed at, by its Watcher with no lock held.
 func (k *Keeper) call(c contract.WireCall) (contract.WireReply, error) {
 	k.mu.Lock()
+	if q := k.panes[c.From]; q != nil && q.rec.Name != "" && slices.Contains(fenced, c.Op) {
+		k.mu.Unlock()
+		return contract.WireReply{}, fmt.Errorf("%s is not a call for an agent to make from its pane", c.Op)
+	}
 	r, gone, err := k.do(c)
+	p := k.panes[c.Pane]
+	if c.Op == contract.OpPrompt {
+		p = k.named(c.Name)
+	}
 	k.mu.Unlock()
 	end(gone)
+	if wait := time.Duration(c.Millis) * time.Millisecond; err != nil || p == nil {
+	} else if c.Op == contract.OpAgentStart {
+		err = p.watch.Ready(wait)
+	} else if c.Op == contract.OpPrompt {
+		err = p.watch.Prompt(c.Text, wait)
+	} else if c.Op == contract.OpPoint {
+		err = p.watch.Point(c.Pointer, c.Text)
+	}
 	return r, err
+}
+
+// named is the pane of the agent the tool gave a name.
+func (k *Keeper) named(name string) *pane {
+	for _, p := range k.panes {
+		if p.rec.Name == name && name != "" {
+			return p
+		}
+	}
+	return nil
 }
 
 func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.Pty, err error) {
@@ -50,6 +82,14 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 	case contract.OpStatus:
 		r.Snapshot = k.snapshot()
 		r.Text = fmt.Sprintf("pid %d, %d tabs, %d panes, %d windows", os.Getpid(), len(k.lay.Tabs), len(k.panes), len(k.wins))
+		if k.lost != nil {
+			r.Text += "; the layout file: " + k.lost.Error()
+		}
+		if k.saver == nil {
+			r.Text += "; nothing is saved"
+		} else if err := k.saver.Err(); err != nil {
+			r.Text += "; the layout was not saved: " + err.Error()
+		}
 	case contract.OpTabCreate:
 		k.nTab++
 		id := "t" + strconv.Itoa(k.nTab)
@@ -82,20 +122,51 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		k.changed()
 		rec := n.rec
 		r.Pane = &rec
-	case contract.OpRun:
-		if len(c.Argv) == 0 {
-			err = errors.New("no program to run")
-			break
+	case contract.OpRun, contract.OpAgentStart:
+		// An agent is its kind's program with the arguments given, and the
+		// name the tool knows it by; whatever else is run there is none.
+		old, was, rec := p.tty, p.argv, p.rec
+		p.argv, p.rec.Agent, p.rec.Name, p.rec.Session = c.Argv, "", "", ""
+		if c.Op == contract.OpAgentStart {
+			p.argv, p.rec.Agent, p.rec.Name = append([]string{c.Kind}, c.Argv...), c.Kind, c.Name
 		}
-		old, was := p.tty, p.argv
-		p.argv = c.Argv
-		if err = k.start(p); err != nil {
-			p.argv = was
+		if len(p.argv) == 0 || p.argv[0] == "" {
+			err = errors.New("no program to run")
+		} else {
+			err = k.start(p)
+		}
+		if err != nil {
+			p.argv, p.rec = was, rec
 			break
 		}
 		gone = append(gone, old)
 		k.emit(contract.EvState, p.rec)
+		k.saved()
 		k.wake()
+	case contract.OpHook:
+		p.hooked = true
+		p.watch.Hook(c.Kind, c.Session, c.Cwd)
+	case contract.OpPrompt:
+		if k.named(c.Name) == nil {
+			err = contract.ErrNoPane
+		}
+	case contract.OpPoint:
+	case contract.OpOverlay:
+		if len(c.Argv) == 0 || k.over != nil {
+			err = errors.New("no program to draw over the tab, or one is there already")
+			break
+		}
+		// It runs as in the pane it was asked from, or the one with the keys.
+		from := cmp.Or(k.panes[c.From], k.panes[k.focus], &pane{})
+		p = k.fresh(from.rec.Tab, from.rec.Label, from.rec.Cwd)
+		p.argv, k.over, k.overW, k.overH = c.Argv, p, cmp.Or(c.W, 0.8), cmp.Or(c.H, 0.8)
+		if err = k.start(p); err != nil {
+			k.over = nil
+			k.forget(p)
+			break
+		}
+		k.emit(contract.EvOpened, p.rec)
+		k.changed()
 	case contract.OpScreen:
 		r.Text = p.text()
 	case contract.OpSize:
@@ -136,6 +207,7 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 				k.panes[id].rec.Label = c.Label
 			}
 			k.emit(contract.EvRenamed, contract.Pane{Tab: c.Tab, Label: c.Label})
+			k.saved()
 			k.wake()
 		case contract.OpTabFocus:
 			k.lay.Show(c.Tab)
@@ -143,6 +215,7 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		case contract.OpTabClose:
 			for _, id := range tab.Panes() {
 				gone = append(gone, k.panes[id].tty)
+				k.panes[id].quit()
 				delete(k.panes, id)
 			}
 			k.lay.Remove(c.Tab)
@@ -154,37 +227,25 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		r.Text, r.Delivery = k.notify(c)
 	case contract.OpSetKeys:
 		err = k.setKeys(c.Keys)
-	case contract.OpAgentStart, contract.OpPrompt, contract.OpPoint, contract.OpHook, contract.OpOverlay:
-		err = contract.ErrNotBuilt
 	default:
 		err = fmt.Errorf("the keeper has no call %q", c.Op)
 	}
 	return r, gone, err
 }
 
-// notify puts a notice on the tab row of every window for a few seconds,
-// with the bell when a sound is asked for, and says honestly whether a
-// window was there to show it.
+// notify shows the pop-up in every window, with each window's own notice
+// sequence and the bell when a sound is asked for, and says honestly
+// whether a window was there to show it.
 func (k *Keeper) notify(c contract.WireCall) (reason, delivery string) {
-	if cfg, err := contract.ReadPerson(k.kit.Platform.Peek, k.dirs.Config); err == nil && !cfg.Nudge.Popup {
-		return contract.NotifyOff, contract.NotifyOff
-	}
-	if len(k.wins) == 0 {
-		return contract.NotifyNoWindow, "on"
-	}
-	k.note, k.noteAt = term.Clean(c.Title+": "+c.Text), time.Now()
-	for _, w := range k.wins {
-		if c.Sound {
-			w.bell.Store(true)
+	cfg, err := contract.ReadPerson(k.kit.Platform.Peek, k.dirs.Config)
+	reason, delivery = k.pop.Show(c.Title, c.Text, err != nil || cfg.Nudge.Popup, len(k.wins), time.Now())
+	if reason == contract.NotifyShown {
+		k.popup(c.Title, c.Text)
+		for _, w := range k.wins {
+			w.later(overlay.Signal(c.Title, c.Text, c.Sound, w.env))
 		}
 	}
-	k.wake()
-	time.AfterFunc(noteFor, func() {
-		k.mu.Lock()
-		k.wake()
-		k.mu.Unlock()
-	})
-	return contract.NotifyShown, "on"
+	return reason, delivery
 }
 
 // setKeys replaces the shortcuts in the person's settings file.

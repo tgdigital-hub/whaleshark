@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"cmp"
+	"io"
 	"os"
 	"slices"
 	"strconv"
@@ -10,7 +12,11 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/input"
+	"github.com/tgdigital-hub/whaleshark/internal/pick"
+	"github.com/tgdigital-hub/whaleshark/internal/restore"
 	"github.com/tgdigital-hub/whaleshark/internal/screen"
+	"github.com/tgdigital-hub/whaleshark/internal/watch"
 )
 
 const (
@@ -29,14 +35,20 @@ const (
 var notPassed = []string{"TERM_PROGRAM", "TERM_PROGRAM_VERSION", "NO_COLOR", "COLUMNS", "LINES", contract.EnvTermActivePane}
 
 // pane is one pane. rec, argv and tty change under the keeper's lock; tty,
-// scr and the size also under mu, which is all the pane's reader takes.
+// scr, the size and the person's view also under mu, which is all the
+// pane's reader takes.
 type pane struct {
-	rec  contract.Pane
-	argv []string // the program Run put there; none is the shell
+	rec    contract.Pane
+	argv   []string       // the program put there, an agent's with its kind first; none is the shell
+	from   *restore.Pane  // what the layout file held of it, until it has started again
+	watch  *watch.Watcher // follows the program in there now
+	hooked bool           // that program's own hooks have been heard
+	wish   string         // what it asked to copy, while the person is asked
 
 	mu   sync.Mutex
 	tty  contract.Pty
 	scr  *screen.Screen
+	pick pick.View
 	w, h int
 	back int // the lines of scroll-back the screen keeps
 
@@ -85,6 +97,10 @@ func (k *Keeper) shell(s contract.Settings) []string {
 // last. Nothing of a window is in it.
 func (k *Keeper) env(p *pane) []string {
 	set := append(slices.Clone(k.tabs[p.rec.Tab]), "TERM=xterm-256color", "COLORTERM=truecolor", contract.EnvTermPane+"="+p.rec.ID)
+	if p == k.over {
+		// A program drawn over the tab acts on the pane the person was in.
+		set = append(set, contract.EnvTermActivePane+"="+k.focus)
+	}
 	name := func(v string) string { n, _, _ := strings.Cut(v, "="); return n }
 	var env []string
 	for _, v := range os.Environ() {
@@ -96,33 +112,116 @@ func (k *Keeper) env(p *pane) []string {
 }
 
 // start puts a program into a pane, at the size of the pane's place: its
-// own, or the shell. Whatever ran there before is the caller's to end.
+// own, or the shell. A pane that came back from the layout file starts what
+// the file says, an agent with its option to resume, over its old lines.
+// Whatever ran there before is the caller's to end.
 func (k *Keeper) start(p *pane) error {
 	w, h := firstW, firstH
-	if t := k.lay.Of(p.rec.ID); t != nil {
+	if at := k.overAt(); p == k.over && at.W > 0 && at.H > 0 {
+		w, h = at.W, at.H
+	} else if t := k.lay.Of(p.rec.ID); t != nil {
 		for _, at := range k.lay.Places(t) {
 			if at.Pane == p.rec.ID && at.W > 0 && at.H > 0 {
 				w, h = at.W, at.H
 			}
 		}
 	}
-	argv, set := p.argv, k.settings()
+	argv := p.argv
+	if p.from != nil && p.from.Run != nil {
+		argv = p.from.Run
+	}
 	if argv == nil {
-		argv = k.shell(set)
+		argv = k.shell(k.set)
 	}
 	tty, err := k.kit.Pty(contract.PtySpec{Argv: argv, Dir: p.rec.Cwd, Env: k.env(p), Cols: w, Rows: h})
 	if err != nil {
 		return err
 	}
 	k.nTerm++
-	p.rec.Terminal = k.instance + "." + strconv.Itoa(k.nTerm)
+	p.rec.Terminal, p.rec.Status = k.instance+"."+strconv.Itoa(k.nTerm), contract.StatusUnknown
+	// A pane program of ours is known by how the tool starts one.
+	p.rec.Ours = p.rec.Agent == "" && len(argv) > 3 && argv[1] == "ui" && argv[2] == "run"
+	scr := screen.New(w, h)
+	scr.Scrollback(k.set.Scrollback.Lines)
+	if p.from != nil {
+		restore.Show(scr, p.from.Lines, time.Now())
+	}
+	p.quit()
+	p.watch = watch.New(eye{p, tty}, p.rec.Agent, p.rec.Name, func(s watch.State) { k.state(p, tty, s) })
 	p.mu.Lock()
-	p.tty, p.scr, p.w, p.h, p.back = tty, screen.New(w, h), w, h, set.Scrollback.Lines
-	p.scr.Scrollback(p.back)
+	p.tty, p.scr, p.w, p.h, p.back, p.pick = tty, scr, w, h, k.set.Scrollback.Lines, pick.View{}
 	p.count.Store(0)
 	p.mu.Unlock()
+	p.from, p.hooked, p.wish = nil, false, ""
 	go k.read(p, tty)
 	return nil
+}
+
+// eye is a pane as the Watcher of one program in it sees it.
+type eye struct {
+	p   *pane
+	tty contract.Pty
+}
+
+func (e eye) Text() string           { return e.p.text() }
+func (e eye) Count() uint64          { return e.p.count.Load() }
+func (e eye) Front() (string, error) { return e.tty.Front() }
+func (e eye) Type(b []byte) error    { _, err := e.tty.Write(b); return err }
+func (e eye) Paste() bool {
+	e.p.mu.Lock()
+	defer e.p.mu.Unlock()
+	return e.p.scr.Modes().Paste
+}
+
+// state takes what a pane's Watcher has worked out into the pane's record
+// and tells the readers of events. A session is the hooks' word alone:
+// until one has been heard, an agent that came back keeps the one it had.
+func (k *Keeper) state(p *pane, tty contract.Pty, s watch.State) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.panes[p.rec.ID] != p || p.tty != tty {
+		return
+	}
+	was := p.rec
+	p.rec.Agent, p.rec.Name, p.rec.Status, p.rec.Cwd = s.Agent, s.Name, s.Status, cmp.Or(s.Cwd, p.rec.Cwd)
+	if p.hooked {
+		p.rec.Session = s.Session
+	}
+	kind := contract.EvFolder
+	switch now := p.rec; {
+	case now == was:
+		return
+	case now.Status != was.Status || now.Agent != was.Agent || now.Name != was.Name:
+		kind = contract.EvState
+	case now.Session != was.Session:
+		kind = contract.EvSession
+	}
+	k.emit(kind, p.rec)
+	k.saved()
+}
+
+// quit ends the following of a pane's program.
+func (p *pane) quit() {
+	if p.watch != nil {
+		p.watch.Close()
+	}
+}
+
+// saved tells the saver of a change the layout file holds.
+func (k *Keeper) saved() {
+	if k.saver != nil {
+		k.saver.Changed()
+	}
+}
+
+// told writes a pane's program that the keys came or went, if it asked.
+func (p *pane) told(on bool) {
+	p.mu.Lock()
+	text, tty := input.Focus(on, p.scr.Modes()), p.tty
+	p.mu.Unlock()
+	if text != "" {
+		go io.WriteString(tty, text)
+	}
 }
 
 // read feeds everything a pane's terminal gives to its screen, until the
@@ -150,22 +249,28 @@ func (k *Keeper) read(p *pane, tty contract.Pty) {
 	for {
 		n, err := tty.Read(buf)
 		if n > 0 {
-			reply, bell, held, ok := p.feed(tty, buf[:n])
+			reply, wish, bell, held, ok := p.feed(tty, buf[:n])
 			if len(reply) > 0 {
 				tty.Write(reply)
 			}
 			if held {
 				again.Reset(heldFor)
 			}
+			if k.saver != nil {
+				k.saver.Flowed()
+			}
 			if ok && (bell || p.shown.Load()) {
 				k.mu.Lock()
 				for _, w := range k.wins {
 					if bell {
-						w.bell.Store(true)
+						w.later([]byte{'\a'})
 					}
 				}
 				k.wake()
 				k.mu.Unlock()
+			}
+			if ok && wish != "" {
+				k.wished(p, wish)
 			}
 		}
 		if err != nil {
@@ -184,30 +289,62 @@ func (k *Keeper) read(p *pane, tty contract.Pty) {
 // feed hands the screen what was read and reports whether the terminal is
 // still the pane's, with what the screen has for the caller: its answers to
 // the program's questions, which go to this pane's program and to no other,
-// whether the bell rang, and whether the picture is held. A program's wish
-// to copy is dropped until the clipboard's setting is built. The screen
-// reader does not catch its own faults: one costs this pane its picture,
-// and nothing else.
-func (p *pane) feed(tty contract.Pty, b []byte) (reply []byte, bell, held, ok bool) {
+// what the program wants on the clipboard, whether the bell rang, and
+// whether the picture is held. The screen reader does not catch its own
+// faults: one costs this pane its picture, and nothing else.
+func (p *pane) feed(tty contract.Pty, b []byte) (reply []byte, wish string, bell, held, ok bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.tty != tty {
-		return nil, false, false, false
+		return nil, "", false, false, false
 	}
 	defer func() {
 		if recover() != nil {
 			p.scr = screen.New(p.w, p.h)
 			p.scr.Scrollback(p.back)
 			p.scr.Write([]byte("whaleshark: this pane's picture was lost to a fault and starts again here\r\n"))
-			reply, bell, held, ok = nil, false, false, true
+			reply, wish, bell, held, ok = nil, "", false, false, true
 		}
 	}()
 	p.count.Add(uint64(len(b))) // #nosec G115 -- a length
 	p.scr.Write(b)
 	for _, ev := range p.scr.Events() {
-		bell = bell || ev.Kind == screen.Bell
+		if bell = bell || ev.Kind == screen.Bell; ev.Kind == screen.Copy {
+			wish = ev.Text
+		}
 	}
-	return p.scr.Reply(), bell, p.scr.Held(), true
+	return p.scr.Reply(), wish, bell, p.scr.Held(), true
+}
+
+// wished is a program's own request to copy, by the person's setting: done
+// at once, dropped, or kept while the person is asked. The answer is the
+// command key and then y, in that pane.
+func (k *Keeper) wished(p *pane, text string) {
+	k.mu.Lock()
+	now, ask := pick.Wish(k.set.Clipboard.Programs, cmp.Or(p.rec.Name, p.rec.Label, p.rec.ID), text)
+	w := k.last
+	if ask != "" && w != nil {
+		p.wish = text
+		k.popup(ask, "the command key, then y, in its pane")
+	}
+	k.mu.Unlock()
+	if now && w != nil {
+		k.copy(w, text)
+	}
+}
+
+// copy puts text on the clipboard of a window's person and shows how it
+// went. It runs a program or waits for one: never under a lock.
+func (k *Keeper) copy(w *window, text string) {
+	mark, seq := w.board.Copy(text)
+	if len(seq) > 0 {
+		w.later(seq)
+	}
+	if mark != "" {
+		k.mu.Lock()
+		k.popup(mark, "")
+		k.mu.Unlock()
+	}
 }
 
 // size gives a pane a new size and tells its program.
@@ -232,7 +369,10 @@ func (p *pane) text() string {
 // terminal is the caller's to close, outside the lock.
 func (k *Keeper) drop(p *pane) {
 	delete(k.panes, p.rec.ID)
-	if k.lay.Close(p.rec.ID) {
+	p.quit()
+	if p == k.over {
+		k.over = nil
+	} else if k.lay.Close(p.rec.ID) {
 		delete(k.tabs, p.rec.Tab)
 	}
 	k.emit(contract.EvClosed, p.rec)
