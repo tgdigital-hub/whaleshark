@@ -3,6 +3,8 @@
 // the keeper with Terms.Version, worktrees with Placement.Repair, port slots
 // with contract.ReadSlots and FreeSlots, what was approved with
 // contract.ReadTrust and a project's Held keys. Nothing here changes a run.
+// With --server it proves a server row by row, and the server command, the
+// one writer of the server's file, is here too.
 package doctor
 
 import (
@@ -16,7 +18,10 @@ import (
 )
 
 // Plug binds this package's handlers and puts its implementations into the kit.
-func Plug(k *contract.Kit) { k.Handle("doctor", run) }
+func Plug(k *contract.Kit) {
+	k.Handle("doctor", run)
+	k.Handle("server", serve)
+}
 
 // What a line says of its check. A note is worth knowing and fails nothing;
 // a problem makes the command end with 1; fixed is a problem or a leftover
@@ -79,7 +84,9 @@ func (e *exam) mend(mark, text, done string, repair func() error) {
 func run(c *contract.Call) (any, error) {
 	e := &exam{c: c, k: c.Kit, fix: c.Flags["fix"] != nil, runs: map[string][]*contract.State{}, whole: map[string]bool{}}
 	var err error
-	if len(c.Args) > 0 {
+	if c.Flags["server"] != nil && len(c.Args) == 2 {
+		return probe(c)
+	} else if len(c.Args) > 0 {
 		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "doctor takes no argument.", Next: []string{"whaleshark help doctor"}}
 	}
 	if e.dirs, err = e.k.Platform.Dirs(); err != nil {
@@ -95,7 +102,7 @@ func run(c *contract.Call) (any, error) {
 	e.nudge()
 	e.paste()
 	if c.Flags["server"] != nil {
-		e.say(note, "", "the checks of a server are not built yet")
+		e.machine()
 	}
 	if e.Problems > 0 {
 		r := &contract.Refusal{Exit: contract.ExitFailed, Code: "problems", Message: fmt.Sprintf("%d of %d checks found a problem.", e.Problems, len(e.Lines)), Data: e}
