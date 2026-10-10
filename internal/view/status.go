@@ -30,8 +30,6 @@ func status(c *contract.Call) (any, error) {
 	switch {
 	case len(c.Args) > 0:
 		return nil, usage("status takes no argument.")
-	case has("brief"):
-		return nil, notBuilt("brief", "status")
 	case has("everywhere"):
 		return nil, notBuilt("everywhere", "status")
 	}

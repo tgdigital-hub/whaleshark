@@ -278,9 +278,9 @@ var Commands = []Command{
 		Example: "whaleshark mail"},
 
 	{Name: "status", Section: "views", Phase: 1, Who: O | H | U, Exits: []int{0},
-		Usage:   "status [--all] [--brief] [--everywhere] [--items] [--sweep --quiet]",
+		Usage:   "status [--all] [--everywhere] [--items] [--sweep --quiet]",
 		Help:    "the team, with what waits for the person on top",
-		Flags:   flags("all", "brief", "everywhere", "items", "sweep", "quiet"),
+		Flags:   flags("all", "everywhere", "items", "sweep", "quiet"),
 		Example: "whaleshark status"},
 	{Name: "graph", Section: "views", Phase: 2, Who: O | H | U, Exits: []int{0},
 		Usage: "graph [--ready]", Help: "the plan: tasks in the order they depend on each other",
