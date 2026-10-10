@@ -63,6 +63,7 @@ input:focus { border-color: var(--accent); outline: none; }
 .ask, .answer { margin-left: 1.6rem; }
 .mark { display: inline-block; width: 1.2rem; }
 .name { text-decoration: none; }
+.rows a, .rows .mark + td + td + td { white-space: nowrap; }
 .unseen .name { font-weight: bold; }
 .struck .text { text-decoration: line-through; }
 .left { font-weight: normal; }

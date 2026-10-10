@@ -287,6 +287,13 @@ func TestTheScreensShowWhatTheViewSays(t *testing.T) {
 	if got := news(all[1], contract.Card{Pale: true, Said: all[1].View.At, News: "the menu is in"}); got != "said just now: the menu is in" {
 		t.Errorf("what was said within the minute reads %q", got)
 	}
+	// A job is chosen by its run or by its project's name, neither broken over two lines.
+	if jobs := draw(t, all[6]); !strings.Contains(jobs, `run=r3">r3</a></td><td><a class="name" href="/?root=%2Fwork%2Fshop&amp;run=r3">shop</a>`) {
+		t.Errorf("the jobs screen has no link on the project's name:\n%s", jobs)
+	}
+	if css, _, _ := Asset("page.css"); !strings.Contains(string(css), ".rows a, .rows .mark + td + td + td { white-space: nowrap; }") {
+		t.Error("a job's link may break over two lines")
+	}
 	// A refusal's next step is on its screen.
 	if out := draw(t, &contract.Page{Screen: contract.ScreenRefused, Said: &contract.Refusal{Message: "Nobody is signed in in this browser."}, Notes: []string{"whaleshark dash url"}}); !strings.Contains(out, "&gt; whaleshark dash url</p>") {
 		t.Errorf("the refusal's screen leaves out what to do:\n%s", out)
