@@ -137,10 +137,14 @@ func (e *exam) network() {
 	if !isRoot() {
 		return
 	}
+	// SSH's port is the one the SSH server names, as server harden reads it.
+	conf, _ := ask("sshd", "-T")
+	_, port, _ := strings.Cut("\n"+conf, "\nport ")
+	port = strings.Fields(port + " 22")[0]
 	out, _ = ask("ufw", "status", "verbose")
 	var extra []string
 	for _, line := range strings.Split(out, "\n") {
-		if f := strings.Fields(line); strings.Contains(line, "ALLOW") && !slices.Contains([]string{"22", "22/tcp", "OpenSSH"}, f[0]) && !strings.Contains(line, "tailscale0") {
+		if f := strings.Fields(line); strings.Contains(line, "ALLOW") && !slices.Contains([]string{port, port + "/tcp", "OpenSSH"}, f[0]) && !strings.Contains(line, "tailscale0") {
 			extra = append(extra, f[0])
 		}
 	}

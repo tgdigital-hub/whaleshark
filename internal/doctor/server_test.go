@@ -336,7 +336,19 @@ func TestRootOnAHealthyServerProvesThePortRules(t *testing.T) {
 	}
 }
 
-// Each fault of the machine, seeded alone, is found and named; a port rule
+// SSH on a port of its own choosing is still the one door the firewall has,
+// as server harden opens it.
+func TestTheFirewallRowTakesTheSSHServersOwnPort(t *testing.T) {
+	b := server(t, file, true)
+	b.said["sshd -T"] = strings.Replace(b.said["sshd -T"], "port 22", "port 2222", 1)
+	b.said["ufw status verbose"] = strings.ReplaceAll(b.said["ufw status verbose"], "22/tcp", "2222/tcp")
+	e, _ := b.doctor("server")
+	b.want(e, ok, "firewall refuses everything from outside but SSH")
+	b.said["ufw status verbose"] += "\n22/tcp ALLOW IN Anywhere"
+	e, _ = b.doctor("server")
+	b.want(e, problem, "lets in more than SSH: 22/tcp")
+}
+
 // that does not hold takes "proven" out of the server's file again.
 func TestEachFaultOfTheMachineIsNamed(t *testing.T) {
 	for _, c := range []struct {
