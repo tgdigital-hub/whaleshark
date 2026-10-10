@@ -214,6 +214,16 @@ func (e *exam) left(ours string) {
 	current, _ := k.Store.Current(root)
 	for _, s := range runs {
 		if !s.Run.ClosedAt.IsZero() {
+			// A closed run keeps what it made until it is removed.
+			n := 0
+			for _, t := range s.Tasks {
+				if w := t.Worktree; w != nil && w.RemovedAt.IsZero() {
+					n++
+				}
+			}
+			if n > 0 {
+				e.say(note, "whaleshark run rm "+s.Run.ID, "run %s is closed and still holds the copies of the code of %s, with their branches and tabs: removing the run takes away what is proven merged and names the rest", s.Run.ID, count(n, "task"))
+			}
 			continue
 		}
 		dir, live := k.Store.Dir(root, s.Run.ID), 0

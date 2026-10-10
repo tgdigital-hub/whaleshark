@@ -130,6 +130,20 @@ func DropTemp(k *contract.Kit, a *contract.Attempt) {
 	}
 }
 
+// Leave takes away what a closed run's attempts left with the terminals and
+// in the login's temp folder: each tab that is still ours, which frees its
+// name for another task, and each temp folder. A keeper that is not running
+// holds no tab to close.
+func Leave(k *contract.Kit, s *contract.State) {
+	snap, _ := k.Terms.Snapshot(context.Background())
+	for _, a := range s.Attempts {
+		if t := s.Tasks[a.Task]; t != nil && !a.State.Live() {
+			shut(k, snap, t.Name, a.Place)
+		}
+		DropTemp(k, a)
+	}
+}
+
 type stopped struct {
 	Task    string `json:"task"`
 	Attempt string `json:"attempt"`

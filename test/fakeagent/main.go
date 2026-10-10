@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/term"
+
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/engine"
@@ -92,10 +94,15 @@ func main() {
 		}
 		forever()
 	}
-	if !lines.Scan() {
+	prompt := ""
+	if after, slow := strings.CutPrefix(strings.Split(script, " | ")[0], "slow-paste "); slow && real {
+		seconds, _ := strconv.ParseFloat(after, 64)
+		prompt = slowPrompt(time.Duration(seconds * float64(time.Second)))
+	} else if lines.Scan() {
+		prompt = lines.Text()
+	} else {
 		return
 	}
-	prompt := lines.Text()
 	if real {
 		tell(contract.StatusWorking)
 	}
@@ -140,6 +147,7 @@ func main() {
 		case "report-with-token":
 			os.WriteFile(filepath.Join(dir, "token"), []byte(arg(1)+"\n"), 0o600)
 			whaleshark("report", "done", "reported with another token")
+		case "slow-paste": // played before the prompt, where it can be
 		case "sleep":
 			seconds, _ := strconv.ParseFloat(arg(1), 64)
 			time.Sleep(time.Duration(seconds * float64(time.Second)))
@@ -184,6 +192,44 @@ func main() {
 	}
 	tell(contract.StatusIdle)
 	forever()
+}
+
+// slowPrompt reads the first prompt as an agent on a loaded machine does:
+// key by key, with a paste taken in and shown only a while after it came. An
+// Enter that comes before then is dropped, as the real agent drops it; one
+// in an empty box does nothing.
+func slowPrompt(after time.Duration) string {
+	fd := int(os.Stdin.Fd())
+	old, err := term.MakeRaw(fd)
+	if err != nil {
+		fmt.Println("fakeagent: no terminal to read keys from:", err)
+		os.Exit(3)
+	}
+	defer term.Restore(fd, old)
+	var text []byte
+	var last time.Time
+	for buf := make([]byte, 4096); ; {
+		n, err := os.Stdin.Read(buf)
+		if err != nil {
+			term.Restore(fd, old)
+			os.Exit(0)
+		}
+		now, had := time.Now(), len(text)
+		for _, b := range buf[:n] {
+			switch {
+			case b != '\r' && b != '\n':
+				text, last = append(text, b), now
+			case len(text) > 0 && now.Sub(last) >= after:
+				fmt.Print("fakeagent: took the prompt\r\n")
+				return string(text)
+			case len(text) > 0:
+				fmt.Print("fakeagent: an Enter came before the paste was taken in\r\n")
+			}
+		}
+		if shown := string(text); len(text) > had {
+			time.AfterFunc(after, func() { fmt.Print("fakeagent: > " + shown + "\r\n") })
+		}
+	}
 }
 
 // forever is an agent sitting at its prompt until its pane is closed.

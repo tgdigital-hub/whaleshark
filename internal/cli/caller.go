@@ -186,7 +186,9 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 		}
 		return refuse("not_human", "--human is not for an agent's tab.")
 	}
-	if problem != nil && !(c.Command.May(contract.Worker, sub) && c.Command.May(contract.Unbound, sub)) {
+	// The keeper is the login's and no project's: the folder it is started
+	// in, and whose record lies there, is nothing to it.
+	if problem != nil && c.Command.Name != "engine" && !(c.Command.May(contract.Worker, sub) && c.Command.May(contract.Unbound, sub)) {
 		return problem
 	}
 	return nil

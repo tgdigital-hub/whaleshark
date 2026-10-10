@@ -3,6 +3,7 @@ package runtask
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -193,6 +194,24 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		t, meets = *added, meeting(s, added)
 		return keep(c, added, data)
 	})
+	// A name can be held by the tab of a run that is closed: removing that
+	// run is what frees it.
+	var r *contract.Refusal
+	if errors.As(err, &r) && r.Code == "name_taken" {
+		runs, _ := k.Store.Runs(c.Root)
+		for _, id := range runs {
+			old, err := k.Store.Read(c.Root, id)
+			if err != nil || old.Run.ClosedAt.IsZero() {
+				continue
+			}
+			for _, other := range old.Tasks {
+				if strings.EqualFold(other.Name, strings.Join(strings.Fields(cmp.Or(t.Name, title)), " ")) && slices.Contains(taken, other.Name) {
+					r.Message += fmt.Sprintf(" A tab of run %s, which is closed, still carries it.", id)
+					r.Next = []string{"whaleshark run rm " + id}
+				}
+			}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

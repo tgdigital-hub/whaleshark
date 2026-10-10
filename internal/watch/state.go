@@ -182,6 +182,9 @@ func (w *Watcher) settle(now time.Time) {
 	default:
 		w.st.Status = Quiet
 	}
+	if s := w.st.Status; s != was.Status && (s == contract.StatusWorking || s == contract.StatusBlocked) {
+		w.starts++
+	}
 	if w.st != was {
 		close(w.wake)
 		w.wake = make(chan struct{})

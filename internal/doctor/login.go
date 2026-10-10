@@ -64,11 +64,18 @@ func (e *exam) engine() {
 	for _, p := range snap.Panes {
 		panes[p.ID] = p
 	}
-	mine := e.k.Platform.PathKey(e.c.Root)
+	mine, cure := e.k.Platform.PathKey(e.c.Root), map[string]string{}
 	for root, runs := range e.runs {
 		for _, s := range runs {
 			for _, a := range s.Attempts {
 				owned[a.Agent.Name] = owned[a.Agent.Name] || a.State.Live()
+				// The tab of an attempt that has ended goes with `close`, and
+				// with its run once that is closed.
+				if root == mine && !s.Run.ClosedAt.IsZero() {
+					cure[a.Agent.Name] = "whaleshark run rm " + s.Run.ID
+				} else if root == mine {
+					cure[a.Agent.Name] = "whaleshark close " + a.Task
+				}
 				p, there := panes[a.Place.Pane]
 				if root == mine && there && p.Agent == "" && a.State.Live() && a.State != contract.AttemptStarting {
 					e.say(problem, "whaleshark start "+a.Task+" --retry --resume", "the agent of %s did not come back in its pane %s", a.ID, p.ID)
@@ -77,7 +84,9 @@ func (e *exam) engine() {
 		}
 	}
 	for _, p := range snap.Panes {
-		if p.Name != "" && !owned[p.Name] {
+		if p.Name != "" && !owned[p.Name] && cure[p.Name] != "" {
+			e.say(note, cure[p.Name], "the tab %q (pane %s) holds the agent of an attempt that has ended", p.Label, p.ID)
+		} else if p.Name != "" && !owned[p.Name] {
 			e.say(note, "", "the tab %q (pane %s) holds an agent we started that no attempt owns: close the tab when you no longer need it", p.Label, p.ID)
 		}
 	}
