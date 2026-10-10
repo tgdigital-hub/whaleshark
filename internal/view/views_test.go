@@ -441,7 +441,11 @@ func TestCatchupCountsAClashThatWasSorted(t *testing.T) {
 // answering is the ports a site answers on, for show's site line.
 type answering struct {
 	contract.NoEvidence
-	up []int
+	up, six []int
+}
+
+func (a answering) OnSix(ports []int) []int {
+	return slices.DeleteFunc(slices.Clone(ports), func(port int) bool { return !slices.Contains(a.six, port) })
 }
 
 func (a answering) Answering(ports []int) []int {
@@ -479,6 +483,13 @@ func TestShowOfABrowserCheck(t *testing.T) {
 	want := fmt.Sprintf("answering on port %d · http://%s:%[1]d", contract.DefaultPorts.Base+13, contract.Loopback)
 	if tv.Site != want || !strings.Contains(out.String(), " Site      "+want+"\n") {
 		t.Errorf("with a site answering, show says %q:\n%s", tv.Site, out)
+	}
+	// A site that answers on the other loopback address alone is not taken
+	// for stopped: show says where it answers and how to bind it.
+	c.Kit.Evidence = answering{six: []int{contract.DefaultPorts.Base + 14}}
+	want = fmt.Sprintf("a site answers on port %d of ::1 only, where the page and connect do not look: bind it to %s", contract.DefaultPorts.Base+14, contract.Loopback)
+	if tv = run(t, c).(*contract.TaskView); tv.Site != want {
+		t.Errorf("with a site on the other loopback address alone, show says %q", tv.Site)
 	}
 	c, out, _, _ = view(t, f, "show", contract.Human, "T3")
 	if tv = run(t, c).(*contract.TaskView); tv.Site != "" || strings.Contains(out.String(), "Site") || strings.Contains(out.String(), "Evidence") {

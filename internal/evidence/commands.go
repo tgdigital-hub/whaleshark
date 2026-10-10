@@ -170,13 +170,20 @@ func (e evidence) Open(root, run, attempt string, index int) (io.ReadCloser, con
 // Answering tries every port at once on the loopback address and gives all
 // of them together a fifth of a second: a closed port is refused at once on
 // most systems, and one that says nothing must not hold a screen up.
-func (evidence) Answering(ports []int) []int {
+func (evidence) Answering(ports []int) []int { return answering(contract.Loopback, ports) }
+
+// OnSix is the same on the other loopback address, IPv6's, where neither
+// the page nor connect looks for a site: show says so of a site that
+// answers there alone.
+func (evidence) OnSix(ports []int) []int { return answering("::1", ports) }
+
+func answering(host string, ports []int) []int {
 	dial := net.Dialer{Deadline: time.Now().Add(time.Second / 5)}
 	up := make([]bool, len(ports))
 	var wg sync.WaitGroup
 	for i, port := range ports {
 		wg.Go(func() {
-			if c, err := dial.Dial("tcp", net.JoinHostPort(contract.Loopback, strconv.Itoa(port))); err == nil {
+			if c, err := dial.Dial("tcp", net.JoinHostPort(host, strconv.Itoa(port))); err == nil {
 				c.Close()
 				up[i] = true
 			}

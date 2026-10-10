@@ -335,3 +335,25 @@ func TestASlotThatOpensIsSeen(t *testing.T) {
 	}
 	t.Fatal("the slot opened and was never seen")
 }
+
+// A site bound to the IPv6 loopback alone answers nowhere the page or
+// connect looks; it is found on the other address, so that show can say so.
+func TestASiteOnTheOtherLoopbackAddressAlone(t *testing.T) {
+	site, err := net.Listen("tcp", net.JoinHostPort("::1", "0"))
+	if err != nil {
+		t.Skip("this machine has no IPv6 loopback address:", err)
+	}
+	defer site.Close()
+	port := site.Addr().(*net.TCPAddr).Port
+	if c, err := net.Dial("tcp", net.JoinHostPort(contract.Loopback, fmt.Sprint(port))); err == nil {
+		c.Close()
+		t.Skip("another program holds the same port on the first loopback address")
+	}
+	ev := evidence{}
+	if got := ev.Answering([]int{port}); len(got) != 0 {
+		t.Errorf("a site on ::1 alone is taken for one the page reaches: %v", got)
+	}
+	if got := ev.OnSix([]int{port, 1}); len(got) != 1 || got[0] != port {
+		t.Errorf("a site on ::1 alone is not found there: %v", got)
+	}
+}

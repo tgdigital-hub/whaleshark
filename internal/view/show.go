@@ -103,6 +103,9 @@ func site(c *contract.Call, t *contract.Task) string {
 		if up := k.Evidence.Answering(ports); len(up) > 0 {
 			return fmt.Sprintf("answering on port %d · http://%s:%[1]d", slices.Min(up), contract.Loopback)
 		}
+		if six, ok := k.Evidence.(interface{ OnSix([]int) []int }); ok && len(six.OnSix(ports)) > 0 {
+			return fmt.Sprintf("a site answers on port %d of ::1 only, where the page and connect do not look: bind it to %s", slices.Min(six.OnSix(ports)), contract.Loopback)
+		}
 	}
 	return map[bool]string{true: "site stopped"}[t.BrowserCheck]
 }
