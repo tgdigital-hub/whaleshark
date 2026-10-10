@@ -222,8 +222,13 @@ func Now() time.Time {
 }
 
 // ProjectFile is whaleshark.toml. Every key has a default; the keys that can
-// run something or reach outside the project count only once trusted.
+// run something or reach outside the project count only once trusted. Held
+// names what ReadProjectFile left at its default because the project as it
+// stands was not approved: keys such as "setup.script", and each team file
+// as "whaleshark-teams/<file>". Whoever would have used one says so with an
+// untrusted event and goes on without.
 type ProjectFile struct {
+	Held      []string `toml:"-"`
 	Worktrees struct {
 		Dir          string   `toml:"dir"`
 		BranchPrefix string   `toml:"branch_prefix"`
@@ -274,8 +279,17 @@ func ProjectDefaults() ProjectFile {
 }
 
 // ReadProjectFile reads whaleshark.toml from a project folder over the
-// defaults. A missing file gives the defaults.
+// defaults, and of what needs approval only what was approved (Held). A
+// missing file gives the defaults.
 func ReadProjectFile(root string) (ProjectFile, error) {
+	p, err := readProject(root)
+	if err == nil {
+		err = held(root, &p)
+	}
+	return p, err
+}
+
+func readProject(root string) (ProjectFile, error) {
 	p := ProjectDefaults()
 	_, err := toml.DecodeFile(filepath.Join(root, "whaleshark.toml"), &p)
 	if errors.Is(err, fs.ErrNotExist) {

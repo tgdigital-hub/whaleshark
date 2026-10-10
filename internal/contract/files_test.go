@@ -86,8 +86,12 @@ func TestClockAndProjectFile(t *testing.T) {
 	}
 	os.WriteFile(filepath.Join(root, "whaleshark.toml"), []byte("[limits]\nagents = 6\n[agent]\nargs = [\"--x\"]\n"), 0o600)
 	p, err := ReadProjectFile(root)
-	if err != nil || p.Limits.Agents != 6 || p.Limits.StaleMinutes != 30 || !slices.Equal(p.Agent.Args, []string{"--x"}) {
-		t.Errorf("read %+v, %v", p, err)
+	if err != nil || p.Limits.Agents != 6 || p.Limits.StaleMinutes != 30 || p.Agent.Args != nil || !slices.Equal(p.Held, []string{"agent.args"}) {
+		t.Errorf("before anybody approved it, read %+v, %v", p, err)
+	}
+	WriteTrust(plain{}, root, []string{"agent.args = [--x]"}, Now())
+	if p, err = ReadProjectFile(root); err != nil || p.Held != nil || !slices.Equal(p.Agent.Args, []string{"--x"}) {
+		t.Errorf("once approved, read %+v, %v", p, err)
 	}
 }
 
