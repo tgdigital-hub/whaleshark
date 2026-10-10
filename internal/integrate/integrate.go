@@ -57,7 +57,8 @@ func (g integrator) Begin(root string, s *contract.State) (*contract.GitRef, *co
 		return nil, nil, err
 	}
 	branch := project.Worktrees.BranchPrefix + s.Run.ID
-	if _, err := git(root, "check-ref-format", ref(branch)); err != nil {
+	// A name that begins with a dash would be read as an option, by git and by gh.
+	if _, err := git(root, "check-ref-format", ref(branch)); err != nil || branch[0] == '-' {
 		return nil, nil, refuse(contract.ExitRefused, "bad_branch", "git takes no branch named "+branch+": change branch_prefix in whaleshark.toml.")
 	}
 	// An empty old value lets git make the branch only where there is none.
