@@ -664,3 +664,34 @@ func TestHideAndEquip(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A task that merged the collected work in, was accepted as one commit, and
+// whose lines a later task then added to: its last commit is not in the
+// history, its merge has no like, and merging it again would clash. The
+// commit it was accepted as holds exactly what its branch holds, and that
+// proves it; a branch that went on after the accept is still kept.
+func TestForgetProvesAnAcceptedTaskOthersBuiltOn(t *testing.T) {
+	d := project(t, map[string]string{"a.txt": "one\n"})
+	collect := func(id string, w *contract.Worktree) {
+		tip := d.git("rev-parse", w.Branch)
+		at := d.git("commit-tree", tip+"^{tree}", "-p", "HEAD", "-m", id+" as one")
+		d.git("merge", "-q", "--ff-only", at)
+		d.s.Tasks[id].Accepted = &contract.Accepted{Commit: at}
+	}
+	first, red := d.place("A", "red")
+	late, more := d.place("C", "went on")
+	testkit.Commit(t, d.root, "another task's work", map[string]string{"z.txt": "z\n"})
+	for _, dir := range []string{first, late} {
+		testkit.Commit(t, dir, "add red", map[string]string{"a.txt": "one\nred\n"})
+		testkit.Git(t, dir, "merge", "-q", "--no-ff", "-m", "merge the collected work", "main")
+	}
+	collect("A", red)
+	collect("C", more)
+	testkit.Commit(t, late, "after the accept", map[string]string{"a.txt": "one\nred\ngreen\n"})
+	testkit.Commit(t, d.root, "a later task adds blue", map[string]string{"a.txt": "one\nred\nblue\n"})
+
+	kept, err := d.tr.Forget(d.root, d.s)
+	if err != nil || !slices.Equal(kept, []string{more.Branch}) || d.has(red.Branch) {
+		t.Fatalf("kept %q, %v; the accepted task's branch is still there: %v", kept, err, d.has(red.Branch))
+	}
+}

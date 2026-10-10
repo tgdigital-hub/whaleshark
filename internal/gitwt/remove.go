@@ -219,7 +219,7 @@ func (t *trees) Forget(root string, s *contract.State) (kept []string, err error
 		tip, err := git(root, "rev-parse", "--verify", "-q", "refs/heads/"+w.Branch)
 		switch {
 		case err != nil: // gone already
-		case w.KeepBranch || !merged(root, s, w, tip):
+		case w.KeepBranch || !merged(root, s, w, tip, s.Tasks[id].Accepted):
 			kept = append(kept, w.Branch)
 		default:
 			if _, err := git(root, "update-ref", "-d", "refs/heads/"+w.Branch, tip); err != nil {
@@ -234,7 +234,7 @@ func (t *trees) Forget(root string, s *contract.State) (kept []string, err error
 // merged reports whether a branch's work is proven to be in the run's
 // collected work, in the run's base or in what the branch was cut from, by
 // any of three proofs, each good alone.
-func merged(root string, s *contract.State, w *contract.Worktree, tip string) bool {
+func merged(root string, s *contract.State, w *contract.Worktree, tip string, as *contract.Accepted) bool {
 	into := []string{w.BaseRef}
 	if in := s.Run.Integration; in != nil {
 		into = append(into, in.Branch)
@@ -246,6 +246,16 @@ func merged(root string, s *contract.State, w *contract.Worktree, tip string) bo
 		tree, err := git(root, "rev-parse", "--verify", "-q", "--end-of-options", ref+"^{tree}")
 		if ref == "" || err != nil {
 			continue
+		}
+		// The record's own: the commit the task was accepted as is in its
+		// history and holds exactly what the branch holds. A later task that
+		// added to the same lines leaves the three below without a proof.
+		if as != nil && as.Commit != "" {
+			_, out := git(root, "merge-base", "--is-ancestor", as.Commit, ref)
+			held, err := git(root, "rev-parse", "--verify", "-q", "--end-of-options", as.Commit+"^{tree}")
+			if now, _ := git(root, "rev-parse", "--verify", "-q", tip+"^{tree}"); out == nil && err == nil && held == now {
+				return true
+			}
 		}
 		// One: the branch's last commit is in its history.
 		if _, err := git(root, "merge-base", "--is-ancestor", tip, ref); err == nil {
