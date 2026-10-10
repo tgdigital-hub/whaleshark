@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	fleet, actions = "fleet", "actions"
+	fleet, actions, menu = "fleet", "actions", "menu"
 
 	second = time.Second
 	// Every compareEvery seconds the picture the events built is held against
@@ -27,17 +27,20 @@ const (
 	compareEvery = 5
 	secondLook   = time.Second / 2
 	sayLost      = time.Minute
+	// Every lookEvery seconds a pane looks whether its program file was replaced.
+	lookEvery = 60
 )
 
 // news is what a helper tells the loop: a snapshot (look 0 from the event
 // connection, 1 from the comparison, 2 from its second look), one event, an
-// error, or a line for the person.
+// error, a line for the person, or something for the loop itself to do.
 type news struct {
 	snap *contract.Snapshot
 	ev   contract.TermEvent
 	err  error
 	look int
 	said string
+	do   func()
 }
 
 // pane is one pane program. Everything in it belongs to its loop,
@@ -85,31 +88,89 @@ type pane struct {
 	hits            []hit
 	lit             int
 	hint            string
+
+	// self is the program a child is started from, born the time of its file
+	// when the pane began, me this pane's own id; jobs are the children,
+	// started one after another, and waiting counts those not yet ended.
+	self, me   string
+	born       time.Time
+	jobs       chan func()
+	waiting    int
+	again      bool // the program file was replaced: the pane starts itself again
+	swept      contract.Swept
+	sweptAt    time.Time
+	here       time.Time
+	all, above bool // the done cards are shown; the action pane lies above the conversation
+
+	// items is what waits, with an answer that is still settling kept where
+	// its item stood. The typing line belongs to the item lineFor, or with
+	// lineDo to a row of the action table that needs words.
+	items            []contract.Item
+	line             *term.Line
+	lineFor, linePre string
+	lineDo           func(string)
+	lineDrawn        bool
+	over             string // the list that lies over the pane, if any
+	pick             int
+	query            term.Line
+	catch            contract.Catchup
+	shown            contract.Card
+	sure, asked      string // the row that asked "sure?", and the one a second press confirms
+
+	// The typing guard: the last letter, what it did, and whether a burst runs.
+	letter  time.Time
+	lastKey string
+	undo    func()
+	burst   bool
+	// The click guard: what each row shows, and when that last changed by itself.
+	rows    []string
+	movedAt []time.Time
+	own     bool // the person's own key or click is the reason for the next draw
 }
 
 func newPane(kind string, t *term.Term, k *contract.Kit, root, run string, now func() time.Time) *pane {
 	build := func(in contract.ViewInput) contract.View { return *k.View(in) }
-	return &pane{kind: kind, t: t, k: k, root: root, run: run, now: now, make: build, heard: make(chan news),
+	me, _ := contract.PaneOf(os.Getenv)
+	return &pane{kind: kind, t: t, k: k, root: root, run: run, now: now, make: build, heard: make(chan news), me: me,
 		scheme: theme.Schemes[0], plainMarks: contract.PlainMarks(os.Getenv), px: -1, py: -1, lit: -1, stale: true, dirty: true}
 }
 
 // loop is the loop: draw, then wait for a key or a click, a changed file, a
-// line from herdr or the next second.
-func (p *pane) loop() {
+// line from herdr or the next second. It reports true when the pane is to
+// start itself again from a new program file.
+func (p *pane) loop() bool {
 	ctx, stop := context.WithCancel(context.Background())
-	defer stop()
-	p.bg = ctx
+	p.bg, p.jobs = ctx, make(chan func(), 32)
+	ended := make(chan struct{})
+	go func() {
+		defer close(ended)
+		for job := range p.jobs {
+			job()
+		}
+	}()
 	p.helper(p.listen)
 	p.load()
-	p.folded = p.ui.Folded
+	if p.folded = p.ui.Folded; p.kind == menu {
+		p.over = menu
+	}
+	if st, err := os.Stat(p.self); err == nil {
+		p.born = st.ModTime()
+	}
 	defer func() {
 		if p.watch != nil {
 			p.watch.Close()
 		}
+		// A child that was started is let end: it may be saving a draft.
+		stop()
+		close(p.jobs)
+		<-ended
 	}()
 	tick := time.NewTicker(second)
 	defer tick.Stop()
 	for n := 1; ; {
+		if p.again || p.kind == menu && p.over == "" && p.line == nil && p.waiting == 0 {
+			return p.again
+		}
 		if p.dirty {
 			p.draw()
 		}
@@ -120,7 +181,8 @@ func (p *pane) loop() {
 		select {
 		case ev := <-p.t.Events:
 			if !p.event(ev) {
-				return
+				p.leave()
+				return false
 			}
 		case _, open := <-changes:
 			for more := open; more; {
@@ -192,6 +254,8 @@ func (p *pane) snapshot(look int) {
 func (p *pane) herdr(m news) {
 	p.stale, p.dirty = true, true
 	switch {
+	case m.do != nil:
+		m.do()
 	case m.said != "":
 		p.hint = m.said
 	case m.err != nil:
@@ -201,6 +265,9 @@ func (p *pane) herdr(m news) {
 	case m.ev.Kind != "":
 		if p.picture != nil {
 			contract.Apply(p.picture, m.ev)
+		}
+		if m.ev.Kind == contract.EvFocus {
+			p.present()
 		}
 	case m.look == 0:
 		p.picture, p.herdrOK = m.snap, p.now()
@@ -248,6 +315,11 @@ func (p *pane) tick(n int) {
 	}
 	if n%compareEvery == 0 {
 		p.snapshot(1)
+		p.sweep()
+	}
+	if st, err := os.Stat(p.self); n%lookEvery == 0 && err == nil && !st.ModTime().Equal(p.born) {
+		p.leave()
+		p.again = true
 	}
 }
 
@@ -279,20 +351,25 @@ func (p *pane) load() {
 	// Windows, leaves what the pane had; the next look reads it.
 	var ui contract.UIFile
 	if contract.ReadVersioned(p.k.Platform.Peek, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &ui) == nil {
-		if ui.Folded != p.ui.Folded {
-			p.folded = ui.Folded
-		}
 		p.ui = ui
 	}
 	if p.figures = nil; p.state != nil {
 		p.figures = contract.ReadCtx(p.k.Platform.Peek, dirs.State, p.state)
 	}
 	p.limits, _ = contract.ReadProjectFile(p.root)
-	cfg := contract.PersonDefaults()
-	toml.DecodeFile(filepath.Join(dirs.Config, "config.toml"), &cfg)
-	if cfg.UI.Theme != p.chosen {
+	cfg := person(p.k, dirs)
+	if p.above = cfg.UI.Actions == "top"; cfg.UI.Theme != p.chosen {
 		p.chosen, p.scheme = cfg.UI.Theme, theme.Get(cfg.UI.Theme)
 	}
+}
+
+// person reads the login's own settings over what holds when they say nothing.
+func person(k *contract.Kit, dirs contract.Dirs) contract.PersonConfig {
+	cfg := contract.PersonDefaults()
+	if data, err := k.Platform.Peek(filepath.Join(dirs.Config, "config.toml")); err == nil {
+		toml.Unmarshal(data, &cfg)
+	}
+	return cfg
 }
 
 // build has the view model made again. The selection stays on the item it
@@ -300,7 +377,8 @@ func (p *pane) load() {
 // left takes its selection with it, and no other item inherits it.
 func (p *pane) build() {
 	now := p.now()
-	was := slices.Index(p.ids(), p.sel)
+	order := p.ids()
+	was := slices.Index(order, p.sel)
 	checked := p.filesOK
 	if p.herdrOK.Before(checked) {
 		checked = p.herdrOK
@@ -316,7 +394,8 @@ func (p *pane) build() {
 	switch {
 	case p.state != nil:
 		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Terms: p.picture,
-			Ctx: p.figures, UI: p.ui, Limits: p.limits, Checked: checked, Notes: notes})
+			Ctx: p.figures, UI: p.ui, Limits: p.limits, Checked: checked, Notes: notes,
+			Swept: p.swept, Watched: !p.sweptAt.IsZero() && now.Sub(p.sweptAt) < 3*compareEvery*second, All: p.all})
 	case p.readErr != nil && !errors.Is(p.readErr, contract.ErrNoRun):
 		p.view = contract.View{Alerts: []string{"the record cannot be read: " + p.readErr.Error()}, Fresh: contract.Fresh{Notes: notes}}
 	default:
@@ -326,15 +405,26 @@ func (p *pane) build() {
 	for _, s := range p.view.Sections {
 		p.cards = append(p.cards, s.Cards...)
 	}
-	if at := slices.Index(p.ids(), p.sel); at < 0 {
+	// An answer that may still be taken back stays where its item stood.
+	p.items = slices.Clone(p.view.Items)
+	for _, it := range p.view.Answered {
+		if at := slices.Index(order, it.ID); p.kind != fleet && now.Before(it.Settles) && it.Used.IsZero() {
+			p.items = slices.Insert(p.items, min(max(at, 0), len(p.items)), it)
+		}
+	}
+	ids := p.ids()
+	if at := slices.Index(ids, p.sel); at < 0 {
 		p.sel = ""
 	} else {
 		p.follow = p.follow || at != was
 	}
+	if p.lineFor != "" && !slices.Contains(ids, p.lineFor) {
+		p.leave()
+	}
 	holding := map[string]bool{}
 	for _, it := range p.view.Items {
 		if holding[it.ID] = it.Holds; it.Holds && p.holding != nil && !p.holding[it.ID] && !p.view.Strip.DND {
-			p.folded = false
+			p.fold(false)
 		}
 	}
 	p.holding, p.stale = holding, false
@@ -349,7 +439,7 @@ func (p *pane) ids() []string {
 		}
 		return ids
 	}
-	for _, it := range p.view.Items {
+	for _, it := range p.items {
 		ids = append(ids, it.ID)
 	}
 	return ids
@@ -358,7 +448,7 @@ func (p *pane) ids() []string {
 // event takes a key, a click or a report from the terminal, and reports
 // false when the pane is to end.
 func (p *pane) event(ev term.Event) bool {
-	p.dirty = true
+	p.dirty, p.own = true, ev.Kind != term.Focus
 	switch ev.Kind {
 	case term.End:
 		return false
@@ -370,64 +460,35 @@ func (p *pane) event(ev term.Event) bool {
 		}
 	case term.Mouse:
 		p.mouse(ev)
-	case term.KeyPress:
-		return p.key(ev.Key)
+	case term.KeyPress, term.Paste:
+		return p.key(ev)
 	}
 	return true
 }
 
 // mouse: a click presses what is under it and the wheel moves the list.
 // The pointer is reported for every cell it crosses, so the screen is drawn
-// again only when another button is under it.
+// again only when another button is under it. A click on a row that has just
+// moved by itself is refused: the button slid under the finger.
 func (p *pane) mouse(ev term.Event) {
 	p.px, p.py = ev.X, ev.Y
+	by := map[term.Button]int{term.WheelUp: -1, term.WheelDown: 1}[ev.Button]
 	switch {
-	case ev.Button == term.WheelUp:
-		p.top--
-	case ev.Button == term.WheelDown:
-		p.top++
+	case by != 0 && p.over != "":
+		p.pick += by
+	case by != 0:
+		p.top += by
 	case ev.Button == term.Left && ev.Action == term.Press:
-		p.hint = ""
-		if i := p.under(false); i >= 0 {
+		p.hint, p.asked, p.sure = "", p.sure, ""
+		p.present()
+		if ev.Y < len(p.movedAt) && time.Since(p.movedAt[ev.Y]) < clickWait {
+			p.hint = movedSaid
+		} else if i := p.under(false); i >= 0 {
 			p.hits[i].do()
 		}
 	default:
 		p.dirty = p.under(true) != p.lit
 	}
-}
-
-func (p *pane) key(key string) bool {
-	p.hint = ""
-	switch key {
-	case "q", "ctrl+c":
-		return false
-	case "j", "down":
-		p.move(1)
-	case "k", "up":
-		p.move(-1)
-	case "t":
-		p.scheme = theme.Get(theme.Next(p.scheme.Name))
-		p.hint = "colour scheme: " + p.scheme.Name
-	case "x":
-		p.folded = p.kind == actions && !p.folded
-	default:
-		if at := slices.Index(p.ids(), p.sel); at >= 0 && p.kind == fleet && key == "enter" {
-			p.goTo(p.cards[at].Tab)
-		} else if at >= 0 && p.kind == actions {
-			for _, b := range p.view.Items[at].Buttons {
-				if b.Key == key || key == "enter" && b.Action == "go" {
-					p.press(p.view.Items[at], b)
-					return true
-				}
-			}
-		}
-		for _, a := range contract.Actions {
-			if a.Key == key && key != "enter" {
-				p.notYet(a.Label)
-			}
-		}
-	}
-	return true
 }
 
 // move takes the selection one entry on or back; with none, to the first or
@@ -443,22 +504,6 @@ func (p *pane) move(by int) {
 	}
 	p.sel, p.follow = ids[min(max(at+by, 0), len(ids)-1)], true
 }
-
-// press is a button of an item. Going to a tab is the one thing a pane does
-// yet; every other button says so.
-func (p *pane) press(it contract.Item, b contract.Button) {
-	if p.sel = it.ID; b.Action != "go" {
-		p.notYet(b.Label)
-		return
-	}
-	for _, c := range p.cards {
-		if c.Task == it.Task {
-			p.goTo(c.Tab)
-		}
-	}
-}
-
-func (p *pane) notYet(label string) { p.hint = label + ": " + contract.ErrNotBuilt.Error() }
 
 func (p *pane) goTo(tab string) {
 	if tab == "" {

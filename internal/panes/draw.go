@@ -1,6 +1,7 @@
 package panes
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -129,17 +130,77 @@ func (p *pane) draw() {
 	now, t := p.now(), p.t
 	checked := p.view.Fresh.Checked
 	p.old = !checked.IsZero() && now.Sub(checked) > contract.StaleAfter
-	p.hits, p.dirty = p.hits[:0], false
+	p.hits, p.dirty, p.lineDrawn = p.hits[:0], false, false
+	was := p.rows
+	p.rows = make([]string, t.H)
 	for y := range t.H {
 		t.Put(0, y, t.W, strings.Repeat(" ", t.W), p.st("text"))
 	}
-	if p.kind == fleet {
+	switch {
+	case p.over != "":
+		p.drawOver()
+	case p.kind == fleet:
 		p.drawFleet(now)
-	} else {
+	default:
 		p.drawActions(now)
 	}
+	// The click guard's book: a row that shows another thing than before,
+	// and not because the person scrolled or chose, has moved by itself.
+	if len(p.movedAt) != t.H {
+		p.movedAt = make([]time.Time, t.H)
+	}
+	for y, id := range p.rows {
+		if y < len(was) && was[y] != id && !p.own {
+			p.movedAt[y] = time.Now()
+		}
+	}
+	p.own = false
 	p.lit = p.under(true)
 	t.Flush()
+}
+
+// mark notes which card or item a block of rows shows.
+func (p *pane) mark(y, rows int, id string) {
+	for i := y; i < min(y+rows, len(p.rows)); i++ {
+		p.rows[i] = id
+	}
+}
+
+// drawOver draws the list that lies over the pane: its name, the line that
+// narrows it, the entries round the chosen one, and what the keys do.
+func (p *pane) drawOver() {
+	t, w, h := p.t, p.t.W, p.t.H
+	title, list, foot := p.entries()
+	t.Put(0, 0, w, " "+title+" ", bold(p.on("accent")))
+	y := 1
+	if p.over == menu {
+		x := 1 + t.Put(1, y, w-1, "> ", p.st("accent"))
+		p.query.Draw(t.Grid, x, y, w-x-1, p.st("text"), true)
+		y++
+	}
+	p.pick = max(min(p.pick, len(list)-1), 0)
+	room := h - y - 1
+	for i := max(min(p.pick-room/2, len(list)-room), 0); i < len(list) && y < h-1; i, y = i+1, y+1 {
+		e, st := list[i], p.st("text")
+		if e.do != nil && i == p.pick {
+			st = bold(st)
+			t.Put(0, y, 1, p.glyph("▌", "|"), p.st("accent"))
+		}
+		rw := term.Width(e.right)
+		t.Put(2, y, w-rw-4, p.cut(e.text, w-rw-4), st)
+		t.Put(w-rw-1, y, rw, e.right, p.st("dim"))
+		if e.do != nil {
+			p.hits = append(p.hits, hit{0, y, w, 1, false, func() {
+				p.pick = i
+				e.do()
+			}})
+		}
+	}
+	if st := p.st("dim"); p.hint != "" {
+		t.Put(1, h-1, w-1, p.cut(p.hint, w-1), p.st("accent"))
+	} else {
+		t.Put(1, h-1, w-1, p.cut(foot, w-1), st)
+	}
 }
 
 // age is the line that cannot lie: how long ago both sources of news last
@@ -165,13 +226,15 @@ func (p *pane) age(now time.Time, short bool) (string, term.Style) {
 }
 
 // title is the first cells of a pane's first row: its name, lit while the
-// pane has the keys, and its counts.
+// pane has the keys, and its counts. A click on the name, as one on the line
+// that names the keys, opens the list of every action.
 func (p *pane) title(name, counts string, limit int) {
 	st := bold(p.st("text"))
 	if p.focused {
 		st = bold(p.on("accent"))
 	}
 	x := p.t.Put(0, 0, limit, " "+name+" ", st) + 1
+	p.hits = append(p.hits, hit{0, 0, x, 1, false, func() { p.act(menu, nil) }})
 	p.t.Put(x, 0, limit-x, counts, p.st("text"))
 }
 
@@ -179,7 +242,12 @@ func (p *pane) title(name, counts string, limit int) {
 // what the last key did.
 func (p *pane) hintLine(y, limit int, keys, away string) {
 	x := 1
+	p.hits = append(p.hits, hit{0, y, limit, 1, false, func() { p.act(menu, nil) }})
 	switch {
+	case p.line != nil && !p.lineDrawn:
+		x += p.t.Put(x, y, limit-x, p.linePre+" ", bold(p.st("accent")))
+		p.line.Draw(p.t.Grid, x, y, limit-x, p.st("text"), true)
+		return
 	case p.hint != "":
 		p.t.Put(x, y, limit-x, p.hint, p.st("accent"))
 		return
@@ -285,12 +353,12 @@ func (p *pane) drawFleet(now time.Time) {
 		}
 		p.title("FLEET", f.counts, x-1)
 		for i, b := range []string{"narrower", "wider", "fleet"}[:f.buttons] {
-			x += p.button(x, 0, [...]string{"[<]", "[>]", "[x]"}[i], dim, func() { p.notYet(label(b)) }) + f.gap
+			x += p.button(x, 0, [...]string{"[<]", "[>]", "[x]"}[i], dim, func() { p.act(b, nil) }) + f.gap
 		}
 		break
 	}
 
-	show := func(x, y int) int { return x + p.button(x, y, "[show]", dim, func() { p.notYet(label("show")) }) }
+	show := func(x, y int) int { return x + p.button(x, y, "[show]", dim, func() { p.act("show", nil) }) }
 	keys := "enter go there · f hide · [ ] width"
 	switch y = h - foot; {
 	case !narrow:
@@ -323,6 +391,7 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 		s.Dim = s.Dim || p.old
 		return s
 	}
+	p.mark(y, rows, c.Task)
 	p.hits = append(p.hits, hit{0, y, w, rows, false, func() {
 		p.sel = c.Task
 		p.goTo(c.Tab)
@@ -351,6 +420,10 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 		t.Put(x+1, y, w-ww-x-2, p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain), st("needs"))
 	}
 	t.Put(w-ww, y, ww, word, st(c.Colour))
+	// The state word opens what can be done with this agent.
+	if len(c.Actions) > 0 {
+		p.hits = append(p.hits, hit{w - ww, y, ww, 1, false, func() { p.sel, p.shown, p.over, p.pick = c.Task, c, "card", 0 }})
+	}
 
 	ctx, cells := "  ctx unknown", (c.Ctx+10)/20
 	switch {
@@ -405,7 +478,7 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 }
 
 func (p *pane) drawActions(now time.Time) {
-	t, items, w, h := p.t, p.view.Items, p.t.W, p.t.H
+	t, items, w, h := p.t, p.items, p.t.W, p.t.H
 	dim := p.st("dim")
 	p.strip(now)
 	if h < 2 {
@@ -414,16 +487,34 @@ func (p *pane) drawActions(now time.Time) {
 	age, ageSt := p.age(now, true)
 	age = p.cut(age, w-2)
 	aw := term.Width(age)
-	p.hintLine(h-1, w-aw-3, "j k choose · y n o answer · u undo · x fold · / all actions · ? keys",
-		"ctrl+b a to answer · / all actions · ? keys")
 	t.Put(max(w-aw-1, 0), h-1, w, age, ageSt)
+	defer func() {
+		p.hintLine(h-1, w-aw-3, "j k choose · y n o answer · u undo · x fold · / all actions · ? keys",
+			"ctrl+b a to answer · / all actions · ? keys")
+	}()
 
-	y, room := 1, h-2
+	y, room, end := 1, h-2, h-1
 	for _, a := range p.view.Alerts {
 		if room > 0 {
 			t.Put(1, y, w-1, a, bold(p.st("blocked")))
 			y, room = y+1, room-1
 		}
+	}
+	// A draft whose item was answered somewhere else stays in view until it
+	// is dismissed; the last answers are one row, opened with [show].
+	for _, it := range p.view.Answered {
+		if d := p.ui.Drafts[it.ID]; d != "" && room > 0 && it.By != nil {
+			where := cmp.Or(map[string]string{contract.WherePage: "on the page", contract.WherePhone: "on the phone",
+				contract.WherePane: "here"}[it.By.Where], "elsewhere")
+			x := 2 + t.Put(1, y, w-14, p.cut(fmt.Sprintf("answered %s: %s · your draft: %s", where, it.Answer, d), w-14), p.st("accent"))
+			p.button(x, y, "[ dismiss ]", dim, func() { p.draft(it.ID, "") })
+			y, room = y+1, room-1
+		}
+	}
+	if n := len(p.view.Answered); n > 0 && !p.folded && room > 3 {
+		room, end = room-1, end-1
+		x := 5 + t.Put(3, end, w-3, fmt.Sprintf("answered: %d", n), dim)
+		p.button(x, end, "[show]", dim, func() { p.act("show", nil) })
 	}
 	if len(items) == 0 && room > 0 {
 		t.Put(3, y, w-3, "nothing waits for you", dim)
@@ -450,7 +541,7 @@ func (p *pane) drawActions(now time.Time) {
 	}
 	// What does not fit whole is shown on one line each, as far as the rows
 	// go, and a last row counts what is still out of view.
-	rest, left := items[p.top+fit:], h-1-y
+	rest, left := items[p.top+fit:], end-y
 	lines := min(len(rest), left)
 	hidden := p.top + len(rest) - lines
 	if hidden > 0 && lines == left && left > 0 {
@@ -459,7 +550,7 @@ func (p *pane) drawActions(now time.Time) {
 	for i := range lines {
 		p.item(rest[i], y+i, 1, now)
 	}
-	if y += lines; hidden > 0 && y < h-1 {
+	if y += lines; hidden > 0 && y < end {
 		t.Put(5, y, w-5, fmt.Sprintf("+%d more · j k", hidden), dim)
 	}
 }
@@ -469,7 +560,11 @@ func (p *pane) drawActions(now time.Time) {
 // In one row it is its name and its text.
 func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 	t, w, lk := p.t, p.t.W, look(it.Look)
-	p.hits = append(p.hits, hit{0, y, w, rows, false, func() { p.sel, p.folded, p.follow = it.ID, false, true }})
+	p.mark(y, rows, it.ID)
+	p.hits = append(p.hits, hit{0, y, w, rows, false, func() {
+		p.sel, p.follow = it.ID, true
+		p.fold(false)
+	}})
 	name := p.st("text")
 	if it.ID == p.sel {
 		name = bold(name)
@@ -497,12 +592,28 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 		t.Put(5, y+1+i, w-6, l, p.st("text"))
 	}
 	x, y = 5, y+rows-1
-	if it.Line && len(it.Buttons) == 0 {
+	draft := p.ui.Drafts[it.ID]
+	switch {
+	case p.line != nil && p.lineFor == it.ID:
+		// The line being typed on takes the row, after what it is sent with.
+		x += t.Put(x, y, w-x, strings.TrimSpace(p.linePre+" >")+" ", p.st("accent"))
+		p.line.Draw(t.Grid, x, y, w-x-1, p.st("text"), true)
+		p.hits = append(p.hits, hit{x, y, w - x, 1, false, func() { p.line.Click(p.px - x) }})
+		p.lineDrawn = true
+		return
+	case it.Answer != "":
+		left := (it.Settles.Sub(now) + time.Second - 1) / time.Second
+		x += t.Put(x, y, w-x, fmt.Sprintf("%s · u to undo · %d", it.Answer, left), p.st("accent")) + 2
+	case it.Line && len(it.Buttons) == 0:
 		t.Put(x, y, 2, ">", p.st("accent"))
-		t.Put(x+2, y, 1, "_", p.st("dim"))
+		t.Put(x+2, y, w-x-3, cmp.Or(p.cut(draft, w-x-3), "_"), p.st("dim"))
+		p.hits = append(p.hits, hit{x, y, w - x, 1, false, func() { p.open(it.ID, "") }})
 	}
 	for _, b := range it.Buttons {
 		x += p.button(x, y, "[ "+b.Label+" ]", p.st("text"), func() { p.press(it, b) }) + 2
+	}
+	if draft != "" && len(it.Buttons) > 0 && it.Answer == "" {
+		t.Put(x, y, w-x-1, p.cut("· typed: "+draft, w-x-1), p.st("dim"))
 	}
 }
 
@@ -563,11 +674,11 @@ func (p *pane) strip(now time.Time) {
 	}
 	x := w - total
 	for i, id := range ids {
-		x += p.button(x, 0, texts[i], styles[i], func() { p.notYet(label(id)) }) + 1
+		x += p.button(x, 0, texts[i], styles[i], func() { p.act(id, nil) }) + 1
 	}
 	arrow := "[v]"
 	if p.folded {
 		arrow = "[^]"
 	}
-	p.button(w-3, 0, arrow, p.st("dim"), func() { p.folded = !p.folded })
+	p.button(w-3, 0, arrow, p.st("dim"), func() { p.fold(!p.folded) })
 }

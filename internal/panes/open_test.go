@@ -118,20 +118,13 @@ func TestUIOpensBothPanesOnceAndClosesOnlyItsOwn(t *testing.T) {
 	if same, err := d.ui(d.me, "actions", "on"); err != nil || same != on || d.did() != "" {
 		t.Errorf("ui actions on: %+v, %v", same, err)
 	}
-	// From one of the two, a pane can be closed and none opened.
-	if _, err := d.ui(on.Fleet, "actions", "off"); err != nil || d.did() != "pane close "+on.Actions {
-		t.Errorf("ui actions off from the fleet: %v", err)
-	}
-	if _, err := d.ui(on.Fleet, "actions"); err == nil || d.did() != "" {
-		t.Errorf("ui actions from the fleet opened a pane: %v", err)
-	}
 	// Close removes ours and nothing else, and is safe to say twice.
 	for range 2 {
 		if o, err := d.ui(d.me, "close"); err != nil || o != (Opened{}) {
 			t.Errorf("ui close: %+v, %v", o, err)
 		}
 	}
-	if got := d.did(); got != "pane close "+on.Fleet {
+	if got := d.did(); got != "pane close "+on.Actions+"\npane close "+on.Fleet {
 		t.Errorf("ui close asked herdr for\n%s", got)
 	}
 	if left := d.panes(); len(left) != 2 || d.focus() != d.me {

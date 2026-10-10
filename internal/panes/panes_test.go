@@ -2,6 +2,7 @@ package panes
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -27,10 +28,13 @@ type reader struct {
 	dir   string
 	state *contract.State
 	reads *atomic.Int32
+	fails *atomic.Bool
 }
 
 func (r reader) Read(string, string) (*contract.State, error) {
-	r.reads.Add(1)
+	if r.reads.Add(1); r.fails.Load() {
+		return nil, errors.New("the disk is gone")
+	}
 	return r.state, nil
 }
 func (r reader) Current(string) (string, error) { return "r3", nil }
@@ -57,16 +61,21 @@ func system(home string, env map[string]string) *platform.System {
 // evening fixture, with a fake herdr holding the fixture's picture and real
 // file notices on a folder of its own.
 type world struct {
-	t     *testing.T
-	s     *termtest.Screen
-	p     *pane
-	herdr *fakeherdr.Fake
-	fx    *testkit.Fixture
-	sys   *platform.System
-	file  string // the run's state.json
-	h     int
-	clock atomic.Int64
-	reads atomic.Int32 // how often the pane has read the record
+	t        *testing.T
+	s        *termtest.Screen
+	p        *pane
+	herdr    *fakeherdr.Fake
+	fx       *testkit.Fixture
+	sys      *platform.System
+	file     string // the run's state.json
+	home     string
+	h        int
+	clock    atomic.Int64
+	reads    atomic.Int32 // how often the pane has read the record
+	fails    atomic.Bool  // the record cannot be read
+	in       contract.ViewInput
+	next     int // the children and the calls to herdr a test has looked at
+	nextCall int
 
 	mu   sync.Mutex
 	view contract.View
@@ -74,6 +83,11 @@ type world struct {
 }
 
 func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
+	return startWith(t, kind, w, h, env, func(*world) {})
+}
+
+// startWith is start with something done to the world before the pane begins.
+func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepare func(*world)) *world {
 	t.Parallel()
 	fx, err := testkit.Load(testkit.Evening)
 	if err != nil {
@@ -81,9 +95,10 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	}
 	wd := &world{t: t, s: termtest.New(w, h), h: h, fx: fx, view: *fx.Views[contract.Human]}
 	home := t.TempDir()
+	wd.home = home
 	k := contract.NewKit()
 	wd.sys = system(home, env)
-	k.Platform, k.Store = wd.sys, reader{dir: home, state: &fx.State, reads: &wd.reads}
+	k.Platform, k.Store = wd.sys, reader{dir: home, state: &fx.State, reads: &wd.reads, fails: &wd.fails}
 	wd.file = filepath.Join(home, "r3", "state.json")
 	os.MkdirAll(filepath.Dir(wd.file), 0o700)
 	wd.touch()
@@ -94,14 +109,16 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 	k.Terms = wd.herdr
 
 	wd.p = newPane(kind, wd.s.Term, k, home, "", func() time.Time { return fx.Now.Add(time.Duration(wd.clock.Load())) })
-	wd.p.plainMarks = false
+	wd.p.plainMarks, wd.p.me = false, ""
+	wd.p.self, _ = os.Executable()
 	wd.p.make = func(in contract.ViewInput) contract.View {
 		wd.mu.Lock()
 		defer wd.mu.Unlock()
 		v := wd.view
-		v.Fresh, wd.seen = contract.Fresh{Checked: in.Checked, Notes: in.Notes}, in.Terms
+		v.Fresh, wd.seen, wd.in = contract.Fresh{Checked: in.Checked, Notes: in.Notes}, in.Terms, in
 		return v
 	}
+	prepare(wd)
 	done := make(chan bool)
 	go func() {
 		wd.p.loop()
@@ -187,9 +204,18 @@ func still(t *testing.T, kind string, w, h int) (*pane, *contract.View, *time.Ti
 	}
 	now, view := fx.Now, fx.Views[contract.Human]
 	p := newPane(kind, termtest.New(w, h).Term, contract.NewKit(), "", "", func() time.Time { return now })
-	p.plainMarks, p.state, p.make = false, &fx.State, func(contract.ViewInput) contract.View { return *view }
+	p.plainMarks, p.me, p.state, p.make = false, "", &fx.State, func(contract.ViewInput) contract.View { return *view }
 	p.draw()
 	return p, view, &now
+}
+
+// press gives a pane without a loop keys, each long enough after the last
+// that the typing guard takes it for a command.
+func press(p *pane, keys ...string) {
+	for _, key := range keys {
+		time.Sleep(burstGap + 20*time.Millisecond)
+		p.event(term.Event{Kind: term.KeyPress, Key: key, Rune: []rune(key)[0]})
+	}
 }
 
 func (p *pane) find(t *testing.T, text string) (x, y int) {
@@ -281,8 +307,7 @@ func TestHowTheFleetIsColoured(t *testing.T) {
 		t.Errorf("a stale card's mark is drawn in %x", got)
 	}
 
-	p.key("t")
-	p.key("t")
+	press(p, "t", "t")
 	p.draw()
 	p.find(t, "▓▓▓▓▓▓▓▓▓▓░░░░░░░░░  50%")
 	if st := p.t.At(5, 5).Style; st.Fg != 0 || st.Bg != 0 {
@@ -331,16 +356,6 @@ func TestTheFleetGoesToATab(t *testing.T) {
 	}
 	wd.shows("▌◐ login page")
 
-	// Nothing else runs anything yet: a button says so, and so does a key.
-	wd.s.ClickText("[<]")
-	wd.shows("Narrower: not built yet")
-	wd.s.Key("S")
-	wd.shows("Stop all: not built yet")
-	for _, c := range wd.herdr.Calls() {
-		if c[0] != "tab" && c[0] != "status" && c[0] != "snapshot" && !slices.Contains(c, "snapshot") {
-			t.Errorf("the pane called herdr with %v", c)
-		}
-	}
 }
 
 func TestTheFourFormsAndTheStrip(t *testing.T) {
@@ -367,14 +382,15 @@ func TestTheFourFormsAndTheStrip(t *testing.T) {
 	wd.s.Type("\x1b[O")
 	wd.shows("ctrl+b a to answer")
 	// A click presses the button it is on, of the item it is in.
-	wd.s.ClickText("[ Approve ]")
-	wd.shows("Approve: not built yet", "› ● price list")
-	wd.s.ClickText("[ Go there ]")
+	wd.click("[ Approve ]")
+	wd.ran(`answer n4 --file "approve" --human`)
+	wd.shows("› ● price list")
+	wd.click("[ Go there ]")
 	if !wd.wentTo("w1:t8") {
 		t.Fatalf("Go there did not go to the tab: %v", wd.herdr.Calls())
 	}
-	wd.s.ClickText("[ Mute ]")
-	wd.shows("Mute: not built yet")
+	wd.click("[ Mute ]")
+	wd.ran("set mute on --human")
 
 	// What the strip says of the four buttons.
 	wd.change(func(v *contract.View) {
@@ -408,8 +424,8 @@ func TestAnItemInsertedAboveTheSelectionDoesNotMoveIt(t *testing.T) {
 		t.Fatalf("more than one item is selected:\n%s", wd.screen())
 	}
 	// The key acts on the item, not on the row the item used to be in.
-	wd.s.Key("y")
-	wd.shows("Approve: not built yet")
+	wd.key("y")
+	wd.ran(`answer n4 --file "approve" --human`)
 
 	// An item that leaves takes its selection with it; no other inherits it.
 	wd.change(func(v *contract.View) { v.Items = v.Items[:3] })
@@ -418,16 +434,17 @@ func TestAnItemInsertedAboveTheSelectionDoesNotMoveIt(t *testing.T) {
 			t.Fatal("the item never left")
 		}
 	}
-	wd.s.Key("y")
+	wd.key("y")
 	wd.shows("KEYS GO HERE")
-	if rows := wd.screen(); strings.Contains(rows, "›") || strings.Contains(rows, "not built yet") {
-		t.Fatalf("a key acted with nothing selected:\n%s", rows)
+	time.Sleep(200 * time.Millisecond)
+	if rows := wd.screen(); strings.Contains(rows, "›") || len(wd.children("answer")) != 1 {
+		t.Fatalf("a key acted with nothing selected: %v\n%s", wd.children("answer"), rows)
 	}
 }
 
 func TestFoldAndUnfold(t *testing.T) {
 	wd := start(t, actions, 104, 20, nil)
-	wd.s.Key("x")
+	wd.key("x")
 	wd.resize(104, 6)
 	wd.shows("[^]", "▲ sign-up page · Must the old sign-up link keep working?", "▲ photo upload · Which sizes",
 		"● price list · Prices load from the sheet")
@@ -450,7 +467,7 @@ func TestFoldAndUnfold(t *testing.T) {
 		Since: wd.fx.Now, Text: "Which pages are left out of the map?", Line: true, Holds: true}
 	wd.change(func(v *contract.View) { v.Items = append(v.Items, holds) })
 	wd.shows("[v]", "site map · a question from the worker · now", "[ Approve ]")
-	wd.s.ClickText("[v]")
+	wd.click("[v]")
 	wd.shows("[^]")
 	holds.ID = "q13"
 	wd.change(func(v *contract.View) {
@@ -461,7 +478,7 @@ func TestFoldAndUnfold(t *testing.T) {
 	if wd.within(time.Second, "[v]") {
 		t.Fatal("the pane unfolded itself while it was not to disturb")
 	}
-	wd.s.ClickText("▲ photo upload")
+	wd.click("▲ photo upload")
 	wd.shows("[v]", "› ▲ photo upload")
 }
 
@@ -661,8 +678,7 @@ func TestWhatIsLit(t *testing.T) {
 		t.Errorf("Mute, switched off, is drawn %+v", st)
 	}
 
-	p.key("t")
-	p.key("t")
+	press(p, "t", "t")
 	p.draw()
 	for name, at := range map[string]int{"the lit button": x + 2, "the title": 1, "the switch that is on": dnd} {
 		row := map[string]int{"the lit button": y}[name]
