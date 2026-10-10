@@ -23,6 +23,7 @@ type Screen struct {
 	shown *term.Grid
 	x, y  int
 	sent  strings.Builder
+	drawn time.Time // when the program last wrote a text
 }
 
 func New(w, h int) *Screen {
@@ -43,6 +44,7 @@ func (s *Screen) Write(p []byte) (int, error) {
 		if b[0] != 0x1b {
 			n := strings.IndexByte(b+"\x1b", 0x1b)
 			s.x += s.shown.Put(s.x, s.y, s.shown.W, b[:n], term.Style{})
+			s.drawn = time.Now()
 			b = b[n:]
 			continue
 		}
@@ -95,6 +97,22 @@ func (s *Screen) Wait(text string) bool {
 		time.Sleep(2 * time.Millisecond)
 	}
 	return false
+}
+
+// Still waits for the time d, and then until the program has drawn nothing
+// for that long: what a person does before clicking on a list that may yet
+// move. A test that only sleeps counts from when it looked, and the program
+// may draw a change it already knows of later than that. After twenty times
+// d it returns whatever the screen does.
+func (s *Screen) Still(d time.Duration) {
+	for start := time.Now(); time.Since(start) < 20*d; time.Sleep(5 * time.Millisecond) {
+		s.mu.Lock()
+		drawn := s.drawn
+		s.mu.Unlock()
+		if time.Since(start) >= d && time.Since(drawn) >= d {
+			return
+		}
+	}
 }
 
 // Type sends bytes exactly as a terminal would.

@@ -364,6 +364,11 @@ func (p *pane) launch(a contract.Action, fill map[string]string) {
 			} else if p.kind == menu {
 				p.over = menu
 			}
+			// What a letter of a typed sentence started, and its taking
+			// back, end a moment after the warning: the warning stays.
+			if ok && p.hint == typingSaid {
+				return
+			}
 			p.hint = said
 		})
 	}

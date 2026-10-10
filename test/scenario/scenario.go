@@ -224,7 +224,7 @@ func (r *runner) step(kind, rest string) {
 		if !s.shows(text(rest)) {
 			r.fail("the pane does not show %q:\n%s", text(rest), s.all())
 		}
-		time.Sleep(apart)
+		s.Still(apart)
 		if !s.ClickText(text(rest)) {
 			r.fail("the pane does not show %q:\n%s", text(rest), s.all())
 		}

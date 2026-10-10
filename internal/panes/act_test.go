@@ -134,11 +134,20 @@ func (wd *world) asked(words string) {
 	wd.t.Fatalf("herdr was never asked for %q:\n%v", words, wd.herdr.Calls())
 }
 
+// keyGap is the time a test leaves before a key that is a command. It is
+// well over burstGap, because the pane counts from when it takes a key, and
+// on a busy machine that is some time after the test sent it.
+const keyGap = burstGap + 150*time.Millisecond
+
+// settle waits as a person does before a click: until the rows have stood
+// still for longer than the click guard asks, however late the pane drew them.
+func (wd *world) settle() { wd.s.Still(clickWait + 50*time.Millisecond) }
+
 // key presses keys as a person gives commands: each long enough after the
 // last that the typing guard does not take them for a sentence.
 func (wd *world) key(names ...string) {
 	for _, name := range names {
-		time.Sleep(burstGap + 30*time.Millisecond)
+		time.Sleep(keyGap)
 		wd.s.Key(name)
 	}
 }
@@ -147,9 +156,22 @@ func (wd *world) key(names ...string) {
 func (wd *world) click(text string) {
 	wd.t.Helper()
 	wd.shows(text)
-	time.Sleep(clickWait + 50*time.Millisecond)
+	wd.settle()
 	if !wd.s.ClickText(text) {
 		wd.t.Fatalf("%q is not on the screen:\n%s", text, wd.screen())
+	}
+}
+
+// over waits for the list of that name to lie over the pane: its name stands
+// alone on the first row. A name is not looked for as a text anywhere, since
+// the pane beneath may show the same words, and a row is read without the
+// spaces it ends in.
+func (wd *world) over(name string) {
+	wd.t.Helper()
+	for end := time.Now().Add(3 * time.Second); wd.s.Row(0) != " "+name; time.Sleep(5 * time.Millisecond) {
+		if time.Now().After(end) {
+			wd.t.Fatalf("the list %q never lay over the pane; it shows:\n%s", name, wd.screen())
+		}
 	}
 }
 
@@ -268,11 +290,11 @@ func TestEveryRowIsReachedByKeysAndByClicks(t *testing.T) {
 		wd.reached(a, "keys", func() { wd.s.Key("enter") })
 
 		pick := func() {
-			time.Sleep(clickWait + 50*time.Millisecond)
+			wd.settle()
 			wd.s.Click(4, 2+i)
 		}
 		wd.shows("ACTIONS ")
-		time.Sleep(clickWait + 50*time.Millisecond)
+		wd.settle()
 		wd.s.Click(3, wd.h-1)
 		wd.shows("type to search")
 		pick()
@@ -323,9 +345,10 @@ func TestTheButtonsOfTheFleet(t *testing.T) {
 	}
 	// A card's state word opens what can be done with that agent.
 	x, y, _ := wd.s.Find("check failed")
-	time.Sleep(clickWait + 50*time.Millisecond)
+	wd.settle()
 	wd.s.Click(x+2, y)
-	wd.shows(" email sender ", "Go there", "Send back", "Stop", "Send a note or a link", "enter runs it")
+	wd.over("email sender")
+	wd.shows("Go there", "Send back", "Stop", "Send a note or a link", "enter runs it")
 	wd.s.Key("down")
 	wd.s.Key("enter")
 	wd.shows(" Send back:")
@@ -377,7 +400,7 @@ func TestTheTypingLineAndItsDrafts(t *testing.T) {
 	// Pasted text goes nowhere while no line is open.
 	wd.s.Paste("yes\r")
 	wd.key("o")
-	time.Sleep(burstGap + 30*time.Millisecond)
+	time.Sleep(keyGap)
 	wd.s.Type("small and ")
 	wd.s.Paste("large\nones")
 	wd.shows("> small and large ones")
@@ -410,7 +433,7 @@ func TestTheTypingLineAndItsDrafts(t *testing.T) {
 	wd.shows("other: >")
 	wd.s.Key("enter")
 	wd.shows("nothing is typed yet")
-	time.Sleep(burstGap + 30*time.Millisecond)
+	time.Sleep(keyGap)
 	wd.s.Type("ask the shop owner")
 	wd.s.Key("enter")
 	wd.ran(`answer q7 --file "other: ask the shop owner" --human`)
@@ -496,10 +519,15 @@ func TestABurstOfLettersAnswersNothing(t *testing.T) {
 	wd := start(t, actions, 120, 24, nil)
 	wd.s.Type("\x1b[I")
 	wd.shows("› ▲ sign-up page")
-	time.Sleep(burstGap + 30*time.Millisecond)
+	time.Sleep(keyGap)
 	wd.s.Type("yes do that, and stop the rest\r")
-	wd.shows("it looks like you are typing: the keys are in this pane · esc goes back to the conversation")
+	wd.shows(typingSaid)
 	time.Sleep(500 * time.Millisecond)
+	// The answer and its taking back have ended by now, and what they said
+	// has not taken the warning's place.
+	if !strings.Contains(wd.last(), typingSaid) {
+		t.Fatalf("the warning did not stay: %q", wd.last())
+	}
 	lines := wd.children("")
 	lines = slices.DeleteFunc(lines, func(l string) bool { return strings.HasPrefix(l, "status") || strings.HasPrefix(l, "set here") })
 	if got := strings.Join(lines, "\n"); got != "answer q7 --file \"yes\" --human\nanswer q7 --undo --human" && got != "" {
@@ -507,9 +535,9 @@ func TestABurstOfLettersAnswersNothing(t *testing.T) {
 	}
 	// A sentence that begins with the key for the typing line types nothing
 	// into it, and its Enter sends nothing.
-	time.Sleep(burstGap + 30*time.Millisecond)
+	time.Sleep(keyGap)
 	wd.s.Type("ok then\r")
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(keyGap + 500*time.Millisecond)
 	if n := len(wd.children("answer")); n > 2 || strings.Contains(wd.screen(), "other: >") {
 		t.Fatalf("a sentence went into the typing line: %v\n%s", wd.children("answer"), wd.screen())
 	}
@@ -523,7 +551,7 @@ func TestABurstOfLettersAnswersNothing(t *testing.T) {
 func TestAClickJustAfterTheListMovedIsRefused(t *testing.T) {
 	wd := start(t, actions, 104, 30, nil)
 	x, y, _ := wd.s.Find("[ Approve ]")
-	time.Sleep(clickWait + 50*time.Millisecond)
+	wd.settle()
 	wd.change(func(v *contract.View) {
 		v.Items = append([]contract.Item{{ID: "n9", Form: "choice", Look: contract.LookNeedsYou, Name: "help pages", Source: "a question from the worker",
 			Since: wd.fx.Now, Text: "Drop the old pages?", Buttons: []contract.Button{{Label: "Yes", Key: "y", Answer: "yes"}}}}, v.Items...)
@@ -532,7 +560,7 @@ func TestAClickJustAfterTheListMovedIsRefused(t *testing.T) {
 	// Where Approve stood there is now another item's button.
 	wd.s.Click(x, y)
 	wd.shows("the list moved; click again")
-	time.Sleep(clickWait + 50*time.Millisecond)
+	wd.settle()
 	if n := len(wd.children("answer")); n != 0 || strings.Contains(wd.screen(), "›") {
 		t.Fatalf("the refused click acted: %v\n%s", wd.children("answer"), wd.screen())
 	}
@@ -547,14 +575,25 @@ func TestAClickJustAfterTheListMovedIsRefused(t *testing.T) {
 // line stops saying that nobody is watching.
 func TestTheSweepIsAChildEveryFiveSeconds(t *testing.T) {
 	wd := start(t, fleet, 60, 30, nil)
-	at := time.Now()
-	for end := time.Now().Add(12 * time.Second); len(wd.children("status --sweep --quiet --json --human")) < 2; time.Sleep(20 * time.Millisecond) {
+	// The time is counted from the first sweep to the second, not from the
+	// start of the test: how long the pane had run by then is not known.
+	var first time.Time
+	for end := time.Now().Add(14 * time.Second); ; time.Sleep(20 * time.Millisecond) {
+		n := len(wd.children("status --sweep --quiet --json --human"))
+		if n == 1 && first.IsZero() {
+			first = time.Now()
+		}
+		if n >= 2 {
+			break
+		}
 		if time.Now().After(end) {
-			t.Fatalf("no two sweeps within twelve seconds: %v", wd.children(""))
+			t.Fatalf("no two sweeps within fourteen seconds: %v", wd.children(""))
 		}
 	}
-	if took := time.Since(at); took < 9*time.Second {
-		t.Errorf("two sweeps within %v", took)
+	if first.IsZero() {
+		t.Error("two sweeps at once")
+	} else if apart := time.Since(first); apart < 4*time.Second {
+		t.Errorf("two sweeps %v apart", apart)
 	}
 	wd.touch()
 	for end := time.Now().Add(3 * time.Second); ; time.Sleep(20 * time.Millisecond) {
@@ -702,11 +741,11 @@ func TestAPaneLeavesWhenItsProgramIsReplaced(t *testing.T) {
 	go func() { left <- p.loop() }()
 	post := func(ev term.Event) { p.t.Post(ev) }
 	post(term.Event{Kind: term.Focus, Focused: true})
-	time.Sleep(burstGap + 30*time.Millisecond)
+	time.Sleep(keyGap)
 	post(term.Event{Kind: term.KeyPress, Key: "j", Rune: 'j'})
-	time.Sleep(burstGap + 30*time.Millisecond)
+	time.Sleep(keyGap)
 	post(term.Event{Kind: term.KeyPress, Key: "o", Rune: 'o'})
-	time.Sleep(burstGap + 30*time.Millisecond)
+	time.Sleep(keyGap)
 	post(term.Event{Kind: term.Paste, Text: "three sizes"})
 	time.Sleep(100 * time.Millisecond)
 	later := time.Now().Add(time.Hour)
