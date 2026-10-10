@@ -6,9 +6,11 @@ The aim is Orca's way of orchestrating many agents in something light: one progr
 
 ## Status
 
-**Early, and not released.** What is built: the command line with its 42 commands in one table, the record of a run and the rules for every change to it, the terminal engine, starting workers in tabs and waiting for what they report, questions and answers, the two panes a person watches (the fleet and the action pane), Stop all and Resume, the nudge, and the gate that holds the tree to its limits. It has been run from end to end with real Claude Code agents on macOS, in scripted tries; nobody has yet used it for real work, and it has not been tried in a real terminal window by a person.
+**Early, and not released.** What is built: the command line with its 42 commands in one table, the record of a run and the rules for every change to it, the terminal engine, starting workers in tabs and waiting for what they report, questions and answers, the two panes a person watches (the fleet and the action pane), Stop all and Resume, the nudge, and the gate that holds the tree to its limits. In a project with git each task now gets a copy of the code of its own on its own branch; finished work is checked and collected on one branch for the run, one task at a time or several together, and brought to your own branch with one command that only you may type. The tool finds tasks that change the same files, says which would conflict, and hands a worker what to merge in; a project's own settings that can run something count only once you have approved them; a plan can be saved as a team and run again; `whaleshark doctor` checks an installation line by line.
 
-What is not built: a copy of the code for each worker and bringing the work together, the page in the browser and on a phone, running on a server, the installer. `whaleshark help` lists every command and marks those not built yet.
+What is true of it today, plainly: it has been run from end to end on macOS only, by scripted scenarios and in scripted tries with real Claude Code agents. Nobody has yet used it for real work, and it has not been tried in a real terminal window by a person. The first worker started in a project you have never opened in Claude Code stops at Claude Code's own question whether you trust the folder; the tool tells you so and answers nothing, and after your one yes in the project's folder it does not come again. Claude Code is the one agent it knows well: a second kind is built from its maker's manual and has never been run.
+
+What is not built: the page in the browser and on a phone, running on a server, evidence from a browser, the installer. `whaleshark help` lists every command and marks those not built yet.
 
 ## The terminal engine
 
