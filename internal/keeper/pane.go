@@ -133,7 +133,14 @@ func (k *Keeper) start(p *pane) error {
 	if argv == nil {
 		argv = k.shell(k.set)
 	}
-	tty, err := k.kit.Pty(contract.PtySpec{Argv: argv, Dir: p.rec.Cwd, Env: k.env(p), Cols: w, Rows: h})
+	spec := contract.PtySpec{Argv: argv, Dir: p.rec.Cwd, Env: k.env(p), Cols: w, Rows: h}
+	tty, err := k.kit.Pty(spec)
+	if _, gone := os.Stat(spec.Dir); err != nil && gone != nil && spec.Dir != "" {
+		// A folder that is gone, a work tree removed since, must not cost
+		// the pane: its program starts where the keeper is.
+		spec.Dir = ""
+		tty, err = k.kit.Pty(spec)
+	}
 	if err != nil {
 		return err
 	}

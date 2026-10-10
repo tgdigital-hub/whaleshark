@@ -139,7 +139,11 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			p.argv, p.rec = was, rec
 			break
 		}
-		gone = append(gone, old)
+		if gone = append(gone, old); c.Op == contract.OpAgentStart {
+			// The agent is what its pane was opened for, not a new start of
+			// it: the terminal keeps the id its caller wrote down.
+			p.rec.Terminal = rec.Terminal
+		}
 		k.emit(contract.EvState, p.rec)
 		k.saved()
 		k.wake()

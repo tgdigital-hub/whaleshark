@@ -129,7 +129,8 @@ func newRig(t *testing.T) *rig {
 	boardMu.Unlock()
 	r.kit.Pty = func(s contract.PtySpec) (contract.Pty, error) {
 		if r.fail {
-			r.fail = false
+			// The keeper tries once more where it is when the folder is gone.
+			r.fail = s.Dir != ""
 			return nil, errors.New("the program is not there")
 		}
 		f := &program{spec: s, out: make(chan []byte, 4096), ended: make(chan struct{})}
@@ -311,10 +312,11 @@ func TestAScriptedSessionOfAHundredCalls(t *testing.T) {
 			}
 			seen = ev.Seq
 			contract.Apply(picture, *ev)
-			if was := terminal[ev.Pane.ID]; ev.Kind == contract.EvState && was == ev.Pane.Terminal {
+			now := ev.Pane.Terminal + " " + ev.Pane.Name
+			if was := terminal[ev.Pane.ID]; ev.Kind == contract.EvState && was == now {
 				continue
 			}
-			terminal[ev.Pane.ID] = ev.Pane.Terminal
+			terminal[ev.Pane.ID] = now
 			body, _ := json.Marshal(ev)
 			fmt.Fprintf(&log, "  * %s\n", own.ReplaceAll(body, nil))
 		}

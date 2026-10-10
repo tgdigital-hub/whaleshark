@@ -253,7 +253,7 @@
   < {"text":"pid N, 1 tabs, 1 panes, 2 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true}]}}
 {"op":"agent-start","name":"quiet otter","kind":"claude","pane":"p9","argv":["--model","small"]}
   < {"err":"failed","message":"the agent did not start in time"}
-  * {"kind":"state","pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.11","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}}
+  * {"kind":"state","pane":{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}}
 {"op":"overlay","argv":["whaleshark","ui","run","actions"],"w":0.5,"h":0.5}
   < {}
   * {"kind":"pane-opened","pane":{"pane":"p10","tab":"t4","workspace":"","terminal":"one.12","label":"start again","cwd":"","ours":true}}
@@ -266,9 +266,9 @@
 {"op":"prompt","name":"quiet otter","text":"read this","from":"p9"}
   < {"err":"failed","message":"prompt is not a call for an agent to make from its pane"}
 {"op":"snapshot","from":"p9"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p10","tab":"t4","workspace":"","terminal":"one.12","label":"start again","cwd":"","ours":true},{"pane":"p9","tab":"t4","workspace":"","terminal":"one.11","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p10","tab":"t4","workspace":"","terminal":"one.12","label":"start again","cwd":"","ours":true},{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}]}}
 {"op":"pane-close","pane":"p10"}
   < {}
   * {"kind":"pane-closed","pane":{"pane":"p10","tab":"t4","workspace":"","terminal":"one.12","label":"start again","cwd":"","ours":true}}
 {"op":"snapshot"}
-  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p9","tab":"t4","workspace":"","terminal":"one.11","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}]}}
+  < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p9","tab":"t4","workspace":"","terminal":"one.10","label":"start again","cwd":"","focused":true,"agent":"claude","name":"quiet otter"}]}}
