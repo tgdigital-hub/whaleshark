@@ -19,7 +19,11 @@
 # door. Phases 1 and 2 each showed the shared part larger than planned and
 # the leaves smaller; screen pays 250 of it, inbox, question and overlay
 # the 210 by which it came out larger than first counted.
-lines 3760 contract internal/contract cmd/whaleshark
+# 60 more at the join of phase 3's first wave: it stood one line short of
+# full with four packages still to pass through it, and the wave's results
+# already name what they want of it (the administrator's name in the
+# server's file, a lock over a login). inbox and overlay pay.
+lines 3820 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -55,14 +59,17 @@ lines 1355 runtask internal/runtask
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
 # place and a temp folder of the login's own in every tab; 24 were left.
-# watch pays.
-lines 1290 launch internal/launch
+# watch pays. 20 more at the join of phase 3's first wave: an attempt's temp
+# folder is recorded and taken away again by stop, close and run rm, which
+# left it five over; overlay and inbox pay.
+lines 1310 launch internal/launch
 lines 165 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
 # half its line in phase 1 and keeps twice what its phase 2 package is
 # sized at. inbox gives 80 more at the start of phase 3 and question 70:
-# both are built whole, at 521 and 511.
-lines 620 inbox internal/inbox
+# both are built whole, at 521 and 511. inbox gives 50 more at the join of
+# phase 3's first wave, to contract and launch.
+lines 570 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the
 # other runs of a login are three screens that 186 lines could not hold;
 # status --brief, which nobody asked for, left the command table instead of
@@ -76,10 +83,13 @@ lines 380 mail internal/mail
 # notify: 10 more at the start of phase 3, to hand a nudge to a paired
 # phone; watch pays.
 lines 430 notify internal/notify
-# gitwt gives 60 at the start of phase 3: built whole at 886.
-lines 1040 gitwt internal/gitwt
-# integrate gives 100 of its 900: 75 to runtask, 25 to team.
-lines 800 integrate internal/integrate
+# gitwt gives 60 at the start of phase 3: built whole at 886; and 100 at the
+# join of its first wave, to doctor: it stands at 889 with the fixes for
+# Windows in.
+lines 940 gitwt internal/gitwt
+# integrate gives 100 of its 900: 75 to runtask, 25 to team; and 70 at the
+# join of phase 3's first wave, to doctor: built whole at 688.
+lines 730 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
 # project's object folder in git's list; it stood at its line. doctor pays.
 lines 810 overlap internal/overlap
@@ -88,7 +98,12 @@ lines 810 overlap internal/overlap
 # 180 more at the start of phase 3: fifteen rows of proof for a server, seven
 # for the tunnel and the server command do not fit in the 319 that were
 # left. screen pays.
-lines 1210 doctor internal/doctor
+# 320 more at the join of phase 3's first wave. The proof of a server and
+# the server command came to 611 lines where 480 were planned for them and
+# the tunnel together, with nothing cut that the row asks for: it stood at
+# 1,322. About 200 are for the tunnel's seven rows and its command, which
+# are still to come. dashweb, gitwt, integrate and evidence pay.
+lines 1530 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
@@ -114,8 +129,12 @@ lines 350 push internal/push
 # the keeper's service entry), planned since the engine decision and put
 # into this file now that their packages start.
 lines 480 connect internal/connect
-lines 250 evidence internal/evidence
-lines 1280 dashweb internal/dashweb
+# evidence gives 40 at the join of phase 3's first wave: built whole at 193.
+lines 210 evidence internal/evidence
+# dashweb gives 120 at the join of phase 3's first wave: the screens, the
+# phone's layout and the refusal are built, at 937; what the phone's and the
+# tunnel's passes still add is a few lines of script.
+lines 1160 dashweb internal/dashweb
 lines 1200 install install
 
 # The engine's eleven folders. A reserve of 1,200 lines for the screen
@@ -131,6 +150,9 @@ lines 1200 install install
 # 300, 120, 100, 80, 60 and 40, each built whole and under its line, and
 # inbox, question and overlay 80, 70 and 60: 910 lines moved to contract, doctor, dash, launch, cli, runtask, notify and
 # platform, none added.
+# At the join of phase 3's first wave dashweb, gitwt, integrate, inbox,
+# evidence and overlay give 120, 100, 70, 50, 40 and 20: 400 lines moved to
+# doctor, contract and launch, none added.
 lines 1490 screen internal/screen
 lines 1820 keeper internal/keeper
 lines 900 layout internal/layout
@@ -144,8 +166,9 @@ lines 510 restore internal/restore
 lines 410 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
-# overlay gives 60 at the start of phase 3: built whole at 140.
-lines 190 overlay internal/overlay
+# overlay gives 60 at the start of phase 3: built whole at 140; and 20 at
+# the join of its first wave.
+lines 170 overlay internal/overlay
 
 # What a shipped file is: these endings, but no file or folder named in skip.
 count .go .html .css .js .sh
