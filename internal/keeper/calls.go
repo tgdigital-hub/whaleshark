@@ -43,12 +43,15 @@ func (k *Keeper) call(c contract.WireCall) (contract.WireReply, error) {
 	}
 	k.mu.Unlock()
 	end(gone)
-	if wait := time.Duration(c.Millis) * time.Millisecond; err != nil || p == nil {
-	} else if c.Op == contract.OpAgentStart {
+	if err != nil || p == nil {
+		return r, err
+	}
+	switch wait := time.Duration(c.Millis) * time.Millisecond; c.Op {
+	case contract.OpAgentStart:
 		err = p.watch.Ready(wait)
-	} else if c.Op == contract.OpPrompt {
+	case contract.OpPrompt:
 		err = p.watch.Prompt(c.Text, wait)
-	} else if c.Op == contract.OpPoint {
+	case contract.OpPoint:
 		err = p.watch.Point(c.Pointer, c.Text)
 	}
 	return r, err

@@ -61,8 +61,8 @@ type Keeper struct {
 	focus string // the pane with the keys
 	pop   overlay.Popup
 	over  *pane             // the pane drawn over the tab that shows, if one is
-	overW float64           // its size as it was asked for
-	overH float64           //
+	overW float64           // its width and height as they were asked for:
+	overH float64           // shares of the window, or cells above 1
 	set   contract.Settings // the person's own, read again when their file changes
 	saver *restore.Saver    // nil beside a layout file of a newer program
 	lost  error             // what the layout file could not be read for
