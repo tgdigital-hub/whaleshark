@@ -243,8 +243,10 @@ func TestCatchupSinceAndFor(t *testing.T) {
 
 // "Done as you" counts what was recorded as the person's from neither a
 // pane nor the page, once each: a typed answer, a relayed one, an answer
-// taken back, and a typed action that left only its event. The strip counts
-// the same while the person is away.
+// taken back, and a typed action that left only its event, each named by
+// what was done and to what. What came from a pane, the page or a phone is in
+// the record and not counted. The strip counts the same while the person is
+// away.
 func TestDoneAsYou(t *testing.T) {
 	f := hour(t)
 	s, r := &f.State, rules.Rules{}
@@ -254,13 +256,16 @@ func TestDoneAsYou(t *testing.T) {
 		s.Questions[id].AnsweredBy, s.Questions[id].AnsweredAt = &by, when
 	}
 	s.Questions["n4"].Earlier = []contract.Undone{{Answer: "approve", At: when, By: &typed}}
-	r.Raise(s, contract.Event{Kind: "human", Data: map[string]any{"what": "accept", "where": contract.WhereTyped}}, when)
+	r.Raise(s, contract.Event{Kind: "human", Data: map[string]any{"what": "accept", "where": contract.WhereTyped, "on": "T2"}}, when)
+	for _, inside := range []string{contract.WherePane, contract.WherePhone} {
+		r.Raise(s, contract.Event{Kind: "human", Data: map[string]any{"what": "stop", "where": inside, "on": "T7"}}, when)
+	}
 	r.Raise(s, contract.Event{Kind: "human", Data: map[string]any{"what": "answer", "where": contract.WhereTyped, "id": "q7"}}, when)
 	r.Raise(s, contract.Event{Kind: "human", Data: map[string]any{"what": "accept", "where": contract.WherePage}}, when)
 	r.Raise(s, contract.Event{Kind: "human", Text: askedText, Data: map[string]any{"what": "catchup"}}, when)
 
 	c, out, _, _ := view(t, f, "catchup", contract.Orchestrator)
-	if b := run(t, c).(*contract.Catchup); b.DoneAsYou.N != 4 || !strings.Contains(out.String(), "\n Done as you           4   (answers") {
+	if b := run(t, c).(*contract.Catchup); b.DoneAsYou.N != 4 || !strings.Contains(out.String(), "\n Done as you           4   accept T2, answer q7, answer n4, answer q9\n") {
 		t.Errorf("done as you is %d:\n%s", b.DoneAsYou.N, out)
 	}
 	if v := Build(f.Input(contract.Human)); v.Strip.DoneAsYou != 4 || v.Strip.Away.IsZero() {

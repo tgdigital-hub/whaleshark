@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -194,7 +195,9 @@ func away(v *contract.View, s *contract.State, events []contract.Event, limits c
 			c.AnsweredLead++
 		}
 	}
-	c.DoneAsYou = contract.CatchLine{N: asYou(s, events, from, to), Text: asYouNote}
+	if c.DoneAsYou = line(asYou(s, events, from, to), ", "); c.DoneAsYou.N == 0 {
+		c.DoneAsYou.Text = asYouNote
+	}
 	for _, sec := range v.Sections {
 		for _, card := range sec.Cards {
 			switch {
@@ -210,35 +213,41 @@ func away(v *contract.View, s *contract.State, events []contract.Event, limits c
 	return c
 }
 
-// asYou counts what the record holds as the person's doing that came from
+// asYou names what the record holds as the person's doing that came from
 // neither a pane nor the page: a typed --human, an answer passed on. A human
-// event says where it came from in its data, and names the item it answered.
-func asYou(s *contract.State, events []contract.Event, from, to time.Time) int {
-	n, told := 0, map[string]bool{}
-	count := func(at time.Time, by *contract.Origin, item string) {
+// event says what was done, to what and where it came from in its data, and
+// names the item it answered.
+func asYou(s *contract.State, events []contract.Event, from, to time.Time) []string {
+	told := map[string]bool{}
+	var done []string
+	count := func(at time.Time, by *contract.Origin, item, what string) {
 		if by == nil || at.After(to) || !at.After(from) || told[item] {
 			return
 		}
 		inside := by.Where == contract.WherePane || by.Where == contract.WherePage || by.Where == contract.WherePhone
 		if by.Where == contract.WhereRelayed || by.Caller == contract.Human && !inside {
-			n++
+			done = append(done, clean(strings.TrimSpace(what+" "+item)))
 		}
 	}
 	for _, e := range events {
 		if where, _ := e.Data["where"].(string); e.Kind == "human" && where != "" {
-			count(e.At, &contract.Origin{Caller: contract.Human, Where: where}, "")
-			if id, _ := e.Data["id"].(string); id != "" {
+			what, _ := e.Data["what"].(string)
+			on, _ := e.Data["on"].(string)
+			id, _ := e.Data["id"].(string)
+			count(e.At, &contract.Origin{Caller: contract.Human, Where: where}, "", what+" "+on+id)
+			if id != "" {
 				told[id] = true
 			}
 		}
 	}
-	for _, q := range s.Questions {
-		count(q.AnsweredAt, q.AnsweredBy, q.ID)
+	for _, id := range slices.Sorted(maps.Keys(s.Questions)) {
+		q := s.Questions[id]
+		count(q.AnsweredAt, q.AnsweredBy, q.ID, "answer")
 		for _, u := range q.Earlier {
-			count(u.At, u.By, q.ID)
+			count(u.At, u.By, q.ID, "answer")
 		}
 	}
-	return n
+	return done
 }
 
 // catchText prints the block, the same words every time.
