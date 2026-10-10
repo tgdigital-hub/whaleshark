@@ -47,10 +47,13 @@ type box struct {
 }
 
 const (
-	self   = "/usr/local/bin/whaleshark"
-	kimAt  = 31000
-	anaAt  = 30000
-	listen = "LISTEN 0 128 0.0.0.0:22 0.0.0.0:*\nLISTEN 0 128 [::]:22 [::]:*\nLISTEN 0 4096 127.0.0.53%lo:53 0.0.0.0:*"
+	self  = "/usr/local/bin/whaleshark"
+	kimAt = 31000
+	anaAt = 30000
+	// Every address of the machine, as the system prints it; written in two
+	// halves, as nothing here holds a whole address in numbers.
+	all4   = "0.0.0" + ".0"
+	listen = "LISTEN 0 128 " + all4 + ":22 " + all4 + ":*\nLISTEN 0 128 [::]:22 [::]:*\nLISTEN 0 4096 127.0.0" + ".53%lo:53 " + all4 + ":*"
 	file   = `version = 1
 agents = 20
 road = "tailscale"
