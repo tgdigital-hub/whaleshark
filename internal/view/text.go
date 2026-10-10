@@ -304,7 +304,7 @@ func (p *printer) steps(indent string, next []string) {
 // clean makes a text one harmless line: nothing in it can recolour, retitle
 // or rewrite a terminal, and no line break in it can pass for a row.
 func clean(s string) string {
-	return strings.Join(strings.Fields(cli.Plain(s)), " ")
+	return cli.Line(s)
 }
 
 // narrow is the least room a text is wrapped in.

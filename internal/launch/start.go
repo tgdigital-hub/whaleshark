@@ -539,7 +539,7 @@ func (l *launcher) lacks() {
 	defer l.out.Unlock()
 	fmt.Fprintf(l.c.Out, "%d ignored files or folders of the project are not in a task's own copy of the code (%s%s). "+
 		"To copy one there, name it on a line of .worktreeinclude; to link one, name it in whaleshark.toml, [worktrees] share = [\"%s\"], and have the person run whaleshark trust.\n",
-		n, cli.Plain(strings.Join(some, ", ")), more, cli.Plain(some[0]))
+		n, cli.Line(strings.Join(some, ", ")), more, cli.Line(some[0]))
 }
 
 // earlier is what a retry is told of the attempt before it: the prompt's own

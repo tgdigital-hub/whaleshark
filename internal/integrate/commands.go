@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
@@ -108,7 +109,7 @@ func (g integrator) land(c *contract.Call) (any, error) {
 		behind, _ := git(c.Root, "rev-list", "--count", tip+".."+main)
 		how := "a merge would be clean"
 		if _, clash, _ := simulate(c.Root, tip, main); len(clash) > 0 {
-			how = "a merge would clash in " + strings.Join(clash, ", ")
+			how = "a merge would clash in " + cli.Line(strings.Join(clash, ", "))
 		}
 		return nil, refuse(contract.ExitRefused, "base_moved", fmt.Sprintf("%s has moved: the collected work lacks %s of its commits, and %s. A worker brings it up to date.", onto, behind, how),
 			fix("sync-main", "bring the collected work up to date with "+onto))

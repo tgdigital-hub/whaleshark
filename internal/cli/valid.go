@@ -115,6 +115,11 @@ func outside(root, p string) string {
 	return ""
 }
 
+// Line makes a text one harmless line: Plain, and no line break or tab left
+// in it can pass for a line of its own. A file's name is shown through it:
+// it comes from a repository and may hold anything.
+func Line(s string) string { return strings.Join(strings.Fields(Plain(s)), " ") }
+
 // Plain takes out of a text everything that could recolour, retitle or
 // rewrite a terminal: control characters but the line break and the tab, and
 // the marks that turn the reading direction.

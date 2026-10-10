@@ -385,7 +385,7 @@ func (b *builder) clashes() {
 		for i, id := range f.Tasks {
 			st, other := b.seats[id], b.seats[f.Tasks[1-i]]
 			if st != nil && other != nil && st.card.Clash == nil {
-				st.card.Clash = &contract.Clash{Task: other.task.ID, Name: other.card.Name, File: cli.Plain(f.Files[0]), Conflicts: f.Kind == "overlap" && i == 1}
+				st.card.Clash = &contract.Clash{Task: other.task.ID, Name: other.card.Name, File: clean(f.Files[0]), Conflicts: f.Kind == "overlap" && i == 1}
 			}
 		}
 	}

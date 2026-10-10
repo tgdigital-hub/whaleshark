@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
@@ -119,7 +120,7 @@ func collected(root string, s *contract.State, task, head, tip string) string {
 }
 
 func conflict(task string, files []string) *contract.Refusal {
-	r := refuse(contract.ExitRefused, "conflict", task+" does not merge with the collected work: "+strings.Join(files, ", "), "whaleshark sync "+task)
+	r := refuse(contract.ExitRefused, "conflict", task+" does not merge with the collected work: "+cli.Line(strings.Join(files, ", ")), "whaleshark sync "+task)
 	r.Data = map[string]any{"task": task, "files": files}
 	return r
 }

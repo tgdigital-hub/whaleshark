@@ -87,19 +87,19 @@ func (o scanner) overlap(c *contract.Call) (any, error) {
 			continue
 		}
 		out.Findings = append(out.Findings, f)
-		files, who := strings.Join(f.Files, ", "), strings.Join(f.Tasks, " and ")
+		files, who := cli.Line(strings.Join(f.Files, ", ")), strings.Join(f.Tasks, " and ")
 		switch f.Kind {
 		case "overlap":
 			clash = true
 			sync = append(sync, "whaleshark sync "+f.Tasks[len(f.Tasks)-1])
-			fmt.Fprintf(c.Out, "%s would conflict (%s): %s\n", who, cli.Plain(f.How), cli.Plain(files))
+			fmt.Fprintf(c.Out, "%s would conflict (%s): %s\n", who, cli.Line(f.How), files)
 		case "lands":
 			sync = append(sync, "whaleshark sync "+f.Tasks[0])
-			fmt.Fprintf(c.Out, "%s no longer lands on the collected work (%s): %s\n", who, cli.Plain(f.How), cli.Plain(files))
+			fmt.Fprintf(c.Out, "%s no longer lands on the collected work (%s): %s\n", who, cli.Line(f.How), files)
 		case "same":
-			fmt.Fprintf(c.Out, "%s both change %s (%s)\n", who, cli.Plain(files), cli.Plain(f.How))
+			fmt.Fprintf(c.Out, "%s both change %s (%s)\n", who, files, cli.Line(f.How))
 		default:
-			fmt.Fprintf(c.Out, "%s changed %s: %s\n", cmp.Or(who, "Somebody"), f.How, cli.Plain(files))
+			fmt.Fprintf(c.Out, "%s changed %s: %s\n", cmp.Or(who, "Somebody"), f.How, files)
 		}
 	}
 	slices.Sort(sync)
