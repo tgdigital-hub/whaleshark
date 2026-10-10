@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -66,7 +67,28 @@ func trustLines(root string, p ProjectFile) ([]string, error) {
 		}
 		lines = append(lines, TeamsDir+"/"+filepath.Base(file)+" "+TokenHash(string(data)))
 	}
-	return lines, nil
+	// A team's briefs lie beside it and become prompts: approved with it.
+	// A link is not followed; its name alone is in the lines.
+	if len(teams) == 0 {
+		return lines, nil
+	}
+	dir := filepath.Join(root, TeamsDir)
+	err := filepath.WalkDir(dir, func(file string, e fs.DirEntry, err error) error {
+		rel, _ := filepath.Rel(dir, file)
+		if err != nil || e.IsDir() || filepath.Dir(rel) == "." && filepath.Ext(rel) == ".toml" {
+			return err
+		}
+		var data []byte
+		if e.Type().IsRegular() {
+			// #nosec G304 G122 -- a brief of the project the command was run in
+			if data, err = os.ReadFile(file); err != nil {
+				return err
+			}
+		}
+		lines = append(lines, TeamsDir+"/"+filepath.ToSlash(rel)+" "+TokenHash(string(data)))
+		return nil
+	})
+	return lines, err
 }
 
 func trustHash(lines []string) string {
