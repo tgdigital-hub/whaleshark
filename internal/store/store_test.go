@@ -737,7 +737,10 @@ func TestReadersDoNotStarveAWriter(t *testing.T) {
 	stop.Store(true)
 	wg.Wait()
 	t.Logf("%d changes beside %d readers that never pause: %v each, %d reads meanwhile", changes, readers, took/changes, reads.Load())
-	if took > changes*100*time.Millisecond {
+	// Without the turn no change got in for minutes; with it one takes about
+	// 10 ms. A second each is the line between the two that still holds on a
+	// machine loaded far beyond its cores, where 100 ms did not.
+	if took > changes*time.Second {
 		t.Errorf("a change waited %v on average behind readers", took/changes)
 	}
 }
