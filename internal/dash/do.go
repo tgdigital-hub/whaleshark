@@ -47,7 +47,7 @@ func (s *server) child(ctx context.Context, j job, text string, args ...string) 
 		}
 	}
 	args = append(args, "--json", "--root", j.root, "--run", j.run)
-	cmd := exec.CommandContext(ctx, s.self, args...) // #nosec G204 -- this program's own file, with a row of the action table or a read command
+	cmd := exec.CommandContext(ctx, s.self, args...) // #nosec G204 G702 -- this program's own file, with a row of the action table or a read command
 	cmd.Dir, cmd.Env = j.root, s.env
 	out, err := cmd.Output()
 	if len(out) > 0 {
