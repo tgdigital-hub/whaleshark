@@ -11,11 +11,12 @@ import (
 	xterm "golang.org/x/term"
 )
 
-// What a pane asks of the terminal: the second screen, no cursor, the mouse
-// with movement and exact positions, focus reports, and pastes marked as such.
+// Enter is what a pane asks of the terminal: the second screen, no cursor,
+// the mouse with movement and exact positions, focus reports, and pastes
+// marked as such. Leave gives all of it back.
 const (
-	enter = "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1002h\x1b[?1003h\x1b[?1006h\x1b[?1004h\x1b[?2004h"
-	leave = "\x1b[?2004l\x1b[?1004l\x1b[?1006l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[0m\x1b[?25h\x1b[?1049l"
+	Enter = "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1002h\x1b[?1003h\x1b[?1006h\x1b[?1004h\x1b[?2004h"
+	Leave = "\x1b[?2004l\x1b[?1004l\x1b[?1006l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[0m\x1b[?25h\x1b[?1049l"
 )
 
 // Term is one terminal: the grid a program draws into, and its events.
@@ -23,12 +24,22 @@ type Term struct {
 	*Grid
 	Events <-chan Event
 	Mode   Mode
+	// While CurShown is set, a Flush leaves the terminal's own cursor
+	// showing at column CurX of row CurY: the cursor of the pane with the keys.
+	CurX, CurY int
+	CurShown   bool
+	// Sync wraps each Flush in the marks that make a terminal draw it in
+	// one go (mode 2026). A terminal that does not know them ignores them.
+	Sync bool
 
 	events  chan Event
 	out     io.Writer
 	mu      sync.Mutex
 	shown   []Cell // what the terminal shows now
 	shownW  int
+	curX    int // where the terminal's cursor was left, and whether it shows
+	curY    int
+	curOn   bool
 	buf     []byte
 	closed  bool
 	restore func()
@@ -38,32 +49,52 @@ type Term struct {
 func New(in io.Reader, out io.Writer, w, h int, mode Mode) *Term {
 	events := make(chan Event, 64)
 	t := &Term{Grid: NewGrid(w, h), Events: events, Mode: mode, events: events, out: out, restore: func() {}}
-	io.WriteString(out, enter)
+	io.WriteString(out, Enter)
 	go Read(in, events, EscapeWait)
 	return t
+}
+
+// Raw puts the terminal the program runs in into raw mode, and returns its
+// size and what puts it back as it was.
+func Raw() (w, h int, restore func(), err error) {
+	in := int(os.Stdin.Fd())
+	old, err := xterm.MakeRaw(in)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("needs a terminal: %w", err)
+	}
+	undo := console(os.Stdin, os.Stdout)
+	restore = func() {
+		undo()
+		xterm.Restore(in, old)
+	}
+	if w, h, err = xterm.GetSize(int(os.Stdout.Fd())); err != nil {
+		restore()
+		return 0, 0, nil, fmt.Errorf("cannot read its size: %w", err)
+	}
+	return w, h, restore, nil
+}
+
+// Watch calls changed with each new size of that terminal, for ever.
+func Watch(w, h int, changed func(w, h int)) {
+	for {
+		waitResize()
+		if nw, nh, err := xterm.GetSize(int(os.Stdout.Fd())); err == nil && (nw != w || nh != h) {
+			w, h = nw, nh
+			changed(w, h)
+		}
+	}
 }
 
 // Open starts a pane on the terminal the program runs in. The terminal is
 // put back by Close, and also when the program is told to end or loses its
 // terminal. A program that is killed outright cannot put anything back.
 func Open() (*Term, error) {
-	in, fd := int(os.Stdin.Fd()), int(os.Stdout.Fd())
-	old, err := xterm.MakeRaw(in)
+	w, h, restore, err := Raw()
 	if err != nil {
-		return nil, fmt.Errorf("the pane needs a terminal: %w", err)
-	}
-	undo := console(os.Stdin, os.Stdout)
-	w, h, err := xterm.GetSize(fd)
-	if err != nil {
-		undo()
-		xterm.Restore(in, old)
-		return nil, fmt.Errorf("the pane cannot read its size: %w", err)
+		return nil, fmt.Errorf("the pane %w", err)
 	}
 	t := New(os.Stdin, os.Stdout, w, h, ModeOf(os.Getenv))
-	t.restore = func() {
-		undo()
-		xterm.Restore(in, old)
-	}
+	t.restore = restore
 	ended := make(chan os.Signal, 1)
 	signal.Notify(ended, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	go func() {
@@ -71,15 +102,7 @@ func Open() (*Term, error) {
 		t.Close()
 		os.Exit(128 + int(s.(syscall.Signal)))
 	}()
-	go func() {
-		for {
-			waitResize()
-			if nw, nh, err := xterm.GetSize(fd); err == nil && (nw != w || nh != h) {
-				w, h = nw, nh
-				t.Post(Event{Kind: Resize, W: w, H: h})
-			}
-		}
-	}()
+	go Watch(w, h, func(w, h int) { t.Post(Event{Kind: Resize, W: w, H: h}) })
 	return t, nil
 }
 
@@ -92,7 +115,7 @@ func (t *Term) Close() {
 	defer t.mu.Unlock()
 	if !t.closed {
 		t.closed = true
-		io.WriteString(t.out, leave)
+		io.WriteString(t.out, Leave)
 		t.restore()
 	}
 }
@@ -106,6 +129,13 @@ func (t *Term) Flush() error {
 		return nil
 	}
 	b := t.buf[:0]
+	if t.Sync {
+		b = append(b, "\x1b[?2026h"...)
+	}
+	if t.curOn { // not seen wandering while the cells are drawn
+		b = append(b, "\x1b[?25l"...)
+	}
+	head := len(b)
 	if len(t.shown) != len(t.cells) || t.shownW != t.W {
 		t.shown, t.shownW = make([]Cell, len(t.cells)), t.W
 		for i := range t.shown {
@@ -135,9 +165,21 @@ func (t *Term) Flush() error {
 			at = -1
 		}
 	}
-	if t.buf = b; len(b) == 0 {
+	drew := len(b) > head
+	if drew {
+		b = append(b, "\x1b[0m"...)
+	}
+	show := t.CurShown && t.CurX >= 0 && t.CurX < t.W && t.CurY >= 0 && t.CurY < t.H
+	if t.buf = b; !drew && show == t.curOn && (!show || t.CurX == t.curX && t.CurY == t.curY) {
 		return nil
 	}
-	_, err := t.out.Write(append(b, "\x1b[0m"...))
+	if show {
+		b = fmt.Appendf(b, "\x1b[%d;%dH\x1b[?25h", t.CurY+1, t.CurX+1)
+	}
+	if t.Sync {
+		b = append(b, "\x1b[?2026l"...)
+	}
+	t.curX, t.curY, t.curOn = t.CurX, t.CurY, show
+	_, err := t.out.Write(b)
 	return err
 }

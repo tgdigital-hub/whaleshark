@@ -7,8 +7,7 @@ import (
 )
 
 // Colour, Style and Cell are the contract's: one cell from the screen reader
-// to the person's terminal. A colour given by its number among the 256 is
-// drawn as one of the full range until the window is built.
+// to the person's terminal.
 type (
 	Colour = contract.Colour
 	Style  = contract.Style
@@ -43,9 +42,9 @@ func ModeOf(env func(string) string) Mode {
 // style appends the sequence that switches the terminal to a style.
 func (m Mode) style(b []byte, s Style) []byte {
 	b = append(b, "\x1b[0"...)
-	for i, on := range [...]bool{s.Bold, s.Dim, s.Underline, s.Reverse, s.Strike} {
+	for i, on := range [...]bool{s.Bold, s.Dim, s.Italic, s.Underline, s.Reverse, s.Strike} {
 		if on {
-			b = append(b, ';', "12479"[i])
+			b = append(b, ';', "123479"[i])
 		}
 	}
 	b = m.colour(b, 38, s.Fg)
@@ -56,6 +55,15 @@ func (m Mode) style(b []byte, s Style) []byte {
 func (m Mode) colour(b []byte, lead int, c Colour) []byte {
 	if c == 0 || m == NoColour {
 		return b
+	}
+	// One of the 256 goes by its number, so the person's own palette shows;
+	// the first sixteen in the short form every colour terminal knows.
+	if n := int(c & 0xff); c>>24 == 2 && n < 8 {
+		return fmt.Appendf(b, ";%d", lead-8+n)
+	} else if c>>24 == 2 && n < 16 {
+		return fmt.Appendf(b, ";%d", lead+44+n)
+	} else if c>>24 == 2 {
+		return fmt.Appendf(b, ";%d;5;%d", lead, n)
 	}
 	r, g, bl := int(c>>16&0xff), int(c>>8&0xff), int(c&0xff)
 	if m == Colour256 {

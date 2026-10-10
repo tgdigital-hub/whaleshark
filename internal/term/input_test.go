@@ -158,6 +158,7 @@ func FuzzParser(f *testing.F) {
 		f.Add([]byte(r.bytes), 3)
 	}
 	f.Add([]byte("\x1b[<999999999999999999999;1;1M\x1bO\x1b[;;;~\xff\xc3"), 1)
+	f.Add([]byte("\x1b[97:65;2:3;97u\x1b[99999999999;;u\x1b[-5:;:u\x1b[57414;9u"), 9)
 	f.Fuzz(func(t *testing.T, b []byte, cut int) {
 		var p Parser
 		cut = min(max(cut, 0), len(b))
@@ -168,4 +169,34 @@ func FuzzParser(f *testing.F) {
 			t.Fatalf("%q is still kept after the flush", p.buf)
 		}
 	})
+}
+
+// The extended form: Escape with no wait, the keys the old form cannot
+// say, the keypad, and nothing for a release or an answer to a question.
+func TestExtendedKeys(t *testing.T) {
+	for in, want := range map[string]string{
+		"\x1b[27u": "esc", "\x1b[13;2u": "shift+enter", "\x1b[9;2u": "shift+tab", "\x1b[127;5u": "ctrl+backspace",
+		"\x1b[99;9u": "super+c", "\x1b[118;9u": "super+v", "\x1b[99;5u": "ctrl+c", "\x1b[99;6u": "ctrl+shift+c",
+		"\x1b[97;3u": "alt+a", "\x1b[97;4u": "alt+A", "\x1b[97:65;2u": "A", "\x1b[97;2u": "A", "\x1b[49:33;2u": "!",
+		"\x1b[32;5u": "ctrl+space", "\x1b[32u": "space", "\x1b[228u": "ä", "\x1b[97;1:1u": "a", "\x1b[97;129u": "a",
+		"\x1b[57414u": "enter", "\x1b[57404u": "5", "\x1b[57404;5u": "ctrl+5", "\x1b[57417;2u": "shift+left",
+		"\x1b[1;2A": "shift+up", "\x1b[1;9A": "up", "\x1b[13;13u": "super+ctrl+enter",
+		"\x1b[97;1:3u": "", "\x1b[?1u": "", "\x1b[57441u": "", "\x1b[u": "", "\x1b[1u": "", "\x1b[155u": "", "\x1b[99999999999u": "",
+	} {
+		var p Parser
+		evs := p.Feed([]byte(in))
+		got := ""
+		if len(evs) == 1 && evs[0].Kind == KeyPress {
+			got = evs[0].Key
+		}
+		if got != want || len(evs) > 1 || p.Pending() {
+			t.Errorf("%q gave %+v, want the key %q", in, evs, want)
+		}
+	}
+	var p Parser
+	for in, want := range map[string]rune{"\x1b[97u": 'a', "\x1b[97;2u": 'A', "\x1b[32u": ' ', "\x1b[57404u": '5', "\x1b[97;5u": 0, "\x1b[13u": 0} {
+		if evs := p.Feed([]byte(in)); len(evs) != 1 || evs[0].Rune != want {
+			t.Errorf("%q typed %+v, want %q", in, evs, want)
+		}
+	}
 }

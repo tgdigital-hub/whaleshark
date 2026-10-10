@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/rivo/uniseg"
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
 var blank = Cell{Text: " "}
@@ -62,6 +63,33 @@ func (g *Grid) Put(x, y, w int, s string, st Style) int {
 		x += cw
 	}
 	return x - start
+}
+
+// Paint copies a pane's picture to column x of row y, in at most w columns
+// and h rows: a picture that is larger is cut, and around one that is
+// smaller the grid stays as it was. A cell's text is cleaned as Put's is.
+func (g *Grid) Paint(x, y, w, h int, p *contract.Picture) {
+	if x < 0 || y < 0 {
+		return
+	}
+	w, h = min(w, p.W, g.W-x), min(h, p.H, g.H-y)
+	for row := range h {
+		for col := range w {
+			i := row*p.W + col
+			c := p.Cells[i]
+			if t := c.Text; len(t) != 1 || t[0] < 0x20 || t[0] == 0x7f {
+				// Only the right half of a wide character may be empty.
+				if c.Text = Clean(t); c.Text == "" && (t != "" || col == 0) {
+					c.Text = " "
+				}
+			}
+			// A wide character the cut would halve is a blank.
+			if col == w-1 && col+1 < p.W && p.Cells[i+1].Text == "" {
+				c.Text = " "
+			}
+			g.set(x+col, y+row, c)
+		}
+	}
 }
 
 // set writes one cell, and blanks the other half of a wide character that
