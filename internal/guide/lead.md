@@ -56,7 +56,12 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
 - `human`: the person did something themselves, or left you a note. Read it.
 - `quiet`, `blocked`: look with `whaleshark show T3 --screen`. A worker that asked in its own chat
   is answered with `whaleshark tell T3 "<the answer>"`. A worker at a permission prompt is the
-  person's to answer: never answer a prompt in another tab.
+  person's to answer: never answer a prompt in another tab. After the engine was started again
+  each worker that came back rests: expect one `quiet` a worker, and `tell` each to carry on.
+  Workers that stop at a prompt for every `whaleshark` or `git` command need this in
+  `whaleshark.toml`, which counts once the person has approved the file (it raises `untrusted`):
+      [agent]
+      args = ["--permission-mode", "acceptEdits", "--allowedTools", "Bash({whaleshark}:*)", "Bash(git:*)"]
 - `failed`, `exited`, `start_failed`: read `whaleshark show T3`, mend the brief if the brief was
   the cause (`task edit`), then `whaleshark start T3 --retry`. After three failures the task
   stays failed until `whaleshark task reset T3`. A failed or cancelled task's copy, with whatever
@@ -66,6 +71,12 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   once: they start an agent in the project's own folder and say yes. After that no copy of the
   code is asked about; then `whaleshark start T3 --retry`.
 - `overlap`, `scope`: see "When tasks touch the same files".
+- `stale`, `overtime`: a worker has sent no note for half an hour, or works past the task's time.
+  Nothing was stopped. Look with `whaleshark show T3 --screen`, then `tell` it or `stop` it.
+- `together`: most workers stopped in the same minute, which is usually the usage limit. The
+  person has been told. Start nothing new until the workers answer again.
+- `untrusted`: a setting of `whaleshark.toml` is not used, because the person has not approved
+  the file as it stands. If the work needs it, ask as for the run's check below.
 - `stuck`: nothing can run, because a task waits on one that failed or was cancelled. Edit, reset
   or cancel.
 - `paused`: the person pressed Stop all. Start nothing and change nothing until `resumed`. You
@@ -104,6 +115,8 @@ All of it goes into the action pane, and none of it into this chat:
     whaleshark need signoff "Ready to send the migration for review?"
     whaleshark need todo "Add the test key to the settings file" --urgent
 It prints the item's id, such as n4, and the answer comes back as an `answered` event.
+Add `--holds` with `--task` for a decision a task must not start or be accepted without, and
+`--wait` when you want the answer in this same turn (if it ends "still open", go back to `wait`).
 `whaleshark need close n4` withdraws an item. When the person tells you the answer in this chat
 instead, record it with `whaleshark answer n4 "<their words>" --relayed`.
 
