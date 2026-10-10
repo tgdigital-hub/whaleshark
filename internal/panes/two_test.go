@@ -129,10 +129,10 @@ func TestRunATeam(t *testing.T) {
 	wd.shows(" Goal for site-review:")
 	wd.s.Type("the checkout pages")
 	wd.s.Key("enter")
-	wd.ran("team run site-review --human --goal=the checkout pages")
+	wd.ran(`team run site-review --goal --file "the checkout pages" --human`)
 	pick(1)
 	wd.s.Key("enter")
-	wd.ran("team run lint-all --human")
+	wd.ran(`team run lint-all --goal --file "" --human`)
 }
 
 // o, or a click on the state word, opens what can be done with a card.

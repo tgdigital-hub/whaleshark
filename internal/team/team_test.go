@@ -173,7 +173,12 @@ func TestProjectTeam(t *testing.T) {
 	trust()
 	orch(0, "team", "list")("3 tasks, project  Two checkers")
 	orch(2, "team", "run", "review")("with a goal", "--goal")
-	orch(0, "team", "run", "review", "--goal", "the checkout pages")(`T2 "report writer" is pending`, `T3 "copy check" is ready`, `L9 "link check" is ready`)
+	// The goal by file, as a button of a pane or of the page hands it over;
+	// an empty one is no goal.
+	write(t, filepath.Join(p.Root, "goal.txt"), "\n")
+	orch(2, "team", "run", "review", "--goal", "--file", "goal.txt")("with a goal", "--goal")
+	write(t, filepath.Join(p.Root, "goal.txt"), "the checkout pages\n")
+	orch(0, "team", "run", "review", "--goal", "--file", "goal.txt")(`T2 "report writer" is pending`, `T3 "copy check" is ready`, `L9 "link check" is ready`)
 	s, dir := p.Record()
 	brief, _ := os.ReadFile(filepath.Join(dir, "briefs", "T3.md"))
 	if w := s.Tasks["T2"]; strings.Join(w.After, ",") != "T3,L9" || w.Brief != "" || s.Tasks["T3"].Brief != "briefs/T3.md" ||

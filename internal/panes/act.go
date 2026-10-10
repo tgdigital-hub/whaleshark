@@ -358,9 +358,6 @@ func (p *pane) launch(a contract.Action, fill map[string]string) {
 			return
 		}
 	}
-	if goal := fill["goal"]; goal != "" {
-		argv = append(argv, "--goal="+goal)
-	}
 	switch {
 	case p.self == "":
 		p.hint = a.Label + ": this pane was not started by the program"
@@ -580,7 +577,7 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 		return "every action", list, fmt.Sprintf("%d actions and settings · type to search · enter runs it · esc closes", len(list))
 	case "teams":
 		for _, t := range p.teams {
-			run := func(goal string) { p.act("team", map[string]string{"name": t.Name, "goal": goal}) }
+			run := func(goal string) { p.act("team", map[string]string{"name": t.Name, "text": goal}) }
 			e := entry{strings.TrimSuffix(t.Name+" · "+t.About, " · "), fmt.Sprintf("%d tasks", len(t.Tasks)), close(func() { run("") })}
 			if t.Held {
 				e.right = "not approved"

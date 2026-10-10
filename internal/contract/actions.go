@@ -43,7 +43,7 @@ var Actions = []Action{
 	{ID: "theme", Label: "Next colour scheme", Run: []string{"set", "theme", "{value}"}, How: HowChild, Key: "t"},
 	{ID: "set", Label: "Settings", Run: []string{"set", "{key}", "{value}"}, How: HowChild},
 	{ID: "catchup", Label: "Catch me up", Run: []string{"catchup"}, How: HowChild, Key: "c", Prefix: "u"},
-	{ID: "team", Label: "Run a team...", Run: []string{"team", "run", "{name}", "--human"}, How: HowChild},
+	{ID: "team", Label: "Run a team...", Run: []string{"team", "run", "{name}", "--goal", "--file", "{file}", "--human"}, How: HowChild},
 	{ID: "go", Label: "Go there", Run: []string{"jump", "{task}"}, How: HowChild, Key: "enter"},
 	{ID: "fleet", Label: "Fleet on and off", Run: []string{"ui", "fleet", "{value}"}, How: HowChild, Key: "f", Prefix: "f"},
 	{ID: "actions", Label: "Action pane on and off", Run: []string{"ui", "actions", "{value}"}, How: HowChild},
