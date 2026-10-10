@@ -204,6 +204,14 @@ func standIn() {
 		}
 		k.mu.Unlock()
 	}
+	// The test kills this keeper as soon as it has the report, and a change
+	// is on disk a fifth of a second after it at the latest, later on a busy
+	// machine: so the report waits for a write made after every pane was ready.
+	for ready, f := time.Now(), (restore.File{}); f.At.Before(ready); time.Sleep(10 * time.Millisecond) {
+		k.saver.Changed()
+		data, _ := os.ReadFile(restore.Path(k.dirs))
+		json.Unmarshal(data, &f)
+	}
 	k.tell()
 	// A change every few moments, so that the file is being written when
 	// the keeper is killed.
