@@ -168,7 +168,8 @@ func (t *trees) Hide(root, dir string, paths ...string) error {
 }
 
 // copyTree copies a file, or a folder with the files and folders in it.
-// Links and everything else that is neither are left out.
+// Links and everything else that is neither are left out, and so is what
+// would land on a link.
 func copyTree(from, to string) error {
 	return filepath.WalkDir(from, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -177,9 +178,16 @@ func copyTree(from, to string) error {
 		rel, _ := filepath.Rel(from, path)
 		dst := filepath.Join(to, rel)
 		info, err := d.Info()
+		// A link git put where a copy would go may lead anywhere: nothing
+		// is written over it, through it or below it.
+		there, _ := os.Lstat(dst)
 		switch {
 		case err != nil:
 			return err
+		case there != nil && there.Mode()&os.ModeSymlink != 0 && d.IsDir():
+			return filepath.SkipDir
+		case there != nil && there.Mode()&os.ModeSymlink != 0:
+			return nil
 		case d.IsDir():
 			return os.MkdirAll(dst, 0o700)
 		case !d.Type().IsRegular():
