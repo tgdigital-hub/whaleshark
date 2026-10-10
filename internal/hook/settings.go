@@ -16,9 +16,35 @@ import (
 
 const claude = "claude"
 
-// settings is the agent-settings provider. Claude Code is the one kind it
-// knows how to set: every other gets nothing and is not gated.
+// settings is the agent-settings provider. It sets the kinds whose harness
+// is below: every other gets nothing and is not gated.
 type settings struct{ k *contract.Kit }
+
+// harness is where one kind of agent keeps a folder's hooks and the moments
+// of a session it runs them at, by the names of its own manual. gate is the
+// gate's form, with the word its kind's answer goes by; status says it
+// shows a status line.
+type harness struct {
+	file   []string
+	events []string
+	gate   string
+	status bool
+}
+
+// Codex's is as its maker's page on hooks gives it, read and not yet run:
+// the file has the shape of Claude Code's, its moments are among Claude
+// Code's by the same names, and it loads a project's hooks only once the
+// person has trusted that project and looked the hooks over.
+var harnesses = map[string]harness{
+	claude: {[]string{".claude", "settings.local.json"}, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
+		"PostToolUse", "PostToolUseFailure", "PermissionDenied", "Stop", "StopFailure", "SessionEnd"}, formGate, true},
+	"codex": {[]string{".codex", "hooks.json"}, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
+		"PostToolUse", "Stop", "SessionEnd"}, formGate + " codex", false},
+}
+
+func (h harness) path(folder string) string {
+	return filepath.Join(append([]string{folder}, h.file...)...)
+}
 
 // What Claude Code's settings hold for us, as its manual gives them: a
 // status line is one command, and what runs before a tool call is a list of
@@ -35,21 +61,15 @@ type group struct {
 
 // localFile is the settings file Claude Code reads for one folder and one
 // person, and keeps out of git.
-func localFile(folder string) string {
-	return filepath.Join(folder, ".claude", "settings.local.json")
-}
+func localFile(folder string) string { return harnesses[claude].path(folder) }
 
 func isOurs(command, form string) bool { return strings.HasSuffix(command, " hook "+form) }
 
-// stateEvents are the moments of a session at which the harness runs `hook
-// state`, by the names of Claude Code's manual; the gate runs at gateEvent.
-var stateEvents = []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse",
-	"PostToolUseFailure", "PermissionDenied", "Stop", "StopFailure", "SessionEnd"}
-
+// gateEvent is the moment the gate runs at; `hook state` runs at every one.
 const gateEvent = "PreToolUse"
 
 // line gives the command line of a form, for the POSIX shell Claude Code
-// runs its hooks in on every system.
+// runs its hooks in on every system; Codex's page does not name its shell.
 func (s settings) line() (func(form string) string, error) {
 	bin, err := s.k.Platform.SelfPath()
 	return func(form string) string {
@@ -61,7 +81,7 @@ func (s settings) line() (func(form string) string, error) {
 // command lines, puts them in; everything else is kept as it was written.
 // had says the text already held exactly these, found that it held any of
 // ours. A status line of the person's own in this file is never replaced.
-func rewrite(data []byte, line func(form string) string) (out []byte, had, found bool, err error) {
+func (h harness) rewrite(data []byte, line func(form string) string) (out []byte, had, found bool, err error) {
 	top, hooks := map[string]json.RawMessage{}, map[string]json.RawMessage{}
 	var status entry
 	read := func(raw json.RawMessage, v any) {
@@ -84,10 +104,10 @@ func rewrite(data []byte, line func(form string) string) (out []byte, had, found
 		return line(form)
 	}
 	had = line != nil
-	for _, event := range stateEvents {
+	for _, event := range h.events {
 		forms := []string{formState + " " + event}
 		if event == gateEvent {
-			forms = []string{formGate, forms[0]}
+			forms = []string{h.gate, forms[0]}
 		}
 		var list, kept []json.RawMessage
 		read(hooks[event], &list)
@@ -113,7 +133,7 @@ func rewrite(data []byte, line func(form string) string) (out []byte, had, found
 	if err != nil {
 		return nil, false, false, err
 	}
-	theirs := status.Command != "" && !isOurs(status.Command, formStatus)
+	theirs := !h.status || status.Command != "" && !isOurs(status.Command, formStatus)
 	had, found = had && (theirs || status.Command == want(formStatus)), found || status.Command != "" && !theirs
 	set(top, "hooks", hooks, len(hooks) == 0)
 	if !theirs {
@@ -134,10 +154,11 @@ func encode(v any) []byte {
 }
 
 func (s settings) Ensure(kind, folder, scratch string, write bool) (contract.AgentSetup, error) {
-	if kind != claude {
+	h, known := harnesses[kind]
+	if !known {
 		return contract.AgentSetup{}, nil
 	}
-	setup := contract.AgentSetup{File: localFile(folder), Gated: contract.Gates[kind].Holds}
+	setup := contract.AgentSetup{File: h.path(folder), Gated: contract.Gates[kind].Holds}
 	line, err := s.line()
 	if err != nil {
 		return setup, err
@@ -146,35 +167,40 @@ func (s settings) Ensure(kind, folder, scratch string, write bool) (contract.Age
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return setup, err
 	}
-	out, had, _, err := rewrite(data, line)
+	out, had, _, err := h.rewrite(data, line)
 	switch {
 	case err != nil:
 		err = fmt.Errorf("%s: %w", setup.File, err)
 	case had:
 	case write:
 		err = s.replace(setup.File, out)
-	default:
-		out, _, _, _ = rewrite(nil, line)
+	case kind == claude:
+		out, _, _, _ = h.rewrite(nil, line)
 		file := filepath.Join(scratch, "claude-settings.json")
 		setup.File, setup.Args = "", []string{"--settings", file}
 		err = os.WriteFile(file, out, 0o600)
+	default:
+		// Codex's page names no way to hand it hooks beside a folder: in
+		// one that is not its alone it runs without, and is not held.
+		setup = contract.AgentSetup{}
 	}
 	return setup, err
 }
 
 func (s settings) Remove(kind, folder string) error {
-	if kind != claude {
+	h, known := harnesses[kind]
+	if !known {
 		return nil
 	}
-	data, err := s.k.Platform.Read(localFile(folder))
+	data, err := s.k.Platform.Read(h.path(folder))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
-	out, _, found, rerr := rewrite(data, nil)
+	out, _, found, rerr := h.rewrite(data, nil)
 	if err = errors.Join(err, rerr); err != nil || !found {
 		return err
 	}
-	return s.replace(localFile(folder), out)
+	return s.replace(h.path(folder), out)
 }
 
 // replace moves a finished file over the person's settings file, which

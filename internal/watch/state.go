@@ -25,6 +25,9 @@ type kind struct {
 var kinds = map[string]kind{
 	"claude": {hooks: true, trust: "trust this folder", question: [2]string{"Do you want to", "Esc to cancel"},
 		working: "esc to interrupt", ready: "? for shortcuts"},
+	// Codex's hooks are its maker's page's, read and not yet run; of its
+	// screen no word is known, so no question on it is seen before a hook.
+	"codex": {hooks: true},
 }
 
 // events are the moments an agent's harness reports and the state each one

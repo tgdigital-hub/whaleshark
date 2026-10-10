@@ -41,9 +41,29 @@ type outcome struct {
 	Name    string            `json:"name"`
 	Attempt string            `json:"attempt,omitempty"`
 	Tab     string            `json:"tab,omitempty"`
+	Resumed string            `json:"resumed,omitempty"` // the conversation it continues
 	State   string            `json:"state"`
 	Error   *contract.Refusal `json:"error,omitempty"`
 }
+
+// kind is how one kind of agent's program takes what a start hands it, by
+// its own manual: the option that gives it one more folder, whether that
+// option stands before each folder, and the words that continue a
+// conversation, which its id follows. Codex's are read from its maker's
+// pages and have not been run. A kind that is not here is started with its
+// model and the project's arguments and nothing else.
+type kind struct {
+	dir    string
+	each   bool
+	resume []string
+}
+
+var kinds = map[string]kind{
+	defaultKind: {"--add-dir", false, []string{"--resume"}},
+	"codex":     {"--add-dir", true, []string{"resume"}},
+}
+
+const heldArgs = "[agent] args is not approved, so workers are started without it"
 
 type launcher struct {
 	c             *contract.Call
@@ -51,7 +71,9 @@ type launcher struct {
 	self          string
 	snap          *contract.Snapshot // taken for a retry: what the earlier attempt's pane holds now
 	retry, single bool
+	resume, allow bool // continue the earlier conversation; start beside a shared task on the same files
 	agent, model  string
+	project       contract.ProjectFile
 	out           sync.Mutex
 	first         bool      // the run has no worktree yet
 	left          sync.Once // what a worktree lacks is said once
@@ -64,14 +86,20 @@ func start(c *contract.Call) (any, error) {
 	switch {
 	case ready == (len(c.Args) > 0):
 		return nil, usage(c, "start takes tasks, or --ready.")
+	case c.Flags["resume"] != nil && c.Flags["retry"] == nil:
+		return nil, usage(c, "--resume goes with --retry: it continues the conversation of the attempt before.")
 	case os.Getenv(contract.EnvDepth) != "":
 		return nil, refuse(contract.ExitRefused, "worker", "A worker starts no workers.")
 	}
 	k := c.Kit
-	l := &launcher{c: c, retry: c.Flags["retry"] != nil, agent: last(c, "agent"), model: last(c, "model")}
+	l := &launcher{c: c, retry: c.Flags["retry"] != nil, resume: c.Flags["resume"] != nil, allow: c.Flags["allow-overlap"] != nil,
+		agent: last(c, "agent"), model: last(c, "model")}
 	s, err := read(c)
+	if err == nil {
+		l.project, err = contract.ReadProjectFile(c.Root)
+	}
 	if err != nil {
-		return nil, err
+		return nil, refusal(err)
 	}
 	l.first = !slices.ContainsFunc(slices.Collect(maps.Values(s.Tasks)), func(t *contract.Task) bool { return t.Worktree != nil })
 	var ids, argv, names []string
@@ -103,7 +131,7 @@ func start(c *contract.Call) (any, error) {
 			ids, argv, names = append(ids, t.ID), append(argv, t.ID), append(names, t.Name)
 		}
 	}
-	for _, name := range []string{"retry", "allow-overlap"} {
+	for _, name := range []string{"retry", "resume", "allow-overlap"} {
 		if c.Flags[name] != nil {
 			argv = append(argv, "--"+name)
 		}
@@ -207,7 +235,13 @@ func (l *launcher) say(o outcome) {
 	l.out.Lock()
 	defer l.out.Unlock()
 	if o.Error == nil {
-		fmt.Fprintf(l.c.Out, "%s %s: working (%s)\n", o.Task, o.Name, o.Attempt)
+		how := ""
+		if o.Resumed != "" {
+			how = ", in the conversation " + o.Resumed
+		} else if l.resume {
+			how = ", in a new conversation: the attempt before left none that this agent can go on in"
+		}
+		fmt.Fprintf(l.c.Out, "%s %s: working (%s)%s\n", o.Task, o.Name, o.Attempt, how)
 	} else if !l.single { // a single one is the command's own error
 		fmt.Fprintf(l.c.Out, "%s %s: %s\n", o.Task, o.Name, cli.Plain(o.Error.Message))
 	}
@@ -262,6 +296,14 @@ func (l *launcher) bring(task string) outcome {
 		holds = was != nil && was.Agent != ""
 	}
 	agent := contract.Agent{Kind: cmp.Or(l.agent, t.Agent, defaultKind), Model: cmp.Or(l.model, t.Model)}
+	// A conversation is continued by the kind that held it, under the id
+	// the keeper reported; one that could be read as an option is nobody's.
+	var args []string
+	if how := kinds[agent.Kind].resume; l.resume && prev != nil && prev.Agent.Kind == agent.Kind && len(how) > 0 &&
+		prev.Agent.Session != "" && prev.Agent.Session[0] != '-' {
+		agent.Session, r.Resumed = prev.Agent.Session, prev.Agent.Session
+		args = append(slices.Clone(how), agent.Session)
+	}
 	if agent.Model != "" {
 		if err := plain(agent.Model); err != nil {
 			return fail(err)
@@ -301,11 +343,16 @@ func (l *launcher) bring(task string) outcome {
 		folder = filepath.Join(c.Root, folder)
 	}
 	// The task's own copy of the code exists before its attempt does. A start
-	// that is refused from here on takes away the copy this call made.
+	// that is refused from here on takes away the copy this call made, and
+	// the ports of a task that has never had an attempt.
+	var slot contract.Slot
 	undo := func(err error) outcome {
 		if tree != nil && !had {
 			t.Worktree = tree
 			k.Placement.Remove(c.Root, s, task, true)
+		}
+		if prev == nil {
+			contract.FreeSlots(k.Platform, func(o contract.Slot) bool { return o == slot })
 		}
 		return fail(err)
 	}
@@ -314,6 +361,19 @@ func (l *launcher) bring(task string) outcome {
 	}
 	if tree != nil && !had && l.first {
 		l.left.Do(l.lacks)
+	}
+	// The task's ports are its own whether or not it has a copy of the code.
+	slot, err = contract.TakeSlot(k.Platform, contract.DefaultPorts, c.Root, c.Run, task, l.project.Worktrees.PortBlock)
+	if errors.Is(err, contract.ErrNoSlot) {
+		r := refuse(contract.ExitRefused, "no_slot", "No port is free for %s: every port of this login is some task's. Closing settled tasks gives theirs back.", task)
+		r.Next = []string{line(c, "close --settled")}
+		err = r
+	}
+	if err != nil {
+		return undo(err)
+	}
+	if tree != nil {
+		tree.Slot = slot.N
 	}
 	// The hooks go into the folder's own settings only where the folder is
 	// this worker's alone, and git is told not to see that file there; else
@@ -333,8 +393,20 @@ func (l *launcher) bring(task string) outcome {
 		if err == nil && got != id {
 			err = refuse(contract.ExitRefused, "starting", "%s was started by another command.", task)
 		}
-		if err != nil || tree == nil {
+		if other := shares(s, s.Tasks[task]); err == nil && tree == nil && !l.allow && other != "" {
+			r := refuse(contract.ExitRefused, "shared_overlap", "%s would work in one folder with %s, which is at work on files %s may change too.", task, other, task)
+			r.Next = []string{line(c, "start "+task+" --allow-overlap")}
+			err = r
+		}
+		if err != nil {
 			return err
+		}
+		told := func(e contract.Event) bool { return e.Kind == "untrusted" && e.Text == heldArgs }
+		if slices.Contains(l.project.Held, "agent.args") && !slices.ContainsFunc(s.Inbox.Events, told) {
+			k.Rules.Raise(s, contract.Event{Kind: "untrusted", Text: heldArgs}, contract.Now())
+		}
+		if tree == nil {
+			return nil
 		}
 		said := slices.ContainsFunc(slices.Collect(maps.Values(s.Tasks)), func(t *contract.Task) bool {
 			return t.Worktree != nil && t.Worktree.Setup == contract.SetupUntrusted
@@ -351,6 +423,9 @@ func (l *launcher) bring(task string) outcome {
 
 	env := []string{contract.EnvRoot + "=" + c.Root, contract.EnvRun + "=" + c.Run, contract.EnvTask + "=" + task,
 		contract.EnvAttempt + "=" + id, contract.EnvDepth + "=1", contract.EnvBin + "=" + l.self}
+	if slot.Size > 0 {
+		env = append(env, slot.Env(contract.DefaultPorts)...)
+	}
 	pane, err := k.Terms.TabCreate(folder, t.Name, env)
 	if err != nil {
 		return l.failed(r, err, "the tab could not be opened", false)
@@ -361,12 +436,23 @@ func (l *launcher) bring(task string) outcome {
 	if err := l.step(placed); err != nil {
 		return l.failed(r, err, "the start stopped", false)
 	}
-	args := slices.Clone(setup.Args)
+	args = append(args, setup.Args...)
 	// In a copy of the code of its own, the attempt's files and the brief
 	// lie outside the agent's folder: it is given the two folders, or it
 	// stops to ask before it reads its own prompt.
-	if tree != nil && agent.Kind == defaultKind {
-		args = append(args, "--add-dir", dir, filepath.Dir(filepath.Join(run, t.Brief)))
+	if how := kinds[agent.Kind]; tree != nil && how.dir != "" {
+		for i, folder := range []string{dir, filepath.Dir(filepath.Join(run, t.Brief))} {
+			if i == 0 || how.each {
+				args = append(args, how.dir)
+			}
+			args = append(args, folder)
+		}
+	}
+	// The project's own arguments, which are empty until a person approved
+	// them. A project cannot know where this program lies on each machine,
+	// and a worker is told to call it by its path: {whaleshark} stands for it.
+	for _, arg := range l.project.Agent.Args {
+		args = append(args, strings.ReplaceAll(arg, "{whaleshark}", l.self))
 	}
 	if agent.Model != "" {
 		args = append(args, "--model", agent.Model)
@@ -375,9 +461,15 @@ func (l *launcher) bring(task string) outcome {
 		return l.failed(r, err, "the agent did not start", errors.Is(err, contract.ErrAgentNotReady))
 	}
 	prompt := filepath.Join(dir, "prompt.md")
+	// A task that was sent to bring its copy up to date and has not done so
+	// is told again by whoever takes it up.
+	var sync []byte
+	if t.SyncBrief != "" {
+		sync, _ = k.Platform.Peek(filepath.Join(run, t.SyncBrief))
+	}
 	text := guide.Prompt{Bin: k.Platform.Quote("", []string{l.self}), Run: c.Run, Task: task, Name: t.Name, Dir: folder,
 		Brief: filepath.Join(run, t.Brief), Result: filepath.Join(dir, "result.md"), Owns: t.Owns,
-		Shared: tree == nil, Decisions: t.Decisions}.Text() + earlier(prev)
+		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync))}.Text() + earlier(prev)
 	if err = os.WriteFile(prompt, []byte(text), 0o600); err == nil {
 		err = l.step(placed) // nothing is typed once the attempt was stopped or the person pressed Stop all
 	}
@@ -392,6 +484,33 @@ func (l *launcher) bring(task string) outcome {
 	}
 	r.State = working
 	return r
+}
+
+// shares names a task at work in a shared folder on files t may change too,
+// or nothing. Two patterns meet when the fixed beginning of one, up to its
+// first wildcard, begins the other's: that never misses a file both match,
+// and can take two patterns for meeting that share none.
+func shares(s *contract.State, t *contract.Task) string {
+	fixed := func(p string) string {
+		if i := strings.IndexAny(p, "*?["); i >= 0 {
+			return p[:i]
+		}
+		return strings.TrimSuffix(p, "/") + "/"
+	}
+	for _, a := range s.Attempts {
+		o := s.Tasks[a.Task]
+		if !a.State.Live() || o.ID == t.ID || o.Worktree != nil && o.Worktree.RemovedAt.IsZero() {
+			continue
+		}
+		for _, p := range t.Owns {
+			for _, q := range o.Owns {
+				if p, q := fixed(p), fixed(q); strings.HasPrefix(p, q) || strings.HasPrefix(q, p) {
+					return o.ID
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // lacks says, at the first copy of the code a run makes, what git ignores in

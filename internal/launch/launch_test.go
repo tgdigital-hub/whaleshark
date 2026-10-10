@@ -242,9 +242,20 @@ func TestCleanStart(t *testing.T) {
 		name, _, _ := strings.Cut(kv, "=")
 		names = append(names, name)
 	}
-	want := []string{contract.EnvRoot, contract.EnvRun, contract.EnvTask, contract.EnvAttempt, contract.EnvDepth, contract.EnvBin}
+	want := []string{contract.EnvRoot, contract.EnvRun, contract.EnvTask, contract.EnvAttempt, contract.EnvDepth, contract.EnvBin, "PORT_BASE", "PORT"}
 	if !slices.Equal(names, want) {
 		t.Errorf("the tab was made with %+v, expected exactly the variables %v", tab, want)
+	}
+	// Each task has ports of its own, ten of them, written down for the login.
+	dirs, _ := p.Kit.Platform.Dirs()
+	taken, err := contract.ReadSlots(os.ReadFile, dirs.State)
+	if len(taken) != 2 || err != nil || taken[0].N == taken[1].N || taken[0].Size != 10 {
+		t.Fatalf("the slots: %+v, %v", taken, err)
+	}
+	for _, slot := range taken {
+		if port := fmt.Sprintf("PORT=%d", 20000+10*slot.N); slot.Task == "R1" && !slices.Contains(tab.Env, port) {
+			t.Errorf("R1 has the slot %d and its tab %v", slot.N, tab.Env)
+		}
 	}
 	if !slices.ContainsFunc(calls(p, contract.OpAgentStart), func(c contract.WireCall) bool {
 		return c.Name == a.Agent.Name && c.Pane == a.Place.Pane && c.Millis == 180000
@@ -618,5 +629,203 @@ func TestAgentName(t *testing.T) {
 	a, b := agentName("/one/project", "r3", "T3.1"), agentName("/another/project", "r3", "T3.1")
 	if a == b || !strings.HasSuffix(a, "-r3-t3-1") || len(a) != len("h0000-r3-t3-1") || strings.ToLower(a) != a {
 		t.Errorf("%s and %s", a, b)
+	}
+}
+
+// started is the call that started the agent of an attempt.
+func started(t *testing.T, p *scenario.Project, id string) contract.WireCall {
+	t.Helper()
+	s, _ := p.Record()
+	for _, c := range calls(p, contract.OpAgentStart) {
+		if a := s.Attempts[id]; a != nil && c.Name == a.Agent.Name {
+			return c
+		}
+	}
+	t.Fatalf("no agent was started for %s", id)
+	return contract.WireCall{}
+}
+
+// card is how a task's card reads on the person's status.
+func card(t *testing.T, p *scenario.Project, task string) string {
+	t.Helper()
+	var v struct{ Result contract.View }
+	p.Clock(10 * time.Second) // past the sweep's own interval: the status is of this moment
+	out := must(t, p.Command(scenario.Human, "status", "--json"), 0)
+	if err := json.Unmarshal([]byte(out), &v); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	for _, sec := range v.Result.Sections {
+		for _, c := range sec.Cards {
+			if c.Task == task {
+				return strings.TrimSpace(string(c.Look) + " " + c.Word)
+			}
+		}
+	}
+	t.Fatalf("no card for %s:\n%s", task, out)
+	return ""
+}
+
+func approve(t *testing.T, p *scenario.Project, toml string) {
+	t.Helper()
+	err := os.WriteFile(filepath.Join(p.Root, "whaleshark.toml"), []byte(toml), 0o600)
+	lines, lerr := contract.TrustLines(p.Root)
+	if err = errors.Join(err, lerr); err == nil {
+		err = contract.WriteTrust(p.Kit.Platform, p.Root, lines, contract.Now())
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Two kinds of agent, one the gate holds and one it does not, through Stop
+// all, Resume and a retry in the earlier conversation; and a project's
+// arguments for its agents, which count only once a person approved them.
+func TestTwoKindsThroughStopAllAndResume(t *testing.T) {
+	p := evening(t, 2, nil)
+	toml := "[agent]\nargs = [\"--permission-mode\", \"acceptEdits\", \"--allowedTools\", \"Bash({whaleshark}:*)\", \"Bash(git:*)\"]\n"
+	if err := os.WriteFile(filepath.Join(p.Root, "whaleshark.toml"), []byte(toml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p.Double.Script("R2.1", "sleep 300") // at work until the test says otherwise
+	must(t, p.Command(scenario.Orch, "start", "R1"), 0, "working (R1.1)")
+	must(t, p.Command(scenario.Orch, "start", "R2", "--agent", "codex", "--model", "small-1"), 0, "working (R2.1)")
+	one, two := attempt(t, p, "R1.1", contract.AttemptWorking), attempt(t, p, "R2.1", contract.AttemptWorking)
+	if !one.Gated || two.Gated || two.Agent.Kind != "codex" {
+		t.Fatalf("the gate holds Claude Code and not Codex, which has not been run: %+v, %+v", one, two)
+	}
+	first, second := started(t, p, "R1.1"), started(t, p, "R2.1")
+	if first.Kind != "claude" || len(first.Argv) != 2 || first.Argv[0] != "--settings" {
+		t.Errorf("Claude Code was started with %q: its hooks, and nothing nobody approved", first.Argv)
+	}
+	if second.Kind != "codex" || !slices.Equal(second.Argv, []string{"--model", "small-1"}) {
+		t.Errorf("Codex was started with %q", second.Argv)
+	}
+	s, _ := p.Record()
+	said := 0
+	for _, e := range s.Inbox.Events {
+		if e.Kind == "untrusted" && strings.Contains(e.Text, "[agent] args") {
+			said++
+		}
+	}
+	if said != 1 {
+		t.Errorf("%d events say that the project's arguments were not used, expected one for both starts", said)
+	}
+
+	// Stop all: the held one reads paused once it rests, the other still
+	// running for as long as the terminals show it at work.
+	must(t, p.Command(scenario.Human, "pause"), 0, "still running: ready 2")
+	p.Double.Push(contract.StatusIdle, one.Place.Pane)
+	if a, b := card(t, p, "R1"), card(t, p, "R2"); a != "paused" || b != "paused still running" {
+		t.Errorf("after Stop all the cards read %q and %q", a, b)
+	}
+	p.Double.Push(contract.StatusIdle, two.Place.Pane)
+	if b := card(t, p, "R2"); b != "paused" {
+		t.Errorf("at rest the second card reads %q", b)
+	}
+	must(t, p.Command(scenario.Human, "resume"), 0, "Resumed.")
+
+	// The sweep has written each conversation's id down; a retry goes on in it.
+	one, two = attempt(t, p, "R1.1", contract.AttemptWorking), attempt(t, p, "R2.1", contract.AttemptWorking)
+	if one.Agent.Session == "" || two.Agent.Session == "" || one.Agent.Session == two.Agent.Session {
+		t.Fatalf("the sessions recorded: %q and %q", one.Agent.Session, two.Agent.Session)
+	}
+	must(t, p.Command(scenario.Orch, "start", "R1", "--resume"), 2, "--retry")
+	must(t, p.Command(scenario.Orch, "stop", "R1"), 0)
+	must(t, p.Command(scenario.Orch, "stop", "R2"), 0)
+	approve(t, p, toml)
+	must(t, p.Command(scenario.Orch, "start", "R1", "--retry", "--resume"), 0, "working (R1.2), in the conversation "+one.Agent.Session)
+	// The line that was tried on a real agent: edits, this program by the
+	// path a worker calls it by, and git, which a worker commits with.
+	self, _ := exec.LookPath("whaleshark")
+	approved := []string{"--permission-mode", "acceptEdits", "--allowedTools", "Bash(" + self + ":*)", "Bash(git:*)"}
+	if argv := started(t, p, "R1.2").Argv; len(argv) != 9 || !slices.Equal(argv[:2], []string{"--resume", one.Agent.Session}) || !slices.Equal(argv[4:], approved) {
+		t.Errorf("the retry was started with %q: the conversation first, the approved arguments %q last", argv, approved)
+	}
+	if got := attempt(t, p, "R1.2", contract.AttemptWorking).Agent.Session; got != one.Agent.Session {
+		t.Errorf("the new attempt records the conversation %q", got)
+	}
+	// Another kind cannot go on in it, and says so.
+	must(t, p.Command(scenario.Orch, "start", "R2", "--retry", "--resume"), 0, "working (R2.2), in a new conversation")
+	must(t, p.Command(scenario.Orch, "stop", "R2"), 0)
+	must(t, p.Command(scenario.Orch, "start", "R2", "--retry", "--resume", "--agent", "codex"), 0, "working (R2.3), in a new conversation")
+	if argv := started(t, p, "R2.3").Argv; slices.Contains(argv, "resume") {
+		t.Errorf("Codex went on in a conversation of Claude Code's: %q", argv)
+	}
+}
+
+// In a shared folder nothing keeps two workers apart: a task whose files
+// meet those of one at work there is not started, unless told to.
+func TestSharedTasksOnTheSameFiles(t *testing.T) {
+	p := evening(t, 4, func(f *testkit.Fixture) {
+		for id, owns := range map[string][]string{"R1": {"lib/url/**"}, "R2": {"notes/*.md", "lib/**"}, "R3": {"lib/urls.go"}, "R4": {"lib/url"}} {
+			f.State.Tasks[id].Owns = owns
+		}
+	})
+	must(t, p.Command(scenario.Orch, "start", "R1"), 0)
+	must(t, p.Command(scenario.Orch, "start", "R2"), 5, "in one folder with R1", "start R2 --allow-overlap")
+	if s, _ := p.Record(); len(s.Tasks["R2"].Attempts) != 0 {
+		t.Error("the refused task has an attempt")
+	}
+	dirs, _ := p.Kit.Platform.Dirs()
+	if taken, _ := contract.ReadSlots(os.ReadFile, dirs.State); len(taken) != 1 || taken[0].Task != "R1" {
+		t.Errorf("the refused start kept its ports: %+v", taken)
+	}
+	must(t, p.Command(scenario.Orch, "start", "R3"), 0)
+	must(t, p.Command(scenario.Orch, "start", "R4", "--json"), 5, "shared_overlap")
+	must(t, p.Command(scenario.Orch, "start", "R2", "R4", "--allow-overlap"), 0, "R2 ready 2: working", "R4 ready 4: working")
+}
+
+const brief = "# Target\nthe parser\n## Change\nadd it\nConstraints: none\n**Ownership** src\nAcceptance\nit passes\n"
+
+// A Codex worker in a copy of the code of its own: its hooks in that copy
+// and out of git's sight, the two folders that lie outside it, its ports in
+// the copy's record, and the brief of a sync it still owes in its prompt.
+func TestCodexInItsOwnCopy(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	testkit.Git(t, p.Root, "init", "-q", "-b", "main")
+	testkit.Git(t, p.Root, "config", "user.name", "a test")
+	testkit.Git(t, p.Root, "config", "user.email", "test@localhost")
+	testkit.Commit(t, p.Root, "start", map[string]string{"b.md": brief, ".gitignore": "whaleshark.toml\n"})
+	must(t, p.Command(scenario.Orch, "init"), 0)
+	must(t, p.Command(scenario.Orch, "run", "new", "a parser"), 0)
+	approve(t, p, "[worktrees]\nport_block = 4\n[agent]\nargs = [\"--sandbox\", \"workspace-write\"]\n")
+	must(t, p.Command(scenario.Orch, "task", "add", "T1", "the parser", "--brief", "b.md", "--check", "none", "--agent", "codex"), 0)
+	s, run := p.Record()
+	if err := os.WriteFile(filepath.Join(run, "sync-T1.md"), []byte("Merge main first: two commits behind.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := p.Kit.Store.Change(p.Root, s.Run.ID, func(s *contract.State) error {
+		s.Tasks["T1"].SyncBrief = "sync-T1.md"
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	must(t, p.Command(scenario.Orch, "start", "T1"), 0, "working (T1.1)")
+
+	s, _ = p.Record()
+	tree := s.Tasks["T1"].Worktree
+	a := attempt(t, p, "T1.1", contract.AttemptWorking)
+	if tree == nil || a.Place.Cwd != tree.Path || a.Gated {
+		t.Fatalf("the copy %+v, the attempt %+v", tree, a)
+	}
+	if _, err := os.Stat(filepath.Join(tree.Path, ".codex", "hooks.json")); err != nil {
+		t.Error(err)
+	}
+	if left := testkit.Git(t, tree.Path, "status", "--porcelain"); left != "" {
+		t.Errorf("git sees in the copy: %s", left)
+	}
+	dir := filepath.Join(run, "attempts", "T1.1")
+	want := []string{"--add-dir", dir, "--add-dir", filepath.Dir(filepath.Join(run, s.Tasks["T1"].Brief)), "--sandbox", "workspace-write"}
+	if argv := started(t, p, "T1.1").Argv; !slices.Equal(argv, want) {
+		t.Errorf("Codex was started with %q, expected %q", argv, want)
+	}
+	dirs, _ := p.Kit.Platform.Dirs()
+	taken, _ := contract.ReadSlots(os.ReadFile, dirs.State)
+	if len(taken) != 1 || taken[0].Size != 4 || tree.Slot != taken[0].N {
+		t.Errorf("the slot %+v, the copy's %d", taken, tree.Slot)
+	}
+	if prompt, _ := os.ReadFile(filepath.Join(dir, "prompt.md")); !strings.Contains(string(prompt), "## Sync\nMerge main first: two commits behind.") {
+		t.Errorf("the prompt lacks the sync it owes:\n%s", prompt)
 	}
 }

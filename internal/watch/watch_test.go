@@ -190,6 +190,40 @@ func TestAKindNothingIsKnownOf(t *testing.T) {
 	}
 }
 
+// Codex is known by its hooks alone: they give it an exact state and its
+// session, and no word of its screen is read.
+func TestCodexByItsHooks(t *testing.T) {
+	s := listen(t)
+	p := open(t, s.env("agent"), os.Args[0], "hooks")
+	w := s.watch(t, p, "codex")
+	if err := w.Ready(wait); err != nil {
+		t.Fatal(err)
+	}
+	if st := s.reach(t, idle, wait); st.Agent != "codex" || st.Session != "session-one" {
+		t.Fatalf("ready as %+v", st)
+	}
+	if err := w.Prompt("say hello", wait); err != nil {
+		t.Fatal(err)
+	}
+	// A state is given out by the Watcher's own goroutine, a moment after
+	// Prompt has returned on it: the turn is over when the agent has been
+	// given out at work and then at rest, not when the last state is idle,
+	// which it still is in that moment.
+	over := func() bool {
+		got := s.statuses()
+		i := slices.Index(got, contract.StatusWorking)
+		return i >= 0 && slices.Contains(got[i:], idle)
+	}
+	for end := time.Now().Add(wait); !over(); time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatalf("the turn did not end: the states were %v, from the hooks %v", s.statuses(), s.heard())
+		}
+	}
+	if got := after(s.statuses(), idle); slices.Contains(got, Busy) || slices.Contains(got, Quiet) {
+		t.Errorf("once its hooks spoke, the states were %v", got)
+	}
+}
+
 // A shell is at its prompt or runs a command, by who is in front in its
 // terminal; nothing is ever typed at it. An agent started in it by hand is
 // known by its program's name, for as long as it is in front.
