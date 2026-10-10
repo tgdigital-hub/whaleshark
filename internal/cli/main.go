@@ -114,7 +114,24 @@ func run(c *contract.Call, argv []string) (any, error) {
 	if bad := p.text(c); bad != nil {
 		return nil, bad
 	}
-	return h(c)
+	result, err := h(c)
+	if deed := cmd.Deed(c.Args); err == nil && deed != "" && c.Caller.Kind == contract.Human {
+		// What the person did to the record is written into it with where the
+		// command says it came from (18.1): a new run's into the new run.
+		on := c.Run
+		if deed == "run new" {
+			on, _ = c.Kit.Reader().Current(c.Root)
+		}
+		data := map[string]any{"what": deed, "where": c.Caller.Where}
+		if len(c.Args) > strings.Count(deed, " ") && Valid("id", c.Args[strings.Count(deed, " ")], "") == nil {
+			data["on"] = c.Args[strings.Count(deed, " ")]
+		}
+		_ = c.Kit.Store.Change(c.Root, on, func(s *contract.State) error {
+			c.Kit.Rules.Raise(s, contract.Event{Kind: "human", Text: "The person ran " + deed + " themselves.", Data: data}, c.Now)
+			return nil
+		})
+	}
+	return result, err
 }
 
 func names() []string {

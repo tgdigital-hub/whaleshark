@@ -115,6 +115,10 @@ func tell(c *contract.Call) (any, error) {
 			return err
 		}
 		out.Body, unread = path, len(s.Inbox.Events)
+		if sub != "" {
+			// The person's note says where it came from, as all they do (18.1).
+			s.Inbox.Events[unread-1].Data["where"] = c.Caller.Where
+		}
 		if o := s.Run.Orchestrator; o != nil {
 			pane = o.Pane
 		}

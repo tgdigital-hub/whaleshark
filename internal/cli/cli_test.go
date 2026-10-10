@@ -651,3 +651,78 @@ func TestTheCommandLog(t *testing.T) {
 		t.Errorf("the log file: %v %v", info, err)
 	}
 }
+
+// writing is the store of the tests with a record that can be changed, and
+// raiser the one rule this package calls itself.
+type writing struct{ *fakeStore }
+
+func (s writing) Change(_, run string, fn func(*contract.State) error) error { return fn(s.runs[run]) }
+
+type raiser struct{ contract.Rules }
+
+func (raiser) Raise(s *contract.State, e contract.Event, _ time.Time) int {
+	s.Inbox.Events = append(s.Inbox.Events, e)
+	return len(s.Inbox.Events)
+}
+
+// Every command that changes the record, run by the person and ended well,
+// leaves one human event that says what was done, to what, and where the
+// command says it came from: typed with the flag in a pane no run records
+// (which "done as you" counts), or a pane of ours, the page or a phone.
+// Nothing is written for the lead agent, for a command that failed, or for
+// one that is not on the list.
+func TestWhatThePersonDoesIsRecorded(t *testing.T) {
+	k, store := world(t)
+	k.Store, k.Rules = writing{store}, raiser{}
+	events := func() []contract.Event {
+		e := store.runs["r3"].Inbox.Events
+		store.runs["r3"].Inbox.Events = nil
+		return e
+	}
+	events()
+	places := []struct {
+		scene scene
+		where string
+	}{
+		{other, contract.WhereTyped}, {scene{key: "w1:p1"}, contract.WhereTyped},
+		{scene{pane: "w9:p9", from: contract.WherePane}, contract.WherePane}, {scene{pane: "w9:p9", own: contract.WherePane}, contract.WherePane},
+		{scene{from: contract.WherePage}, contract.WherePage}, {scene{from: contract.WherePhone}, contract.WherePhone},
+	}
+	for _, entry := range contract.Recorded {
+		line := append(strings.Fields(entry), "T2", "a reason", "--human")
+		seen(k, line[0])
+		for _, p := range places {
+			_, errw, exit := call(t, k, p.scene, line...)
+			got := events()
+			if exit != 0 || len(got) != 1 {
+				t.Errorf("%s from %+v: exit %d, %q, %d events", entry, p.scene, exit, errw, len(got))
+				continue
+			}
+			if e := got[0]; e.Kind != "human" || e.Data["what"] != entry || e.Data["where"] != p.where || e.Data["on"] != "T2" || !strings.Contains(e.Text, entry) {
+				t.Errorf("%s from %+v left %+v", entry, p.scene, e)
+			}
+		}
+		if call(t, k, lead, line[:len(line)-1]...); len(events()) != 0 {
+			t.Errorf("%s by the lead agent is recorded as the person's", entry)
+		}
+		k.Handle(line[0], func(*contract.Call) (any, error) { return nil, errors.New("no") })
+		if _, _, exit := call(t, k, other, line...); exit == 0 || len(events()) != 0 {
+			t.Errorf("%s that failed is recorded, or ended with %d", entry, exit)
+		}
+	}
+	for _, entry := range contract.Unrecorded {
+		line := append(strings.Fields(entry), "--human")
+		if entry == "help" {
+			continue // it stands for itself and is never another's handler
+		}
+		seen(k, line[0])
+		if _, errw, _ := call(t, k, other, line...); len(events()) != 0 {
+			t.Errorf("%s is recorded as the person's doing: %q", entry, errw)
+		}
+	}
+	seen(k, "need")
+	call(t, k, other, "need", "todo", "a longer text, no id", "--human")
+	if got := events(); len(got) != 1 || got[0].Data["what"] != "need todo" || got[0].Data["on"] != nil {
+		t.Errorf("an argument that is no id is named in the event: %+v", got)
+	}
+}
