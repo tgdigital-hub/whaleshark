@@ -258,12 +258,13 @@ func TestAMadeUpHostName(t *testing.T) {
 // command of the browser's, and never one of the rows no screen may run.
 func TestWhatAButtonCanRun(t *testing.T) {
 	b := evening(t).signIn()
+	var change func(*http.Request)
 	post := func(button string, fields ...string) *httptest.ResponseRecorder {
 		form := url.Values{contract.FieldToken: {b.token()}}
 		for i := 0; i < len(fields); i += 2 {
 			form.Set(fields[i], fields[i+1])
 		}
-		return b.ask("POST", contract.RouteDo+url.PathEscape(button), form, nil)
+		return b.ask("POST", contract.RouteDo+url.PathEscape(button), form, change)
 	}
 	before, _ := b.p.Record()
 	for _, never := range []string{"land", "trust", "run", "task", "report", "progress", "ask", "mail", "go", "fleet", "actions", "to-actions",
@@ -292,8 +293,14 @@ func TestWhatAButtonCanRun(t *testing.T) {
 	}
 
 	// Free text rides in a file: an answer that looks like an option is the answer.
+	// It leads back to the team's screen when the browser names a way back
+	// that it would itself read as another site.
+	change = func(r *http.Request) { r.Header.Set("Referer", own+`/\elsewhere.example/x`) }
 	w := post("answer", "id", "q9", "text", "--undo")
-	b.refused("an answer", w, http.StatusSeeOther)
+	if b.refused("an answer", w, http.StatusSeeOther); w.Header().Get("Location") != contract.RouteTeam {
+		t.Errorf("an answer led back to %q", w.Header().Get("Location"))
+	}
+	change = nil
 	s, _ := b.p.Record()
 	if q := s.Questions["q9"]; q.Answer != "--undo" || q.AnsweredBy == nil || q.AnsweredBy.Where != contract.WherePage || q.AnsweredBy.Caller != contract.Human {
 		t.Errorf("the answer as recorded: %+v by %+v", q.Answer, q.AnsweredBy)

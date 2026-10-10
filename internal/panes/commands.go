@@ -66,11 +66,11 @@ func ui(c *contract.Call) (any, error) {
 // can, this program becomes it; elsewhere it is started and waited for.
 func again(self string) error {
 	args := append([]string{self}, os.Args[1:]...)
-	// #nosec G204 -- this program's own file, with its own arguments
+	// #nosec G204 G702 -- this program's own file, with its own arguments
 	if err := syscall.Exec(self, args, os.Environ()); err == nil {
 		return nil
 	}
-	cmd := exec.Command(self, args[1:]...) // #nosec G204 -- as above
+	cmd := exec.Command(self, args[1:]...) // #nosec G204 G702 -- as above
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return cmd.Run()
 }

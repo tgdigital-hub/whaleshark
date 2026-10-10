@@ -56,15 +56,19 @@ jobs:
           # Each is built with the Go that go.mod names: a checker reads our
           # code with the Go it was built with, and an older one cannot.
           export GOTOOLCHAIN="$(go env GOVERSION)"
-          # staticcheck's newest release pins a reading library from before
-          # Go 1.27.2, which cannot read what that Go compiles. So it is
-          # built in a module of its own with the library that can, both at
-          # exact versions and both checked by Go as every module is.
-          mkdir "$RUNNER_TEMP/staticcheck"
+          # The newest releases of staticcheck and of gosec pin a reading
+          # library from before Go 1.27.2, which cannot read what that Go
+          # compiles: staticcheck then stops, and gosec goes on half blind,
+          # naming what it can see without the types. So each is built in a
+          # module of its own with the library that can, all at exact
+          # versions and all checked by Go as every module is.
+          mkdir "$RUNNER_TEMP/staticcheck" "$RUNNER_TEMP/gosec"
           (cd "$RUNNER_TEMP/staticcheck" && go mod init staticcheck &&
             go get honnef.co/go/tools/cmd/staticcheck@v0.8.1 golang.org/x/tools@v0.51.0 &&
             go install honnef.co/go/tools/cmd/staticcheck)
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+          (cd "$RUNNER_TEMP/gosec" && go mod init gosec &&
+            go get github.com/securego/gosec/v2/cmd/gosec@v2.29.0 golang.org/x/tools@v0.51.0 &&
+            go install github.com/securego/gosec/v2/cmd/gosec)
           go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
           go install github.com/zricethezav/gitleaks/v8@v8.30.1
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"

@@ -239,10 +239,10 @@ const keypad = 57399
 func extended(args string) Event {
 	f := strings.Split(args+";", ";")
 	code, with := numbers(f[0], ":"), numbers(f[1], ":")
-	r, sum := rune(code[0]), (max(with[0], 1)-1)&15
-	if len(with) > 1 && with[1] == 3 || code[0] > unicode.MaxRune {
+	if len(with) > 1 && with[1] == 3 || code[0] < 0 || code[0] > unicode.MaxRune {
 		return Event{}
 	}
+	r, sum := rune(code[0]), (max(with[0], 1)-1)&15 // #nosec G115 -- a rune's number, by the line above
 	key := codeKeys[r]
 	if i := int(r - keypad); key == "" && i >= 0 && i < len(keypadKeys) {
 		key = keypadKeys[i]
@@ -258,8 +258,8 @@ func extended(args string) Event {
 		// the terminal sends the character itself; with ctrl or super
 		// held it stays a key that is held.
 		if sum&1 != 0 && sum&12 == 0 {
-			if r, sum = unicode.ToUpper(r), sum&^1; len(code) > 1 && code[1] > 0 {
-				r = rune(code[1])
+			if r, sum = unicode.ToUpper(r), sum&^1; len(code) > 1 && code[1] > 0 && code[1] <= unicode.MaxRune {
+				r = rune(code[1]) // #nosec G115 -- a rune's number, by the line above
 			}
 		}
 		if key = string(r); sum == 0 {

@@ -85,7 +85,7 @@ func seal(to *contract.PushTo, plain []byte, o once) ([]byte, error) {
 		return nil, err
 	}
 	body := binary.BigEndian.AppendUint32(append([]byte{}, o.salt...), record)
-	body = append(append(body, byte(len(mine))), mine...)
+	body = append(append(body, byte(len(mine))), mine...) // #nosec G115 -- a P-256 point, 65 bytes
 	return gcm.Seal(body, derive(ikm, o.salt, "Content-Encoding: nonce\x00", 12), slices.Concat(plain, []byte{2}), nil), nil
 }
 

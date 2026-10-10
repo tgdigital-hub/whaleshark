@@ -41,6 +41,7 @@ func (s *server) child(ctx context.Context, j job, text string, args ...string) 
 		}
 		defer os.RemoveAll(dir)
 		args[at] = filepath.Join(dir, "text")
+		// #nosec G703 -- a file of a fixed name in a private folder made just above
 		if err := os.WriteFile(args[at], []byte(text), 0o600); err != nil {
 			return nil, err
 		}
@@ -140,7 +141,10 @@ func (s *server) do(w http.ResponseWriter, r *http.Request, id, button string) {
 		return
 	}
 	back := contract.RouteTeam
-	if from, err := url.Parse(r.Referer()); err == nil && strings.HasPrefix(from.Path, "/") && !strings.HasPrefix(from.Path, "//") && !strings.HasPrefix(from.Path, contract.RouteDo) {
+	// The way back is a path on this page and nothing a browser could read
+	// as another site: no second slash, and no backslash, which browsers
+	// take for one.
+	if from, err := url.Parse(r.Referer()); err == nil && strings.HasPrefix(from.Path, "/") && !strings.HasPrefix(from.Path, "//") && !strings.Contains(from.Path, `\`) && !strings.HasPrefix(from.Path, contract.RouteDo) {
 		back = from.Path
 	}
 	var err error
@@ -161,7 +165,7 @@ func (s *server) do(w http.ResponseWriter, r *http.Request, id, button string) {
 	told := new(contract.Refusal)
 	switch {
 	case err == nil && catch == nil:
-		http.Redirect(w, r, back, http.StatusSeeOther)
+		http.Redirect(w, r, back, http.StatusSeeOther) // #nosec G710 -- a path of this page, checked where back is set
 		return
 	case err == nil:
 		told = nil

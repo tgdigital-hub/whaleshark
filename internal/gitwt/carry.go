@@ -162,7 +162,7 @@ func (t *trees) Hide(root, dir string, paths ...string) error {
 		if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
 			return err
 		}
-		// #nosec G306 -- git's own file, with the permissions git gives it
+		// #nosec G306 G703 -- git's own file, where git says it is, with the permissions git gives it
 		return os.WriteFile(file, data, 0o644)
 	})
 }
@@ -196,7 +196,8 @@ func copyTree(from, to string) error {
 		case !d.Type().IsRegular():
 			return nil
 		}
-		// #nosec G304 G302 -- a path inside the project, checked, written with the mode it has there
+		// #nosec G304 G302 G122 -- a path inside the project, checked, written with the mode it has there;
+		// who can change the project between the look and the copy can change the copy as well
 		in, err := os.Open(path)
 		if err != nil {
 			return err
