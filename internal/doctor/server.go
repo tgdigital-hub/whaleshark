@@ -174,10 +174,6 @@ func serve(c *contract.Call) (any, error) {
 		}
 	case "tunnel":
 		return no("not_built", "", "server tunnel is %v.", contract.ErrNotBuilt)
-	case "status":
-		if day := restartNeeded(); day != "" {
-			fmt.Fprintf(c.Out, "restart needed since %s\n", day)
-		}
 	}
 	self, _ := p.SelfPath()
 	// #nosec G204 -- the system's shell reading the script compiled into this program; every argument was checked above
