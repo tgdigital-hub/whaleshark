@@ -32,6 +32,12 @@ func Main(k *contract.Kit, argv []string, in io.Reader, out, errw io.Writer) int
 	result, err := run(c, argv)
 	exit := finish(c, out, result, err)
 	logged(c, exit, time.Since(began))
+	if exit != contract.ExitOK && os.Getenv(contract.EnvOwnTab) != "" {
+		// A button's command in a tab of its own: the tab ends with its
+		// program, so one that failed stays until the person has read it.
+		fmt.Fprintln(errw, "This tab closes when you press Enter.")
+		io.ReadAtLeast(in, make([]byte, 1), 1)
+	}
 	return exit
 }
 
