@@ -578,11 +578,14 @@ fi
 mkdir -p "$R/root"
 tmp=$(mktemp -d "$R/root/.whaleshark-server.XXXXXX")
 doing=
-trap 'rc=$?
+leave() {
+	rc=$?
 	rm -rf "$tmp"
 	[ "$rc" -eq 0 ] || [ -z "$doing" ] || say "server: failed while $doing" >&2
 	[ "$rc" -eq 0 ] || [ "$rc" -eq 3 ] || rc=1
-	exit "$rc"' EXIT
+	exit "$rc"
+}
+trap leave EXIT
 
 case $verb in
 setup | harden | add | phone | upgrade) "$verb" "$@" ;;

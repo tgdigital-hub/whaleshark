@@ -89,8 +89,9 @@ func TestTheServerCommandRunsTheScriptCompiledIn(t *testing.T) {
 	// A key file's name goes to the script as typed, spaces and all.
 	keys := filepath.Join(t.TempDir(), "my keys", "ben.pub")
 	b.write(keys, read(m.Root, "people", "first", ".ssh", "authorized_keys"))
-	r, _ := must("add", "--user=ana")
-	if r, _ = must("add", "--user=ben", "--key="+keys); r.Login["ana"].Ports != 21000 || r.Login["ben"].Ports != 22000 || r.Rules != contract.RulesUnproven {
+	must("add", "--user=ana")
+	r, _ := must("add", "--user=ben", "--key="+keys)
+	if r.Login["ana"].Ports != 21000 || r.Login["ben"].Ports != 22000 || r.Rules != contract.RulesUnproven {
 		t.Errorf("after two logins: %+v", r)
 	}
 	if got := read(m.Root, "people", "ben", ".ssh", "authorized_keys"); got == "" || got != read(keys) {
