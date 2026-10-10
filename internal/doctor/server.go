@@ -72,9 +72,10 @@ func readRecord(read func(string) ([]byte, error)) (*record, error) {
 func (r *record) write(p contract.Platform) error {
 	var text bytes.Buffer
 	tmp := contract.ServerFile + ".new"
-	// #nosec G301 G302 G306 -- every login reads the server's file; only root writes it and its folder
+	// #nosec G301 -- every login reads the server's file; only root writes it and its folder
 	err := errors.Join(toml.NewEncoder(&text).Encode(r), os.MkdirAll(filepath.Dir(tmp), 0o755))
 	if err == nil {
+		// #nosec G302 G306 -- as above: root's and readable by all by design, as start and doctor read it as any login
 		err = errors.Join(os.WriteFile(tmp, text.Bytes(), 0o644), os.Chmod(tmp, 0o644))
 	}
 	if err != nil {

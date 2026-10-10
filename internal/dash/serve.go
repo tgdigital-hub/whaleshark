@@ -274,6 +274,7 @@ func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job)
 		}
 	}
 	if chosen && fit > 1 {
+		// #nosec G124 -- as the session's cookie in grant: no Secure on the loopback road
 		http.SetCookie(w, &http.Cookie{Name: s.cookie + "j", Value: url.Values{contract.FieldRoot: {j.root}, contract.FieldRun: {j.run}}.Encode(),
 			Path: "/", MaxAge: int(sessionLife / time.Second), HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	}

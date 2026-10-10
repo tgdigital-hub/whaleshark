@@ -228,7 +228,7 @@ func (i *setting) exclude() error {
 	if err = os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	// #nosec G306 -- git's own file, with the permissions git gives it
+	// #nosec G306 G703 -- git's own file, where git says it is, with the permissions git gives it
 	return os.WriteFile(path, append(data, excludeLine+"\n"...), 0o644)
 }
 

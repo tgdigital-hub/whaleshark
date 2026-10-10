@@ -120,9 +120,10 @@ func New(t testing.TB, script string) *Machine {
 	bin := filepath.Join(dir, "bin")
 	first := filepath.Join(m.Root, "people", "first")
 	write := func(path, text string, mode os.FileMode) {
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			t.Fatal(err)
 		}
+		// #nosec G703 -- every path here is one this file makes under the test's own temporary folder
 		if err := os.WriteFile(path, []byte(text), mode); err != nil {
 			t.Fatal(err)
 		}
@@ -142,6 +143,7 @@ func New(t testing.TB, script string) *Machine {
 	for _, empty := range []string{"sshd-first", "dpkg", "enabled", "started", "group", "log"} {
 		write(filepath.Join(m.Fake, empty), "", 0o644)
 	}
+	// #nosec G204 -- a fixed command; the one path in it is the test's own temporary folder
 	if out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "a test", "-f", filepath.Join(dir, "key")).CombinedOutput(); err != nil {
 		t.Skipf("no ssh-keygen to make a key with: %v: %s", err, out)
 	}

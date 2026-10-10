@@ -130,6 +130,8 @@ var (
 // signed. Scripts cannot read it and no other site's request carries it.
 func (s *server) grant(w http.ResponseWriter, id string, now time.Time) {
 	end := strconv.FormatInt(now.Add(sessionLife).Unix(), 36)
+	// #nosec G124 -- the page's one road so far is plain HTTP on a loopback name, where a cookie marked
+	// Secure is not kept by every browser; the doors for phones are HTTPS and owe their cookie that mark
 	http.SetCookie(w, &http.Cookie{Name: s.cookie, Value: id + "." + end + "." + mac(s.key, "session", id, end),
 		Path: "/", MaxAge: int(sessionLife / time.Second), HttpOnly: true, SameSite: http.SameSiteStrictMode})
 }

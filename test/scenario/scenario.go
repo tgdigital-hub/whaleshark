@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -260,10 +261,30 @@ func (r *runner) step(kind, rest string) {
 				time.Sleep(20 * time.Millisecond)
 			}
 			if not != "" {
-				r.fail("%s", not)
+				r.fail("%s%s", not, r.tabs())
 			}
 		}
 	}
+}
+
+// tabs is what the scripted agents have said in their tabs so far, for a
+// fact that did not come about: the record says that an agent has not got
+// there, its tab says why. Only an agent's own lines are given: a tab also
+// shows the environment it was started in, which is nobody's to print.
+func (r *runner) tabs() string {
+	var b strings.Builder
+	if snap, err := r.p.Kit.Terms.Snapshot(context.Background()); err == nil {
+		for _, pane := range snap.Panes {
+			shown, _ := r.p.Kit.Terms.Screen(pane.ID)
+			fmt.Fprintf(&b, "\n-- %s %s, %s", pane.ID, pane.Name, pane.Status)
+			for _, line := range strings.Split(shown, "\n") {
+				if strings.HasPrefix(line, "fakeagent: ") {
+					b.WriteString("\n" + line)
+				}
+			}
+		}
+	}
+	return b.String()
 }
 
 // pushes is what a term-event or term-drop line may name.
