@@ -114,7 +114,8 @@ func ReadFrame(r io.Reader) (kind byte, body []byte, err error) {
 // the keeper answers once with the snapshot and then with one WireReply for each
 // event, until the connection ends. After OpAttach the connection is a
 // window's stream: FrameBytes both ways, and OpWindowSize when the window's
-// size changes. OpHook is what `hook state` sends; OpStop and OpStatus are
+// size changes. OpAttach itself gets no reply; a reply with an error, at any
+// moment after it, ends the window with that message. OpHook is what `hook state` sends; OpStop and OpStatus are
 // `engine stop` and `engine status`.
 const (
 	OpHello      = "hello"
