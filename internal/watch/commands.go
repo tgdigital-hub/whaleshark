@@ -29,9 +29,20 @@ const (
 	quietAfter = 2 * time.Second
 	// A program's start is over when it has printed and then nothing for this long.
 	homeAfter = 500 * time.Millisecond
-	// The pause between a prompt's text and its Enter: an agent that reads
-	// both in one go takes the Enter for a line break of the text.
+	// The rest between a prompt's text, once the pane shows it, and its
+	// Enter: an agent that reads both in one go takes the Enter for a line
+	// break of the text.
 	enterAfter = 150 * time.Millisecond
+	// How long a pasted text is looked for in the pane before its Enter goes
+	// anyway, and how long a pane that printed something else must be still.
+	arriveWait = 3 * time.Second
+	stillAfter = 300 * time.Millisecond
+	// An agent that shows no start this long after an Enter gets another,
+	// each wait twice the last, up to enters in all.
+	againAfter = 2 * time.Second
+	enters     = 4
+	// How long a pointer's line is given to set an agent at its prompt to work.
+	pointWait = 8 * time.Second
 )
 
 // Pane is the pane a Watcher looks at and types into; the keeper hands one
@@ -64,8 +75,13 @@ type Watcher struct {
 	poke chan struct{}
 	done chan struct{}
 
+	typing  sync.Mutex // held while a text and its Enter are typed: two texts never mix
+	lies    string     // the beginning of a text that was typed and not taken, under typing
+	liesHad int        // how often the pane showed it before it was typed
+
 	mu      sync.Mutex
 	st      State
+	starts  uint64        // how often the agent went to work or to a question
 	home    string        // the program in front once the start was over; empty until then and where the system cannot tell
 	first   string        // a shell's own name as its pane started it, before anything was typed there
 	away    bool          // another program is in front of the agent

@@ -28,6 +28,12 @@ const wait = 30 * time.Second
 
 func pasted(text string) string { return pasteOpen + text + pasteClose + "\r" }
 
+// typedAs reports whether what was typed is the text, once, and its Enter:
+// one, or more where the agent's hooks were slow to say that it had started.
+func typedAs(got, text string) bool {
+	return strings.TrimRight(got, "\r")+"\r" == pasted(text) && strings.HasSuffix(got, "\r")
+}
+
 // after is the states from the first one of a kind on.
 func after(all []string, first string) []string {
 	return all[max(slices.Index(all, first), 0):]
@@ -50,7 +56,7 @@ func TestTheFakeAgentThroughEveryState(t *testing.T) {
 	if err := w.Prompt("say\r\nhello\x1b[201~\x07", wait); err != nil {
 		t.Fatal(err)
 	}
-	if got := p.wasTyped(); got != pasted("say\nhello[201~") {
+	if got := p.wasTyped(); !typedAs(got, "say\nhello[201~") {
 		t.Fatalf("typed %q", got)
 	}
 	s.reach(t, idle, wait)
@@ -92,7 +98,7 @@ func TestTheFakeAgentThroughEveryState(t *testing.T) {
 	if err := w.Point(contract.PointAnswered, "Q3"); err != nil {
 		t.Fatal(err)
 	}
-	if got := p.wasTyped()[len(typed):]; got != pasted("Your question Q3 was answered. Run: whaleshark ask --resume Q3") {
+	if got := p.wasTyped()[len(typed):]; !typedAs(got, "Your question Q3 was answered. Run: whaleshark ask --resume Q3") {
 		t.Errorf("the pointer was typed as %q", got)
 	}
 	s.reach(t, atWork, wait)
@@ -454,5 +460,111 @@ func TestTheWordsAgainstTheRecordings(t *testing.T) {
 				t.Errorf("%s: the screen showed %v", rec.Name, saw)
 			}
 		}
+	}
+}
+
+// An agent on a loaded machine takes a paste in only after a while and
+// drops an Enter that comes sooner: the Enter waits until the pane shows
+// the text, however long that takes, and then one is enough.
+func TestTheEnterWaitsForTheText(t *testing.T) {
+	s := listen(t)
+	p := open(t, s.env("agent"), os.Args[0], "slow")
+	w := s.watch(t, p, "claude")
+	if err := w.Ready(wait); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Prompt("Read and follow a file", wait); err != nil {
+		t.Fatalf("the prompt of an agent that is slow to take a paste in: %v\n%s", err, p.Text())
+	}
+	if got := p.wasTyped(); !typedAs(got, "Read and follow a file") {
+		t.Errorf("typed %q", got)
+	}
+	s.reach(t, idle, wait)
+	if text := p.Text(); !strings.Contains(text, "did: Read and follow a file") {
+		t.Errorf("the agent did not get its prompt whole:\n%s", text)
+	}
+	// A pointer goes the same way.
+	if err := w.Point(contract.PointMail, ""); err != nil {
+		t.Fatalf("a pointer for the same agent: %v", err)
+	}
+	s.reach(t, idle, wait)
+	if got := strings.Count(p.wasTyped(), pasteOpen); got != 2 {
+		t.Errorf("%d texts typed for two", got)
+	}
+}
+
+// An agent that shows the text and still does not take its Enter gets
+// Enter again, and the text once.
+func TestEnterAgainForATextThatLiesThere(t *testing.T) {
+	s := listen(t)
+	p := open(t, s.env("agent"), os.Args[0], "deaf")
+	w := s.watch(t, p, "claude")
+	if err := w.Ready(wait); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Prompt("hello", wait); err != nil {
+		t.Fatalf("the prompt: %v\n%s", err, p.Text())
+	}
+	if got := p.wasTyped(); !typedAs(got, "hello") || strings.Count(got, "\r") < 3 {
+		t.Errorf("typed %q", got)
+	}
+	s.reach(t, idle, wait)
+	if text := p.Text(); !strings.Contains(text, "did: hello") {
+		t.Errorf("the agent got\n%s", text)
+	}
+}
+
+// An agent that never takes the Enter: a few are pressed and no more, the
+// text is typed once, and while it lies in the box no other is put beside it.
+func TestATextNobodyTakes(t *testing.T) {
+	p := &still{marked: true}
+	w := New(p, "claude", "", func(State) {})
+	defer w.Close()
+	p.show("> \n? for shortcuts")
+	w.Hook("SessionStart", "one", "")
+	box := func() {
+		p.mu.Lock()
+		p.onType = func() {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			if last := p.typed[len(p.typed)-1]; last != "\r" {
+				p.text, p.n = "> "+last+"\n? for shortcuts", p.n+1
+			}
+		}
+		p.mu.Unlock()
+	}
+	box()
+	begin := time.Now()
+	if err := w.Prompt("hello", 7*time.Second); !errors.Is(err, contract.ErrPromptStalled) {
+		t.Fatalf("a prompt nobody takes: %v", err)
+	}
+	if want := []string{pasteOpen + "hello" + pasteClose, "\r", "\r", "\r"}; !slices.Equal(p.typed, want) {
+		t.Errorf("typed %q, want %q", p.typed, want)
+	}
+	if took := time.Since(begin); took > 12*time.Second {
+		t.Errorf("it took %v", took)
+	}
+	// The text still lies there: it gets an Enter, and nothing is typed beside it.
+	p.typed = nil
+	if err := w.Point(contract.PointMail, ""); !errors.Is(err, contract.ErrPromptStalled) || !slices.Equal(p.typed, []string{"\r"}) {
+		t.Errorf("a pointer while a text lies in the box: %v, typed %q", err, p.typed)
+	}
+	// The person has emptied the box: the next text is typed as any other,
+	// and the hook that follows its Enter ends the wait.
+	p.typed = nil
+	p.show("> \n? for shortcuts")
+	p.mu.Lock()
+	p.onType = func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if last := p.typed[len(p.typed)-1]; last == "\r" {
+			go w.Hook("UserPromptSubmit", "one", "")
+		} else {
+			p.text, p.n = "> "+last+"\n? for shortcuts", p.n+1
+		}
+	}
+	p.mu.Unlock()
+	if err := w.Point(contract.PointMail, ""); err != nil || len(p.typed) != 2 {
+		t.Errorf("a pointer into the emptied box: %v, typed %q", err, p.typed)
 	}
 }

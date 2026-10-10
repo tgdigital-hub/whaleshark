@@ -104,6 +104,7 @@ var AgentSteps = map[string]string{
 	"edit":              `edit <file>`,
 	"commit":            `commit`,
 	"merge":             `merge <branch>         merge it in, keeping both sides' lines where the two clash`,
+	"slow-paste":        `slow-paste <seconds>   the first step only, on the real keeper: the prompt is taken in that long after it was typed, and an Enter that comes sooner is dropped`,
 }
 
 // How the engine's double and the fake agent find each other. The scenario

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -141,5 +143,47 @@ func TestTheDoubleAnswersAsTheKeeper(t *testing.T) {
 		if errors.Is(err, contract.ErrNotBuilt) {
 			t.Errorf("%s is not answered by the keeper", call)
 		}
+	}
+}
+
+// A start on a loaded machine, through the real keeper: the agent takes the
+// pasted prompt in only after a while and drops an Enter that comes sooner.
+// The Enter waits until the pane shows the prompt, so the start is sure,
+// and no Enter is spent on a paste the agent is still taking in.
+func TestAStartWhoseAgentIsSlowToTakeAPasteIn(t *testing.T) {
+	p := PrepareOn(t, Keeper, nil, map[string]string{"A.1": `slow-paste 0.7 | write-result | report done "it is in"`})
+	run := func(args ...string) string {
+		t.Helper()
+		out, err := p.Command(Orch, args...).CombinedOutput()
+		if err != nil {
+			s, _ := p.Record()
+			screen := ""
+			if a := s.Attempts["A.1"]; a != nil {
+				screen, _ = p.Kit.Terms.Screen(a.Place.Pane)
+			}
+			t.Fatalf("%v: %v\n%s\nthe agent's pane:\n%s", args, err, out, screen)
+		}
+		return string(out)
+	}
+	brief := "# Target\na file\n## Change\nwrite it\nConstraints: none\n**Ownership** it\nAcceptance\nit is there\n"
+	p.must(os.WriteFile(filepath.Join(p.Root, "b.md"), []byte(brief), 0o600))
+	run("run", "new", "one start")
+	run("task", "add", "A", "the A part", "--brief", "b.md", "--check", "none")
+	if out := run("start", "A"); !strings.Contains(out, "working") {
+		t.Fatalf("start A printed\n%s", out)
+	}
+	var screen string
+	for end := time.Now().Add(patience); ; time.Sleep(20 * time.Millisecond) {
+		s, _ := p.Record()
+		a := s.Attempts["A.1"]
+		screen, _ = p.Kit.Terms.Screen(a.Place.Pane)
+		if a.State == contract.AttemptReported {
+			break
+		} else if time.Now().After(end) {
+			t.Fatalf("the agent did not do its task: A.1 is %s\n%s", a.State, screen)
+		}
+	}
+	if !strings.Contains(screen, "fakeagent: took the prompt") || strings.Contains(screen, "an Enter came before") {
+		t.Errorf("the prompt's Enter did not wait for the pane to show the text:\n%s", screen)
 	}
 }

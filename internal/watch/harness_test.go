@@ -88,15 +88,19 @@ func hookRole() {
 // hooks tells each moment through the real `hook state`. Its modes: "hooks"
 // (a whole agent), "screen" (the same with its hooks switched off), "trust"
 // (stopped at the question about its folder), "other" (a kind nothing is
-// known of: it prints and falls silent).
+// known of: it prints and falls silent), "slow" (a whole agent on a loaded
+// machine: it takes a paste in only after a while, shows it then, and drops
+// an Enter that comes sooner), "deaf" (a whole agent that also drops the
+// first two Enters after a paste it has shown).
 func fakeAgent(mode string) {
+	whole := mode == "hooks" || mode == "slow" || mode == "deaf"
 	old, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
 		os.Exit(3)
 	}
 	leave := func(code int) { term.Restore(int(os.Stdin.Fd()), old); os.Exit(code) }
 	say := func(event string) {
-		if mode != "hooks" {
+		if !whole {
 			return
 		}
 		cmd := exec.Command(os.Args[0], "hook", "state", event)
@@ -120,14 +124,53 @@ func fakeAgent(mode string) {
 	fmt.Print("\x1b[?2004h")
 	draw("a fake agent", "> ", "  ? for shortcuts")
 	say("SessionStart")
+	type stroke struct {
+		b  byte
+		at time.Time
+	}
+	strokes := make(chan stroke, 1<<10)
+	go func() {
+		for {
+			strokes <- stroke{key(), time.Now()}
+		}
+	}()
+	clean := strings.NewReplacer("\x1b[200~", "", "\x1b[201~", "")
+	var taken time.Time // when the last paste is taken in and shown
+	var show <-chan time.Time
+	drop := 0
 	for line := []byte{}; ; {
-		b := key()
+		var k stroke
+		select {
+		case <-show:
+			show = nil
+			draw("a fake agent", "> "+clean.Replace(string(line)), "  ? for shortcuts")
+			continue
+		case k = <-strokes:
+		}
+		b := k.b
 		if b != '\r' || bytes.Count(line, []byte("\x1b[200~")) > bytes.Count(line, []byte("\x1b[201~")) {
-			line = append(line, b)
+			if line = append(line, b); bytes.HasSuffix(line, []byte("\x1b[201~")) {
+				pause := time.Millisecond
+				if mode == "slow" || mode == "deaf" {
+					pause = 700 * time.Millisecond
+				}
+				if taken, show = k.at.Add(pause), time.After(pause); mode == "deaf" {
+					drop = 2
+				}
+			}
 			continue
 		}
-		text := strings.NewReplacer("\x1b[200~", "", "\x1b[201~", "").Replace(string(line))
-		line = line[:0]
+		// An Enter in an empty box does nothing, and neither does one that
+		// comes while a paste is still being taken in.
+		if len(line) == 0 || k.at.Before(taken) {
+			continue
+		}
+		if drop > 0 {
+			drop--
+			continue
+		}
+		text := clean.Replace(string(line))
+		line, show = line[:0], nil
 		if text == "/exit" {
 			say("SessionEnd")
 			leave(0)
@@ -139,9 +182,15 @@ func fakeAgent(mode string) {
 		}
 		if strings.Contains(text, "step") {
 			say("PreToolUse")
+			asked := time.Now()
 			draw("Do you want to make this step?", "> 1. Yes", "  2. No", "Esc to cancel")
 			say("PermissionRequest")
-			if key() == '\r' {
+			// A key that came before the question was drawn was no answer to it.
+			answer := <-strokes
+			for answer.at.Before(asked) {
+				answer = <-strokes
+			}
+			if answer.b == '\r' {
 				// A long step: its hook comes only when it has ended.
 				draw("got: "+text, "  esc to interrupt")
 				time.Sleep(time.Second)

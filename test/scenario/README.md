@@ -37,6 +37,8 @@ assert: T1 status done; attempts T1.1 accepted; no event lost
 
 **A real repository.** `git` makes the project folder a git repository, with what the scenario has written so far committed on `main`. From then on a task gets a copy of the code of its own, as in any project with git, and a fake agent's `edit <file>` and `commit` work in that copy; `merge <branch>` brings a branch into it and, where the two clash, keeps the lines of both, as a worker does with a sync brief. Without the line the project has no git and every task works in the one folder.
 
+**A loaded machine.** `slow-paste <seconds>` as a script's first step makes the fake agent, on the real keeper, read its first prompt key by key: a paste is taken in and shown only that long after it came, and an Enter that comes sooner is dropped, which is what a real agent does when the machine is busy. On the double, where nothing is typed, the step does nothing.
+
 **Approval.** `approve` is the person running `trust` and typing yes: everything the project's own files would run or reach, as it stands at that line, is approved. A scenario that sets a held key of `whaleshark.toml`, or runs a team that comes with the project, needs it first; a file changed afterwards is held again.
 
 **Files.** `file brief.md: Target | Change | Constraints | Ownership | Acceptance` writes a file into the project folder, one line for each part between the bars: a task needs a brief with those five headings.

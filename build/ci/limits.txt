@@ -158,8 +158,11 @@ lines 1820 keeper internal/keeper
 lines 900 layout internal/layout
 # pty gives 50 to restore at the join of phase 2; it is built whole at 617.
 lines 720 pty internal/pty
-lines 550 watch internal/watch
-lines 630 input internal/input
+# watch: 30 more after the first real workers. An Enter that waits for the
+# pane to show the pasted text, and is pressed again while the agent shows
+# no start, took it to 564; input, built whole at 467, pays.
+lines 580 watch internal/watch
+lines 600 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore
