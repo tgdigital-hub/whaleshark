@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en" class="{{scheme .Theme}}{{if .Phone}} phone{{end}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhaleShark</title>
+<link rel="stylesheet" href="/a/page.css">
+{{- if not (eq .Screen "pair" "refused")}}
+<link rel="manifest" href="/a/home.webmanifest">
+<script src="/a/page.js" defer></script>
+{{- end}}
+</head>
+<body>
+{{- if eq .Screen "pair"}}
+<main class="alone">
+<h1>WhaleShark</h1>
+<p>This phone is not paired. Approve this number where you are signed in:</p>
+<p class="number">{{.Pair}}</p>
+{{range .Notes}}<p class="note">{{.}}</p>{{end}}
+</main>
+{{- else if eq .Screen "refused"}}
+<main class="alone">
+<h1>WhaleShark</h1>
+{{template "said" .}}
+</main>
+{{- else}}
+<header id="top">
+<a class="brand" href="/">WhaleShark</a>
+<span class="c-dim">{{.Login}} @ {{.Host}}</span>
+{{with .View}}<a class="job" href="/jobs">{{.Objective}} ({{.Run}}) ▾</a>{{end}}
+<span class="strip">{{range strip .}}{{template "form" .}}{{end}}</span>
+</header>
+{{with .View}}{{with fresh .}}<p id="fresh" class="{{if .Stale}}c-blocked{{else}}c-dim{{end}}" data-age="{{.Age}}">{{.Before}}{{if ge .Age 0}}<b>{{.Age}}</b>{{end}}{{.After}}</p>{{end}}{{end}}
+<nav>
+<a href="/"{{if eq .Screen "team"}} aria-current="page"{{end}}>Team</a>
+<a href="/plan"{{if eq .Screen "plan"}} aria-current="page"{{end}}>Plan</a>
+<a href="/messages"{{if eq .Screen "messages"}} aria-current="page"{{end}}>Messages</a>
+</nav>
+<main id="main"{{with .View}}{{if (fresh .).Stale}} class="old"{{end}}{{end}}>
+{{with .View}}{{range .Alerts}}<p class="alert c-blocked">{{.}}</p>{{end}}{{end}}
+{{range .Notes}}<p class="note">{{.}}</p>{{end}}
+{{template "said" .}}
+{{if eq .Screen "team"}}{{template "team" .}}
+{{else if eq .Screen "plan"}}{{template "plan" .}}
+{{else if eq .Screen "messages"}}{{template "messages" .}}
+{{else if eq .Screen "task"}}{{template "task" .}}
+{{else if eq .Screen "jobs"}}{{template "jobs" .}}
+{{else if eq .Screen "lead"}}<h1><a href="/">‹ Team</a> Lead agent</h1>
+<pre>{{.Lead}}</pre>{{end}}
+</main>
+<footer id="foot">
+{{if ne .Screen "lead"}}{{with .Lead}}<pre class="lead">{{.}}</pre><a href="/lead">read more</a>{{end}}{{end}}
+{{template "form" do . "note-lead"}}
+<details id="keys"><summary class="b" data-key="/">Keys</summary>
+<p class="c-dim">a first item · j k choose · y n o answer · u undo · S stop all · r resume · c catch me up · d do not disturb · m mute · / this list</p></details>
+<button class="b" id="notice" hidden>Notify me here</button>
+</footer>
+{{- end}}
+</body>
+</html>
+
+{{define "said"}}{{with .Said}}<div class="said"><p>{{.Message}}</p>{{range .Next}}<p class="c-dim">&gt; {{.}}</p>{{end}}</div>{{end}}{{end}}
+
+{{define "form"}}{{with .}}
+{{- if and (or .Line .Sure) (not .Open)}}<details class="f" id="d-{{.ID}}"><summary class="b{{if .On}} on{{end}} a-{{.Action}}"{{with .Key}} data-key="{{.}}"{{end}}>{{.Label}}</summary>{{end}}
+<form method="post" action="{{.Path}}">
+{{- range .Fields}}<input type="hidden" name="{{index . 0}}" value="{{index . 1}}">{{end}}
+{{- if .Line}}<input name="{{.Line}}" id="l-{{.ID}}" value="{{.Pre}}" required autocomplete="off" placeholder="type here" aria-label="{{.Label}}"{{if .Open}} data-key="{{.Key}}"{{end}}><button class="b">Send</button>
+{{- else if .Sure}}<span class="c-blocked">sure?</span> <button class="b a-{{.Action}}">{{.Label}}</button>
+{{- else}}<button class="b{{if .On}} on{{end}} a-{{.Action}}"{{with .Key}} data-key="{{.}}"{{end}}>{{.Label}}</button>{{end}}
+</form>
+{{- if and (or .Line .Sure) (not .Open)}}</details>{{end}}
+{{- end}}{{end}}
+
+{{define "item"}}{{$p := .P}}{{$it := .Item}}
+{{- if .Count}}<p class="c-dim">held: {{.Count}} · do not disturb is on</p>{{end}}
+<article class="item{{if .Held}} held{{end}}" id="i-{{.ID}}" data-title="{{.Name}} — {{.Look}}" data-text="{{.Text}}">
+<p><span class="mark c-{{if .Held}}dim{{else}}{{(look .Look).Colour}}{{end}}">{{(look .Look).Mark}}</span> <b class="name">{{.Name}}</b> <span class="c-dim">{{if .Name}}· {{end}}{{.Source}} · {{age $p .Since}}</span></p>
+<p class="ask">{{.Text}}</p>
+<div class="answer">
+{{- if .Answer}}<span class="c-accent">{{.Answer}} · {{if .Used.IsZero}}Undo{{with left $p $it}} · <b class="left">{{.}}</b>{{end}}{{else}}used at {{clock $p .Used}}{{end}}</span> <span class="c-dim">{{by .By}}</span>{{end}}
+{{- if and .Line (not .Buttons) (not .Answer)}}{{template "form" line $p $it}}{{end}}
+{{- range .Buttons}}{{template "form" press $p $it .}}{{end}}
+{{- if and $p.Phone (eq .Look "at a prompt")}}<span class="c-dim">at a prompt: needs a terminal</span>{{end}}
+</div>
+</article>
+{{- end}}
+
+{{define "items"}}{{$p := .}}{{with .View}}{{if or .Items .Held .Answered}}
+<section id="you">
+<h2>FOR YOU <span class="c-dim">{{foryou $p}}</span></h2>
+{{range each $p .Items false}}{{template "item" .}}{{end}}
+{{range each $p .Held true}}{{template "item" .}}{{end}}
+{{with .Answered}}<details id="answered"><summary class="c-dim">answered: {{len .}}</summary>
+{{range each $p . false}}{{template "item" .}}{{end}}</details>{{end}}
+</section>
+{{end}}{{end}}{{end}}
+
+{{define "card"}}{{$p := .P}}
+<article class="card k-{{.Colour}}{{if .Unseen}} unseen{{end}}" id="c-{{.Task}}">
+<span class="mark c-{{.Colour}}">{{(look .Look).Mark}}</span>
+<span><a class="name" href="{{open .Card}}">{{.Name}}</a>{{if .Flag}} <span class="c-needs">{{(needs).Mark}}</span>{{end}}</span>
+<span class="word c-{{.Colour}}">{{word $p .Card}}</span>
+<span class="bar"><progress{{if .Pale}} class="pale"{{end}} max="100" value="{{.Progress}}"></progress> {{.Progress}}%</span>
+<span class="ctx c-dim">{{if .CtxKnown}}ctx <progress class="c-{{ctx .Card}}" max="100" value="{{.Ctx}}"></progress> {{.Ctx}}%{{else}}ctx unknown{{end}}</span>
+<span class="news c-dim">{{news $p .Card}}</span>
+</article>
+{{- end}}
+
+{{define "team"}}{{$p := .}}
+{{with .Catchup}}{{with catch .}}<section id="away">
+<h2>WHILE YOU WERE AWAY <span class="c-dim">{{.Head}}</span></h2>
+<table>{{range .Rows}}<tr><th>{{index . 0}}</th><td>{{index . 1}}</td><td>{{index . 2}}</td></tr>{{end}}</table>
+</section>{{end}}{{end}}
+{{template "items" .}}
+{{with .View}}
+{{range .Sections}}<section class="fleet">
+<h2>{{.Name}}</h2>
+{{range cards $p .Cards}}{{template "card" .}}{{end}}
+</section>{{end}}
+{{range .Lines}}<p>{{.}}</p>{{end}}
+<p class="c-dim">{{counts .}}{{if .Counts.Elsewhere}} · <a href="/jobs">{{elsewhere .Counts.Elsewhere}}</a>{{end}}</p>
+{{end}}{{end}}
+
+{{define "plan"}}{{$p := .}}
+{{template "items" .}}
+{{with .Plan}}
+{{if .Loop}}<p class="c-blocked">the tasks wait for each other in a circle: listed in the order they were added</p>{{end}}
+<table class="rows">
+{{range .Rows}}{{$w := plan $p .}}<tr><td class="mark c-{{.Card.Colour}}">{{(look .Card.Look).Mark}}</td><td>{{.Card.Task}}</td><td><a class="name" href="{{open .Card}}">{{.Card.Name}}</a></td><td class="c-{{.Card.Colour}}">{{index $w 0}}</td><td>{{index $w 1}}</td><td class="c-dim">{{with .Card.Clash}}{{clash .}}{{end}}</td></tr>
+{{end}}</table>
+{{if gt (len .Chain) 1}}<p>Longest chain left: {{join .Chain " > "}}.</p>{{end}}
+{{with .Holding}}<p>{{.}}</p>{{end}}
+{{end}}{{end}}
+
+{{define "messages"}}{{$p := .}}
+<table class="rows">
+{{range .Messages}}<tr class="{{if .Dim}}c-dim{{end}}{{if .Struck}} struck{{end}}"><td>{{clock $p .At}}</td><td class="mark">{{if .Look}}<span class="c-{{(look .Look).Colour}}">{{(look .Look).Mark}}</span>{{end}}{{.Dir}}</td><td>{{.Task}}</td><td>{{.Kind}}</td><td class="text">{{.Text}}</td><td class="c-dim">{{by .By}}</td><td>{{if .New}}<b>NEW</b>{{end}}</td></tr>
+{{end}}</table>
+{{end}}
+
+{{define "task"}}{{$p := .}}{{with .Task}}{{$c := .Card}}
+<h1><a href="/">‹ Team</a> {{$c.Name}} ({{$c.Task}}) <span class="c-{{$c.Colour}}">{{(look $c.Look).Mark}} {{word $p $c}}</span>
+<span class="c-dim">· try {{$c.Try}}{{with $c.Agent}} · {{.}}{{end}} · context {{if $c.CtxKnown}}{{$c.Ctx}}%{{else}}unknown{{end}} · run {{.Run}}</span></h1>
+<div class="answer">{{range $c.Actions}}{{template "form" act $p $c .}}{{end}}</div>
+<dl>
+{{with .Says}}<dt>Says</dt><dd>"{{.}}"</dd>{{end}}
+{{with .Changed}}<dt>Changed</dt><dd>{{.}}</dd>{{end}}
+{{if .Check}}<dt>Check</dt><dd>{{check $p .}}</dd>{{end}}
+{{with .ByHand}}<dt>By hand</dt><dd>{{.}}</dd>{{end}}
+{{with index $p.Sites $c.Task}}<dt>Site</dt><dd>answering on port {{.}} <a class="b" href="http://localhost:{{.}}/" rel="noreferrer">Open the running site</a></dd>{{end}}
+{{with .Owns}}<dt>May edit</dt><dd>{{join . ", "}}</dd>{{end}}
+{{with .Brief}}<dt>Brief</dt><dd>{{.}}</dd>{{end}}
+{{range .Decisions}}<dt>Decided</dt><dd>{{.Question}} {{.Answer}}</dd>{{end}}
+</dl>
+{{range each $p .Items false}}{{template "item" .}}{{end}}
+{{range $t := .Tries}}<section>
+<h2>{{.Attempt}} <span class="c-dim">{{.State}}</span></h2>
+{{with .Result}}<p>Result <span class="c-dim">{{.}}</span></p>{{end}}
+{{with .CheckLog}}<p>Check log <span class="c-dim">{{.}}</span></p>{{end}}
+{{if .Evidence}}<p>Seen in a browser</p>
+<p class="shots">{{range $i, $e := .Evidence}}{{if $e.Kind}}<a href="{{shot $t $i}}"><img src="{{shot $t $i}}" alt="{{$e.Name}}" loading="lazy"></a>{{else}}<a href="{{shot $t $i}}" download>{{$e.Name}}</a>{{end}} {{end}}</p>{{end}}
+<p class="c-dim">{{moments $p .}}</p>
+</section>{{end}}
+{{with .Screen}}<h2>SCREEN</h2>
+<pre>{{.}}</pre>{{end}}
+{{end}}{{end}}
+
+{{define "jobs"}}
+<table class="rows">
+{{range .Jobs}}{{$j := job .}}<tr><td class="mark c-{{$j.Colour}}">{{$j.Mark}}</td><td>{{.View.Run}}</td><td class="name">{{base .Root}}</td><td class="c-{{$j.Colour}}">{{$j.Word}}</td><td>"{{.View.Objective}}"</td><td class="c-dim">&gt; {{.Next}}</td></tr>
+{{end}}</table>
+{{end}}
