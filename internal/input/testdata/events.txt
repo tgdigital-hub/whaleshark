@@ -1,0 +1,260 @@
+# What a window's terminal sends, one line a case, in Go's escapes. Each case
+# starts with nothing held and no command key pressed. The window is 80 by 24:
+# tab "one" (showing) has pane p1 on the left, with the keys, and p2 on the
+# right of a dividing line in column 40; tab "two" has p3. In a mouse report
+# the column and the row count from 1.
+
+# characters
+a
+b
+Z
+A
+0
+/
+?
+~
+|
+\"
+\\
+\x20
+é
+世
+😀
+
+# control characters
+\r
+\t
+\x7f
+\x08
+\x1b
+\x01
+\x02
+\x03
+\x04
+\x05
+\n
+\x0b
+\x0c
+\x10
+\x15
+\x17
+\x19
+\x1a
+\x1c
+\x1d
+\x1e
+\x1f
+
+# held with alt, the old way
+\x1ba
+\x1bS
+\x1b\x01
+\x1b\r
+\x1b\x7f
+
+# the keys that are no character
+\x1b[A
+\x1b[B
+\x1b[C
+\x1b[D
+\x1b[H
+\x1b[F
+\x1bOA
+\x1bOD
+\x1b[2~
+\x1b[3~
+\x1b[5~
+\x1b[6~
+\x1b[Z
+
+# the same, held with keys
+\x1b[1;2A
+\x1b[1;3B
+\x1b[1;5C
+\x1b[1;6D
+\x1b[1;4H
+\x1b[1;7F
+\x1b[1;8A
+\x1b[1;9A
+\x1b[2;5~
+\x1b[3;5~
+\x1b[5;2~
+\x1b[6;3~
+
+# function keys
+\x1bOP
+\x1bOQ
+\x1bOR
+\x1bOS
+\x1b[15~
+\x1b[17~
+\x1b[18~
+\x1b[19~
+\x1b[20~
+\x1b[21~
+\x1b[23~
+\x1b[24~
+\x1b[1;2P
+\x1b[1;5Q
+\x1b[1;2R
+\x1b[1;3S
+\x1b[15;2~
+\x1b[17;5~
+\x1b[23;6~
+\x1b[24;3~
+
+# keys in the extended form
+\x1b[13;2u
+\x1b[13;5u
+\x1b[13;3u
+\x1b[13;6u
+\x1b[9;2u
+\x1b[9;5u
+\x1b[9;3u
+\x1b[27u
+\x1b[27;2u
+\x1b[27;5u
+\x1b[127;5u
+\x1b[127;3u
+\x1b[32;2u
+\x1b[99;9u
+\x1b[118;9u
+\x1b[108;9u
+\x1b[99;5u
+\x1b[99;6u
+\x1b[100;5u
+\x1b[122;5u
+\x1b[91;5u
+\x1b[63;5u
+\x1b[64;5u
+\x1b[49;5u
+\x1b[97;3u
+\x1b[97;4u
+\x1b[97;7u
+\x1b[97;2u
+\x1b[97:65;2u
+\x1b[233;3u
+\x1b[57414u
+\x1b[57417;2u
+\x1b[99;9:3u
+
+# the command key, then a key of ours
+\x00
+\x1b[32;5u
+\x00t
+\x00w
+\x00r
+\x00d
+\x00n
+\x00p
+\x001
+\x002
+\x003
+\x00z
+\x00l
+\x00v
+\x00\x1b[A
+\x00\x1b[B
+\x00\x1b[C
+\x00\x1b[D
+\x00\x1b[1;2A
+\x00\x1b[1;2B
+\x00\x1b[1;2C
+\x00\x1b[1;2D
+\x1b[32;5ut
+
+# the command key, then a shortcut of the settings
+\x00\x20
+\x00a
+\x00A
+\x00f
+\x00u
+\x00m
+\x00M
+\x00\x1b[97;2u
+
+# the command key twice, cancelled, and before a key that is nothing
+\x00\x00
+\x00\x1b[32;5u
+\x00\x1b
+\x00q
+\x00qa
+\x00\x03
+\x00ta
+
+# pasted text, and the focus of the window
+\x1b[200~hello\x1b[201~
+\x1b[200~one\ntwo\r\nthree\x1b[201~
+\x1b[200~a\x1b[31mb\x07c\x03d\x1b[201~
+\x1b[200~\x1b[201~
+\x1b[200~\ttab, é and 世\x1b[201~
+\x1b[200~ls\n\x1b[201~x
+\x1b[I
+\x1b[O
+
+# the left button in a pane
+\x1b[<0;6;6M
+\x1b[<0;6;6M\x1b[<0;6;6m
+\x1b[<0;1;3M\x1b[<0;1;3m
+\x1b[<0;40;24M\x1b[<0;40;24m
+\x1b[<0;51;11M\x1b[<0;51;11m
+\x1b[<0;80;24M\x1b[<0;80;24m
+\x1b[<4;6;6M\x1b[<4;6;6m
+\x1b[<8;6;6M\x1b[<8;6;6m
+\x1b[<16;6;6M\x1b[<16;6;6m
+\x1b[<0;6;6M\x1b[<0;51;11M\x1b[<0;51;11m
+
+# the middle and the right button
+\x1b[<1;6;6M\x1b[<1;6;6m
+\x1b[<1;51;11M\x1b[<1;51;11m
+\x1b[<1;2;1M
+\x1b[<2;6;6M\x1b[<2;6;6m
+
+# drags
+\x1b[<0;6;6M\x1b[<32;11;6M\x1b[<32;13;8M\x1b[<0;13;8m
+\x1b[<0;39;6M\x1b[<32;46;6M\x1b[<0;46;6m
+\x1b[<0;6;4M\x1b[<32;6;1M\x1b[<0;6;1m
+\x1b[<0;51;11M\x1b[<32;41;11M\x1b[<32;11;11M\x1b[<0;11;11m
+\x1b[<1;6;6M\x1b[<33;8;6M\x1b[<1;8;6m
+\x1b[<32;6;6M
+\x1b[<0;6;6m
+
+# the pointer moving with no button
+\x1b[<35;6;6M
+\x1b[<35;51;11M
+\x1b[<35;3;1M
+\x1b[<35;41;11M
+\x1b[<39;6;6M
+\x1b[<0;6;6M\x1b[<35;8;6M\x1b[<32;9;6M
+
+# the wheel
+\x1b[<64;6;6M
+\x1b[<65;6;6M
+\x1b[<64;51;11M
+\x1b[<65;51;11M
+\x1b[<80;6;6M
+\x1b[<64;6;1M
+\x1b[<65;6;1M
+\x1b[<65;31;1M
+\x1b[<64;6;2M
+\x1b[<65;41;11M
+\x1b[<64;6;6M\x1b[<64;6;6M
+
+# the tab row
+\x1b[<0;2;1M\x1b[<0;2;1m
+\x1b[<0;9;1M\x1b[<0;9;1m
+\x1b[<0;31;1M\x1b[<0;31;1m
+\x1b[<0;11;2M\x1b[<0;11;2m
+
+# a dividing line
+\x1b[<0;41;11M\x1b[<32;31;11M\x1b[<32;21;13M\x1b[<0;21;13m
+\x1b[<0;41;11M\x1b[<0;41;11m
+\x1b[<0;41;3M\x1b[<32;61;3M\x1b[<35;61;3M\x1b[<32;62;3M
+
+# outside the window, and reports that are none
+\x1b[<0;201;201M\x1b[<0;201;201m
+\x1b[<0;0;0M
+\x1b[<0;6M
+\x1b[<128;6;6M
+\x1b[99999999999u
+\x1b[1;2
