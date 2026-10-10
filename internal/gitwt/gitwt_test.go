@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -613,7 +614,13 @@ func TestHideAndEquip(t *testing.T) {
 	d.git("commit", "-q", "-m", "settings")
 	d.trust()
 	dir, w := d.place("T1", "one")
-	ours, odd, tracked := filepath.Join(dir, "own", "settings.json"), filepath.Join(dir, "a[1]*.json"), filepath.Join(dir, "kept", "settings.json")
+	// Read as a pattern, the odd name would match a1x.json too. Windows
+	// allows no star in a name, so there the bracket alone is the test.
+	name := "a[1]*.json"
+	if runtime.GOOS == "windows" {
+		name = "a[1]x.json"
+	}
+	ours, odd, tracked := filepath.Join(dir, "own", "settings.json"), filepath.Join(dir, name), filepath.Join(dir, "kept", "settings.json")
 	for _, path := range []string{ours, odd, tracked, filepath.Join(dir, "a1x.json")} {
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatal(err)
