@@ -76,8 +76,9 @@ Use `--file` for anything longer than a line and for anything private: on a shar
 text on a command line can be seen by others. `whaleshark stop T3` ends a worker.
 
 ## Looking
-`whaleshark status` is the team, `whaleshark show T3` is one task, and `whaleshark catchup` is
-what happened while the person was away. Every row prints the command to run next.
+`whaleshark status` is the team at work (`--all` adds what has not started and what is done),
+`whaleshark show T3` is one task, and `whaleshark catchup` is what happened while the person was
+away. Every row prints the command to run next.
 
 ## Never
 - Never add `--human` to any command: it is the person's alone.
