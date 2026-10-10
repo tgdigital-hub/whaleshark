@@ -1,0 +1,17 @@
+# 8g: the keeper is started again in the middle of a run. The same panes come
+# back with their variables, so a worker's command still knows its attempt;
+# for two minutes nobody is declared gone, not even an agent that left.
+fixture evening-2114
+
+orch: status --sweep --quiet
+restart-terminals
+clock +5s
+orch: status --sweep --quiet
+as-worker T2.1: progress 60 "still here"
+term-drop gone T3
+clock +5s
+orch: status --sweep --quiet
+clock +100s
+orch: status --sweep --quiet
+orch: wait --timeout 0                 -> expect No event yet
+assert: attempts T1.1 working, T2.1 asked, T3.1 working, T7.1 reported; T3 status running failures 0; no event lost; no event twice

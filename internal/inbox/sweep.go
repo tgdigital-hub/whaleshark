@@ -18,12 +18,17 @@ const (
 	// process may not have taken the lock yet.
 	sweepEvery   = 5 * time.Second
 	snapshotWait = 3 * time.Second
+	// downAfter is how long the picture may fail before the person is told.
+	downAfter = time.Minute
 )
 
-// stamp is sweep.at: when the run was last held against the picture.
+// stamp is sweep.at: when the run was last held against the picture, and
+// since when no picture could be had and whether the person was told so.
 type stamp struct {
 	contract.Versioned
-	At time.Time `json:"at"`
+	At   time.Time `json:"at"`
+	Down time.Time `json:"down,omitzero"`
+	Told bool      `json:"told,omitempty"`
 }
 
 type sweeper struct{ k *contract.Kit }
@@ -40,6 +45,8 @@ type pointer struct {
 type look struct {
 	rules   contract.Rules
 	panes   map[string]*contract.Pane
+	names   map[string]*contract.Pane // by the name the keeper knows an agent by
+	keeper  string                    // this start of the keeper
 	limits  contract.ProjectFile
 	dead    map[string]bool // attempts whose start nobody is bringing up any more
 	waiting bool            // a wait holds wait.lock
@@ -73,6 +80,19 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	snap, err := k.Terms.Snapshot(ctx)
 	cancel()
 	if err != nil {
+		// Out of reach for a minute is one urgent nudge for each outage (8e).
+		was := last
+		if last.Version = contract.FileVersion; last.Down.IsZero() {
+			last.Down = now
+		}
+		if !last.Told && now.Sub(last.Down) >= downAfter {
+			last.Told = true
+			k.Notifier.Nudge(contract.Nudge{Root: root, Run: run, Urgent: true, Title: "The engine is not running",
+				Body: "Nothing has been seen of run " + run + " for a minute. `whaleshark open` starts it."})
+		}
+		if last != was {
+			contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion, last)
+		}
 		return swept, nil, &contract.Refusal{Exit: contract.ExitEnv, Code: "no_picture",
 			Message: "The sweep changed nothing, because it could not see the terminals: " + err.Error() + "."}
 	}
@@ -83,13 +103,16 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		}
 		return ok && err == nil
 	}
-	l := &look{rules: k.Rules, panes: map[string]*contract.Pane{}, limits: contract.ProjectDefaults(),
-		dead: map[string]bool{}, waiting: !free(filepath.Join(dir, contract.WaitLock)), now: now}
+	l := &look{rules: k.Rules, panes: map[string]*contract.Pane{}, names: map[string]*contract.Pane{}, keeper: snap.Instance,
+		limits: contract.ProjectDefaults(), dead: map[string]bool{}, waiting: !free(filepath.Join(dir, contract.WaitLock)), now: now}
 	if p, err := contract.ReadProjectFile(root); err == nil {
 		l.limits = p
 	}
 	for i := range snap.Panes {
-		l.panes[snap.Panes[i].ID] = &snap.Panes[i]
+		p := &snap.Panes[i]
+		if l.panes[p.ID] = p; p.Agent != "" && p.Name != "" {
+			l.names[p.Name] = p
+		}
 	}
 	for id, a := range s.Attempts {
 		if a.State == contract.AttemptStarting && now.Sub(a.StateSince) >= sweepEvery {
@@ -124,7 +147,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		changed = changed || err == nil
 	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
-		stamp{contract.Versioned{Version: contract.FileVersion}, now})
+		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now})
 	// The nudge pass, only while an item has not been put in front of the
 	// person yet: twenty agents at work cost it nothing.
 	for _, q := range s.Questions {
@@ -148,9 +171,26 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 		return false, nil
 	}
 	events := len(s.Inbox.Events)
+	// Another instance is the keeper started again (8g). For two minutes
+	// from now Seen believes nothing it does not see: no attempt is stamped
+	// gone while agents may still be coming back.
+	was := s.Run.Terms.Instance
+	if l.keeper != "" && was != l.keeper {
+		s.Run.Terms.Instance, changed = l.keeper, true
+	}
+	restarted := changed && was != ""
 	for _, id := range slices.Sorted(maps.Keys(s.Attempts)) {
 		a := s.Attempts[id]
+		if restarted && a.State.Live() && a.State != contract.AttemptStarting {
+			a.Seen.Status, a.Seen.Liveness, a.Seen.GoneSince, a.Seen.At = "", contract.Unverifiable, time.Time{}, l.now
+		}
 		pane := l.panes[a.Place.Pane]
+		// An agent that is not where its place says is found by its name,
+		// never by a label; a pane that is still there says nothing of it.
+		if moved := l.names[a.Agent.Name]; moved != nil && (pane == nil || pane.Agent == "") && a.State.Live() {
+			pane, changed = moved, true
+			a.Place.Pane, a.Place.Tab = moved.ID, moved.Tab
+		}
 		if l.rules.Seen(s, id, pane, !l.dead[id], l.limits, l.now) {
 			changed = true
 		}

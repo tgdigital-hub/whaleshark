@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -111,9 +112,10 @@ func wait(c *contract.Call) (any, error) {
 					return err
 				}
 			}
+			k.Rules.Stuck(s, stuck(s), now)
 			b, events, replayed, err := k.Rules.Batch(s, kinds, now)
 			if b != nil {
-				out = delivery{b.ID, replayed, events}
+				out = delivery{b.ID, replayed, outcomes(k.Rules, s, events)}
 			}
 			// An answer settles by the clock, with no change to any file.
 			var in time.Duration
@@ -152,6 +154,59 @@ func wait(c *contract.Call) (any, error) {
 			return out, nil
 		}
 	}
+}
+
+// stuck is the wait's to say: nothing runs, nothing can be started, checked
+// or answered, and a task still waits or has failed for good. No event can
+// come by itself any more.
+func stuck(s *contract.State) bool {
+	if s.Run.Paused != nil {
+		return false
+	}
+	for _, a := range s.Attempts {
+		if a.State.Live() {
+			return false
+		}
+	}
+	for _, q := range s.Questions {
+		if q.From != contract.FromTool && (q.State == contract.QuestionOpen || q.State == contract.QuestionAnswered) {
+			return false
+		}
+	}
+	held := false
+	for _, t := range s.Tasks {
+		switch t.Status {
+		case contract.TaskReady, contract.TaskRunning, contract.TaskReview:
+			return false
+		case contract.TaskPending, contract.TaskFailed:
+			held = true
+		}
+	}
+	return held
+}
+
+// outcomes hands a human event over with how what the person did it to
+// stands now: the task's status, or the item's state. The record keeps the
+// event as it was raised.
+func outcomes(r contract.Rules, s *contract.State, events []contract.Event) []contract.Event {
+	for i, e := range events {
+		if e.Kind != "human" {
+			continue
+		}
+		on, _ := e.Data["on"].(string)
+		id, _ := e.Data["id"].(string)
+		var outcome string
+		if t, _ := r.FindTask(s, on); t != nil {
+			outcome = string(t.Status)
+		} else if q := s.Questions[id]; q != nil {
+			outcome = q.State
+		}
+		if outcome != "" {
+			events[i].Data = maps.Clone(e.Data)
+			events[i].Data["outcome"] = outcome
+		}
+	}
+	return events
 }
 
 func (d delivery) print(w io.Writer) {
