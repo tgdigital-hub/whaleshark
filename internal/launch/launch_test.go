@@ -986,6 +986,11 @@ func TestOnAServer(t *testing.T) {
 		last = s.Tasks["R4"].Attempts
 	}
 	own, elsewhere := s.Attempts[last[0]].Temp, t.TempDir()
+	for _, other := range []string{elsewhere, filepath.Join(dirs.Cache, "tmp") + string(filepath.Separator) + "..", filepath.Join(dirs.Cache, "tmp"), ""} {
+		if DropTemp(p.Kit, &contract.Attempt{Temp: other}); !has(elsewhere) || !has(own) || !has(dirs.Cache) {
+			t.Fatalf("a folder that is no attempt's temp folder was removed for the record's word %q", other)
+		}
+	}
 	if err := p.Kit.Store.Change(p.Root, s.Run.ID, func(s *contract.State) error { s.Attempts[last[0]].Temp = elsewhere; return nil }); err != nil {
 		t.Fatal(err)
 	}

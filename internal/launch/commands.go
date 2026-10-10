@@ -122,9 +122,10 @@ func shut(k *contract.Kit, snap *contract.Snapshot, name string, p contract.Plac
 }
 
 // DropTemp removes the temp folder a start on a server gave an attempt. The
-// record's word counts only for a folder where such folders are made.
+// record's word counts only for a folder that lies where such folders are
+// made, under a name that leads nowhere else.
 func DropTemp(k *contract.Kit, a *contract.Attempt) {
-	if dirs, err := k.Platform.Dirs(); err == nil && filepath.Dir(a.Temp) == filepath.Join(dirs.Cache, "tmp") {
+	if dirs, err := k.Platform.Dirs(); err == nil && a.Temp == filepath.Join(dirs.Cache, "tmp", filepath.Base(a.Temp)) {
 		os.RemoveAll(a.Temp)
 	}
 }
