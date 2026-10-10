@@ -27,6 +27,8 @@ type PtySpec struct {
 // Pty is one pane's terminal with its program in it. Read gives what is
 // printed there and ends with io.EOF once everything in the terminal has
 // ended; Write types into it; Close ends the program and all it started.
+// On Windows the terminal ends with its program: what the program left
+// running ends with it, where on the other systems it keeps the terminal open.
 type Pty interface {
 	io.ReadWriteCloser
 	Resize(cols, rows int) error

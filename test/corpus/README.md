@@ -67,3 +67,7 @@ Every program was recorded at 80x24, 120x40 and 50x15, on macOS, in a folder of 
 ## Adding a recording
 
 A recording holds everything the program printed, and this folder is public. Record in a throwaway folder of made-up files, with a plain prompt and an empty home folder, and read the result before committing it: no name of a person, a login or a machine, no home-folder path, no address, no session id, no token, and no text that belongs to someone else: the files shown are made up, in our own words. If a program cannot be kept from printing one of these, do not commit that recording.
+
+## Replaying
+
+`REPLAY.md` in this folder has the tool that replays a recording, the form of an approved picture, and the streams the tests write themselves.
