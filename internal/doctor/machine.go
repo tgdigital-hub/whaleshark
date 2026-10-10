@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -394,12 +395,35 @@ func (e *exam) page() {
 		e.say(problem, "whaleshark dash stop, then whaleshark dash start", "signing in to the page does not work")
 		return
 	}
-	req, _ := http.NewRequest(http.MethodPost, at+contract.RouteDo+"stop", nil)
-	req.Header.Set("Origin", "http://elsewhere.invalid")
-	req.AddCookie(in.Cookies()[0])
-	res, err := web.Do(req)
-	e.hold(err == nil && res.Body.Close() == nil && res.StatusCode >= 400, "", "the page is running, signs in, and refuses a change asked for by another site",
-		"the page did not refuse a change asked for by another site")
+	// The same harmless button twice, with the session's own token from the
+	// page: asked from the page's own address it is taken, from another
+	// site's it is refused. Without the first, the second proves nothing.
+	press := func(origin string) int {
+		req, _ := http.NewRequest(http.MethodGet, at+contract.RouteTeam, nil)
+		req.AddCookie(in.Cookies()[0])
+		token := ""
+		if res, err := web.Do(req); err == nil {
+			text, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+			res.Body.Close()
+			_, token, _ = strings.Cut(string(text), `name="`+contract.FieldToken+`" value="`)
+			token, _, _ = strings.Cut(token, `"`)
+		}
+		req, _ = http.NewRequest(http.MethodPost, at+contract.RouteDo+"catchup", strings.NewReader(contract.FieldToken+"="+token))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Origin", origin)
+		req.AddCookie(in.Cookies()[0])
+		res, err := web.Do(req)
+		if err != nil || res.Body.Close() != nil {
+			return 0
+		}
+		return res.StatusCode
+	}
+	own, foreign := press(at), press("http://elsewhere.invalid")
+	if own == 0 || own >= 400 {
+		e.say(problem, "", "the page did not take a button pressed as the page itself presses it (%d), so what it refuses of another site was not proven", own)
+		return
+	}
+	e.hold(foreign >= 400, "", "the page is running, signs in, and refuses a change asked for by another site", "the page did not refuse a change asked for by another site")
 }
 
 // road is the way in for a phone: Tailscale's forwarding to each login's

@@ -201,8 +201,13 @@ func (b *box) page(signsIn, refuses bool) string {
 		http.SetCookie(w, &http.Cookie{Name: "session", Value: "one"})
 		http.Redirect(w, r, contract.RouteTeam, http.StatusSeeOther)
 	})
+	// As the real page: a button needs the session's token, which the page
+	// itself carries, whatever the request says of where it came from.
+	mux.HandleFunc(contract.RouteTeam, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `<form><input type="hidden" name="%s" value="t0ken"></form>`, contract.FieldToken)
+	})
 	mux.HandleFunc(contract.RouteDo, func(w http.ResponseWriter, r *http.Request) {
-		if refuses && r.Header.Get("Origin") != "http://"+contract.PageHosts[0] {
+		if r.FormValue(contract.FieldToken) != "t0ken" || refuses && r.Header.Get("Origin") != "http://"+contract.PageHosts[0] {
 			http.Error(w, "no", http.StatusForbidden)
 		}
 	})
