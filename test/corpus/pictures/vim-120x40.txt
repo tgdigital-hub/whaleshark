@@ -1,0 +1,252 @@
+== vim-120x40 after 19 of 75 ==
+cursor 0,39 hidden
+|gamma line 1: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 2: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 3: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 4: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 5: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 6: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 7: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 8: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 9: the quick brown fox jumps over the lazy dog                                                               |
+|gamma line 10: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 11: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 12: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 13: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 14: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 15: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 16: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 17: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 18: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 19: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 20: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 21: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 22: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 23: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 24: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 25: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 26: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 27: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 28: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 29: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 30: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 31: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 32: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 33: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 34: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 35: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 36: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 37: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 38: the quick brown fox jumps over the lazy dog                                                              |
+|gamma line 39: the quick brown fox jumps over the lazy dog                                                              |
+|/line 42                                                                                                                |
+== vim-120x40 after 38 of 75 ==
+cursor 4,33 shown
+| 10 gamma line 10: the quick brown fox jumps over the lazy dog                                                          |
+| 11 gamma line 11: the quick brown fox jumps over the lazy dog                                                          |
+| 12 gamma line 12: the quick brown fox jumps over the lazy dog                                                          |
+| 13 gamma line 13: the quick brown fox jumps over the lazy dog                                                          |
+| 14 gamma line 14: the quick brown fox jumps over the lazy dog                                                          |
+| 15 gamma line 15: the quick brown fox jumps over the lazy dog                                                          |
+| 16 gamma line 16: the quick brown fox jumps over the lazy dog                                                          |
+| 17 gamma line 17: the quick brown fox jumps over the lazy dog                                                          |
+| 18 gamma line 18: the quick brown fox jumps over the lazy dog                                                          |
+| 19 gamma line 19: the quick brown fox jumps over the lazy dog                                                          |
+| 20 gamma line 20: the quick brown fox jumps over the lazy dog                                                          |
+| 21 gamma line 21: the quick brown fox jumps over the lazy dog                                                          |
+| 22 gamma line 22: the quick brown fox jumps over the lazy dog                                                          |
+| 23 gamma line 23: the quick brown fox jumps over the lazy dog                                                          |
+| 24 gamma line 24: the quick brown fox jumps over the lazy dog                                                          |
+| 25 gamma line 25: the quick brown fox jumps over the lazy dog                                                          |
+| 26 gamma line 26: the quick brown fox jumps over the lazy dog                                                          |
+| 27 gamma line 27: the quick brown fox jumps over the lazy dog                                                          |
+| 28 gamma line 28: the quick brown fox jumps over the lazy dog                                                          |
+| 29 gamma line 29: the quick brown fox jumps over the lazy dog                                                          |
+| 30 gamma line 30: the quick brown fox jumps over the lazy dog                                                          |
+| 31 gamma line 31: the quick brown fox jumps over the lazy dog                                                          |
+| 32 gamma line 32: the quick brown fox jumps over the lazy dog                                                          |
+| 33 gamma line 33: the quick brown fox jumps over the lazy dog                                                          |
+| 34 gamma line 34: the quick brown fox jumps over the lazy dog                                                          |
+| 35 gamma line 35: the quick brown fox jumps over the lazy dog                                                          |
+| 36 gamma line 36: the quick brown fox jumps over the lazy dog                                                          |
+| 37 gamma line 37: the quick brown fox jumps over the lazy dog                                                          |
+| 38 gamma line 38: the quick brown fox jumps over the lazy dog                                                          |
+| 39 gamma line 39: the quick brown fox jumps over the lazy dog                                                          |
+| 40 gamma line 40: the quick brown fox jumps over the lazy dog                                                          |
+| 41 gamma line 41: the quick brown fox jumps over the lazy dog                                                          |
+| 42 gamma line 42: the quick brown fox jumps over the lazy dog                                                          |
+| 43 gamma line 43: the quick brown fox jumps over the lazy dog                                                          |
+| 44 gamma line 44: the quick brown fox jumps over the lazy dog                                                          |
+| 45 gamma line 45: the quick brown fox jumps over the lazy dog                                                          |
+| 46 gamma line 46: the quick brown fox jumps over the lazy dog                                                          |
+| 47 gamma line 47: the quick brown fox jumps over the lazy dog                                                          |
+| 48 gamma line 48: the quick brown fox jumps over the lazy dog                                                          |
+|:set number                                                                                           43,1           5% |
+0:0-3 fg=130
+1:0-3 fg=130
+2:0-3 fg=130
+3:0-3 fg=130
+4:0-3 fg=130
+5:0-3 fg=130
+6:0-3 fg=130
+7:0-3 fg=130
+8:0-3 fg=130
+9:0-3 fg=130
+10:0-3 fg=130
+11:0-3 fg=130
+12:0-3 fg=130
+13:0-3 fg=130
+14:0-3 fg=130
+15:0-3 fg=130
+16:0-3 fg=130
+17:0-3 fg=130
+18:0-3 fg=130
+19:0-3 fg=130
+20:0-3 fg=130
+21:0-3 fg=130
+22:0-3 fg=130
+23:0-3 fg=130
+24:0-3 fg=130
+25:0-3 fg=130
+26:0-3 fg=130
+27:0-3 fg=130
+28:0-3 fg=130
+29:0-3 fg=130
+30:0-3 fg=130
+31:0-3 fg=130
+32:0-3 fg=130
+33:0-3 fg=130
+34:0-3 fg=130
+35:0-3 fg=130
+36:0-3 fg=130
+37:0-3 fg=130
+38:0-3 fg=130
+== vim-120x40 after 57 of 75 ==
+cursor 0,39 hidden
+|  1 package main                                                                                                        |
+|  2                                                                                                                     |
+|  3 import "fmt"                                                                                                        |
+|  4                                                                                                                     |
+|  5 // main says hello.                                                                                                 |
+|  6 func main() {                                                                                                       |
+|  7         for i := 0; i < 3; i++ {                                                                                    |
+|  8                 fmt.Println("hello", i)                                                                             |
+|  9         }                                                                                                           |
+| 10 }                                                                                                                   |
+|~                                                                                                                       |
+|~                                                                                                                       |
+|~                                                                                                                       |
+|~                                                                                                                       |
+|~                                                                                                                       |
+|~                                                                                                                       |
+|~                                                                                                                       |
+|~                                                                                                                       |
+|~                                                                                                                       |
+|demo.go                                                                                               1,1            All|
+| 31 gamma line 31: the quick brown fox jumps over the lazy dog                                                          |
+| 32 gamma line 32: the quick brown fox jumps over the lazy dog                                                          |
+| 33 gamma line 33: the quick brown fox jumps over the lazy dog                                                          |
+| 34 gamma line 34: the quick brown fox jumps over the lazy dog                                                          |
+| 35 gamma line 35: the quick brown fox jumps over the lazy dog                                                          |
+| 36 gamma line 36: the quick brown fox jumps over the lazy dog                                                          |
+| 37 gamma line 37: the quick brown fox jumps over the lazy dog                                                          |
+| 38 gamma line 38: the quick brown fox jumps over the lazy dog                                                          |
+| 39 gamma line 39: the quick brown fox jumps over the lazy dog                                                          |
+| 40 gamma line 40: the quick brown fox jumps over the lazy dog                                                          |
+| 41 gamma line 41: the quick brown fox jumps over the lazy dog                                                          |
+| 42 gamma line 42: the quick brown fox jumps over the lazy dog                                                          |
+| 43 gamma line 43: the quick brown fox jumps over the lazy dog                                                          |
+| 44 gamma line 44: the quick brown fox jumps over the lazy dog                                                          |
+| 45 gamma line 45: the quick brown fox jumps over the lazy dog                                                          |
+| 46 gamma line 46: the quick brown fox jumps over the lazy dog                                                          |
+| 47 gamma line 47: the quick brown fox jumps over the lazy dog                                                          |
+| 48 gamma line 48: the quick brown fox jumps over the lazy dog                                                          |
+|gamma.txt [+]                                                                                         43,1           16%|
+|:vsplit wide.txt                                                                                                        |
+0:0-10 fg=130
+1:0-3 fg=130
+2:0-9 fg=130
+2:11-15 fg=1
+3:0-3 fg=130
+4:0-3 fg=130
+4:4-22 fg=4
+5:0-7 fg=130
+6:0-3 fg=130
+6:12-14 fg=130
+6:21-21 fg=1
+6:28-28 fg=1
+7:0-3 fg=130
+7:32-38 fg=1
+8:0-3 fg=130
+9:0-3 fg=130
+10:0-119 fg=12
+11:0-119 fg=12
+12:0-119 fg=12
+13:0-119 fg=12
+14:0-119 fg=12
+15:0-119 fg=12
+16:0-119 fg=12
+17:0-119 fg=12
+18:0-119 fg=12
+19:0-119 reverse
+20:0-3 fg=130
+21:0-3 fg=130
+22:0-3 fg=130
+23:0-3 fg=130
+24:0-3 fg=130
+25:0-3 fg=130
+26:0-3 fg=130
+27:0-3 fg=130
+28:0-3 fg=130
+29:0-3 fg=130
+30:0-3 fg=130
+31:0-3 fg=130
+32:0-3 fg=130
+33:0-3 fg=130
+34:0-3 fg=130
+35:0-3 fg=130
+36:0-3 fg=130
+37:0-3 fg=130
+38:0-119 bold reverse
+== vim-120x40 after 75 of 75 ==
+cursor 0,0 shown
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |

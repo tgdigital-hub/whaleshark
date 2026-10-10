@@ -1,0 +1,116 @@
+== zsh-80x24 after 104 of 415 ==
+cursor 32,23 shown
+|38                                                                              |
+|39                                                                              |
+|40                                                                              |
+|41                                                                              |
+|42                                                                              |
+|43                                                                              |
+|44                                                                              |
+|45                                                                              |
+|46                                                                              |
+|47                                                                              |
+|48                                                                              |
+|49                                                                              |
+|50                                                                              |
+|51                                                                              |
+|52                                                                              |
+|53                                                                              |
+|54                                                                              |
+|55                                                                              |
+|56                                                                              |
+|57                                                                              |
+|58                                                                              |
+|59                                                                              |
+|60                                                                              |
+|$ printf '\033[31mred \033[1;32m                                                |
+== zsh-80x24 after 208 of 415 ==
+cursor 59,23 shown
+|41                                                                              |
+|42                                                                              |
+|43                                                                              |
+|44                                                                              |
+|45                                                                              |
+|46                                                                              |
+|47                                                                              |
+|48                                                                              |
+|49                                                                              |
+|50                                                                              |
+|51                                                                              |
+|52                                                                              |
+|53                                                                              |
+|54                                                                              |
+|55                                                                              |
+|56                                                                              |
+|57                                                                              |
+|58                                                                              |
+|59                                                                              |
+|60                                                                              |
+|$ printf '\033[31mred \033[1;32mbold green\033[0m \033[4munderlined\033[0m \033[|
+|7mreversed\033[0m\n'                                                            |
+|red bold green underlined reversed                                              |
+|$ printf '\033[38;5;208m256 colours\033[0m \033[38;2;10;200                     |
+22:0-3 fg=1
+22:4-13 fg=2 bold
+22:15-24 underline
+22:26-33 reverse
+== zsh-80x24 after 312 of 415 ==
+cursor 16,23 shown
+|$ printf '\033[31mred \033[1;32mbold green\033[0m \033[4munderlined\033[0m \033[|
+|7mreversed\033[0m\n'                                                            |
+|red bold green underlined reversed                                              |
+|$ printf '\033[38;5;208m256 colours\033[0m \033[38;2;10;200;255mfull colour\033[|
+|0m \033[48;2;60;0;90mon a background\033[0m\n'                                  |
+|256 colours full colour on a background                                         |
+|$ cat long.txt                                                                  |
+|This is one long line with no break in it, made to run past the right edge of ev|
+|ery window the recordings use, so that the wrap at the edge is in the corpus: wo|
+|rd1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 |
+|word14 word15 word16 word17 word18 word19 word20 word21 word22 word23 word24 wor|
+|d25 word26 word27 word28 word29 word30 word31 word32 word33 word34 word35 word36|
+| word37 word38 word39 word40 word41 word42 word43 word44 word45 word46 word47 wo|
+|rd48 word49 word50 word51 word52 word53 word54 word55 word56 word57 word58 word5|
+|9                                                                               |
+|$ cat wide.txt                                                                  |
+|plain ascii                                                                     |
+|tab     here    aligned                                                         |
+|accents: é ü ñ                                                                  |
+|wide: 日本語 한국어                                                             |
+|emoji: 🙂 🐳                                                                    |
+|combining: é ä                                                                  |
+|box: ┌─┐ │ │ └─┘                                                                |
+|$ cat alpha.txt                                                                 |
+2:0-3 fg=1
+2:4-13 fg=2 bold
+2:15-24 underline
+2:26-33 reverse
+5:0-10 fg=208
+5:12-22 fg=#0ac8ff
+5:24-38 bg=#3c005a
+23:15-15 bold
+== zsh-80x24 after 415 of 415 ==
+cursor 0,3 shown
+|$ echo after clear                                                              |
+|after clear                                                                     |
+|$ exit                                                                          |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |

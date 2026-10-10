@@ -1,0 +1,107 @@
+== top-80x24 after 2 of 8 ==
+cursor 67,10 shown
+|Processes: 663 total, 3 running, 660 sleeping, 4283 threads            14:46:48 |
+|Load Avg: 3.13, 4.39, 5.54  CPU usage: 16.17% user, 11.39% sys, 72.42% idle     |
+|SharedLibs: 399M resident, 84M data, 65M linkedit.                              |
+|MemRegions: 640564 total, 4187M resident, 208M private, 1131M shared.           |
+|PhysMem: 15G used (2148M wired, 5318M compressor), 102M unused.                 |
+|VM: 351T vsize, 57G framework vsize, 2120563(0) swapins, 2641576(0) swapouts.   |
+|Networks: packets: 31797866/22G in, 26489115/16G out.                           |
+|Disks: 56785272/1358G read, 25742544/352G written.                              |
+|                                                                                |
+|PID          COMMAND              %CPU         TIME             MEM             |
+|1            launchd              0.0          55:22.07         27M             |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+9:34-37 reverse
+== top-80x24 after 4 of 8 ==
+cursor 68,10 shown
+|Processes: 663 total, 3 running, 660 sleeping, 4211 threads            14:46:51 |
+|Load Avg: 2.96, 4.34, 5.51  CPU usage: 17.48% user, 4.9% sys, 78.41% idle       |
+|SharedLibs: 399M resident, 84M data, 65M linkedit.                              |
+|MemRegions: 0 total, 0B resident, 208M private, 1131M shared.                   |
+|PhysMem: 15G used (2147M wired, 5313M compressor), 106M unused.                 |
+|VM: 351T vsize, 57G framework vsize, 2120563(0) swapins, 2641576(0) swapouts.   |
+|Networks: packets: 31798057/22G in, 26489290/16G out.                           |
+|Disks: 56785300/1358G read, 25742764/352G written.                              |
+|                                                                                |
+|PID          COMMAND              %CPU         TIME             MEM             |
+|1            launchd              0.0          55:22.08         27M-            |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+9:34-37 reverse
+== top-80x24 after 6 of 8 ==
+cursor 68,10 shown
+|Processes: 663 total, 3 running, 660 sleeping, 4202 threads            14:46:53 |
+|Load Avg: 2.96, 4.34, 5.51  CPU usage: 17.65% user, 3.51% sys, 78.82% idle      |
+|SharedLibs: 399M resident, 84M data, 65M linkedit.                              |
+|MemRegions: 0 total, 0B resident, 208M private, 1131M shared.                   |
+|PhysMem: 15G used (2133M wired, 5313M compressor), 109M unused.                 |
+|VM: 351T vsize, 57G framework vsize, 2120563(0) swapins, 2641576(0) swapouts.   |
+|Networks: packets: 31798255/22G in, 26489480/16G out.                           |
+|Disks: 56785310/1358G read, 25742773/352G written.                              |
+|                                                                                |
+|PID          COMMAND              %CPU         TIME             MEM             |
+|1            launchd              0.0          55:22.08         27M-            |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+9:34-37 reverse
+== top-80x24 after 8 of 8 ==
+cursor 0,0 shown
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |

@@ -1,0 +1,132 @@
+== pager-50x15 after 12 of 45 ==
+cursor 1,14 shown
+|Section 2: the lamp                               |
+|                                                  |
+|     11. The lamp by the north wall is loud at daw|
+|n, and the marked line shows it.                  |
+|     12. The quay by the north wall is wet at dawn|
+|, and the marked line shows it.                   |
+|     13. The net by the north wall is dry at dawn,|
+| and the marked line shows it.                    |
+|     14. The buoy by the north wall is still at da|
+|wn, and the marked line shows it.                 |
+|                                                  |
+|     A longer line follows, written to run well pa|
+|st the right edge of a narrow window so that the p|
+|ager must either fold it or cut it: gull-1 rope-2 |
+|:                                                 |
+0:0-14 bold
+0:15-18 bold reverse
+2:13-16 bold reverse
+2:25-34 underline
+3:11-16 underline
+4:13-16 bold
+4:25-34 underline
+5:10-15 underline
+6:13-15 bold
+6:24-33 underline
+7:9-14 underline
+8:13-16 bold
+8:25-34 underline
+9:12-17 underline
+== pager-50x15 after 23 of 45 ==
+cursor 5,14 shown
+|     A longer line follows, written to run well p>|
+|                                                  |
+|      8. The tide by the north wall is wet at daw>|
+|      9. The gull by the north wall is dry at daw>|
+|     10. The rope by the north wall is still at d>|
+|Section 2: the lamp                               |
+|                                                  |
+|     11. The lamp by the north wall is loud at da>|
+|     12. The quay by the north wall is wet at daw>|
+|     13. The net by the north wall is dry at dawn>|
+|     14. The buoy by the north wall is still at d>|
+|                                                  |
+|     A longer line follows, written to run well p>|
+|                                                  |
+| ESC[                                             |
+0:49-49 reverse
+2:13-16 bold
+2:25-34 underline
+2:49-49 reverse
+3:13-16 bold
+3:25-34 underline
+3:49-49 reverse
+4:13-16 bold
+4:25-34 underline
+4:49-49 reverse
+5:0-14 bold
+5:15-18 bold reverse
+7:13-16 bold reverse
+7:25-34 underline
+7:49-49 reverse
+8:13-16 bold
+8:25-34 underline
+8:49-49 reverse
+9:13-15 bold
+9:24-33 underline
+9:49-49 reverse
+10:13-16 bold
+10:25-34 underline
+10:49-49 reverse
+12:49-49 reverse
+== pager-50x15 after 34 of 45 ==
+cursor 0,14 shown
+|     A longer line follows, written to run well p>|
+|                                                  |
+|      8. The tide by the north wall is wet at daw>|
+|      9. The gull by the north wall is dry at daw>|
+|     10. The rope by the north wall is still at d>|
+|Section 2: the lamp                               |
+|                                                  |
+|     11. The lamp by the north wall is loud at da>|
+|     12. The quay by the north wall is wet at daw>|
+|     13. The net by the north wall is dry at dawn>|
+|     14. The buoy by the north wall is still at d>|
+|                                                  |
+|     A longer line follows, written to run well p>|
+|                                                  |
+|                                                  |
+0:49-49 reverse
+2:13-16 bold
+2:25-34 underline
+2:49-49 reverse
+3:13-16 bold
+3:25-34 underline
+3:49-49 reverse
+4:13-16 bold
+4:25-34 underline
+4:49-49 reverse
+5:0-14 bold
+5:15-18 bold reverse
+7:13-16 bold reverse
+7:25-34 underline
+7:49-49 reverse
+8:13-16 bold
+8:25-34 underline
+8:49-49 reverse
+9:13-15 bold
+9:24-33 underline
+9:49-49 reverse
+10:13-16 bold
+10:25-34 underline
+10:49-49 reverse
+12:49-49 reverse
+== pager-50x15 after 45 of 45 ==
+cursor 0,0 shown
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |

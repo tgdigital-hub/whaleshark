@@ -1,0 +1,284 @@
+== synth-classic-120x40 after 53 of 211 ==
+cursor 2,35 hidden
+| ▗▄▄▄▖  ▛███▜ Pool 0.1 sample                                                                                           |
+|▝▜ █████ █▀ a made-up agent                                                                                             |
+|  ▘▘ ▝▝ ~/pool                                                                                                          |
+|                                                                                                                        |
+|                                                                                                                        |
+|❯ 🙂 looking drifts                                                                                                     |
+|                                                                                                                        |
+|⏺ tell deck smaller deck it on it deck what reef follow follow its number a a keeps a is keeps looking follow comes     |
+|  counts smaller 鯨 the small the bars the course seen a comes steady where past diver and 🦈 down then long the        |
+|  filters in it it a slow 日本語 comes reef course comes it what light the pale shark the it shark spots 한국어         |
+|  smaller filters and the warm seen then number looking along boat boat what nobody follow from the slow spots a along  |
+|  past slow its boat 鯨 writes keeps in slow needs keeps light shark the back from whale whale its from pale and slate  |
+|  tell its drifts number slate on whale along what tell shadow reef tell it the is water nobody smaller under seen      |
+|  from whale keeps was the its looking it warm course needs was the slate the the shark boat diver past water what      |
+|  海の魚 from others spots writes warm back is course the café looking                                                  |
+|                                                                                                                        |
+|❯ down a spots                                                                                                          |
+|                                                                                                                        |
+|⏺ the whale comes comes what filters on 海の魚 the in it a slate others tell where on warm and boat and keeps diver     |
+|  back number and its on today café number and its looking while nobody the 鯨 bars diver warm looking needs water      |
+|  counts whale a a follow a and filters while nobody nobody a shadow a a what then then what from fish boat from in     |
+|  number keeps a it what a light on its it reef spots reef smaller rises what the filters warm keeps shark what today   |
+|  and counts while seen small drifts drifts 한국어 shadow the counts comes a spots on keeps and was it on water a       |
+|  rises then drifts back and others course bars the it number a the deck back boat nobody a a and filters and while     |
+|  한국어 slow past while others today fish light others past a it follow looking                                        |
+|                                                                                                                        |
+|  func count(spots int ) {                                                                                              |
+|      report( "seen" , spots)                                                                                           |
+|  }                                                                                                                     |
+|                                                                                                                        |
+|❯ diver fish                                                                                                            |
+|                                                                                                                        |
+|✳ Drifting…                                                                                                             |
+|                                                                                                                        |
+|───────────────────────────────────────────────────────────────────────────────────────────────────────────────── pool ─|
+|❯                                                                                                                       |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help · ◐ steady                                                                            |
+|                                                                                                                        |
+|                                                                                                                        |
+0:0-6 fg=#40a0d0
+0:8-12 bg=#0a1e32
+0:14-17 bold
+0:19-21 bold
+0:23-28 fg=#969696
+1:0-1 fg=#40a0d0
+1:3-7 bg=#0a1e32
+1:9-10 fg=#40a0d0
+1:12-12 fg=#969696
+1:14-20 fg=#969696
+1:22-26 fg=#969696
+2:0-6 fg=#40a0d0
+2:8-13 fg=#969696
+5:0-18 fg=#ffffff bg=#32373c
+7:0-1 fg=#ffffff
+16:0-13 fg=#ffffff bg=#32373c
+18:0-1 fg=#ffffff
+26:2-6 fg=4
+26:19-22 fg=4
+27:14-20 fg=1
+30:0-11 fg=#ffffff bg=#32373c
+32:0-6 fg=#40a0d0
+32:7-7 fg=#8ccdeb
+32:8-10 fg=#40a0d0
+34:0-112 fg=#78828c
+34:114-117 fg=#78828c
+34:119-119 fg=#78828c
+35:2-2 reverse
+36:0-119 fg=#78828c
+37:2-3 fg=#969696
+37:5-9 fg=#969696
+37:11-14 fg=#969696
+37:16-17 fg=#969696
+37:19-19 fg=#969696
+37:21-23 fg=#969696
+37:25-27 fg=#969696
+37:29-32 fg=#969696
+37:34-34 fg=#969696
+37:36-36 fg=#969696
+37:38-43 fg=#969696
+== synth-classic-120x40 after 106 of 211 ==
+cursor 2,36 hidden
+|  ├───────┼────────┼───────┤                                                                                            |
+|  │ shark │ grey   │ 3     │                                                                                            |
+|  │ 鯨    │ blue   │ 12    │                                                                                            |
+|  └───────┴────────┴───────┘                                                                                            |
+|                                                                                                                        |
+|❯ needs seen a slate seen to                                                                                            |
+|                                                                                                                        |
+|⏺ it is slow pale nobody long shark spots along follow 鯨 a café deck reef fish boat past seen from today others        |
+|  smaller its and today slate shark deck to counts pale under on café course pale course on a in steady it boat a       |
+|  rises to to pale the long and down number it looking its slow under to nobody diver today and others spots warm       |
+|  others slow on slate number smaller a café né needs its the what whale warm seen bars whale the counts reef past the  |
+|  it course is the warm shadow tell is slow and 🙂 and from needs filters rises reef its while in its deck a down reef  |
+|  down follow is slow nobody water needs fish down a others a comes café writes where the slow down its while where     |
+|  slow number counts in small slow keeps from under the it keeps warm while shark the diver whale and tell reef the on  |
+|  small was spots                                                                                                       |
+|                                                                                                                        |
+|❯ diver needs whale steady under                                                                                        |
+|                                                                                                                        |
+|⏺ was others comes where the long reef small needs comes from is what the writes in water from diver to diver filters   |
+|  water and what pale shark what whale spots from down nobody needs is others counts writes along what spots was        |
+|  filters nobody a bars keeps the course then it it today keeps bars to né shadow it bars a its writes counts the       |
+|  diver rises shark rises from drifts slate past where then the while the where whale spots the number then the what a  |
+|  deck shark nobody deck the boat a deck today on drifts today tell a the under others while warm the the on warm the   |
+|  today long a whale on the seen on reef and water needs small a from its bars follow long reef whale nobody along      |
+|  boat reef down smaller in the was on light and the the from its from down where the its reef what keeps small the     |
+|  small what under rises light slate seen shadow comes nobody the the deck past others shark what rises a long          |
+|                                                                                                                        |
+|  func count(spots int ) {                                                                                              |
+|      report( "seen" , spots)                                                                                           |
+|  }                                                                                                                     |
+|                                                                                                                        |
+|❯ others from nobody writes the under                                                                                   |
+|                                                                                                                        |
+|✢ Drifting…                                                                                                             |
+|                                                                                                                        |
+|───────────────────────────────────────────────────────────────────────────────────────────────────────────────── pool ─|
+|❯                                                                                                                       |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help · ◐ steady                                                                            |
+|                                                                                                                        |
+5:0-27 fg=#ffffff bg=#32373c
+7:0-1 fg=#ffffff
+16:0-31 fg=#ffffff bg=#32373c
+18:0-1 fg=#ffffff
+27:2-6 fg=4
+27:19-22 fg=4
+28:14-20 fg=1
+31:0-36 fg=#ffffff bg=#32373c
+33:0-4 fg=#40a0d0
+33:5-5 fg=#8ccdeb
+33:6-10 fg=#40a0d0
+35:0-112 fg=#78828c
+35:114-117 fg=#78828c
+35:119-119 fg=#78828c
+36:2-2 reverse
+37:0-119 fg=#78828c
+38:2-3 fg=#969696
+38:5-9 fg=#969696
+38:11-14 fg=#969696
+38:16-17 fg=#969696
+38:19-19 fg=#969696
+38:21-23 fg=#969696
+38:25-27 fg=#969696
+38:29-32 fg=#969696
+38:34-34 fg=#969696
+38:36-36 fg=#969696
+38:38-43 fg=#969696
+== synth-classic-120x40 after 159 of 211 ==
+cursor 2,34 hidden
+|  ├───────┼────────┼───────┤                                                                                            |
+|  │ shark │ grey   │ 3     │                                                                                            |
+|  │ 鯨    │ blue   │ 12    │                                                                                            |
+|  └───────┴────────┴───────┘                                                                                            |
+|                                                                                                                        |
+|❯ a filters what steady keeps nobody                                                                                    |
+|                                                                                                                        |
+|⏺ diver where spots looking it a tell to from light pale looking keeps today from its the slow number spots filters     |
+|  light it on the a looking follow it was tell the a a keeps to course it seen whale warm diver a drifts fish along     |
+|  number nobody then light number shadow today under it water pale in rises to it the nobody nobody whale others        |
+|  filters the on course from to where others looking long bars slate smaller smaller what shark small its boat on seen  |
+|  slate needs the on bars rises light looking and warm pale its its spots water shadow keeps whale comes rises looking  |
+|  in the the while shadow needs bars shadow back slate a fish on counts the deck past the back today deck course needs  |
+|  bars today under counts fish shark its along drifts bars what shadow writes reef nobody then from comes 海の魚        |
+|  shadow slate writes its slow the number its needs rises keeps is long what a                                          |
+|                                                                                                                        |
+|❯ from the small                                                                                                        |
+|                                                                                                                        |
+|⏺ then from a a shadow shadow a 海の魚 follow drifts looking nobody today on then where rises spots number long others  |
+|  water whale filters fish reef to under it number steady rises in needs a while it it small shadow course it shark     |
+|  writes and a its pale along smaller where under 海の魚 in from from writes counts long the smaller small was nobody   |
+|  the the long the what while is and its warm shadow 日本語 follow light today past the under it under what boat needs  |
+|  filters boat under filters slate what its needs bars the it course course the long fish seen its down slate a past    |
+|  the was was light back slow the follow while bars pale course course steady a and seen to from the spots to the its   |
+|  it the then and a né slow water and whale its counts fish writes shark shadow others smaller on whale the bars needs  |
+|  today bars tell pale it slow                                                                                          |
+|                                                                                                                        |
+|  func count(spots int ) {                                                                                              |
+|      report( "seen" , spots)                                                                                           |
+|  }                                                                                                                     |
+|                                                                                                                        |
+|❯ small slow comes rises nobody                                                                                         |
+|                                                                                                                        |
+|───────────────────────────────────────────────────────────────────────────────────────────────────────────────── pool ─|
+|❯                                                                                                                       |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · ? for help · ◐ steady                                                                              |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+5:0-35 fg=#ffffff bg=#32373c
+7:0-1 fg=#ffffff
+16:0-15 fg=#ffffff bg=#32373c
+18:0-1 fg=#ffffff
+27:2-6 fg=4
+27:19-22 fg=4
+28:14-20 fg=1
+31:0-30 fg=#ffffff bg=#32373c
+33:0-112 fg=#78828c
+33:114-117 fg=#78828c
+33:119-119 fg=#78828c
+34:2-2 reverse
+35:0-119 fg=#78828c
+36:2-3 fg=#969696
+36:5-9 fg=#969696
+36:11-14 fg=#969696
+36:16-17 fg=#969696
+36:19-19 fg=#969696
+36:21-21 fg=#969696
+36:23-25 fg=#969696
+36:27-30 fg=#969696
+36:32-32 fg=#969696
+36:34-34 fg=#969696
+36:36-41 fg=#969696
+== synth-classic-120x40 after 211 of 211 ==
+cursor 0,39 shown
+|                                                                                                                        |
+|❯ in to                                                                                                                 |
+|                                                                                                                        |
+|⏺ smaller warm slow in in while from a diver slow diver light a on shadow né slow and pale tell tell what writes on     |
+|  small smaller smaller where on from slow follow the counts the its on deck what needs to course in diver then a café  |
+|  comes then past the the on course filters others course drifts the needs today back the looking a follow whale deck   |
+|  filters reef today past a long in the writes then the needs the what a past from others on in down what is slate      |
+|  drifts steady the shark to a and past comes counts counts writes slow reef on on café warm fish from others from      |
+|  course tell pale to others to warm boat and the the counts drifts in pale a a to the steady number drifts a water     |
+|  small warm a and where back drifts in along spots counts number steady the course course a the a diver a on keeps     |
+|                                                                                                                        |
+|  func count(spots int ) {                                                                                              |
+|      report( "seen" , spots)                                                                                           |
+|  }                                                                                                                     |
+|                                                                                                                        |
+|❯ shadow back bars diver a                                                                                              |
+|                                                                                                                        |
+|⏺ follow reef water back the course 日本語 what and it in né it where deck a boat comes others others a steady where    |
+|  shark tell on long past in and under to looking and warm shadow needs it number the a follow in back drifts while     |
+|  rises course slow and down what tell a the down course while rises in the warm down keeps is then under comes is      |
+|  counts boat from warm what reef it a then comes others is and the to past counts whale past on filters né small       |
+|  filters whale seen in the its in to the follow the shark looking it where past from bars shark a tell filters its     |
+|  tell down the 🦈 shark needs water what needs then 🙂 the back needs shark the and warm water a drifts steady spots   |
+|  to its fish what spots the smaller what tell bars on reef whale drifts down water writes tell the                     |
+|                                                                                                                        |
+|  ┌───────┬────────┬───────┐                                                                                            |
+|  │ Name  │ Colour │ Count │                                                                                            |
+|  ├───────┼────────┼───────┤                                                                                            |
+|  │ shark │ grey   │ 3     │                                                                                            |
+|  │ 鯨    │ blue   │ 12    │                                                                                            |
+|  └───────┴────────┴───────┘                                                                                            |
+|                                                                                                                        |
+|───────────────────────────────────────────────────────────────────────────────────────────────────────────────── pool ─|
+|❯                                                                                                                       |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · ? for help · ◐ steady                                                                              |
+|                                                                                                                        |
+|The pool is closed.                                                                                                     |
+|Come back with: pool --again                                                                                            |
+|                                                                                                                        |
+1:0-6 fg=#ffffff bg=#32373c
+3:0-1 fg=#ffffff
+11:2-6 fg=4
+11:19-22 fg=4
+12:14-20 fg=1
+15:0-25 fg=#ffffff bg=#32373c
+17:0-1 fg=#ffffff
+32:0-112 fg=#78828c
+32:114-117 fg=#78828c
+32:119-119 fg=#78828c
+33:2-2 reverse
+34:0-119 fg=#78828c
+35:2-3 fg=#969696
+35:5-9 fg=#969696
+35:11-14 fg=#969696
+35:16-17 fg=#969696
+35:19-19 fg=#969696
+35:21-21 fg=#969696
+35:23-25 fg=#969696
+35:27-30 fg=#969696
+35:32-32 fg=#969696
+35:34-34 fg=#969696
+35:36-41 fg=#969696
+37:0-18 dim
+38:0-27 dim

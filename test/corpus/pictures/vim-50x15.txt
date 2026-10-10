@@ -1,0 +1,85 @@
+== vim-50x15 after 13 of 51 ==
+cursor 6,6 shown
+|gamma line 39: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 40: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 41: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 42: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 43: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 44: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 45: the quick brown fox jumps over the |
+|lazy dog                                          |
+|/line 42                        42,7          19% |
+== vim-50x15 after 26 of 51 ==
+cursor 0,14 hidden
+|gamma line 40: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 41: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 42: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 43: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 44: the quick brown fox jumps over the |
+|lazy dog                                          |
+|@@@                                               |
+|                                                  |
+|gamma line 46: the quick brown fox jumps over the |
+|lazy dog                                          |
+|:set number                                       |
+10:0-49 fg=12
+== vim-50x15 after 39 of 51 ==
+cursor 4,9 shown
+|  1 package main                                  |
+|  2                                               |
+|  3 import "fmt"                                  |
+|  4                                               |
+|  5 // main says hello.                           |
+|  6 func main() {                                 |
+|demo.go                         1,1            Top|
+| 42 gamma line 42: the quick brown fox jumps over |
+|    the lazy dog                                  |
+| 43 gamma line 43: the quick brown fox jumps over |
+|    the lazy dog                                  |
+| 44 gamma line 44: the quick brown fox jumps over |
+|    the lazy dog                                  |
+|gamma.txt [+]                   43,1           20%|
+|:syntax on                                        |
+0:0-10 fg=130
+1:0-3 fg=130
+2:0-9 fg=130
+2:11-15 fg=1
+3:0-3 fg=130
+4:0-3 fg=130
+4:4-22 fg=4
+5:0-7 fg=130
+6:0-49 reverse
+7:0-3 fg=130
+8:0-3 fg=130
+9:0-3 fg=130
+10:0-3 fg=130
+11:0-3 fg=130
+12:0-3 fg=130
+13:0-49 bold reverse
+== vim-50x15 after 51 of 51 ==
+cursor 0,0 shown
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |

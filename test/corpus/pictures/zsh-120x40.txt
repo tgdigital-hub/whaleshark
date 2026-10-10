@@ -1,0 +1,180 @@
+== zsh-120x40 after 100 of 397 ==
+cursor 59,39 shown
+|22                                                                                                                      |
+|23                                                                                                                      |
+|24                                                                                                                      |
+|25                                                                                                                      |
+|26                                                                                                                      |
+|27                                                                                                                      |
+|28                                                                                                                      |
+|29                                                                                                                      |
+|30                                                                                                                      |
+|31                                                                                                                      |
+|32                                                                                                                      |
+|33                                                                                                                      |
+|34                                                                                                                      |
+|35                                                                                                                      |
+|36                                                                                                                      |
+|37                                                                                                                      |
+|38                                                                                                                      |
+|39                                                                                                                      |
+|40                                                                                                                      |
+|41                                                                                                                      |
+|42                                                                                                                      |
+|43                                                                                                                      |
+|44                                                                                                                      |
+|45                                                                                                                      |
+|46                                                                                                                      |
+|47                                                                                                                      |
+|48                                                                                                                      |
+|49                                                                                                                      |
+|50                                                                                                                      |
+|51                                                                                                                      |
+|52                                                                                                                      |
+|53                                                                                                                      |
+|54                                                                                                                      |
+|55                                                                                                                      |
+|56                                                                                                                      |
+|57                                                                                                                      |
+|58                                                                                                                      |
+|59                                                                                                                      |
+|60                                                                                                                      |
+|$ printf '\033[31mred \033[1;32mbold green\033[0m \033[4mun                                                             |
+== zsh-120x40 after 199 of 397 ==
+cursor 60,39 shown
+|24                                                                                                                      |
+|25                                                                                                                      |
+|26                                                                                                                      |
+|27                                                                                                                      |
+|28                                                                                                                      |
+|29                                                                                                                      |
+|30                                                                                                                      |
+|31                                                                                                                      |
+|32                                                                                                                      |
+|33                                                                                                                      |
+|34                                                                                                                      |
+|35                                                                                                                      |
+|36                                                                                                                      |
+|37                                                                                                                      |
+|38                                                                                                                      |
+|39                                                                                                                      |
+|40                                                                                                                      |
+|41                                                                                                                      |
+|42                                                                                                                      |
+|43                                                                                                                      |
+|44                                                                                                                      |
+|45                                                                                                                      |
+|46                                                                                                                      |
+|47                                                                                                                      |
+|48                                                                                                                      |
+|49                                                                                                                      |
+|50                                                                                                                      |
+|51                                                                                                                      |
+|52                                                                                                                      |
+|53                                                                                                                      |
+|54                                                                                                                      |
+|55                                                                                                                      |
+|56                                                                                                                      |
+|57                                                                                                                      |
+|58                                                                                                                      |
+|59                                                                                                                      |
+|60                                                                                                                      |
+|$ printf '\033[31mred \033[1;32mbold green\033[0m \033[4munderlined\033[0m \033[7mreversed\033[0m\n'                    |
+|red bold green underlined reversed                                                                                      |
+|$ printf '\033[38;5;208m256 colours\033[0m \033[38;2;10;200;                                                            |
+38:0-3 fg=1
+38:4-13 fg=2 bold
+38:15-24 underline
+38:26-33 reverse
+== zsh-120x40 after 298 of 397 ==
+cursor 16,39 shown
+|41                                                                                                                      |
+|42                                                                                                                      |
+|43                                                                                                                      |
+|44                                                                                                                      |
+|45                                                                                                                      |
+|46                                                                                                                      |
+|47                                                                                                                      |
+|48                                                                                                                      |
+|49                                                                                                                      |
+|50                                                                                                                      |
+|51                                                                                                                      |
+|52                                                                                                                      |
+|53                                                                                                                      |
+|54                                                                                                                      |
+|55                                                                                                                      |
+|56                                                                                                                      |
+|57                                                                                                                      |
+|58                                                                                                                      |
+|59                                                                                                                      |
+|60                                                                                                                      |
+|$ printf '\033[31mred \033[1;32mbold green\033[0m \033[4munderlined\033[0m \033[7mreversed\033[0m\n'                    |
+|red bold green underlined reversed                                                                                      |
+|$ printf '\033[38;5;208m256 colours\033[0m \033[38;2;10;200;255mfull colour\033[0m \033[48;2;60;0;90mon a background\033|
+|[0m\n'                                                                                                                  |
+|256 colours full colour on a background                                                                                 |
+|$ cat long.txt                                                                                                          |
+|This is one long line with no break in it, made to run past the right edge of every window the recordings use, so that t|
+|he wrap at the edge is in the corpus: word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12 word13 |
+|word14 word15 word16 word17 word18 word19 word20 word21 word22 word23 word24 word25 word26 word27 word28 word29 word30 w|
+|ord31 word32 word33 word34 word35 word36 word37 word38 word39 word40 word41 word42 word43 word44 word45 word46 word47 wo|
+|rd48 word49 word50 word51 word52 word53 word54 word55 word56 word57 word58 word59                                       |
+|$ cat wide.txt                                                                                                          |
+|plain ascii                                                                                                             |
+|tab     here    aligned                                                                                                 |
+|accents: é ü ñ                                                                                                          |
+|wide: 日本語 한국어                                                                                                     |
+|emoji: 🙂 🐳                                                                                                            |
+|combining: é ä                                                                                                          |
+|box: ┌─┐ │ │ └─┘                                                                                                        |
+|$ cat alpha.txt                                                                                                         |
+21:0-3 fg=1
+21:4-13 fg=2 bold
+21:15-24 underline
+21:26-33 reverse
+24:0-10 fg=208
+24:12-22 fg=#0ac8ff
+24:24-38 bg=#3c005a
+39:15-15 bold
+== zsh-120x40 after 397 of 397 ==
+cursor 0,3 shown
+|$ echo after clear                                                                                                      |
+|after clear                                                                                                             |
+|$ exit                                                                                                                  |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |

@@ -1,0 +1,185 @@
+== synth-classic-plain-80x24 after 50 of 199 ==
+cursor 2,20 hidden
+|  shark from a water pale a seen under was today steady then the others shark   |
+|  warm spots whale 🙂 the what a looking 日本語 then on slow a its what a       |
+|  drifts the down seen and course the boat what boat comes nobody steady        |
+|  looking back was its is from deck the number on in the deck down what along   |
+|  a bars smaller and spots slow diver a needs number on and deck was it the     |
+|  whale a its seen small its on 한국어 in to follow along is a others on reef   |
+|  and shark steady seen né down 日本語 under small then under diver while       |
+|  light looking its shadow comes the to the steady needs under counts tell      |
+|  spots along in past on was looking what and the boat the a to along today     |
+|  under a diver to in diver follow comes the shark                              |
+|                                                                                |
+|  func count(spots int ) {                                                      |
+|      report( "seen" , spots)                                                   |
+|  }                                                                             |
+|                                                                                |
+|❯ long shadow                                                                   |
+|                                                                                |
+|✻ Drifting…                                                                     |
+|                                                                                |
+|───────────────────────────────────────────────────────────────────────── pool ─|
+|❯                                                                               |
+|────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help · ◐ steady                                    |
+|                                                                                |
+11:2-6 fg=4
+11:19-22 fg=4
+12:14-20 fg=1
+15:0-12 fg=#ffffff bg=#32373c
+17:0-2 fg=#40a0d0
+17:3-3 fg=#8ccdeb
+17:4-10 fg=#40a0d0
+19:0-72 fg=#78828c
+19:74-77 fg=#78828c
+19:79-79 fg=#78828c
+20:2-2 reverse
+21:0-79 fg=#78828c
+22:2-3 fg=#969696
+22:5-9 fg=#969696
+22:11-14 fg=#969696
+22:16-17 fg=#969696
+22:19-19 fg=#969696
+22:21-23 fg=#969696
+22:25-27 fg=#969696
+22:29-32 fg=#969696
+22:34-34 fg=#969696
+22:36-36 fg=#969696
+22:38-43 fg=#969696
+== synth-classic-plain-80x24 after 100 of 199 ==
+cursor 2,18 hidden
+|  nobody bars bars reef slow the steady long nobody while its today it drifts   |
+|  along shark number under slow from its comes was looking boat the it to       |
+|  under is the whale on under deck a number filters a slow slate on to 海の魚   |
+|  in steady number the from shark light water a whale back on then comes comes  |
+|  warm today light looking the 鯨 tell counts today 海の魚 water follow what    |
+|  the back steady shadow 海の魚 a the slate was what slate a counts tell what   |
+|  its is looking warm shadow along on the warm rises is number the shark        |
+|  counts water past counts while where the shadow shadow deck writes light      |
+|  smaller reef tell the né filters small comes a in writes long a 鯨 on shark   |
+|  deck                                                                          |
+|                                                                                |
+|  func count(spots int ) {                                                      |
+|      report( "seen" , spots)                                                   |
+|  }                                                                             |
+|                                                                                |
+|❯ a shark the                                                                   |
+|                                                                                |
+|───────────────────────────────────────────────────────────────────────── pool ─|
+|❯                                                                               |
+|────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · ? for help · ◐ steady                                      |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+11:2-6 fg=4
+11:19-22 fg=4
+12:14-20 fg=1
+15:0-12 fg=#ffffff bg=#32373c
+17:0-72 fg=#78828c
+17:74-77 fg=#78828c
+17:79-79 fg=#78828c
+18:2-2 reverse
+19:0-79 fg=#78828c
+20:2-3 fg=#969696
+20:5-9 fg=#969696
+20:11-14 fg=#969696
+20:16-17 fg=#969696
+20:19-19 fg=#969696
+20:21-21 fg=#969696
+20:23-25 fg=#969696
+20:27-30 fg=#969696
+20:32-32 fg=#969696
+20:34-34 fg=#969696
+20:36-41 fg=#969696
+== synth-classic-plain-80x24 after 150 of 199 ==
+cursor 2,20 hidden
+|  counts the keeps looking counts others course keeps it the boat writes where  |
+|  number where reef boat is was tell needs smaller light keeps light reef a     |
+|  deck steady the warm in it to down what a from was a the light drifts others  |
+|  it number steady spots in tell was others slate down spots what diver reef    |
+|  deck its on the back steady the number reef light shadow spots long today     |
+|  the the the a keeps it what it on on diver light its today is down a 🙂       |
+|  follow number what keeps                                                      |
+|                                                                                |
+|  ┌───────┬────────┬───────┐                                                    |
+|  │ Name  │ Colour │ Count │                                                    |
+|  ├───────┼────────┼───────┤                                                    |
+|  │ shark │ grey   │ 3     │                                                    |
+|  │ 鯨    │ blue   │ 12    │                                                    |
+|  └───────┴────────┴───────┘                                                    |
+|                                                                                |
+|❯ on a                                                                          |
+|                                                                                |
+|✶ Drifting…                                                                     |
+|                                                                                |
+|───────────────────────────────────────────────────────────────────────── pool ─|
+|❯                                                                               |
+|────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help · ◐ steady                                    |
+|                                                                                |
+15:0-5 fg=#ffffff bg=#32373c
+17:0-1 fg=#40a0d0
+17:2-2 fg=#8ccdeb
+17:3-10 fg=#40a0d0
+19:0-72 fg=#78828c
+19:74-77 fg=#78828c
+19:79-79 fg=#78828c
+20:2-2 reverse
+21:0-79 fg=#78828c
+22:2-3 fg=#969696
+22:5-9 fg=#969696
+22:11-14 fg=#969696
+22:16-17 fg=#969696
+22:19-19 fg=#969696
+22:21-23 fg=#969696
+22:25-27 fg=#969696
+22:29-32 fg=#969696
+22:34-34 fg=#969696
+22:36-36 fg=#969696
+22:38-43 fg=#969696
+== synth-classic-plain-80x24 after 199 of 199 ==
+cursor 0,23 shown
+|  is seen boat deck was fish a the shark on a fish down under from to was what  |
+|  on 海の魚 writes diver 🙂 small counts others light its today a and on down   |
+|  it the water the a course needs others deck nobody seen needs and while       |
+|  shark 鯨 steady tell counts others its filters drifts drifts it a spots       |
+|  number where filters the down deck shark was and the warm reef rises the      |
+|  down a steady in steady drifts it the bars along on is the then past along    |
+|  on water from in in drifts its small the diver what filters the in reef bars  |
+|  fish along tell small the steady the whale boat the deck light seen           |
+|                                                                                |
+|  ┌───────┬────────┬───────┐                                                    |
+|  │ Name  │ Colour │ Count │                                                    |
+|  ├───────┼────────┼───────┤                                                    |
+|  │ shark │ grey   │ 3     │                                                    |
+|  │ 鯨    │ blue   │ 12    │                                                    |
+|  └───────┴────────┴───────┘                                                    |
+|                                                                                |
+|───────────────────────────────────────────────────────────────────────── pool ─|
+|❯                                                                               |
+|────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · ? for help · ◐ steady                                      |
+|                                                                                |
+|The pool is closed.                                                             |
+|Come back with: pool --again                                                    |
+|                                                                                |
+16:0-72 fg=#78828c
+16:74-77 fg=#78828c
+16:79-79 fg=#78828c
+17:2-2 reverse
+18:0-79 fg=#78828c
+19:2-3 fg=#969696
+19:5-9 fg=#969696
+19:11-14 fg=#969696
+19:16-17 fg=#969696
+19:19-19 fg=#969696
+19:21-21 fg=#969696
+19:23-25 fg=#969696
+19:27-30 fg=#969696
+19:32-32 fg=#969696
+19:34-34 fg=#969696
+19:36-41 fg=#969696
+21:0-18 dim
+22:0-27 dim

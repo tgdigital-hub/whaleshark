@@ -1,0 +1,236 @@
+== pager-80x24 after 15 of 60 ==
+cursor 39,17 shown
+|                                                                                |
+|      8. The tide by the north wall is wet at dawn, and the marked line shows it|
+|.                                                                               |
+|      9. The gull by the north wall is dry at dawn, and the marked line shows it|
+|.                                                                               |
+|     10. The rope by the north wall is still at dawn, and the marked line shows |
+|it.                                                                             |
+|Section 2: the lamp                                                             |
+|                                                                                |
+|     11. The lamp by the north wall is loud at dawn, and the marked line shows i|
+|t.                                                                              |
+|     12. The quay by the north wall is wet at dawn, and the marked line shows it|
+|.                                                                               |
+|     13. The net by the north wall is dry at dawn, and the marked line shows it.|
+|     14. The buoy by the north wall is still at dawn, and the marked line shows |
+|it.                                                                             |
+|                                                                                |
+|     A longer line follows, written to                                          |
+|window so that the pager must either fold it or cut it: gull-1 rope-2 lamp-3 qua|
+|y-4 net-5 buoy-6 hull-7 tide-8 gull-9 rope-10 lamp-11 quay-12 net-13 buoy-14 hul|
+|l-15 tide-16 gull-17 rope-18 lamp-19 quay-20 net-21 buoy-22 hull-23 tide-24 gull|
+|-25 rope-26 lamp-27 quay-28 net-29                                              |
+|                                                                                |
+|                                                                                |
+1:13-16 bold
+1:25-34 underline
+1:60-65 underline
+3:13-16 bold
+3:25-34 underline
+3:60-65 underline
+5:13-16 bold
+5:25-34 underline
+5:62-67 underline
+7:0-18 bold
+9:13-16 bold
+9:25-34 underline
+9:61-66 underline
+11:13-16 bold
+11:25-34 underline
+11:60-65 underline
+13:13-15 bold
+13:24-33 underline
+13:59-64 underline
+14:13-16 bold
+14:25-34 underline
+14:62-67 underline
+== pager-80x24 after 30 of 60 ==
+cursor 1,23 shown
+|Section 2: the lamp                                                             |
+|                                                                                |
+|     11. The lamp by the north wall is loud at dawn, and the marked line shows >|
+|     12. The quay by the north wall is wet at dawn, and the marked line shows i>|
+|     13. The net by the north wall is dry at dawn, and the marked line shows it.|
+|     14. The buoy by the north wall is still at dawn, and the marked line shows>|
+|                                                                                |
+|     A longer line follows, written to run well past the right edge of a narrow>|
+|                                                                                |
+|     15. The hull by the north wall is loud at dawn, and the marked line shows >|
+|     16. The tide by the north wall is wet at dawn, and the marked line shows i>|
+|     17. The gull by the north wall is dry at dawn, and the marked line shows i>|
+|     18. The rope by the north wall is still at dawn, and the marked line shows>|
+|     19. The lamp by the north wall is loud at dawn, and the marked line shows >|
+|     20. The quay by the north wall is wet at dawn, and the marked line shows i>|
+|Section 3: the net                                                              |
+|                                                                                |
+|     21. The net by the north wall is dry at dawn, and the marked line shows it.|
+|                                                                                |
+|     A longer line follows, written to run well past the right edge of a narrow>|
+|                                                                                |
+|     22. The buoy by the north wall is still at dawn, and the marked line shows>|
+|     23. The hull by the north wall is loud at dawn, and the marked line shows >|
+|:                                                                               |
+0:0-14 bold
+0:15-18 bold reverse
+2:13-16 bold reverse
+2:25-34 underline
+2:61-66 underline
+2:79-79 reverse
+3:13-16 bold
+3:25-34 underline
+3:60-65 underline
+3:79-79 reverse
+4:13-15 bold
+4:24-33 underline
+4:59-64 underline
+5:13-16 bold
+5:25-34 underline
+5:62-67 underline
+5:79-79 reverse
+7:79-79 reverse
+9:13-16 bold
+9:25-34 underline
+9:61-66 underline
+9:79-79 reverse
+10:13-16 bold
+10:25-34 underline
+10:60-65 underline
+10:79-79 reverse
+11:13-16 bold
+11:25-34 underline
+11:60-65 underline
+11:79-79 reverse
+12:13-16 bold
+12:25-34 underline
+12:62-67 underline
+12:79-79 reverse
+13:13-16 bold reverse
+13:25-34 underline
+13:61-66 underline
+13:79-79 reverse
+14:13-16 bold
+14:25-34 underline
+14:60-65 underline
+14:79-79 reverse
+15:0-17 bold
+17:13-15 bold
+17:24-33 underline
+17:59-64 underline
+19:79-79 reverse
+21:13-16 bold
+21:25-34 underline
+21:62-67 underline
+21:79-79 reverse
+22:13-16 bold
+22:25-34 underline
+22:61-66 underline
+22:79-79 reverse
+== pager-80x24 after 45 of 60 ==
+cursor 2,23 shown
+|Section 2: the lamp                                                             |
+|                                                                                |
+|     11. The lamp by the north wall is loud at dawn, and the marked line shows >|
+|     12. The quay by the north wall is wet at dawn, and the marked line shows i>|
+|     13. The net by the north wall is dry at dawn, and the marked line shows it.|
+|     14. The buoy by the north wall is still at dawn, and the marked line shows>|
+|                                                                                |
+|     A longer line follows, written to run well past the right edge of a narrow>|
+|                                                                                |
+|     15. The hull by the north wall is loud at dawn, and the marked line shows >|
+|     16. The tide by the north wall is wet at dawn, and the marked line shows i>|
+|     17. The gull by the north wall is dry at dawn, and the marked line shows i>|
+|     18. The rope by the north wall is still at dawn, and the marked line shows>|
+|     19. The lamp by the north wall is loud at dawn, and the marked line shows >|
+|     20. The quay by the north wall is wet at dawn, and the marked line shows i>|
+|Section 3: the net                                                              |
+|                                                                                |
+|     21. The net by the north wall is dry at dawn, and the marked line shows it.|
+|                                                                                |
+|     A longer line follows, written to run well past the right edge of a narrow>|
+|                                                                                |
+|     22. The buoy by the north wall is still at dawn, and the marked line shows>|
+|     23. The hull by the north wall is loud at dawn, and the marked line shows >|
+|&/                                                                              |
+0:0-14 bold
+0:15-18 bold reverse
+2:13-16 bold reverse
+2:25-34 underline
+2:61-66 underline
+2:79-79 reverse
+3:13-16 bold
+3:25-34 underline
+3:60-65 underline
+3:79-79 reverse
+4:13-15 bold
+4:24-33 underline
+4:59-64 underline
+5:13-16 bold
+5:25-34 underline
+5:62-67 underline
+5:79-79 reverse
+7:79-79 reverse
+9:13-16 bold
+9:25-34 underline
+9:61-66 underline
+9:79-79 reverse
+10:13-16 bold
+10:25-34 underline
+10:60-65 underline
+10:79-79 reverse
+11:13-16 bold
+11:25-34 underline
+11:60-65 underline
+11:79-79 reverse
+12:13-16 bold
+12:25-34 underline
+12:62-67 underline
+12:79-79 reverse
+13:13-16 bold reverse
+13:25-34 underline
+13:61-66 underline
+13:79-79 reverse
+14:13-16 bold
+14:25-34 underline
+14:60-65 underline
+14:79-79 reverse
+15:0-17 bold
+17:13-15 bold
+17:24-33 underline
+17:59-64 underline
+19:79-79 reverse
+21:13-16 bold
+21:25-34 underline
+21:62-67 underline
+21:79-79 reverse
+22:13-16 bold
+22:25-34 underline
+22:61-66 underline
+22:79-79 reverse
+== pager-80x24 after 60 of 60 ==
+cursor 0,0 shown
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |

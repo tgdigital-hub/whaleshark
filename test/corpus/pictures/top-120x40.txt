@@ -1,0 +1,171 @@
+== top-120x40 after 2 of 8 ==
+cursor 99,9 shown
+|Processes: 655 total, 4 running, 651 sleeping, 4155 threads                                                    14:47:41 |
+|Load Avg: 3.94, 4.37, 5.45  CPU usage: 15.79% user, 10.78% sys, 73.42% idle                                             |
+|SharedLibs: 398M resident, 85M data, 65M linkedit.                                                                      |
+|MemRegions: 639887 total, 4061M resident, 201M private, 1126M shared.                                                   |
+|PhysMem: 15G used (2164M wired, 5337M compressor), 358M unused.                                                         |
+|VM: 348T vsize, 57G framework vsize, 2120563(0) swapins, 2641576(0) swapouts.                                           |
+|Networks: packets: 31802340/22G in, 26493574/16G out. Disks: 56801691/1358G read, 25749308/352G written.                |
+|                                                                                                                        |
+|PID                  COMMAND                      %CPU                 TIME                     MEM                     |
+|1                    launchd                      0.0                  55:22.52                 27M                     |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+8:50-53 reverse
+== top-120x40 after 4 of 8 ==
+cursor 99,8 shown
+|Processes: 655 total, 4 running, 651 sleeping, 4137 threads                                                    14:47:44 |
+|Load Avg: 3.94, 4.37, 5.45  CPU usage: 17.49% user, 3.62% sys, 78.87% idle                                              |
+|SharedLibs: 398M resident, 85M data, 65M linkedit. MemRegions: 0 total, 0B resident, 201M private, 1126M shared.        |
+|PhysMem: 15G used (2164M wired, 5336M compressor), 357M unused.                                                         |
+|VM: 348T vsize, 57G framework vsize, 2120563(0) swapins, 2641576(0) swapouts.                                           |
+|Networks: packets: 31802547/22G in, 26493766/16G out. Disks: 56801705/1358G read, 25749315/352G written.                |
+|                                                                                                                        |
+|PID                  COMMAND                      %CPU                 TIME                     MEM                     |
+|1                    launchd                      0.0                  55:22.52                 27M                     |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+7:50-53 reverse
+== top-120x40 after 6 of 8 ==
+cursor 99,8 shown
+|Processes: 655 total, 3 running, 652 sleeping, 4151 threads                                                    14:47:46 |
+|Load Avg: 4.43, 4.46, 5.48  CPU usage: 17.52% user, 6.97% sys, 75.50% idle                                              |
+|SharedLibs: 398M resident, 85M data, 65M linkedit. MemRegions: 0 total, 0B resident, 201M private, 1126M shared.        |
+|PhysMem: 15G used (2159M wired, 5336M compressor), 346M unused.                                                         |
+|VM: 348T vsize, 57G framework vsize, 2120563(0) swapins, 2641576(0) swapouts.                                           |
+|Networks: packets: 31802724/22G in, 26493938/16G out. Disks: 56801715/1358G read, 25749951/352G written.                |
+|                                                                                                                        |
+|PID                  COMMAND                      %CPU                 TIME                     MEM                     |
+|1                    launchd                      30.4                 55:22.85                 27M                     |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+7:50-53 reverse
+== top-120x40 after 8 of 8 ==
+cursor 0,0 shown
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |

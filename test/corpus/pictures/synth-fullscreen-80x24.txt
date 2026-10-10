@@ -1,0 +1,181 @@
+== synth-fullscreen-80x24 after 74 of 296 ==
+cursor 24,21 hidden
+| ▗▄▄▄▖  ▛███▜ Pool 0.1 sample                                                   |
+|▝▜ █████ █▀ a made-up agent                                                     |
+|  ▘▘ ▝▝ ~/pool                                                                  |
+|                                                                                |
+|❯ boat shadow today whale                                                       |
+|                                                                                |
+|⏺ steady boat seen the course steady where filters is drifts fish spots past    |
+|  what and diver while keeps the keeps the from course long counts the in the   |
+|  and what                                                                      |
+|                                                                                |
+|❯ past then to the                                                              |
+|                                                                                |
+|⏺ back course a looking it boat was a slow then water filters diver past it     |
+|  under a water and what along it 鯨 the was follow was what                    |
+|                                                                                |
+|  func count(spots int ) {                                                      |
+|      report( "seen" , spots)                                                   |
+|  }                                                                             |
+|                                                                                |
+|                                                                                |
+|────────────────────────────────────────────────────────────────────────────────|
+|❯ long was a the was it                                                         |
+|────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · ? for help · ◐ steady                                      |
+0:0-6 fg=#40a0d0
+0:8-12 bg=#0a1e32
+0:14-17 bold
+0:19-21 bold
+0:23-28 fg=#969696
+1:0-1 fg=#40a0d0
+1:3-7 bg=#0a1e32
+1:9-10 fg=#40a0d0
+1:12-12 fg=#969696
+1:14-20 fg=#969696
+1:22-26 fg=#969696
+2:0-6 fg=#40a0d0
+2:8-13 fg=#969696
+4:0-24 fg=#ffffff bg=#32373c
+6:0-0 fg=#ffffff
+10:0-17 fg=#ffffff bg=#32373c
+12:0-0 fg=#ffffff
+15:2-6 fg=4
+15:19-22 fg=4
+16:14-20 fg=1
+20:0-79 fg=#78828c
+21:24-24 reverse
+22:0-79 fg=#78828c
+23:2-3 fg=#969696
+23:5-9 fg=#969696
+23:11-14 fg=#969696
+23:16-17 fg=#969696
+23:19-19 fg=#969696
+23:21-21 fg=#969696
+23:23-25 fg=#969696
+23:27-30 fg=#969696
+23:32-32 fg=#969696
+23:34-34 fg=#969696
+23:36-41 fg=#969696
+== synth-fullscreen-80x24 after 148 of 296 ==
+cursor 0,16 hidden
+|❯ long was a the was it                                                         |
+|                                                                                |
+|⏺ what the a follow in shadow in long course the number bars counts down shark  |
+|  and writes slate and down the and counts is a back a                          |
+|                                                                                |
+|  ┌───────┬────────┬───────┐                                                    |
+|  │ Name  │ Colour │ Count │                                                    |
+|  ├───────┼────────┼───────┤                                                    |
+|  │ shark │ grey   │ 3     │                                                    |
+|  │ 鯨    │ blue   │ 12    │                                                    |
+|  └───────┴────────┴───────┘                                                    |
+|                                                                                |
+|❯ tell the                                                                      |
+|                                                                                |
+|⏺ nobody the in the whale 한국어 today to shadow fish whale needs along         |
+|                                                                                |
+|❯ slow on                                                                       |
+|❯ slow on                                                                       |
+|                                                                                |
+|✻ Drifting…                                                                     |
+|────────────────────────────────────────────────────────────────────────────────|
+|❯                                                                               |
+|────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help · ◐ steady                                    |
+0:0-22 fg=#ffffff bg=#32373c
+2:0-0 fg=#ffffff
+12:0-9 fg=#ffffff bg=#32373c
+14:0-0 fg=#ffffff
+16:0-8 fg=#ffffff bg=#32373c
+17:0-8 fg=#ffffff bg=#32373c
+19:0-6 fg=#40a0d0
+19:7-7 fg=#8ccdeb
+19:8-10 fg=#40a0d0
+20:0-79 fg=#78828c
+21:2-2 reverse
+22:0-79 fg=#78828c
+23:2-3 fg=#969696
+23:5-9 fg=#969696
+23:11-14 fg=#969696
+23:16-17 fg=#969696
+23:19-19 fg=#969696
+23:21-23 fg=#969696
+23:25-27 fg=#969696
+23:29-32 fg=#969696
+23:34-34 fg=#969696
+23:36-36 fg=#969696
+23:38-43 fg=#969696
+== synth-fullscreen-80x24 after 222 of 296 ==
+cursor 31,21 hidden
+|  }                                                                             |
+|                                                                                |
+|❯ pale 日本語                                                                   |
+|                                                                                |
+|⏺ boat reef shark in needs where a pale looking counts others reef seen to is   |
+|  né smaller comes nobody what warm what                                        |
+|                                                                                |
+|  ┌───────┬────────┬───────┐                                                    |
+|  │ Name  │ Colour │ Count │                                                    |
+|  ├───────┼────────┼───────┤                                                    |
+|  │ shark │ grey   │ 3     │                                                    |
+|  │ 鯨    │ blue   │ 12    │                                                    |
+|  └───────┴────────┴───────┘                                                    |
+|                                                                                |
+|❯ it seen filters it whale its                                                  |
+|                                                                                |
+|⏺ nobody in needs on tell counts 한국어 on bars keeps nobody filters 海の魚     |
+|  spots tell while in in a while rises fish                                     |
+|                                                                                |
+|                                                                                |
+|────────────────────────────────────────────────────────────────────────────────|
+|❯ along a diver deck tell what                                                  |
+|────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · ? for help · ◐ steady                                      |
+2:0-12 fg=#ffffff bg=#32373c
+4:0-0 fg=#ffffff
+14:0-29 fg=#ffffff bg=#32373c
+16:0-0 fg=#ffffff
+20:0-79 fg=#78828c
+21:31-31 reverse
+22:0-79 fg=#78828c
+23:2-3 fg=#969696
+23:5-9 fg=#969696
+23:11-14 fg=#969696
+23:16-17 fg=#969696
+23:19-19 fg=#969696
+23:21-21 fg=#969696
+23:23-25 fg=#969696
+23:27-30 fg=#969696
+23:32-32 fg=#969696
+23:34-34 fg=#969696
+23:36-41 fg=#969696
+== synth-fullscreen-80x24 after 296 of 296 ==
+cursor 0,4 shown
+|                                                                                |
+|The pool is closed.                                                             |
+|Come back with: pool --again                                                    |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+1:0-18 dim
+2:0-27 dim

@@ -1,0 +1,106 @@
+== nano-50x15 after 14 of 54 ==
+cursor 12,2 shown
+|  UW PICO 5.09     File: alpha.txt      Modified  |
+|                                                  |
+|typed at thealpha one                             |
+|alpha two                                         |
+|alpha three                                       |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|^G Get H^O Write^R Read ^Y Prev ^K Cut T^C Cur P  |
+|^X Exit ^J Justi^W Where^V Next ^U UnCut^T To Sp  |
+0:0-49 reverse
+13:0-1 reverse
+13:8-9 reverse
+13:16-17 reverse
+13:24-25 reverse
+13:32-33 reverse
+13:40-41 reverse
+14:0-1 reverse
+14:8-9 reverse
+14:16-17 reverse
+14:24-25 reverse
+14:32-33 reverse
+14:40-41 reverse
+== nano-50x15 after 27 of 54 ==
+cursor 24,4 shown
+|  UW PICO 5.09     File: alpha.txt      Modified  |
+|                                                  |
+|typed at the top alpha one                        |
+|alpha two                                         |
+|alpha three and at the e                          |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|^G Get H^O Write^R Read ^Y Prev ^K Cut T^C Cur P  |
+|^X Exit ^J Justi^W Where^V Next ^U UnCut^T To Sp  |
+0:0-49 reverse
+13:0-1 reverse
+13:8-9 reverse
+13:16-17 reverse
+13:24-25 reverse
+13:32-33 reverse
+13:40-41 reverse
+14:0-1 reverse
+14:8-9 reverse
+14:16-17 reverse
+14:24-25 reverse
+14:32-33 reverse
+14:40-41 reverse
+== nano-50x15 after 41 of 54 ==
+cursor 8,12 shown
+|  UW PICO 5.09     File: alpha.txt      Modified  |
+|                                                  |
+|typed at the top alpha one                        |
+|alpha two                                         |
+|alpha three and at the end of a line              |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|Search:                                           |
+|^G Get H^Y First^R Repla^T LineN^O End o          |
+|^C Cance^V LastL^^ Optns^W Start^U FullJ          |
+0:0-49 reverse
+12:0-49 reverse
+13:0-1 reverse
+13:8-9 reverse
+13:16-17 reverse
+13:24-25 reverse
+13:32-33 reverse
+14:0-1 reverse
+14:8-9 reverse
+14:16-17 reverse
+14:24-25 reverse
+14:32-33 reverse
+== nano-50x15 after 54 of 54 ==
+cursor 0,0 shown
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |

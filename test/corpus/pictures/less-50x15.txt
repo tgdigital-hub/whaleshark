@@ -1,0 +1,69 @@
+== less-50x15 after 9 of 35 ==
+cursor 1,14 shown
+|gamma line 8: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 9: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 10: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 11: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 12: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 13: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 14: the quick brown fox jumps over the |
+|lazy dog                                          |
+|/                                                 |
+== less-50x15 after 18 of 35 ==
+cursor 0,11 shown
+|gamma line 8: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 9: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 10: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 11: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 12: the quick brown fox jumps over the |
+|lazy dog                                          |
+|gamma line 13: the quick brown fox jumps over the |
+| azy dog                                          |
+|gamma line 14: the quick brown fox jumps over the |
+|lazy dog                                          |
+|                                                  |
+== less-50x15 after 27 of 35 ==
+cursor 47,14 shown
+|gamma line 1: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 2: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 3: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 4: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 5: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 6: the quick brown fox jumps over the l|
+|azy dog                                           |
+|gamma line 7: the quick brown fox jumps over the l|
+|azy dog                                           |
+|Constantly display line numbers  (press RETURN)   |
+14:0-46 reverse
+== less-50x15 after 35 of 35 ==
+cursor 0,0 shown
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
