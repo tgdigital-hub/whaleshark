@@ -1,6 +1,7 @@
 package runtask
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -63,9 +64,7 @@ func run(c *contract.Call) (any, error) {
 		}
 		var kept []string
 		if err == nil {
-			for _, a := range s.Attempts {
-				launch.DropTemp(k, a)
-			}
+			launch.Leave(k, s)
 			kept, err = k.Placement.Forget(c.Root, s)
 		}
 		if err == nil {
@@ -106,10 +105,27 @@ func run(c *contract.Call) (any, error) {
 			})
 		}
 	}
+	// A closed run binds no tab and goes nowhere: the open ones are named instead.
+	var r *contract.Refusal
+	if errors.As(err, &r) && r.Code == "closed" && (sub == "takeover" || sub == "use") {
+		for _, other := range runs {
+			if s, err := k.Store.Read(c.Root, other); err == nil && s.Run.ClosedAt.IsZero() {
+				r.Next = append(r.Next, "whaleshark run "+map[string]string{"use": "use ", "takeover": "takeover --run "}[sub]+other)
+			}
+		}
+		if len(r.Next) == 0 {
+			r.Next = []string{`whaleshark run new "<objective>"`}
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 	fmt.Fprintf(c.Out, "Run %s is %s.\n", id, said)
+	// What a closed run leaves (its tabs with their names, its copies of
+	// the code, its branches) stays until the run is removed.
+	if s, err := k.Store.Read(c.Root, id); sub == "close" && err == nil && len(s.Attempts) > 0 {
+		fmt.Fprintf(c.Out, "Its tabs, copies of the code and branches stay until it is removed.\nNext: whaleshark run rm %s\n", id)
+	}
 	return map[string]string{"run": id}, nil
 }
 

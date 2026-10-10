@@ -194,7 +194,7 @@ var Commands = []Command{
 		Usage:   `run new "<objective>" [--base REF] [--limit N] [--park] / run list / run show / run use <id> / run close [--abandon] / run rm <id> / run takeover`,
 		Help:    "start, list, show, switch, close or delete a run, or bind it to this pane",
 		Flags:   flags("base=REF", "limit=N", "park", "abandon"),
-		Subs:    []Sub{{Name: "new", Who: O | H | U}, {Name: "takeover", Who: O | H | U}, {Name: "use", Who: O | H | U}, {Name: "list", Who: O | H | U}, {Name: "show", Who: O | H | U}},
+		Subs:    []Sub{{Name: "new", Who: O | H | U}, {Name: "takeover", Who: O | H | U}, {Name: "use", Who: O | H | U}, {Name: "list", Who: O | H | U}, {Name: "show", Who: O | H | U}, {Name: "rm", Who: O | H | U}},
 		Example: "whaleshark run close"},
 	{Name: "task", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 2, 4, 5},
 		Usage:   `task add <id> "<title>" --brief FILE --check CMD|none [--name "<up to three words>"] [--after A,B] [--owns PATTERN,...] [--shared | --cwd DIR] [--agent KIND] [--model M] [--browser-check] / task edit <id> [--brief FILE] [--check CMD|none] [--owns ...] [--after ...] / task cancel <id> / task reset <id>`,

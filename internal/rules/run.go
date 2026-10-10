@@ -128,10 +128,16 @@ func (Rules) Allowed(s *contract.State, c contract.Caller, command, sub string) 
 		}
 		return refused("human_only", "Only the person may run %s.", command)
 	}
-	if s == nil || cmd.May(contract.Unbound, sub) {
+	// A run is removed from the pane it is bound to, or was when it was
+	// closed: a closed run binds no pane, so its lead agent is unbound by then.
+	rm := command == "run" && sub == "rm"
+	if s == nil || cmd.May(contract.Unbound, sub) && !rm {
 		return nil
 	}
-	if o := s.Run.Orchestrator; c.Kind == contract.Orchestrator && (o == nil || o.Pane != c.Pane) {
+	if o := s.Run.Orchestrator; (c.Kind == contract.Orchestrator || c.Kind == contract.Unbound) && (o == nil || o.Pane != c.Pane) {
+		if rm && open(s) != nil {
+			return refused("not_bound", "Run %s was bound to another pane: that pane's agent removes it, or the person.", s.Run.ID)
+		}
 		return next(refused("not_bound", "Run %s is bound to another pane.", s.Run.ID), "whaleshark run takeover")
 	}
 	if c.Kind == contract.Worker && s.Attempts[c.Attempt] == nil {

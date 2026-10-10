@@ -77,6 +77,7 @@ For:      the lead agent, the person
           run use: the lead agent, the person, a tab not bound to a run
           run list: the lead agent, the person, a tab not bound to a run
           run show: the lead agent, the person, a tab not bound to a run
+          run rm: the lead agent, the person, a tab not bound to a run
 Flags:    --base REF
           --limit N
           --park

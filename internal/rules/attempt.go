@@ -38,7 +38,7 @@ func (r Rules) Start(s *contract.State, task string, retry, paneHoldsAgent bool,
 	case prev != nil && !retry:
 		return "", next(refused("needs_retry", "%s was tried before.", t.ID), "whaleshark start "+t.ID+" --retry")
 	case prev != nil && paneHoldsAgent:
-		return "", next(refused("pane_busy", "The tab of %s still holds an agent.", prev.ID), "whaleshark show "+t.ID+" --screen")
+		return "", next(refused("pane_busy", "The tab of %s still holds an agent.", prev.ID), "whaleshark show "+t.ID+" --screen", "whaleshark close "+t.ID)
 	}
 	if err := pass(s, t, now); err != nil {
 		return "", err
