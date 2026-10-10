@@ -2,6 +2,7 @@ package theme
 
 import (
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -54,6 +55,9 @@ func TestEverySchemeNamesTheSixteenAndIsReadable(t *testing.T) {
 			if f, ok := floor[name]; ok {
 				want = f
 			}
+			if s.Name == "mono" && (c>>16 != c&0xff || c>>8&0xff != c&0xff) {
+				t.Errorf("mono: %s is %06x, which is no grey", name, c)
+			}
 			if got := contrast(c, s.Ground); got < want {
 				t.Errorf("%s: %s is %.2f to 1 against its background, want %.1f", s.Name, name, got, want)
 			}
@@ -62,6 +66,13 @@ func TestEverySchemeNamesTheSixteenAndIsReadable(t *testing.T) {
 }
 
 func TestGetAndNext(t *testing.T) {
+	var names []string
+	for _, s := range Schemes {
+		names = append(names, s.Name)
+	}
+	if got := strings.Join(names, " "); got != "reef paper kelp ember mono none" {
+		t.Errorf("the schemes are %s", got)
+	}
 	if Schemes[0].Name != contract.PersonDefaults().UI.Theme {
 		t.Errorf("the first scheme is %s, the default setting is %s", Schemes[0].Name, contract.PersonDefaults().UI.Theme)
 	}

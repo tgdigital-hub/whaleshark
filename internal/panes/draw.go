@@ -186,9 +186,21 @@ func (p *pane) drawOver() {
 			st = bold(st)
 			t.Put(0, y, 1, p.glyph("▌", "|"), p.st("accent"))
 		}
-		rw := term.Width(e.right)
-		t.Put(2, y, w-rw-4, p.cut(e.text, w-rw-4), st)
+		// A line with nothing to choose is read: what does not fit goes on
+		// below it, from its last space on. One to choose stays one row.
+		rw, lines := term.Width(e.right), []string{e.text}
+		if r := []rune(e.text); e.do == nil && term.Width(e.text) > w-rw-4 {
+			if at := strings.LastIndex(string(r[:min(len(r), max(w-rw-4, 0))]), " "); at > 0 {
+				lines = append([]string{e.text[:at]}, wrap(e.text[at:], w-8)...)
+			}
+		}
+		t.Put(2, y, w-rw-4, p.cut(lines[0], w-rw-4), st)
 		t.Put(w-rw-1, y, rw, e.right, p.st("dim"))
+		for _, l := range lines[1:] {
+			if y++; y < h-1 {
+				t.Put(6, y, w-7, l, st)
+			}
+		}
 		if e.do != nil {
 			p.hits = append(p.hits, hit{0, y, w, 1, false, func() {
 				p.pick = i
@@ -249,7 +261,7 @@ func (p *pane) hintLine(y, limit int, keys, away string) {
 		p.line.Draw(p.t.Grid, x, y, limit-x, p.st("text"), true)
 		return
 	case p.hint != "":
-		p.t.Put(x, y, limit-x, p.hint, p.st("accent"))
+		p.t.Put(x, y, limit-x, p.cut(p.hint, limit-x), p.st("accent"))
 		return
 	case p.focused:
 		x += p.t.Put(x, y, limit-x, "KEYS GO HERE", bold(p.st("accent")))
@@ -362,8 +374,14 @@ func (p *pane) drawFleet(now time.Time) {
 	keys := "enter go there · f hide · [ ] width"
 	switch y = h - foot; {
 	case !narrow:
-		show(3+t.Put(1, y, w-1, done, dim), y)
-		p.hintLine(y+1, w, keys, keys)
+		if said := wrap(p.hint, w-2); len(said) > 1 && p.line == nil {
+			// What a command answered is read whole: it takes the row above too.
+			t.Put(1, y, w-1, said[0], p.st("accent"))
+			t.Put(1, y+1, w-1, p.cut(strings.Join(said[1:], " "), w-2), p.st("accent"))
+		} else {
+			show(3+t.Put(1, y, w-1, done, dim), y)
+			p.hintLine(y+1, w, keys, keys)
+		}
 		t.Put(1, y+2, w-1, p.cut(age, w-1), ageSt)
 	case term.Width(done+" [show] · "+age) < w:
 		if foot == 2 {
@@ -422,7 +440,7 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 	t.Put(w-ww, y, ww, word, st(c.Colour))
 	// The state word opens what can be done with this agent.
 	if len(c.Actions) > 0 {
-		p.hits = append(p.hits, hit{w - ww, y, ww, 1, false, func() { p.sel, p.shown, p.over, p.pick = c.Task, c, "card", 0 }})
+		p.hits = append(p.hits, hit{w - ww, y, ww, 1, false, func() { p.offer(c) }})
 	}
 
 	ctx, cells := "  ctx unknown", (c.Ctx+10)/20
@@ -523,7 +541,11 @@ func (p *pane) drawActions(now time.Time) {
 		if p.folded || room < 3 {
 			return 1
 		}
-		return 2 + min(len(wrap(items[i].Text, w-6)), max(room-3, 1))
+		n := 2 + min(len(wrap(items[i].Text, w-6)), max(room-3, 1))
+		if p.heldAt(items[i].ID) == 0 {
+			n++ // the line that says how many are held
+		}
+		return n
 	}
 	fit, used := p.window(len(items), room, height), 0
 	for i := range len(items) {
@@ -555,17 +577,31 @@ func (p *pane) drawActions(now time.Time) {
 	}
 }
 
+// heldAt is the place of an item among those Do not disturb keeps back, or -1.
+func (p *pane) heldAt(id string) int {
+	return slices.IndexFunc(p.view.Held, func(it contract.Item) bool { return it.ID == id })
+}
+
 // item is one thing that waits for the person, in one of its four forms:
 // who asks, the text as it was asked, and the buttons or the line to type on.
-// In one row it is its name and its text.
+// In one row it is its name and its text. One that Do not disturb keeps back
+// is dim, and the first of them stands under the line that counts them.
 func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
-	t, w, lk := p.t, p.t.W, look(it.Look)
+	t, w, lk, held := p.t, p.t.W, look(it.Look), p.heldAt(it.ID)
 	p.mark(y, rows, it.ID)
 	p.hits = append(p.hits, hit{0, y, w, rows, false, func() {
 		p.sel, p.follow = it.ID, true
 		p.fold(false)
 	}})
-	name := p.st("text")
+	text := p.st("text")
+	if held >= 0 {
+		text, lk.Colour = p.st("dim"), "dim"
+	}
+	if held == 0 && rows > 1 {
+		t.Put(3, y, w-3, fmt.Sprintf("held: %d · do not disturb is on", len(p.view.Held)), p.st("dim"))
+		y, rows = y+1, rows-1
+	}
+	name := text
 	if it.ID == p.sel {
 		name = bold(name)
 		t.Put(1, y, 1, p.glyph("›", ">"), p.st("needs"))
@@ -576,7 +612,7 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 		x += t.Put(x, y, w-x, " · ", p.st("dim"))
 	}
 	if rows == 1 {
-		t.Put(x, y, w-x, p.cut(it.Text, w-x-1), p.st("text"))
+		t.Put(x, y, w-x, p.cut(it.Text, w-x-1), text)
 		return
 	}
 	since := "now"
@@ -589,7 +625,7 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 		lines[n-1] = p.cut(lines[n-1]+" "+lines[n], w-6)
 	}
 	for i, l := range lines[:min(len(lines), rows-2)] {
-		t.Put(5, y+1+i, w-6, l, p.st("text"))
+		t.Put(5, y+1+i, w-6, l, text)
 	}
 	x, y = 5, y+rows-1
 	draft := p.ui.Drafts[it.ID]
@@ -610,7 +646,7 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 		p.hits = append(p.hits, hit{x, y, w - x, 1, false, func() { p.open(it.ID, "") }})
 	}
 	for _, b := range it.Buttons {
-		x += p.button(x, y, "[ "+b.Label+" ]", p.st("text"), func() { p.press(it, b) }) + 2
+		x += p.button(x, y, "[ "+b.Label+" ]", text, func() { p.press(it, b) }) + 2
 	}
 	if draft != "" && len(it.Buttons) > 0 && it.Answer == "" {
 		t.Put(x, y, w-x-1, p.cut("· typed: "+draft, w-x-1), p.st("dim"))
@@ -639,6 +675,9 @@ func (p *pane) strip(now time.Time) {
 	}
 	if s.StillRunning > 0 {
 		more = append(more, fmt.Sprintf(" · %d still running", s.StillRunning))
+	}
+	if n := len(v.Held); n > 0 {
+		more = append(more, fmt.Sprintf(" · %d held", n))
 	}
 	if !s.Away.IsZero() {
 		more = append(more, " · away "+ago(now.Sub(s.Away))+" · press c")

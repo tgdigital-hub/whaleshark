@@ -190,6 +190,8 @@ func (p *pane) key(ev term.Event) bool {
 		p.hand(map[string]string{fleet: actions, actions: fleet}[p.kind])
 	case key == "esc":
 		p.hand("")
+	case key == "o" && p.cardOf(p.sel) != nil:
+		p.offer(*p.cardOf(p.sel))
 	default:
 		p.hint, p.asked, p.sure = "", p.sure, ""
 		if it := p.picked(); it != nil {
@@ -211,6 +213,13 @@ func (p *pane) key(ev term.Event) bool {
 		}
 	}
 	return true
+}
+
+// offer opens what can be done with a card.
+func (p *pane) offer(c contract.Card) {
+	if len(c.Actions) > 0 {
+		p.sel, p.shown, p.over, p.pick = c.Task, c, "card", 0
+	}
 }
 
 // press is a button of an item: an answer given at once, the typing line
@@ -289,6 +298,14 @@ func (p *pane) act(id string, fill map[string]string) {
 		p.all, p.stale = !p.all, true
 	case id == "show":
 		p.over, p.pick = "answered", 0
+	case id == "team" && fill["name"] == "":
+		p.child(p.cmd("team", "list", "--json"), "", func(out []byte, said string, ok bool) {
+			if p.teams = nil; !ok || !result(out, &p.teams) {
+				p.hint = cmp.Or(said, "the saved teams could not be read")
+			} else if p.over, p.pick = "teams", 0; len(p.teams) == 0 {
+				p.over, p.hint = "", "no team is saved yet: whaleshark team save <name>"
+			}
+		})
 	case a.How == contract.HowResize:
 		p.widen(id == "wider")
 	case a.How == contract.HowPoint && p.state != nil && p.state.Run.Orchestrator != nil:
@@ -341,6 +358,9 @@ func (p *pane) launch(a contract.Action, fill map[string]string) {
 			return
 		}
 	}
+	if goal := fill["goal"]; goal != "" {
+		argv = append(argv, "--goal="+goal)
+	}
 	switch {
 	case p.self == "":
 		p.hint = a.Label + ": this pane was not started by the program"
@@ -359,7 +379,9 @@ func (p *pane) launch(a contract.Action, fill map[string]string) {
 		})
 	default:
 		p.child(p.cmd(argv...), fill["text"], func(out []byte, said string, ok bool) {
-			if lines := strings.Split(strings.TrimSpace(string(out)), "\n"); ok {
+			if lines := strings.Split(strings.TrimSpace(string(out)), "\n"); ok && a.ID == "answer" {
+				said = "" // the item says it, and counts down how long it can be taken back
+			} else if ok {
 				said = lines[len(lines)-1]
 			} else if p.kind == menu {
 				p.over = menu
@@ -493,6 +515,14 @@ func (p *pane) hand(to string) {
 	})
 }
 
+// saved is a team as `team list` answers it. One whose words hold {goal}, or
+// which has briefs that may, is run with a goal.
+type saved struct {
+	Name, From, About string
+	Held              bool
+	Tasks             []struct{ Title, Brief string }
+}
+
 // entry is one line of a list drawn over the pane: what it says, what
 // stands at its right, and what Enter or a click on it does.
 type entry struct {
@@ -527,13 +557,42 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 		}
 		if p.over == "keys" {
 			for _, k := range [][2]string{{"Choose an item or a card", "j k"}, {"The first button, the second, the typing line", "y n o"},
-				{"Pick an option", "1-9"}, {"Send the typed line; leave it", "enter esc"}, {"Between the two panes", "tab"},
+				{"Pick an option", "1-9"}, {"What can be done with a card", "o"}, {"Send the typed line; leave it", "enter esc"}, {"Between the two panes", "tab"},
 				{"Back to the conversation", "esc"}, {"Leave this pane", "q"}} {
 				list = append(list, entry{text: k[0], right: k[1]})
 			}
 			return "all keys", list, "any key closes"
 		}
-		return "every action", list, fmt.Sprintf("%d actions · type to search · enter runs it · esc closes", len(list))
+		// The person's own settings are lines of this list: each says what
+		// it is now, or what choosing it makes of it.
+		on, n := map[bool]string{true: "on", false: "off"}, p.cfg.Nudge
+		side := map[bool]string{true: "bottom", false: "top"}[p.above]
+		rows := [][4]string{{"The action pane at the " + side, "", "actions", side}, {"A sound when you are needed", on[n.Sound], "nudge.sound", "toggle"},
+			{"A pop-up when you are needed", on[n.Popup], "nudge.popup", "toggle"}, {"A message to the phone when you are needed", on[n.Phone], "nudge.phone", "toggle"}}
+		for _, s := range theme.Schemes {
+			rows = append(rows, [4]string{"Colour scheme: " + s.Name, map[bool]string{true: "now"}[s.Name == p.scheme.Name], "theme", s.Name})
+		}
+		for _, r := range rows {
+			if strings.Contains(strings.ToLower(r[0]), strings.ToLower(p.query.String())) {
+				list = append(list, entry{r[0], r[1], close(func() { p.act("set", map[string]string{"key": r[2], "value": r[3]}) })})
+			}
+		}
+		return "every action", list, fmt.Sprintf("%d actions and settings · type to search · enter runs it · esc closes", len(list))
+	case "teams":
+		for _, t := range p.teams {
+			run := func(goal string) { p.act("team", map[string]string{"name": t.Name, "goal": goal}) }
+			e := entry{strings.TrimSuffix(t.Name+" · "+t.About, " · "), fmt.Sprintf("%d tasks", len(t.Tasks)), close(func() { run("") })}
+			if t.Held {
+				e.right = "not approved"
+			}
+			if slices.ContainsFunc(t.Tasks, func(k struct{ Title, Brief string }) bool {
+				return k.Brief != "" || strings.Contains(k.Title, "{goal}")
+			}) {
+				e.do = close(func() { p.ask("Goal for "+t.Name, run) })
+			}
+			list = append(list, e)
+		}
+		return "saved teams", list, "enter adds its tasks to the run and starts nothing · esc closes"
 	case "catchup":
 		c := p.catch
 		row := func(label string, n int, text string) {

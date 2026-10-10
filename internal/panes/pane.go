@@ -60,6 +60,7 @@ type pane struct {
 	ui      contract.UIFile
 	figures map[string]contract.CtxFile
 	limits  contract.ProjectFile
+	cfg     contract.PersonConfig
 	chosen  string // the scheme the settings file names
 	watch   contract.Watcher
 	filesOK time.Time
@@ -73,6 +74,7 @@ type pane struct {
 	view    contract.View
 	cards   []contract.Card
 	holding map[string]bool // the items that hold work up, as last built
+	held    int             // how many Do not disturb kept back, as last built
 	stale   bool            // the view model must be built again
 	dirty   bool            // the screen must be drawn again
 
@@ -113,6 +115,7 @@ type pane struct {
 	pick             int
 	query            term.Line
 	catch            contract.Catchup
+	teams            []saved
 	away             time.Time // when the person left, kept until they have been caught up
 	shown            contract.Card
 	sure, asked      string // the row that asked "sure?", and the one a second press confirms
@@ -359,9 +362,9 @@ func (p *pane) load() {
 	// The engine's command key, for the hint that names it.
 	keys, _ := contract.ReadSettings(p.k.Platform.Peek, dirs)
 	p.command = keys.Keys.Command
-	cfg := person(p.k, dirs)
-	if p.above = cfg.UI.Actions == "top"; cfg.UI.Theme != p.chosen {
-		p.chosen, p.scheme = cfg.UI.Theme, theme.Get(cfg.UI.Theme)
+	p.cfg = person(p.k, dirs)
+	if p.above = p.cfg.UI.Actions == "top"; p.cfg.UI.Theme != p.chosen {
+		p.chosen, p.scheme = p.cfg.UI.Theme, theme.Get(p.cfg.UI.Theme)
 	}
 }
 
@@ -407,8 +410,9 @@ func (p *pane) build() {
 	for _, s := range p.view.Sections {
 		p.cards = append(p.cards, s.Cards...)
 	}
-	// An answer that may still be taken back stays where its item stood.
-	p.items = slices.Clone(p.view.Items)
+	// What Do not disturb keeps back is listed after what waits. An answer
+	// that may still be taken back stays where its item stood.
+	p.items = append(slices.Clone(p.view.Items), p.view.Held...)
 	for _, it := range p.view.Answered {
 		if at := slices.Index(order, it.ID); p.kind != fleet && now.Before(it.Settles) && it.Used.IsZero() {
 			p.items = slices.Insert(p.items, min(max(at, 0), len(p.items)), it)
@@ -429,7 +433,11 @@ func (p *pane) build() {
 			p.fold(false)
 		}
 	}
-	p.holding, p.stale = holding, false
+	// Do not disturb is over: what it kept back is shown.
+	if n := len(p.view.Held); p.held > 0 && n == 0 && !p.view.Strip.DND {
+		p.fold(false)
+	}
+	p.holding, p.held, p.stale = holding, len(p.view.Held), false
 }
 
 // ids is the list a pane chooses from: the cards by task, or the items.

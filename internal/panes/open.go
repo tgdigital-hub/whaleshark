@@ -96,6 +96,27 @@ func hand(t contract.Terminals, ui contract.UIFile, to string) error {
 	return err
 }
 
+// move takes an open action pane to the other side of the conversation. The
+// two change places, which leaves each the other's height; the line between
+// them is then moved by the half that gives the conversation its share back,
+// and once more for a pane that is folded. The keys end where they were.
+func move(t contract.Terminals, ui contract.UIFile, me string, top bool) error {
+	from, err := talk(t, ui)
+	if err == nil && from == "" {
+		err = contract.ErrNoPane
+	}
+	if err == nil {
+		err = t.Swap(from, ui.ActionsPane)
+	}
+	for n := 0; err == nil && (n < 1 || n < 2 && ui.Folded); n++ {
+		err = t.Resize(ui.ActionsPane, map[bool]string{true: contract.Up, false: contract.Down}[top], most)
+	}
+	if me == ui.ActionsPane || me == ui.FleetPane {
+		t.PaneFocus(me, "")
+	}
+	return err
+}
+
 // Opened is what `ui` answers: the pane of each of ours that is open now.
 type Opened struct {
 	Fleet   string `json:"fleet,omitempty"`
@@ -215,7 +236,8 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 	}
 	if err == nil && wantActions && !ac.open {
 		side := map[bool]string{true: contract.Up, false: contract.Down}[person(k, dirs).UI.Actions == "top"]
-		err = split(actions, side, talkShare, ac.pane)
+		// A pane opened anew has its whole share, whatever the last one was left at.
+		err, ui.Folded = split(actions, side, talkShare, ac.pane), false
 	}
 	// What was opened is written down even when a later step failed.
 	if fmt.Sprint(ui) != fmt.Sprint(was) {

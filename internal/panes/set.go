@@ -42,6 +42,7 @@ func set(c *contract.Call) (any, error) {
 		return nil, err
 	}
 	cfg := person(k, dirs)
+	side := cfg.UI.Actions
 	draft, isDraft := strings.CutPrefix(key, "draft.")
 	var names []string
 	for _, s := range theme.Schemes {
@@ -113,7 +114,7 @@ func set(c *contract.Call) (any, error) {
 		if err = toml.NewEncoder(&b).Encode(cfg); err == nil {
 			err = replace(k, filepath.Join(dirs.Config, contract.ConfigFile), b.Bytes())
 		}
-		if key == "actions" && err == nil && ui.ActionsPane != "" {
+		if key == "actions" && err == nil && ui.ActionsPane != "" && value != side && move(k.Terms, ui, c.Caller.Pane, value == "top") != nil {
 			fmt.Fprintln(c.Out, "the action pane moves when it is next opened: whaleshark ui actions off, then on")
 		}
 	} else {
