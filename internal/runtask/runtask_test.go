@@ -499,3 +499,21 @@ func TestAParkedRunIsNamedToThePerson(t *testing.T) {
 	play(t, p.Command(scenario.Human, "run", "rm", "r1"), 0, "removed")
 	play(t, p.Command(scenario.Human, "status"), 0, "No run is open in this project", "whaleshark run new")
 }
+
+// init by a person with no terminal and nothing on standard input, as a
+// script or another program runs it: the question about agent tools is put
+// to nobody. It is not printed, and init says that no tool was set up and
+// how one is.
+func TestInitAsksNobodyWhereNobodyIs(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	out := play(t, p.Command(scenario.Human, "init", "--adopt"), 0, "no agent tool was set up", "whaleshark init --agent KIND")
+	if strings.Contains(out, "Which agent tools") {
+		t.Errorf("init asked with nobody there:\n%s", out)
+	}
+	// A line handed in is an answer, and Enter alone is "none".
+	cmd := p.Command(scenario.Human, "init")
+	cmd.Stdin = strings.NewReader("\n")
+	if out := play(t, cmd, 0, "Which agent tools"); strings.Contains(out, "no agent tool was set up") {
+		t.Errorf("an empty answer was taken for nobody there:\n%s", out)
+	}
+}
