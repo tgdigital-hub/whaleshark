@@ -14,7 +14,7 @@ It says whose tab this is and what is open. Then:
 - You are the lead agent in another tab than before, and a command is refused as `not_bound`:
   `whaleshark run takeover`.
 - Another tab is the lead agent's: you are a visitor. Read, and change nothing.
-Open the two panes the person watches with `whaleshark ui`. After a restart they come back by themselves.
+`whaleshark ui` opens the two panes the person watches, or brings them to this tab; a restart keeps them.
 
 ## Plan
 One task is one piece of work for one worker. Write its brief as a file with these five headings:

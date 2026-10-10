@@ -35,7 +35,13 @@ func ui(c *contract.Call) (any, error) {
 			return nil, err
 		}
 		defer t.Close()
-		p := newPane(cmp.Or(a[1], menu), t, c.Kit, c.Root, c.Run, contract.Now)
+		// Only a run that was named is held to: a pane of the lead agent's
+		// tab shows whichever run that agent drives, also the next one.
+		run := ""
+		if c.Flags["run"] != nil {
+			run = c.Run
+		}
+		p := newPane(cmp.Or(a[1], menu), t, c.Kit, c.Root, run, contract.Now)
 		if p.self, _ = c.Kit.Platform.SelfPath(); p.loop() {
 			t.Close()
 			return nil, again(p.self)

@@ -102,6 +102,9 @@ type pane struct {
 	sweptAt    time.Time
 	here       time.Time
 	all, above bool // the done cards are shown; the action pane lies above the conversation
+	// No run was named: the pane shows the run of its tab's lead agent, and
+	// seek says the runs are to be looked through for it at the next load.
+	anyRun, seek bool
 
 	// items is what waits, with an answer that is still settling kept where
 	// its item stood. The typing line belongs to the item lineFor, or with
@@ -134,7 +137,7 @@ type pane struct {
 func newPane(kind string, t *term.Term, k *contract.Kit, root, run string, now func() time.Time) *pane {
 	build := func(in contract.ViewInput) contract.View { return *k.View(in) }
 	me, _ := contract.PaneOf(os.Getenv)
-	return &pane{kind: kind, t: t, k: k, root: root, run: run, now: now, make: build, heard: make(chan news), me: me,
+	return &pane{kind: kind, t: t, k: k, root: root, run: run, anyRun: run == "", seek: true, now: now, make: build, heard: make(chan news), me: me,
 		scheme: theme.Schemes[0], plainMarks: contract.PlainMarks(os.Getenv), px: -1, py: -1, lit: -1, stale: true, dirty: true}
 }
 
@@ -198,6 +201,7 @@ func (p *pane) loop() bool {
 			if !open {
 				p.watch = nil
 			}
+			p.seek = true
 			p.load()
 		case m := <-p.heard:
 			p.terms(m)
@@ -273,7 +277,12 @@ func (p *pane) terms(m news) {
 			p.present()
 		}
 	case m.look == 0:
-		p.picture, p.termsOK = m.snap, p.now()
+		first := p.picture == nil && p.anyRun
+		if p.picture, p.termsOK = m.snap, p.now(); first {
+			// Now the pane knows which tab it is in, and so whose run it shows.
+			p.seek = true
+			p.load()
+		}
 	case p.picture != nil:
 		p.compare(m.snap, m.look)
 	}
@@ -331,14 +340,25 @@ func (p *pane) load() {
 	p.stale, p.dirty = true, true
 	r := p.k.Reader()
 	dirs, err := p.k.Platform.Dirs()
-	if p.run == "" && err == nil {
-		p.run, err = r.Current(p.root)
+	if p.anyRun && err == nil {
+		// A pane outlives the run it was opened on, so it asks each time.
+		was := p.run
+		if p.run, err = p.showing(r); p.run != was && p.watch != nil {
+			p.watch.Close()
+			p.watch = nil
+		}
 	}
 	if p.watch == nil && err == nil {
 		paths := []string{filepath.Join(dirs.State, "ctx"), filepath.Join(dirs.State, contract.UIFileName),
 			filepath.Join(dirs.State, "paused"), filepath.Join(dirs.Config, contract.ConfigFile)}
+		if p.anyRun {
+			// Where a new run appears and where the person's pointer lies.
+			paths = append(paths, r.Dir(p.root, ""), filepath.Dir(r.Dir(p.root, "r1")))
+		}
 		if p.run != "" {
 			paths = append(paths, filepath.Join(r.Dir(p.root, p.run), contract.StateFile))
+		}
+		if p.run != "" || p.anyRun {
 			p.watch, _ = p.k.Platform.Watch(paths...)
 		}
 	}
@@ -366,6 +386,37 @@ func (p *pane) load() {
 	if p.above = p.cfg.UI.Actions == "top"; p.cfg.UI.Theme != p.chosen {
 		p.chosen, p.scheme = p.cfg.UI.Theme, theme.Get(p.cfg.UI.Theme)
 	}
+}
+
+// showing is the run of a pane that was started with none named: the open
+// run whose lead agent sits in the pane's own tab, the newest of them, and
+// with none there the run the person's commands go to.
+func (p *pane) showing(r contract.Reader) (string, error) {
+	tabs := map[string]string{}
+	if p.picture != nil {
+		for _, q := range p.picture.Panes {
+			tabs[q.ID] = q.Tab
+		}
+	}
+	// The records are read when something may have changed whose run this
+	// is, never on the clock: readers share the lock with every command.
+	var runs []string
+	if p.seek && tabs[p.me] != "" {
+		runs, _ = r.Runs(p.root)
+		p.seek = false
+	} else if p.run != "" && !p.seek {
+		return p.run, nil
+	}
+	for i := len(runs) - 1; i >= 0; i-- {
+		s, err := r.Read(p.root, runs[i])
+		if err != nil || !s.Run.ClosedAt.IsZero() {
+			continue
+		}
+		if o := s.Run.Orchestrator; o != nil && tabs[o.Pane] == tabs[p.me] {
+			return runs[i], nil
+		}
+	}
+	return r.Current(p.root)
 }
 
 // person reads the login's own settings over what holds when they say nothing.

@@ -3,6 +3,7 @@ package panes
 import (
 	"context"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,7 +39,15 @@ func (r reader) Read(string, string) (*contract.State, error) {
 	return r.state, nil
 }
 func (r reader) Current(string) (string, error) { return "r3", nil }
-func (r reader) Dir(_, run string) string       { return filepath.Join(r.dir, run) }
+
+// Dir lays the folders out as the store does: the project's own folder of
+// ours, and each run's under its runs.
+func (r reader) Dir(_, run string) string {
+	if run == "" {
+		return filepath.Join(r.dir, contract.ProjectDir)
+	}
+	return filepath.Join(r.dir, contract.ProjectDir, "runs", run)
+}
 
 // system is this system with a home of its own and env for its environment.
 // Windows keeps a program's files in two folders its environment names and
@@ -99,7 +108,7 @@ func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepa
 	k := contract.NewKit()
 	wd.sys = system(home, env)
 	k.Platform, k.Store = wd.sys, reader{dir: home, state: &fx.State, reads: &wd.reads, fails: &wd.fails}
-	wd.file = filepath.Join(home, "r3", "state.json")
+	wd.file = filepath.Join(k.Store.Dir(home, "r3"), "state.json")
 	os.MkdirAll(filepath.Dir(wd.file), 0o700)
 	wd.touch()
 	wd.double = fakeengine.New()
@@ -686,5 +695,66 @@ func TestWhatIsLit(t *testing.T) {
 	}
 	if st := p.t.At(mute, 0).Style; st.Reverse {
 		t.Errorf("with no colour a switch that is off is drawn %+v", st)
+	}
+}
+
+// several is a project with more than one run, each with its own record.
+type several struct {
+	reader
+	runs    map[string]*contract.State
+	current string
+}
+
+func (r several) Runs(string) ([]string, error) { return slices.Sorted(maps.Keys(r.runs)), nil }
+func (r several) Current(string) (string, error) {
+	return r.current, nil
+}
+func (r several) Read(_, run string) (*contract.State, error) {
+	r.reads.Add(1)
+	return r.runs[run], nil
+}
+
+// A pane that was started with no run named shows the run of the lead agent
+// in its own tab, the newest, whichever run the person's commands go to; so
+// a pane opened beside a lead agent shows its run, parked or not, and its
+// next. With no lead agent in its tab it follows the person's pointer. It
+// looks the runs through only when told that something changed.
+func TestAPaneShowsTheRunOfItsTabsLeadAgent(t *testing.T) {
+	led := func(pane string, closed bool) *contract.State {
+		s := &contract.State{Run: contract.Run{Orchestrator: &contract.Binding{Pane: pane}}}
+		if closed {
+			s.Run.ClosedAt = time.Unix(1, 0)
+		}
+		return s
+	}
+	var reads atomic.Int32
+	r := several{reader{reads: &reads}, map[string]*contract.State{"r1": led("old", false), "r2": led("lead", false), "r3": led("lead", true)}, "r1"}
+	k := contract.NewKit()
+	k.Store = r
+	p := newPane(fleet, nil, k, "/project", "", time.Now)
+	p.me = "mine"
+	shows := func(want string) {
+		t.Helper()
+		if got, err := p.showing(r); err != nil || got != want {
+			t.Fatalf("the pane shows %q, %v; want %q", got, err, want)
+		}
+		p.run = want
+	}
+	shows("r1") // no picture yet: the person's pointer
+	p.picture = &contract.Snapshot{Panes: []contract.Pane{{ID: "old", Tab: "t1"}, {ID: "lead", Tab: "t2"}, {ID: "mine", Tab: "t2"}}}
+	shows("r2") // the open run led from its tab, not the closed one and not the pointer's
+	before := reads.Load()
+	r.runs["r4"] = led("lead", false)
+	shows("r2") // nothing said that anything changed: no record is read
+	if reads.Load() != before {
+		t.Fatal("the pane read the records with nothing changed")
+	}
+	p.seek = true
+	shows("r4") // the lead agent's next run
+	p.me, p.seek = "elsewhere", true
+	shows("r1") // a tab with no lead agent: the pointer
+	// A run that was named is held to.
+	if q := newPane(fleet, nil, k, "/project", "r1", time.Now); q.anyRun {
+		t.Fatal("a pane started with a run named would leave it")
 	}
 }
