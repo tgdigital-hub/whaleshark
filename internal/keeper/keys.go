@@ -207,16 +207,21 @@ func (k *Keeper) back() {
 	k.changed()
 }
 
-// pack is the layout file as it is now.
+// pack is the layout file as it is now. No screen is read for it: a pane's
+// last lines are read by the saver when it needs them, under the pane's own
+// lock alone, so that neither a key nor a frame waits for them.
 func (k *Keeper) pack() *restore.File {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	f := &restore.File{W: k.lay.W, H: k.lay.H, NTab: k.nTab, NPane: k.nPane, Vars: maps.Clone(k.tabs)}
 	f.Layout, _ = json.Marshal(&k.lay)
+	keep := k.set.Scrollback.Keep
 	for _, p := range k.panes {
-		p.mu.Lock()
-		f.Panes = append(f.Panes, restore.Pane{Rec: p.rec, Argv: p.argv, Lines: restore.Text(p.scr, k.set.Scrollback.Keep)})
-		p.mu.Unlock()
+		f.Panes = append(f.Panes, restore.Pane{Rec: p.rec, Argv: p.argv, Count: p.count.Load(), Text: func() []string {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			return restore.Text(p.scr, keep)
+		}})
 	}
 	return f
 }

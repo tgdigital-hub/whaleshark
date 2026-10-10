@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -121,6 +122,7 @@ type held struct {
 	tty     contract.Pty
 	started []string
 	ready   bool
+	count   atomic.Uint64
 }
 
 // keeper is the stand-in: the real keeper's state that a restart is about,
@@ -206,11 +208,18 @@ func standIn() {
 	}
 	// The test kills this keeper as soon as it has the report, and a change
 	// is on disk a fifth of a second after it at the latest, later on a busy
-	// machine: so the report waits for a write made after every pane was ready.
-	for ready, f := time.Now(), (restore.File{}); f.At.Before(ready); time.Sleep(10 * time.Millisecond) {
+	// machine: so the report waits for a write made after every pane was
+	// ready, and for every pane's lines written after it, which come a few
+	// seconds after output.
+	for ready, f, all := time.Now(), (restore.File{}), false; f.At.Before(ready) || !all; time.Sleep(10 * time.Millisecond) {
 		k.saver.Changed()
 		data, _ := os.ReadFile(restore.Path(k.dirs))
 		json.Unmarshal(data, &f)
+		all = true
+		for id := range k.panes {
+			info, err := os.Stat(restore.Path(k.dirs) + "." + id)
+			all = all && err == nil && info.ModTime().After(ready)
+		}
 	}
 	k.tell()
 	// A change every few moments, so that the file is being written when
@@ -236,9 +245,11 @@ func (k *keeper) pack() *restore.File {
 	f := &restore.File{W: k.lay.W, H: k.lay.H, NTab: k.nTab, NPane: k.nPane, Vars: k.tabs}
 	f.Layout, _ = json.Marshal(&k.lay)
 	for _, p := range k.panes {
-		p.mu.Lock()
-		f.Panes = append(f.Panes, restore.Pane{Rec: p.rec, Argv: p.argv, Lines: restore.Text(p.scr, keep)})
-		p.mu.Unlock()
+		f.Panes = append(f.Panes, restore.Pane{Rec: p.rec, Argv: p.argv, Count: p.count.Load(), Text: func() []string {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			return restore.Text(p.scr, keep)
+		}})
 	}
 	return f
 }
@@ -285,6 +296,7 @@ func (k *keeper) read(p *held, tty contract.Pty) {
 		p.mu.Lock()
 		p.scr.Write([]byte(line))
 		p.mu.Unlock()
+		p.count.Add(uint64(len(line))) // #nosec G115 -- a length
 		k.saver.Flowed()
 		line = strings.TrimSpace(line)
 		if id, ok := strings.CutPrefix(line, "session: "); ok || line == "ready" {
