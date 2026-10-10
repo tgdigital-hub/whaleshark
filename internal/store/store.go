@@ -165,7 +165,12 @@ func (st *Store) Create(root string, s *contract.State) error {
 		return err
 	}
 	base := st.Dir(root, "")
-	if err := os.MkdirAll(base, 0o700); err != nil {
+	_, missing := os.Stat(base)
+	err := os.MkdirAll(base, 0o700)
+	if err == nil && missing != nil {
+		err = contract.ListProject(st.p, root) // made here, so this login's own (cli)
+	}
+	if err != nil {
 		return err
 	}
 	return st.locked(root, run, true, func(dir string) error {

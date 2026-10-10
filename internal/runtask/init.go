@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	installedFile = "installed.json"
+	installedFile = contract.InstalledFile
 	excludeLine   = ".whaleshark/"
 
 	kindHook, kindBlock, kindKeys = "hook", "block", "keys"
@@ -137,6 +137,9 @@ func (i *setting) project() error {
 			len(came), contract.ProjectDir, cli.Plain(came[0])))
 	}
 	ours := k.Store.Dir(c.Root, "")
+	if _, err := os.Stat(ours); err == nil && !cli.SetUp(c, c.Root) && f["adopt"] == nil {
+		return &contract.Refusal{Exit: contract.ExitEnv, Code: "brought_record", Message: cli.Foreign, Next: []string{"whaleshark init --adopt"}}
+	}
 	err := os.MkdirAll(ours, 0o700)
 	if err == nil {
 		err = k.Platform.Private(ours)
@@ -145,11 +148,7 @@ func (i *setting) project() error {
 		return refuse(contract.ExitEnv, "state_unwritable", "The project's folder of ours cannot be made: "+err.Error()+".")
 	}
 	i.say("%s is here, readable by you only", ours)
-	roots, err := contract.ReadProjects(k.Platform.Read, i.state)
-	if err == nil && !slices.ContainsFunc(roots, func(r string) bool { return k.Platform.PathKey(r) == k.Platform.PathKey(c.Root) }) {
-		err = contract.WriteProjects(k.Platform, i.state, append(roots, c.Root))
-	}
-	if err == nil {
+	if err = contract.ListProject(k.Platform, c.Root); err == nil {
 		err = i.exclude()
 	}
 	if err == nil {

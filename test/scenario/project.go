@@ -232,6 +232,9 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 		}
 		a.Place.Tab, a.Place.Pane, a.Place.Terminal, a.Place.Cwd = pane.Tab, pane.ID, pane.Terminal, p.Root
 	}
+	// The fixture's files lie in the project before its run is made: the
+	// project is this login's own all the same, as after init.
+	p.must(contract.ListProject(p.Kit.Platform, p.Root))
 	p.must(p.Kit.Store.Create(p.Root, &f.State))
 	p.must(p.Kit.Store.SetCurrent(p.Root, f.State.Run.ID))
 	p.must(contract.WriteVersioned(p.Kit.Platform, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, f.UI))

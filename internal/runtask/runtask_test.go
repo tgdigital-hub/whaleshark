@@ -362,8 +362,12 @@ func TestInitInTwoProjects(t *testing.T) {
 	}
 
 	// --remove --all takes out what every project uses, whatever the counts.
-	in(p.Root, scenario.Human, "claude\nyes\n", 0, "init", "--keys")()
-	in(second, scenario.Human, "claude\nyes\n", 0, "init", "--keys")()
+	// A project taken out keeps its folder of ours, which is then in no
+	// list: only the person takes it on again, and says so.
+	in(p.Root, scenario.Human, "claude\nyes\n", 3, "init", "--keys")("this login did not make", "init --adopt")
+	in(p.Root, scenario.Orch, "", 5, "init", "--adopt")("the person's to give")
+	in(p.Root, scenario.Human, "claude\nyes\n", 0, "init", "--keys", "--adopt")()
+	in(second, scenario.Human, "claude\nyes\n", 0, "init", "--keys", "--adopt")()
 	in(p.Root, scenario.Human, "", 0, "init", "--remove", "--all")("Every project is out")
 	if read(t, rules) != mine || !slices.Equal(keys(), []int{7, 7, 0, 7, 7, 0}) {
 		t.Fatalf("--remove --all left something behind: %v", keys())

@@ -54,6 +54,10 @@ func rootOf(c *contract.Call) (string, error) {
 	return cwd, err
 }
 
+// Foreign is what a command is told in a project whose folder of ours this
+// login never made.
+const Foreign = "A " + contract.ProjectDir + " folder is here that this login did not make: it came with a copy, an archive or a repository, or the project was moved. Its runs, checks and settings are somebody else's word and are not used. If it is not yours, delete it and run whaleshark init. If it is your own, moved or taken out with init --remove, whaleshark init --adopt takes it on again."
+
 // Brought lists what git tracks in the project's folder of ours. That folder
 // is the login's own record and no part of a repository: files of it that
 // come along with one are somebody else's word about runs, the commands
@@ -64,8 +68,9 @@ func Brought(root string) []string {
 	return strings.FieldsFunc(string(out), func(r rune) bool { return r == 0 })
 }
 
-// setUp reports whether init was run in this folder by this login.
-func setUp(c *contract.Call, root string) bool {
+// SetUp reports whether this login set the folder up itself: by init, or by
+// the store making the project's folder of ours.
+func SetUp(c *contract.Call, root string) bool {
 	p := c.Kit.Platform
 	dirs, _ := p.Dirs()
 	roots, _ := contract.ReadProjects(p.Peek, dirs.State)
@@ -102,9 +107,10 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	if err != nil {
 		problem = unusable(err)
 	}
-	if _, err := os.Stat(store.Dir(root, "")); err == nil && !setUp(c, root) && len(Brought(root)) > 0 {
-		problem = &contract.Refusal{Exit: contract.ExitEnv, Code: "brought_record", Next: []string{"git rm -r --cached " + contract.ProjectDir},
-			Message: "This repository brings a " + contract.ProjectDir + " folder along, and you never ran init here: its runs, checks and settings are somebody else's word and are not used. Take it out of git, delete what you did not make, then run whaleshark init."}
+	// The login's own list of projects decides whose a record is: init is
+	// the one way in for a folder this login did not make.
+	if _, err := os.Stat(store.Dir(root, "")); err == nil && !SetUp(c, root) && c.Command.Name != "init" {
+		problem = &contract.Refusal{Exit: contract.ExitEnv, Code: "brought_record", Message: Foreign, Next: []string{"whaleshark init --adopt"}}
 	}
 	var leads []string // the open runs that record this pane as their lead agent's
 	its := ""          // the open run with a live attempt in this pane
