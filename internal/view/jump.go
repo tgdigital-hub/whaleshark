@@ -28,7 +28,7 @@ func look(c *contract.Call) (*contract.State, contract.ViewInput, *contract.View
 func lookOr(c *contract.Call) (*contract.State, contract.ViewInput, *contract.View, error) {
 	s, in, v, err := look(c)
 	if r, ok := err.(*contract.Refusal); ok && r.Code == "no_run" {
-		fmt.Fprintln(c.Out, noRun)
+		fmt.Fprintln(c.Out, noRun(c))
 		return nil, in, nil, nil
 	}
 	return s, in, v, err

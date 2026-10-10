@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/term"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/theme"
 )
@@ -36,7 +38,7 @@ func status(c *contract.Call) (any, error) {
 			return everywhere(c, in, jobs(c, in, true)), nil
 		}
 		if !quiet {
-			fmt.Fprintln(c.Out, noRun)
+			fmt.Fprintln(c.Out, noRun(c))
 		}
 		return nil, nil
 	}
@@ -150,7 +152,14 @@ func options(c *contract.Call) Options {
 	return o
 }
 
-const noRun = "No run is open in this project.\n> whaleshark run new \"<objective>\""
+// noRun is what a screen says where its caller's commands go to no run: how
+// to open one, or which open ones a person may turn to.
+func noRun(c *contract.Call) string {
+	if message, next := cli.Parked(c); next != nil {
+		return message + "\n> " + strings.Join(next, "\n> ")
+	}
+	return "No run is open in this project.\n> whaleshark run new \"<objective>\""
+}
 
 // load reads the run a command addresses: ErrNoRun when there is none.
 func load(c *contract.Call) (*contract.State, error) {

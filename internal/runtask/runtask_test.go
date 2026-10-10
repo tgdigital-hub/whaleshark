@@ -476,3 +476,26 @@ func TestTaskAddSaysWhenOwnedFilesMeet(t *testing.T) {
 		t.Fatalf("C meets A, B and D:\n%s", out)
 	}
 }
+
+// A run the lead agent opened with --park moves nobody's pointer. The person
+// is not told that no run is open: the open one is named, with the command
+// that turns their commands to it.
+func TestAParkedRunIsNamedToThePerson(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	play(t, p.Command(scenario.Orch, "run", "new", "a shop", "--park"), 0, "Run r1 is open")
+	for _, args := range [][]string{{"status"}, {"catchup"}, {"graph"}, {"log"}, {"team", "save", "five"}, {"land", "--local"}, {"run", "show"}} {
+		cmd := p.Command(scenario.Human, args...)
+		out, _ := cmd.CombinedOutput()
+		if strings.Contains(string(out), "No run is open") || !strings.Contains(string(out), "open ones: r1.") || !strings.Contains(string(out), "whaleshark run use r1 --human") {
+			t.Errorf("%v, exit %d, printed:\n%s", args, cmd.ProcessState.ExitCode(), out)
+		}
+	}
+	// An agent is offered no run of another tab's.
+	play(t, p.Command(scenario.Unbound, "status"), 0, "No run is open in this project")
+	play(t, p.Command(scenario.Human, "run", "use", "r1"), 0, "where your commands go now")
+	play(t, p.Command(scenario.Human, "status"), 0, "r1")
+	// With nothing open the old words stand.
+	play(t, p.Command(scenario.Human, "run", "close"), 0, "closed")
+	play(t, p.Command(scenario.Human, "run", "rm", "r1"), 0, "removed")
+	play(t, p.Command(scenario.Human, "status"), 0, "No run is open in this project", "whaleshark run new")
+}
