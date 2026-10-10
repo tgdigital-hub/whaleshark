@@ -171,6 +171,13 @@ func (r *runner) step(kind, rest string) {
 		name, body, _ := strings.Cut(rest, ":")
 		body = strings.ReplaceAll(strings.TrimSpace(body), " | ", "\n") + "\n"
 		r.p.must(os.WriteFile(filepath.Join(r.p.Root, name), []byte(body), 0o600))
+	case "git":
+		// The repository's own settings name who commits: the program and the
+		// fake agents run git with nobody's settings but these.
+		testkit.Git(r.t, r.p.Root, "init", "-q", "-b", "main")
+		testkit.Git(r.t, r.p.Root, "config", "user.name", "a test")
+		testkit.Git(r.t, r.p.Root, "config", "user.email", "test@localhost")
+		testkit.Commit(r.t, r.p.Root, "start", nil)
 	case "human:":
 		if button, ok := strings.CutPrefix(rest, "page:"); ok {
 			r.command(Page, button)

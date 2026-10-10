@@ -65,6 +65,7 @@ var Lines = map[string]string{
 	"task":              `task <id> "<title>" [flags]        the flags of task add`,
 	"file":              `file <path>: <line> | <line>       write a file in the project folder, as a brief`,
 	"agent":             `agent <attempt>: <step> | <step>   the script the fake agent of that attempt plays`,
+	"git":               `git                                the project folder becomes a git repository, its files committed on main`,
 	"orch:":             `orch: <command>                    a real command, run as the orchestrator; "--ack last" is the last delivery id`,
 	"human:":            `human: <command>                   a real command, run as the human`,
 	"as-worker":         `as-worker <attempt>: <command>     a real command, run from that attempt's tab`,

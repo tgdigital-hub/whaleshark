@@ -35,6 +35,8 @@ assert: T1 status done; attempts T1.1 accepted; no event lost
 
 **Fake agents.** `agent <attempt>: <step> | <step>` is what the fake agent of that attempt plays once `start` opens its tab. For an attempt the fixture already shows in a tab, the agent is started at once, in a tab of its own that the record then names. The steps are the testkit's `AgentSteps`. Those that are commands (`progress`, `ask`, `mail`, `report`) run the real program from the tab, so the worker's side is tested too.
 
+**A real repository.** `git` makes the project folder a git repository, with what the scenario has written so far committed on `main`. From then on a task gets a copy of the code of its own, as in any project with git, and a fake agent's `edit <file>` and `commit` work in that copy. Without the line the project has no git and every task works in the one folder.
+
 **Files.** `file brief.md: Target | Change | Constraints | Ownership | Acceptance` writes a file into the project folder, one line for each part between the bars: a task needs a brief with those five headings.
 
 **Commands.** Everything after the first word is a real command line, without the program's name. Quotes, double or single, keep words together.
@@ -90,4 +92,4 @@ The real keeper is changed by nothing but its own file and its own calls, so wha
 
 ## What is not played
 
-The double keeps no pane sizes and no layout: a pane's neighbour is the pane split off on that side. It starts nothing for a program run in a pane, and tells its changes at once and in order. The project folder is not a git repository. The token of a fixture's live attempt is `token-of-<attempt>`.
+The double keeps no pane sizes and no layout: a pane's neighbour is the pane split off on that side. It starts nothing for a program run in a pane, and tells its changes at once and in order. The project folder is a git repository only where a scenario says `git`. The token of a fixture's live attempt is `token-of-<attempt>`.
