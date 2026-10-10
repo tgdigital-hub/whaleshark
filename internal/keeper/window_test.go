@@ -115,7 +115,8 @@ func TestAWindowIsServed(t *testing.T) {
 	if _, y := w.shows("one"); y != 0 {
 		t.Errorf("the tab's name is on row %d", y)
 	}
-	if _, y := w.shows("size 100x28"); y != 2 {
+	w.shows("size 100x28")
+	if _, y := w.shows("the-shell in"); y != 2 {
 		t.Errorf("the pane's first line is on row %d:\n%s", y, w.text())
 	}
 	w.types("hi")
@@ -171,10 +172,7 @@ func TestAWindowIsServed(t *testing.T) {
 	w.shows("sized for another window, 50 by 15")
 	w.types("x")
 	small.shows("sized for another window, 80 by 24")
-	w.shows("size 80x22")
-	if strings.Contains(w.text(), "another window") {
-		t.Errorf("the window used last says:\n%s", w.text())
-	}
+	r.until("the window used last to lose the words", func() bool { return !strings.Contains(w.text(), "another window") })
 
 	// A notice, with the bell, in every window; and honestly none without one.
 	if reply := c.call(contract.WireCall{Op: contract.OpNotify, Title: "T3", Text: "needs \x1b[31myou", Sound: true}); reply.Text != contract.NotifyShown {
@@ -217,5 +215,23 @@ func TestAWindowThatTakesNothingHoldsNobodyUp(t *testing.T) {
 	slow.shows("the last line")
 	if a, b := slow.text(), quick.text(); a != b {
 		t.Errorf("the window that was slow shows\n%s\nand the other\n%s", a, b)
+	}
+}
+
+// A program's question is answered to that program and to no other pane,
+// and its bell rings in the windows.
+func TestAnAnswerGoesToThePaneThatAskedAndTheBellToTheWindows(t *testing.T) {
+	r := newRig(t)
+	c := r.dial()
+	c.call(contract.WireCall{Op: contract.OpTabCreate, Label: "one"})
+	c.call(contract.WireCall{Op: contract.OpSplit, Pane: "p1", Dir: contract.Down})
+	w := r.window(80, 24)
+	w.shows("pane=p2")
+	r.settle()
+	r.program("p2").print("where is the cursor\x1b[6n\a")
+	r.got("p2", "\x1b[3;20R")
+	r.until("the bell", func() bool { w.mu.Lock(); defer w.mu.Unlock(); return w.bells == 1 })
+	if got := r.program("p1").got(); got != "" {
+		t.Errorf("the other pane was typed %q", got)
 	}
 }

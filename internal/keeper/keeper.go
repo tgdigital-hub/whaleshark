@@ -17,6 +17,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
+	"github.com/tgdigital-hub/whaleshark/internal/screen"
 )
 
 const (
@@ -110,6 +111,7 @@ func open(kit *contract.Kit) (*Keeper, error) {
 	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" {
 		k.version = info.Main.Version
 	}
+	screen.Version = k.version
 	return k, nil
 }
 

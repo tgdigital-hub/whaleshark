@@ -135,9 +135,9 @@
 {"op":"size","pane":"p2"}
   < {"w":120,"h":38}
 {"op":"screen","pane":"p1"}
-  < {"text":"size 36x38"}
+  < {"text":"the-shell in \"/work/app\" at 80x24 pa\nsize 36x38"}
 {"op":"screen","pane":"p2"}
-  < {"text":"size 120x38"}
+  < {"text":"the-shell in \"/work/site\" at 80x24 pane=p2 colour= outer=\"\"\nsize 120x38"}
 {"op":"split","pane":"p4","dir":"down","ratio":0.5}
   < {"err":"failed","message":"no room for another pane there"}
 {"op":"split","pane":"p2","dir":"left","ratio":36}
@@ -200,7 +200,7 @@
 {"op":"size","pane":"p1"}
   < {"w":18,"h":18}
 {"op":"screen","pane":"p5"}
-  < {"text":"size 24x18"}
+  < {"text":"the-shell in \"/work/site\nane=p5 colour= outer=\"\"\nsize 24x38\nsize 24x18"}
 {"op":"pane-close","pane":"p4"}
   < {}
   * {"seq":15,"kind":"pane-closed","pane":{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","status":"unknown"}}
