@@ -362,6 +362,12 @@ func (l *launcher) bring(task string) outcome {
 		return l.failed(r, err, "the start stopped", false)
 	}
 	args := slices.Clone(setup.Args)
+	// In a copy of the code of its own, the attempt's files and the brief
+	// lie outside the agent's folder: it is given the two folders, or it
+	// stops to ask before it reads its own prompt.
+	if tree != nil && agent.Kind == defaultKind {
+		args = append(args, "--add-dir", dir, filepath.Dir(filepath.Join(run, t.Brief)))
+	}
 	if agent.Model != "" {
 		args = append(args, "--model", agent.Model)
 	}

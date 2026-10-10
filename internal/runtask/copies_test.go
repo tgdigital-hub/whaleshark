@@ -127,6 +127,17 @@ func TestAcceptSeveral(t *testing.T) {
 	if files := h.git("ls-tree", "-r", "--name-only", tree.Branch); files != ".gitignore\na.txt\nb.md" {
 		t.Errorf("A's branch holds %q", files)
 	}
+	// Its prompt, its result file and its brief lie outside that folder, in
+	// the run's own: the agent is started with both folders as its own too.
+	given := ""
+	for _, call := range h.p.Double.Calls() {
+		if call.Op == contract.OpAgentStart && strings.HasSuffix(call.Name, "-a-1") {
+			given = strings.Join(call.Argv, " ")
+		}
+	}
+	if _, dir := h.p.Record(); !strings.Contains(given, "--add-dir "+filepath.Join(dir, "attempts", "A.1")+" "+filepath.Join(dir, "briefs")) {
+		t.Errorf("A's agent was started with %q", given)
+	}
 
 	// The three refusals. No run check; one nobody approved; a task with none.
 	h.orch(5, "accept", "A", "B")("the run's check", "has none")
