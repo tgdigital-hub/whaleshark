@@ -85,6 +85,11 @@ func (system) Start(pc uintptr, path, line, dir string, env []uint16) (proc, job
 		uintptr(unsafe.Pointer(&endWithLastHandle)), uint32(unsafe.Sizeof(endWithLastHandle)))
 	start := windows.StartupInfoEx{ProcThreadAttributeList: attrs.List()}
 	start.Cb = uint32(unsafe.Sizeof(start)) // #nosec G103 -- the size the system asks for
+	// The three standard files are named, and named as none. Left unnamed,
+	// Windows hands the program this process's own wherever they are a
+	// file or a pipe, and it prints there and not in the pane; given none,
+	// the program takes the pseudo-console's (Microsoft, "GetStdHandle").
+	start.Flags = windows.STARTF_USESTDHANDLES
 	var made windows.ProcessInformation
 	if err == nil {
 		err = windows.CreateProcess(words[0], words[1], nil, nil, false,
