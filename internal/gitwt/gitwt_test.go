@@ -615,8 +615,11 @@ func TestHideAndEquip(t *testing.T) {
 	dir, w := d.place("T1", "one")
 	ours, odd, tracked := filepath.Join(dir, "own", "settings.json"), filepath.Join(dir, "a[1]*.json"), filepath.Join(dir, "kept", "settings.json")
 	for _, path := range []string{ours, odd, tracked, filepath.Join(dir, "a1x.json")} {
-		if err := os.MkdirAll(filepath.Dir(path), 0o700); err == nil {
-			err = os.WriteFile(path, []byte("ours\n"), 0o600)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("ours\n"), 0o600); err != nil {
+			t.Fatal(err)
 		}
 	}
 	if err := d.tr.Hide(d.root, dir, ours, odd, tracked); err != nil {
