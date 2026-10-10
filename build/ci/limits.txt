@@ -23,7 +23,10 @@
 # full with four packages still to pass through it, and the wave's results
 # already name what they want of it (the administrator's name in the
 # server's file, a lock over a login). inbox and overlay pay.
-lines 3820 contract internal/contract cmd/whaleshark
+# 30 more at the wiring of phase 3: what a login's phones ask of the person
+# is worded here once for every screen, with the lock over a login and the
+# versions of the program a run has met; it stood at 3,761. dashweb pays.
+lines 3850 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -62,15 +65,21 @@ lines 310 guide internal/guide
 # 20 more after the real runs of phase 2: a run's number passes over a
 # branch a removed run left with work on it, run rm names that branch, and
 # init asks nobody where nobody is; it stood at 1,346. guide pays.
-lines 1375 runtask internal/runtask
+# 25 more at the wiring of phase 3: accept reads a browser check's pictures
+# again, and init on a server keeps a project inside the login's home; it
+# stood at 1,371. dashweb and window pay.
+lines 1400 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
-# place and a temp folder of the login's own in every tab; 24 were left.
+# place and, on a server, a temp folder of the attempt's own; 24 were left.
 # watch pays. 20 more at the join of phase 3's first wave: an attempt's temp
 # folder is recorded and taken away again by stop, close and run rm, which
-# left it five over; overlay and inbox pay.
-lines 1310 launch internal/launch
+# left it five over; overlay and inbox pay. 35 more at the wiring of phase
+# 3: the login's other projects are counted again under a lock over the
+# login when a start is written, so the server's cap is exact; it stood at
+# its line. window pays.
+lines 1345 launch internal/launch
 lines 165 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
 # half its line in phase 1 and keeps twice what its phase 2 package is
@@ -84,8 +93,10 @@ lines 570 inbox internal/inbox
 # being built. 160 more at the join of phase 2: views 2 came to 2,154 with
 # nothing cut that its row asks for, and the line that says how long the
 # waiting results take to check and what a task changed are 37 more; 69 are
-# left for the look round and the browser check. screen pays.
-lines 2260 view internal/view
+# left for the look round and the browser check. screen pays. 25 more at
+# the wiring of phase 3: show's site line and the count of screenshots took
+# the 29 that were left and 18 more. window pays.
+lines 2285 view internal/view
 lines 550 question internal/question
 lines 380 mail internal/mail
 # notify: 10 more at the start of phase 3, to hand a nudge to a paired
@@ -146,8 +157,9 @@ lines 480 connect internal/connect
 lines 210 evidence internal/evidence
 # dashweb gives 120 at the join of phase 3's first wave: the screens, the
 # phone's layout and the refusal are built, at 937; what the phone's and the
-# tunnel's passes still add is a few lines of script.
-lines 1160 dashweb internal/dashweb
+# tunnel's passes still add is a few lines of script. It gives 60 more at
+# the wiring of phase 3, with both passes in: it stands at 955.
+lines 1100 dashweb internal/dashweb
 # install gives 110 after the real runs of phase 2, 60 to doctor and 50 to
 # overlap: it stands at 945.
 lines 1090 install install
@@ -168,6 +180,8 @@ lines 1090 install install
 # At the join of phase 3's first wave dashweb, gitwt, integrate, inbox,
 # evidence and overlay give 120, 100, 70, 50, 40 and 20: 400 lines moved to
 # doctor, contract and launch, none added.
+# At the wiring of phase 3 dashweb and window give 60 and 55: 115 lines
+# moved to contract, runtask, launch and view, none added.
 lines 1490 screen internal/screen
 lines 1820 keeper internal/keeper
 lines 900 layout internal/layout
@@ -181,7 +195,8 @@ lines 600 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore
-lines 410 window internal/window
+# window gives 55 at the wiring of phase 3: built whole at 271.
+lines 355 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
 # overlay gives 60 at the start of phase 3: built whole at 140; and 20 at
