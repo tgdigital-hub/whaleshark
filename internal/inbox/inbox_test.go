@@ -2,6 +2,7 @@ package inbox
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -187,6 +188,8 @@ func waits(n int, text string) func(*testkit.Fixture) {
 }
 
 func TestTheRunnersOwnSteps(t *testing.T) { scenario.Run(t, "testdata/wait.scn", nil) }
+
+func TestARestartInTheMiddleOfARun(t *testing.T) { scenario.Run(t, "testdata/8g-restart.scn", nil) }
 
 func TestAWaitKilledMidBatchReplays(t *testing.T) {
 	// Fifty long events are more than a pipe holds: the wait has chosen its
@@ -458,12 +461,16 @@ func TestTwentyWorkingAgentsCauseNoWrite(t *testing.T) {
 			f.Terms.Panes = append(f.Terms.Panes, p)
 		}
 	})
-	record, _ := os.Stat(filepath.Join(w.dir, contract.StateFile))
-	bytesBefore, snapshots := w.file(contract.StateFile), 0
-	// The sweeps of ten minutes, in this process for their number; the last
-	// one is the real program's.
+	// The first sweep of a run writes down which start of the keeper it saw.
 	rules.Plug(w.p.Kit)
 	Plug(w.p.Kit)
+	if s, _, err := w.p.Kit.Sweeper.Sweep(w.p.Root, "r3", contract.Now()); err != nil || !s.Changed {
+		t.Fatalf("the first sweep: %+v, %v", s, err)
+	}
+	record, _ := os.Stat(filepath.Join(w.dir, contract.StateFile))
+	bytesBefore, snapshots := w.file(contract.StateFile), -1
+	// The sweeps of ten minutes, in this process for their number; the last
+	// one is the real program's.
 	for range 10*60/5 - 1 {
 		w.p.Clock(5 * time.Second)
 		if s, _, err := w.p.Kit.Sweeper.Sweep(w.p.Root, "r3", contract.Now()); err != nil || !s.Ran || s.Changed {
@@ -682,5 +689,338 @@ func TestTheStampKeepsSweepsApart(t *testing.T) {
 	w.p.Double.Drop(testkit.PushGone, w.pane("T3.1"))
 	if s := w.after(time.Minute); s.Changed || !bytes.Equal(record, w.file(contract.StateFile)) {
 		t.Fatalf("a sweep of a closed run: %+v", s)
+	}
+}
+
+// picture is the terminals' picture now.
+func (w *world) picture() *contract.Snapshot {
+	w.Helper()
+	snap, err := w.p.Kit.Terms.Snapshot(context.Background())
+	if err != nil {
+		w.Fatal(err)
+	}
+	return snap
+}
+
+func TestTheKeeperStartedAgain(t *testing.T) {
+	w := evening(t, func(f *testkit.Fixture) {
+		// One agent has no conversation to take up again: its pane comes back as a shell.
+		f.State.Attempts["T3.1"].Agent.Session = ""
+		for i := range f.Terms.Panes {
+			if f.Terms.Panes[i].ID == f.State.Attempts["T3.1"].Place.Pane {
+				f.Terms.Panes[i].Session = ""
+			}
+		}
+	})
+	w.sweep()
+	before := w.state()
+	if before.Run.Terms.Instance == "" {
+		t.Fatal("the first sweep did not write down the keeper's instance")
+	}
+	w.p.Double.Restart()
+	// One pane did not come back at all.
+	w.p.Double.Drop(testkit.PushClosed, before.Attempts["T5.1"].Place.Pane)
+	w.after(5 * time.Second)
+	s := w.state()
+	back, lost := s.Attempts["T1.1"], s.Attempts["T3.1"]
+	if s.Run.Terms.Instance == before.Run.Terms.Instance || !s.Run.Terms.SeenAt.Equal(contract.Now()) {
+		t.Fatalf("the restart was not seen: %+v", s.Run.Terms)
+	}
+	if back.Place.Terminal == before.Attempts["T1.1"].Place.Terminal || back.Place.Pane != before.Attempts["T1.1"].Place.Pane || back.State != contract.AttemptWorking {
+		t.Fatalf("an agent that came back: %+v, %s", back.Place, back.State)
+	}
+	for id, a := range s.Attempts {
+		if a.State.Live() && (a.Seen.Liveness != contract.Unverifiable || !a.Seen.GoneSince.IsZero()) {
+			t.Fatalf("%s is believed %s, gone since %v, in the first sweep after a restart", id, a.Seen.Liveness, a.Seen.GoneSince)
+		}
+	}
+	// What is seen is believed: the agent that came back is live at the next look.
+	if w.after(5 * time.Second); w.state().Attempts["T1.1"].Seen.Liveness != contract.Live {
+		t.Fatal("an agent that came back is not live")
+	}
+	// Recovery: for 120 s the shell under the old pane id is not even stamped gone.
+	if w.after(110 * time.Second); !w.state().Attempts["T3.1"].Seen.GoneSince.IsZero() || !w.state().Attempts["T5.1"].Seen.GoneSince.IsZero() ||
+		lost.Place.Pane != before.Attempts["T3.1"].Place.Pane {
+		t.Fatal("stamped gone while the keeper may still be bringing agents back")
+	}
+	// After it the two steps of any exit apply: a pane that is there is not an agent that is.
+	if w.after(10 * time.Second); w.state().Attempts["T3.1"].Seen.GoneSince.IsZero() || w.state().Attempts["T5.1"].Seen.GoneSince.IsZero() {
+		t.Fatal("not stamped gone after recovery")
+	}
+	if w.after(29 * time.Second); w.state().Attempts["T3.1"].State != contract.AttemptWorking {
+		t.Fatal("exited before the second sighting was due")
+	}
+	w.after(5 * time.Second)
+	s = w.state()
+	if a := s.Attempts["T3.1"]; a.State != contract.AttemptExited || s.Tasks["T3"].Status != contract.TaskReady ||
+		!slices.Equal(kinds(s.Inbox.Events, "T3.1"), []string{"exited"}) {
+		t.Fatalf("after recovery: %s, %s, %v", a.State, s.Tasks["T3"].Status, kinds(s.Inbox.Events, ""))
+	}
+	// An agent that took its conversation up again rests until it is told
+	// to go on: the lead agent learns of each as of any worker gone quiet.
+	if got := kinds(s.Inbox.Events, "T1.1"); !slices.Equal(got, []string{"quiet"}) || s.Attempts["T1.1"].State != contract.AttemptWorking {
+		t.Fatalf("a resumed agent at rest: %v", got)
+	}
+}
+
+func TestFoundByItsNameNeverByItsLabel(t *testing.T) {
+	w := evening(t, nil)
+	w.sweep()
+	// Two tabs carry one label, and T1's agent now runs in a third pane
+	// while its old pane is a shell under the old id.
+	snap, s := w.picture(), w.state()
+	one, three := s.Attempts["T1.1"], s.Attempts["T3.1"]
+	var label string
+	for i, p := range snap.Panes {
+		switch p.ID {
+		case three.Place.Pane:
+			label = p.Label
+		case one.Place.Pane:
+			moved := p
+			moved.ID, moved.Tab, moved.Terminal = "w1:p90", "w1:t90", "term-90"
+			snap.Panes[i].Agent, snap.Panes[i].Name, snap.Panes[i].Session, snap.Panes[i].Status = "", "", "", contract.StatusUnknown
+			snap.Panes = append(snap.Panes, moved)
+		}
+	}
+	for i := range snap.Panes {
+		if id := snap.Panes[i].ID; id == one.Place.Pane || id == "w1:p90" {
+			snap.Panes[i].Label = label
+		}
+	}
+	w.p.Double.Load(snap)
+	w.after(5 * time.Second)
+	w.after(40 * time.Second)
+	s = w.state()
+	if a := s.Attempts["T1.1"]; a.Place.Pane != "w1:p90" || a.Place.Tab != "w1:t90" || a.Place.Terminal != "term-90" || a.State != contract.AttemptWorking || a.Seen.Liveness != contract.Live {
+		t.Fatalf("an agent in another pane under its own name: %+v, %s, %s", a.Place, a.State, a.Seen.Liveness)
+	}
+	if a := s.Attempts["T3.1"]; a.Place != three.Place || a.State != contract.AttemptWorking {
+		t.Fatalf("its namesake by label was touched: %+v", a.Place)
+	}
+	// The agent of the other tab with that label leaves: only its own attempt ends.
+	w.p.Double.Drop(testkit.PushGone, three.Place.Pane)
+	w.after(5 * time.Second)
+	w.after(35 * time.Second)
+	s = w.state()
+	if s.Attempts["T3.1"].State != contract.AttemptExited || s.Attempts["T1.1"].State != contract.AttemptWorking || !slices.Equal(kinds(s.Inbox.Events, ""), []string{"exited"}) {
+		t.Fatalf("two tabs with one label: T3.1 %s, T1.1 %s, %v", s.Attempts["T3.1"].State, s.Attempts["T1.1"].State, kinds(s.Inbox.Events, ""))
+	}
+}
+
+// crew replaces the fixture's work with n attempts at work, each in a tab of its own.
+func crew(n int) func(*testkit.Fixture) {
+	return func(f *testkit.Fixture) {
+		task, attempt, pane, lead := *f.State.Tasks["T1"], *f.State.Attempts["T1.1"], f.Terms.Panes[1], f.Terms.Panes[0]
+		f.State.Tasks, f.State.Attempts, f.State.Questions = map[string]*contract.Task{}, map[string]*contract.Attempt{}, map[string]*contract.Question{}
+		f.State.Run.Findings, f.Terms.Panes, f.Ctx = nil, []contract.Pane{lead}, nil
+		for i := range n {
+			tk, a, p := task, attempt, pane
+			tk.ID, tk.Name, tk.After = fmt.Sprint("W", i), fmt.Sprint("worker ", i), nil
+			a.ID, a.Task, a.StartedAt, a.StateSince, a.Progress = tk.ID+".1", tk.ID, f.Now, f.Now, nil
+			tk.Attempts = []string{a.ID}
+			a.Agent.Name = fmt.Sprintf("h3fa1-r3-w%d-1", i)
+			p.ID, p.Tab, p.Terminal, p.Name = fmt.Sprint("w1:p", 30+i), fmt.Sprint("w1:t", 30+i), fmt.Sprint("term-", 30+i), a.Agent.Name
+			a.Place.Pane, a.Place.Tab, a.Place.Terminal = p.ID, p.Tab, p.Terminal
+			f.State.Tasks[tk.ID], f.State.Attempts[a.ID] = &tk, &a
+			f.Terms.Panes = append(f.Terms.Panes, p)
+		}
+	}
+}
+
+func TestElevenOfTwentyGoingIdleInAMinuteIsOneTogether(t *testing.T) {
+	w := evening(t, crew(20))
+	w.sweep()
+	// Ten at rest are not more than half.
+	for i := range 10 {
+		w.p.Double.Drop(contract.StatusIdle, fmt.Sprint("w1:p", 30+i))
+	}
+	if w.after(30 * time.Second); len(w.state().Inbox.Events) != 0 {
+		t.Fatalf("ten of twenty: %v", kinds(w.state().Inbox.Events, ""))
+	}
+	w.p.Double.Drop(contract.StatusIdle, "w1:p40")
+	w.after(30 * time.Second)
+	w.p.Double.Drop(contract.StatusIdle, "w1:p41")
+	w.after(5 * time.Second)
+	s := w.state()
+	q := item(s, contract.CauseTogether)
+	if !slices.Equal(kinds(s.Inbox.Events, ""), []string{"together"}) || q == nil || !q.Urgent || q.State != contract.QuestionOpen {
+		t.Fatalf("eleven of twenty within a minute: %v, %+v", kinds(s.Inbox.Events, ""), q)
+	}
+	for id, a := range s.Attempts {
+		if a.State != contract.AttemptWorking {
+			t.Fatalf("%s was changed to %s", id, a.State)
+		}
+	}
+}
+
+func TestStaleAndOvertime(t *testing.T) {
+	w := evening(t, crew(2))
+	if err := os.WriteFile(filepath.Join(w.p.Root, "whaleshark.toml"), []byte("[limits]\nstale_minutes = 30\nmax_minutes = 45\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w.sweep()
+	w.after(29 * time.Minute)
+	w.run("W1.1", "progress", "40", "half way")
+	if w.after(2 * time.Minute); !slices.Equal(kinds(w.state().Inbox.Events, ""), []string{"stale"}) || w.state().Inbox.Events[0].Attempt != "W0.1" {
+		t.Fatalf("working for 31 minutes with no note: %+v", w.state().Inbox.Events)
+	}
+	w.after(15 * time.Minute)
+	w.after(15 * time.Minute)
+	s := w.state()
+	if got := kinds(s.Inbox.Events, ""); !slices.Equal(got, []string{"stale", "overtime", "overtime", "stale"}) || s.Attempts["W0.1"].State != contract.AttemptWorking {
+		t.Fatalf("past the time limit, once each and nothing stopped: %v", got)
+	}
+}
+
+func TestStuckOnceForEachEpisode(t *testing.T) {
+	w := evening(t, func(f *testkit.Fixture) {
+		// One task has failed for good, one waits on it, and nothing runs.
+		crew(2)(f)
+		failed, held := f.State.Tasks["W0"], f.State.Tasks["W1"]
+		failed.Status, failed.Failures, held.Status, held.After = contract.TaskFailed, contract.MaxFailures, contract.TaskPending, []string{"W0"}
+		for _, a := range f.State.Attempts {
+			a.State, a.EndedAt = contract.AttemptExited, f.Now
+		}
+		f.State.Attempts["W1.1"].State = contract.AttemptWorking
+		held.Status = contract.TaskRunning
+	})
+	var d delivery
+	if w.result(&d, scenario.Orch, "wait", "--timeout", "0"); len(d.Events) != 0 {
+		t.Fatalf("stuck while an attempt is at work: %+v", d)
+	}
+	w.change(func(s *contract.State, now time.Time) error {
+		s.Attempts["W1.1"].State, s.Tasks["W1"].Status = contract.AttemptStopped, contract.TaskPending
+		return nil
+	})
+	if w.result(&d, scenario.Orch, "wait", "--timeout", "0"); !slices.Equal(kinds(d.Events, ""), []string{"stuck"}) {
+		t.Fatalf("nothing runs and nothing can: %+v", d)
+	}
+	// Once for the episode, however often the lead agent waits.
+	for range 2 {
+		if w.result(&d, scenario.Orch, "wait", "--ack", "d10", "--timeout", "0"); len(d.Events) != 0 {
+			t.Fatalf("stuck was raised twice: %+v", d)
+		}
+	}
+	// The task is set going again and fails again: a new episode.
+	if _, errOut, exit := w.run(scenario.Orch, "task", "reset", "W0"); exit != 0 {
+		t.Fatal(errOut)
+	}
+	if w.result(&d, scenario.Orch, "wait", "--timeout", "0"); len(d.Events) != 0 || w.state().Run.StuckFlagged {
+		t.Fatalf("a task that can be started is not stuck: %+v", d)
+	}
+	w.change(func(s *contract.State, now time.Time) error {
+		s.Tasks["W0"].Status = contract.TaskFailed
+		return nil
+	})
+	if w.result(&d, scenario.Orch, "wait", "--timeout", "0"); !slices.Equal(kinds(d.Events, ""), []string{"stuck"}) || d.ID != "d11" {
+		t.Fatalf("the second episode: %+v", d)
+	}
+	// An open item of the lead agent's for the person can still bring an event.
+	w.change(func(s *contract.State, now time.Time) error {
+		_, err := rule.Need(s, contract.Question{Form: contract.FormQuestion, From: contract.FromLead, Text: "which one?"}, now)
+		s.Run.StuckFlagged = false
+		return err
+	})
+	if w.result(&d, scenario.Orch, "wait", "--ack", "d11", "--timeout", "0"); len(d.Events) != 0 || w.state().Run.StuckFlagged {
+		t.Fatalf("stuck while the person is asked: %+v", d)
+	}
+}
+
+func TestAHumanEventIsHandedOverWithItsOutcome(t *testing.T) {
+	w := evening(t, func(f *testkit.Fixture) {
+		for _, data := range []map[string]any{
+			{"what": "accept", "where": contract.WherePane, "on": "T7"},
+			{"what": "stop", "where": contract.WhereTyped, "on": "login page"},
+			{"what": "answer", "where": contract.WherePage, "id": "q10"},
+			{"what": "pause", "where": contract.WherePane},
+		} {
+			f.State.Counters.Seq++
+			f.State.Inbox.Events = append(f.State.Inbox.Events, contract.Event{Seq: f.State.Counters.Seq, At: f.Now, Kind: "human", Data: data})
+		}
+		f.State.Run.Lead.SilentSince = f.Now
+	})
+	var d delivery
+	w.result(&d, scenario.Orch, "wait", "--timeout", "0")
+	var got []any
+	for _, e := range d.Events {
+		got = append(got, e.Data["outcome"])
+	}
+	if want := []any{"review", "running", "open", nil}; !slices.Equal(got, want) {
+		t.Fatalf("the outcomes handed over: %v, want %v", got, want)
+	}
+	if out, _, _ := w.run(scenario.Orch, "wait"); !strings.Contains(out, `"outcome":"review"`) {
+		t.Fatalf("the outcome is not in the text:\n%s", out)
+	}
+	for _, e := range w.state().Inbox.Events {
+		if _, kept := e.Data["outcome"]; kept {
+			t.Fatal("the record keeps an outcome, which is only true of the moment it was handed over")
+		}
+	}
+}
+
+// nudges is a notifier that keeps what it was asked to say.
+type nudges struct {
+	contract.NoNotifier
+	said *[]contract.Nudge
+}
+
+func (n nudges) Nudge(c contract.Nudge) error { *n.said = append(*n.said, c); return nil }
+
+// outage is the terminals with a keeper that can be made not to answer.
+type outage struct {
+	contract.Terminals
+	down *bool
+}
+
+func (o outage) Snapshot(ctx context.Context) (*contract.Snapshot, error) {
+	if *o.down {
+		return nil, contract.ErrEngineUnreachable
+	}
+	return o.Terminals.Snapshot(ctx)
+}
+
+func TestTheEngineOutOfReachForAMinuteIsOneUrgentNudge(t *testing.T) {
+	w := evening(t, nil)
+	rules.Plug(w.p.Kit)
+	Plug(w.p.Kit)
+	var said []contract.Nudge
+	var down bool
+	w.p.Kit.Notifier, w.p.Kit.Terms = nudges{said: &said}, outage{w.p.Kit.Terms, &down}
+	look := func(d time.Duration) error {
+		w.p.Clock(d)
+		_, _, err := w.p.Kit.Sweeper.Sweep(w.p.Root, "r3", contract.Now())
+		return err
+	}
+	if err := look(0); err != nil {
+		t.Fatal(err)
+	}
+	record := w.file(contract.StateFile)
+	down = true
+	for _, d := range []time.Duration{5 * time.Second, 30 * time.Second, 24 * time.Second} {
+		if err := look(d); err == nil || len(said) != 0 {
+			t.Fatalf("%v into the outage: %v, %v", d, err, said)
+		}
+	}
+	for range 3 {
+		look(5 * time.Second)
+	}
+	if len(said) != 1 || !said[0].Urgent || said[0].Run != "r3" || said[0].Root != w.p.Root || !strings.Contains(said[0].Title, "engine is not running") {
+		t.Fatalf("a minute without the engine: %+v", said)
+	}
+	if !bytes.Equal(record, w.file(contract.StateFile)) {
+		t.Fatal("the record changed while the engine could not be reached")
+	}
+	// It is back, and gone again: a new outage is told anew, a minute in.
+	down = false
+	if err := look(5 * time.Second); err != nil {
+		t.Fatal(err)
+	}
+	down = true
+	look(5 * time.Second)
+	if look(59 * time.Second); len(said) != 1 {
+		t.Fatal("told before the second outage was a minute old")
+	}
+	if look(5 * time.Second); len(said) != 2 {
+		t.Fatalf("a second outage: %d nudges", len(said))
 	}
 }
