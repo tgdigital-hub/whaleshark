@@ -106,14 +106,15 @@ func pause(ctx context.Context, out io.Writer, since time.Time, try *int) bool {
 }
 
 // link is the page's one master connection: through its control socket ctl
-// forwards are added and dropped. sites are the ports forwarded now.
+// forwards are added and dropped. sites are the ports forwarded now;
+// strange is that a port of nobody's block was named and said.
 type link struct {
-	c            *contract.Call
-	target, ctl  string
-	port         int
-	local        string
-	sites, taken map[int]bool
-	live, shown  bool
+	c                    *contract.Call
+	target, ctl          string
+	port                 int
+	local                string
+	sites, taken         map[int]bool
+	live, shown, strange bool
 }
 
 // once passes each line on a single time: ssh says a port that is taken on
@@ -276,13 +277,25 @@ func (l *link) ask(ctx context.Context, wait time.Duration) error {
 // forward brings the forwarded sites in line with the page's answer: each
 // new port under its own number on the loopback address, so that a link an
 // agent prints works as written (one that is taken here is tried again at
-// the next answer), and each port that left the answer dropped.
+// the next answer), and each port that left the answer dropped. A site of a
+// task stands on a port of its login's block, on a person's own machine or
+// on a server, and only such a port is opened here: a server that is not
+// what it says names no port of this computer's other programs. The first
+// other port it names is said, once for as long as connect runs.
 func (l *link) forward(ctx context.Context, ports []int) {
 	spec := func(port int) string {
 		return net.JoinHostPort(contract.Loopback, strconv.Itoa(port)) + ":" + net.JoinHostPort(siteHost, strconv.Itoa(port))
 	}
 	for _, p := range ports {
-		if p < 1024 || p > 65535 || p == l.port || l.sites[p] {
+		if !contract.DefaultPorts.Holds(p) && !contract.ServerPorts.Holds(p) {
+			if !l.strange {
+				l.strange = true
+				fmt.Fprintf(l.c.Out, "the server names port %d as a running site, which is no port this tool gives a task (%d to %d): such a port is not forwarded\n",
+					p, contract.DefaultPorts.Base, contract.ServerPorts.Base+contract.ServerPorts.Count-1)
+			}
+			continue
+		}
+		if p == l.port || l.sites[p] {
 			continue
 		}
 		if l.mux(ctx, []string{"-O", "forward", "-L", spec(p)}).Run() == nil {

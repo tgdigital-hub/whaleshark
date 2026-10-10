@@ -71,7 +71,7 @@ func TestServerFile(t *testing.T) {
 	}
 	// No slot of a task is ever the door, and no block holds a port of the
 	// connector's own or of a person's own machine.
-	if last := (Slot{N: 998, Size: 1}).First(kai); last >= s.Door("kai") || ServerPorts.holds(20245) || ServerPorts.holds(DefaultPorts.Base) {
+	if last := (Slot{N: 998, Size: 1}).First(kai); last >= s.Door("kai") || ServerPorts.Holds(20245) || ServerPorts.Holds(DefaultPorts.Base) {
 		t.Errorf("the last slot's port is %d and the door %d", last, s.Door("kai"))
 	}
 	a, ok := s.Access("kai")
@@ -86,7 +86,7 @@ func TestServerFile(t *testing.T) {
 		t.Error("on the other road a person has values for Cloudflare")
 	}
 	full := &Server{Login: map[string]Person{}}
-	for port := ServerPorts.Base; ServerPorts.holds(port); port += BlockSize {
+	for port := ServerPorts.Base; ServerPorts.Holds(port); port += BlockSize {
 		full.Login[strings.Repeat("u", port/BlockSize)] = Person{Ports: port}
 	}
 	if _, ok := full.Free(); ok || len(full.Login) != 11 {
