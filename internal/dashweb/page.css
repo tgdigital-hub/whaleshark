@@ -1,0 +1,114 @@
+/* The scheme without colour: the browser's own, light or dark. */
+.t-none {
+	color-scheme: light dark;
+	--ground: Canvas; --pale: GrayText; --text: CanvasText; --dim: GrayText; --frame: GrayText;
+	--accent: CanvasText; --needs: CanvasText; --blocked: CanvasText; --failed: CanvasText;
+	--check: CanvasText; --building: CanvasText; --idle: CanvasText; --paused: CanvasText;
+	--done: CanvasText; --bar_empty: GrayText; --ctx_low: CanvasText; --ctx_mid: CanvasText;
+	--ctx_high: CanvasText;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--ground); color: var(--text); font: 15px/1.5 ui-monospace, Menlo, Consolas, monospace; }
+body { margin: 0 auto; max-width: 84rem; padding: 0 1rem 2rem; overflow-wrap: anywhere; }
+a { color: inherit; }
+h1, h2 { font-size: 1rem; margin: 1.2rem 0 .3rem; }
+h2 span, h1 span { font-weight: normal; }
+p { margin: .2rem 0; }
+pre { margin: .4rem 0; overflow-x: auto; white-space: pre-wrap; }
+table { border-collapse: collapse; }
+td, th { padding: 0 1.2rem 0 0; text-align: left; vertical-align: top; font-weight: normal; }
+dl { display: grid; grid-template-columns: 7rem 1fr; margin: .6rem 0; }
+dd { margin: 0; }
+img { max-width: 14rem; max-height: 10rem; border: 1px solid var(--frame); }
+
+header { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; align-items: center; padding: .6rem 0 .2rem; }
+.brand { font-weight: bold; text-decoration: none; }
+.job { color: var(--accent); }
+.strip { margin-left: auto; }
+.strip, .answer, footer { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; }
+#fresh { text-align: right; }
+#fresh b { font-weight: normal; }
+nav { border-bottom: 1px solid var(--frame); padding-bottom: .3rem; }
+nav a { margin-right: 1rem; text-decoration: none; padding: 0 .4rem; }
+nav a[aria-current] { border: 1px solid var(--accent); color: var(--accent); }
+footer { border-top: 1px solid var(--frame); margin-top: 1.5rem; padding-top: .5rem; }
+footer pre { flex-basis: 100%; }
+
+/* What can be clicked looks like a button. */
+.b {
+	display: inline-block; font: inherit; color: var(--text); background: none; cursor: pointer;
+	border: 1px solid var(--frame); border-radius: 3px; padding: .05rem .7rem;
+	text-decoration: none; list-style: none;
+}
+.b::-webkit-details-marker { display: none; }
+.b:hover, .b:focus-visible { background: var(--accent); color: var(--ground); outline: none; }
+.b.on { background: var(--blocked); color: var(--ground); }
+.a-stop-all, .a-stop { color: var(--failed); }
+.a-resume { color: var(--done); }
+form { display: inline-block; margin: 0; }
+details.f[open] { flex-basis: 100%; }
+details.f[open] > summary { margin-bottom: .3rem; }
+input:not([type=hidden]) {
+	font: inherit; color: var(--text); background: none; border: 1px solid var(--frame); border-radius: 3px;
+	padding: .05rem .5rem; margin-right: .3rem; width: min(30rem, 60vw);
+}
+input:focus { border-color: var(--accent); outline: none; }
+
+.alert, .said { border-left: 3px solid var(--blocked); padding-left: .6rem; margin: .5rem 0; }
+.said { border-color: var(--accent); }
+.item { border-left: 3px solid transparent; padding: .25rem 0 .25rem .6rem; margin: .3rem 0; }
+.item.sel { border-color: var(--accent); }
+.item.held { color: var(--dim); }
+.ask, .answer { margin-left: 1.6rem; }
+.mark { display: inline-block; width: 1.2rem; }
+.name { text-decoration: none; }
+.unseen .name { font-weight: bold; }
+.struck .text { text-decoration: line-through; }
+.left { font-weight: normal; }
+
+/* A card is a mark, a name, a state, two bars and one line of news. */
+.card { display: grid; grid-template-columns: 1.6rem 13rem 9rem 15rem 10.5rem 1fr; gap: 0 .6rem; align-items: baseline; }
+.word { white-space: nowrap; }
+.old .card { opacity: .5; }
+progress {
+	appearance: none; -webkit-appearance: none; border: 0; height: .7rem; width: 10rem; vertical-align: baseline;
+	color: var(--building); background: var(--bar_empty);
+}
+progress.pale { color: var(--pale); }
+.ctx progress { width: 3.2rem; }
+.ctx progress.c-ctx_low { color: var(--ctx_low); }
+.ctx progress.c-ctx_mid { color: var(--ctx_mid); }
+.ctx progress.c-ctx_high { color: var(--ctx_high); }
+progress::-webkit-progress-bar { background: var(--bar_empty); }
+progress::-webkit-progress-value { background: currentColor; }
+progress::-moz-progress-bar { background: currentColor; }
+
+/* The connection is down: pale, and the age line says since when. */
+.off header, .off nav, .off main, .off footer { opacity: .45; }
+.off #fresh { color: var(--blocked); }
+
+/* A phone that is not paired, and a caller who is refused, see this alone. */
+.alone { text-align: center; padding-top: 20vh; }
+.number { font-size: 3rem; letter-spacing: .3rem; color: var(--accent); }
+.lead { max-height: 4.5rem; overflow: hidden; display: flex; flex-direction: column-reverse; color: var(--dim); }
+
+/* One column: a phone, or a narrow window. Nothing is in another order. */
+.phone body { font-size: 16px; }
+.phone .b { padding: .45rem 1rem; }
+.phone .card { grid-template-columns: 1.6rem 1fr auto; }
+.phone .bar { grid-column: 2; }
+.phone .news { grid-column: 2 / 4; }
+.phone .k-building .news { display: none; }
+.phone progress { width: 40vw; }
+.phone .ctx progress { display: none; }
+.phone .strip { margin-left: 0; }
+.phone input:not([type=hidden]) { width: 100%; margin-bottom: .3rem; }
+.phone .rows { display: block; overflow-x: auto; }
+@media (max-width: 62rem) {
+	.card { grid-template-columns: 1.6rem 1fr auto; }
+	.bar { grid-column: 2; }
+	.news { grid-column: 2 / 4; }
+	.ctx progress { display: none; }
+	.rows { display: block; overflow-x: auto; }
+}
