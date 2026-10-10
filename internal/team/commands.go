@@ -47,6 +47,7 @@ type item struct {
 	Owns  []string `toml:"owns,omitempty" json:"owns,omitempty"`
 	Agent string   `toml:"agent,omitempty" json:"agent,omitempty"`
 	Model string   `toml:"model,omitempty" json:"model,omitempty"`
+	Seen  bool     `toml:"browser_check,omitempty" json:"browser_check,omitempty"` // its result must be looked at in a browser (8l)
 }
 
 const yours, project, goal = "yours", "project", "{goal}"
@@ -163,7 +164,7 @@ func save(c *contract.Call, own, name string) (any, error) {
 	cancelled := func(id string) bool { return s.Tasks[id].Status == contract.TaskCancelled }
 	for _, id := range slices.DeleteFunc(slices.Sorted(maps.Keys(s.Tasks)), cancelled) {
 		task := s.Tasks[id]
-		it := item{ID: id, Name: task.Name, Title: task.Title, Check: task.Check, Owns: task.Owns, Agent: task.Agent, Model: task.Model, After: slices.DeleteFunc(slices.Clone(task.After), cancelled)}
+		it := item{ID: id, Name: task.Name, Title: task.Title, Check: task.Check, Owns: task.Owns, Agent: task.Agent, Model: task.Model, Seen: task.BrowserCheck, After: slices.DeleteFunc(slices.Clone(task.After), cancelled)}
 		if task.Brief != "" {
 			data, err := c.Kit.Platform.Peek(filepath.Join(c.Kit.Store.Dir(c.Root, c.Run), filepath.FromSlash(task.Brief)))
 			it.Brief = name + "/" + id + ".md"
@@ -198,7 +199,7 @@ func run(c *contract.Call, t *team) (any, error) {
 			}
 		}
 		briefs[i] = fill(string(data))
-		tasks[i] = contract.Task{ID: it.ID, Name: it.Name, Title: fill(it.Title), Check: it.Check, Owns: it.Owns, Placement: contract.PlaceWorktree, Agent: it.Agent, Model: it.Model}
+		tasks[i] = contract.Task{ID: it.ID, Name: it.Name, Title: fill(it.Title), Check: it.Check, Owns: it.Owns, Placement: contract.PlaceWorktree, Agent: it.Agent, Model: it.Model, BrowserCheck: it.Seen}
 		if needs && strings.Join(c.Flags["goal"], "") == "" { // a button hands an empty goal over where none was typed
 			return nil, refuse(contract.ExitUsage, "goal_needed", "whaleshark team run "+t.Name+` --goal "<text>"`, "The team %s is run with a goal.", t.Name)
 		}

@@ -73,7 +73,7 @@ func TestSaveAndRun(t *testing.T) {
 	orch(0, "task", "add", "W", "write up the findings", "--name", "report writer", "--brief", "b.md", "--check", "none")()
 	orch(0, "task", "add", "C", "read every page", "--name", "copy check", "--brief", "b.md", "--check", "exit 0",
 		"--owns", "pages/**", "--agent", "codex", "--model", "small")()
-	orch(0, "task", "add", "L", "find broken links", "--name", "link check", "--brief", "b.md", "--check", "none", "--after", "C")()
+	orch(0, "task", "add", "L", "find broken links", "--name", "link check", "--brief", "b.md", "--check", "none", "--after", "C", "--browser-check")()
 	orch(0, "task", "edit", "W", "--after", "C,L")()
 	want := tasks(t, p)
 	// A cancelled task is not kept, and nothing waits for it.
@@ -106,6 +106,8 @@ func TestSaveAndRun(t *testing.T) {
 	}
 	if s, _ := p.Record(); len(s.Attempts) != 0 {
 		t.Fatal("team run started something")
+	} else if !s.Tasks["L"].BrowserCheck || s.Tasks["C"].BrowserCheck {
+		t.Errorf("the team did not keep which task is looked at in a browser: L %v, C %v", s.Tasks["L"].BrowserCheck, s.Tasks["C"].BrowserCheck)
 	}
 
 	// A paused run takes no team; the person's own run of one is written down.
