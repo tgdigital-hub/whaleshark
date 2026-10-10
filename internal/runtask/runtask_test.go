@@ -208,7 +208,12 @@ func TestEditResetAndAccept(t *testing.T) {
 		orch(0, "accept", "T10")("T10 is done, checked", "where 2 other agents are working")
 
 		// A check that outlasts the project's limit is stopped and has failed.
+		// The limit comes with the project, so it counts once the person
+		// has approved it.
 		write(t, filepath.Join(p.Root, "whaleshark.toml"), "[check]\ntimeout_seconds = 1\n")
+		yes := p.Command(scenario.Human, "trust")
+		yes.Stdin = strings.NewReader("yes\n")
+		play(t, yes, 0, "+ check.timeout_seconds = 1", "Approved.")
 		orch(1, "accept", "T12")("the check was stopped after 1s")
 		// And what the check itself started has ended with it.
 		time.Sleep(3 * time.Second)
@@ -379,4 +384,46 @@ func TestInitInTwoProjects(t *testing.T) {
 	}
 	write(t, login, `{"version": 99, "entries": []}`)
 	in(p.Root, scenario.Human, "", 3, "init")("newer whaleshark")
+}
+
+// What a project brings along that can run something counts only once the
+// person has approved exactly that, and stops counting when it changes.
+func TestTrust(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	person := func(exit int, answer string, words ...string) string {
+		cmd := p.Command(scenario.Human, "trust")
+		cmd.Stdin = strings.NewReader(answer)
+		return play(t, cmd, exit, words...)
+	}
+	script := func() string {
+		project, err := contract.ReadProjectFile(p.Root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return project.Setup.Script + "|" + strings.Join(project.Held, ",")
+	}
+	person(0, "", "nothing that needs your approval")
+	write(t, filepath.Join(p.Root, "whaleshark.toml"), "[setup]\nscript = \"make deps\"\n[limits]\nagents = 7\n")
+	write(t, filepath.Join(p.Root, contract.TeamsDir, "review.toml"), "about = \"x\"\n")
+	if got := script(); got != "|setup.script,"+contract.TeamsDir+"/review.toml" {
+		t.Fatalf("before any approval the project reads as %q", got)
+	}
+	play(t, p.Command(scenario.Orch, "trust"), 5, "person")
+	person(1, "no\n", "+ setup.script = make deps", "Nothing was approved")
+	person(1, "", "Type yes")
+	person(0, "yes\n", "Approved.")
+	if got := script(); got != "make deps|" {
+		t.Fatalf("after the approval the project reads as %q", got)
+	}
+	person(0, "", "Nothing has changed since you approved", "  setup.script = make deps")
+	// A limit is nobody's to approve; a team file's content is.
+	write(t, filepath.Join(p.Root, "whaleshark.toml"), "[setup]\nscript = \"make deps\"\n[limits]\nagents = 9\n")
+	if got := script(); got != "make deps|" {
+		t.Fatalf("a changed limit took the approval away: %q", got)
+	}
+	write(t, filepath.Join(p.Root, contract.TeamsDir, "review.toml"), "about = \"y\"\n")
+	if got := script(); !strings.HasPrefix(got, "|setup.script,") {
+		t.Fatalf("a changed team file left the approval standing: %q", got)
+	}
+	person(0, "y\n", "  setup.script = make deps", "+ "+contract.TeamsDir+"/review.toml", "- "+contract.TeamsDir+"/review.toml")
 }

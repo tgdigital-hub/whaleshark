@@ -1,5 +1,5 @@
 // Package runtask is the commands that set a project up and plan its work:
-// init, run, task and accept.
+// init, run, task, accept and trust.
 package runtask
 
 import (
@@ -17,6 +17,7 @@ func Plug(k *contract.Kit) {
 	k.Handle("run", run)
 	k.Handle("task", task)
 	k.Handle("accept", accept)
+	k.Handle("trust", trust)
 }
 
 // refuse is a refusal with the commands to run next.
