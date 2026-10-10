@@ -616,6 +616,8 @@ func TestTheCommandLog(t *testing.T) {
 	call(t, k, worker, "need", "todo", "x")
 	call(t, k, worker, "hook", "gate")
 	call(t, k, person, "version")
+	seen(k, "status")
+	call(t, k, lead, "status", "--sweep", "--quiet")
 	files, _ := filepath.Glob(filepath.Join(dir, "log", "*.log"))
 	if len(files) != 1 {
 		t.Fatalf("the log folder holds %v", files)

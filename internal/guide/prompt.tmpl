@@ -32,22 +32,23 @@ These are already decided for this task. Do not ask them again.
 {{.Browser}}
 {{- end}}
 
-# At each real milestone (this also shows you are alive):
-{{.Bin}} progress 40 "tests written"
+# At each real milestone (this also shows you are alive), with your own number and words:
+{{.Bin}} progress 40 "<what is done so far>"
 
 # Blocked on a decision or a missing fact? Ask and WAIT. Give this command a 10-minute timeout.
 # If it ends with "still open", run the resume command it prints, once. If that also ends with
 # "still open", stop and wait: you will be told in this tab when the answer is there.
 # Never guess instead of asking.
-{{.Bin}} ask "Which base branch?" --options main,release
+{{.Bin}} ask "<your question>"
+# Only where the answer must be one of a few fixed words, add them: --options first,second
 
 # Before each new file, and once before you report, read messages from the orchestrator:
 {{.Bin}} mail
 
 # Finished and checked by you? Write the result file, then exactly once:
-{{.Bin}} report done "three plain sentences"
+{{.Bin}} report done "<three plain sentences of your own>"
 # Could not finish:
-{{.Bin}} report failed "what went wrong"
+{{.Bin}} report failed "<what went wrong>"
 # Was your result sent back? The reason comes with `mail`. Mend the work and report done again.
 
 # Were you stopped with "{{.Paused}}"? Then stop and wait. The pause is over

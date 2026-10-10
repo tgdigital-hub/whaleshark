@@ -38,11 +38,12 @@ func Main(k *contract.Kit, argv []string, in io.Reader, out, errw io.Writer) int
 // logged adds one line to the day's file in the login's log folder (6.1):
 // when, who, which run, the command with the names of its flags, how it
 // ended and how long it took. Never an argument or a flag's value: those are
-// free text. A hook is run every few seconds and is left out, and so are
-// help and version, which touch nothing.
+// free text. Left out are what runs every few seconds, a hook and the sweep
+// a pane starts, and help and version, which touch nothing.
 func logged(c *contract.Call, exit int, took time.Duration) {
 	dirs, err := c.Kit.Platform.Dirs()
-	if err != nil || c.Command == nil || slices.Contains([]string{"hook", "help", "version"}, c.Command.Name) {
+	if err != nil || c.Command == nil || slices.Contains([]string{"hook", "help", "version"}, c.Command.Name) ||
+		c.Command.Name == "status" && c.Flags["quiet"] != nil && exit == 0 {
 		return
 	}
 	line := []string{c.Now.UTC().Format(time.RFC3339), string(c.Caller.Kind), cmp.Or(c.Run, "-"), c.Command.Name}

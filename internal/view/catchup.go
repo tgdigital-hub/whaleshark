@@ -50,7 +50,9 @@ func catchup(c *contract.Call) (any, error) {
 	}
 	block := away(v, s, append(past, s.Inbox.Events...), in.Limits, first(since, in.UI.LastHere, s.Run.CreatedAt))
 	catchText(c.Out, block, width())
-	if c.Caller.Kind == contract.Human {
+	// The lead agent is told that the person asked, while there is a lead
+	// agent to tell: a closed run has none.
+	if c.Caller.Kind == contract.Human && s.Run.ClosedAt.IsZero() {
 		_ = c.Kit.Store.Change(c.Root, c.Run, func(s *contract.State) error {
 			c.Kit.Rules.Raise(s, contract.Event{Kind: "human", Text: askedText, Data: map[string]any{"what": "catchup"}}, c.Now)
 			return nil
