@@ -124,6 +124,9 @@ func login(t *testing.T) *contract.Kit {
 func newRig(t *testing.T) *rig {
 	t.Helper()
 	r := &rig{t: t, kit: login(t)}
+	boardMu.Lock()
+	board = nil
+	boardMu.Unlock()
 	r.kit.Pty = func(s contract.PtySpec) (contract.Pty, error) {
 		if r.fail {
 			r.fail = false

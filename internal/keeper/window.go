@@ -206,8 +206,12 @@ func (k *Keeper) compose(w *window) {
 		paint(o, overlay.Box(g.Grid, w.look, overlay.Place(w.w, w.h, k.overW, k.overH), strings.Join(o.argv, " ")), true)
 	}
 	k.pop.Draw(g.Grid, w.look, time.Now())
+	words := map[bool]string{true: " keys "}[w.in.Armed] // between the command key and the key after it
 	if w.w != k.lay.W || w.h != k.lay.H {
-		words, st := fmt.Sprintf(" sized for another window, %d by %d ", k.lay.W, k.lay.H), w.look.Accent
+		words = fmt.Sprintf(" sized for another window, %d by %d ", k.lay.W, k.lay.H)
+	}
+	if words != "" {
+		st := w.look.Accent
 		st.Reverse = true
 		x := max(g.W-term.Width(words), 0)
 		g.Put(x, 0, g.W-x, words, st)
