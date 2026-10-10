@@ -241,7 +241,7 @@ func (r Rules) Checked(s *contract.State, task string, result contract.CheckResu
 	}
 	end(s, a, contract.AttemptAccepted, contract.ExitReported, now)
 	how.At = now
-	t.Status, t.Accepted, t.SettledAt = contract.TaskDone, &how, now
+	t.Status, t.Accepted, t.SettledAt, t.SyncBrief = contract.TaskDone, &how, now, ""
 	if in := s.Run.Integration; in != nil && how.Commit != "" {
 		in.Tip, s.Run.Scan.Due = how.Commit, true
 	}

@@ -128,10 +128,15 @@ type Task struct {
 	Attempts     []string   `json:"attempts,omitempty"`
 	Decisions    []Decision `json:"decisions,omitempty"`
 	Worktree     *Worktree  `json:"worktree"`
-	Accepted     *Accepted  `json:"accepted"`
-	SeenAt       time.Time  `json:"seen_at,omitzero"`
-	CreatedAt    time.Time  `json:"created_at"`
-	SettledAt    time.Time  `json:"settled_at,omitzero"`
+	// Synced counts the times the task was sent to bring its copy up to
+	// date; SyncBrief is the last brief it was sent, a file under the run's
+	// msg folder, kept for the prompt of a later attempt until it is done.
+	Synced    int       `json:"synced,omitempty"`
+	SyncBrief string    `json:"sync_brief,omitempty"`
+	Accepted  *Accepted `json:"accepted"`
+	SeenAt    time.Time `json:"seen_at,omitzero"`
+	CreatedAt time.Time `json:"created_at"`
+	SettledAt time.Time `json:"settled_at,omitzero"`
 }
 
 // The three placements; a folder given with --cwd is PlaceCwd followed by it.

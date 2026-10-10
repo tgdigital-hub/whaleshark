@@ -63,6 +63,8 @@ type Kit struct {
 	Sweeper       Sweeper
 	// View builds the one view model; the view package puts the builder here.
 	View func(ViewInput) *View
+	// SyncText words a sync brief; the guides put theirs here.
+	SyncText func(SyncBrief) string
 	// Main parses the arguments, works out the caller, runs the handler and
 	// returns the exit code; in is the command's standard input. The cli
 	// package replaces the one NewKit sets.
@@ -77,7 +79,7 @@ func NewKit() *Kit {
 		Store: NoStore{}, Terms: NoTerminals{}, Pty: NoPty, Platform: NoPlatform{}, Placement: NoPlacement{},
 		Integrator: NoIntegrator{}, Overlap: NoOverlap{}, Notifier: NoNotifier{},
 		Evidence: NoEvidence{}, AgentSettings: NoAgentSettings{}, Sweeper: NoSweeper{},
-		View: noView, Main: listOnly, handlers: map[string]Handler{},
+		View: noView, SyncText: noSyncText, Main: listOnly, handlers: map[string]Handler{},
 	}
 }
 
@@ -85,6 +87,24 @@ func NewKit() *Kit {
 func noView(in ViewInput) *View {
 	return &View{Version: ViewVersion, At: in.Now, Caller: in.Caller,
 		Alerts: []string{"the view model is " + ErrNotBuilt.Error()}, Fresh: Fresh{Checked: in.Checked}}
+}
+
+// SyncBrief is what sync tells a worker whose copy has fallen behind: the
+// branch to merge in, how many commits behind it is, and each clash with
+// its files and git's own word for it.
+type SyncBrief struct {
+	Task, Base string
+	Behind     int
+	Clashes    []Finding
+}
+
+// noSyncText is the brief until the guides word it: the facts alone.
+func noSyncText(b SyncBrief) string {
+	text := fmt.Sprintf("Bring %s up to date with %s (%d commits behind).\n", b.Task, b.Base, b.Behind)
+	for _, c := range b.Clashes {
+		text += fmt.Sprintf("%s: %s %v\n", c.Kind, c.How, c.Files)
+	}
+	return text
 }
 
 // Reader is the store with nothing on it that writes.

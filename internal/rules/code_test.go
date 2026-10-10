@@ -34,10 +34,13 @@ func TestIntegrated(t *testing.T) {
 	if fresh := r.Found(s, nil, after(time.Second)); fresh != nil || s.Run.Scan.Due || !s.Run.Scan.At.Equal(after(time.Second)) {
 		t.Fatalf("a scan with nothing found left %+v", s.Run.Scan)
 	}
+	if n, err := r.Synced(s, "A", "msg/1.md", t0); n != 1 || err != nil {
+		t.Fatalf("the first sync: %d, %v", n, err)
+	}
 	must(t, r.Checking(s, "A", contract.Checked{OID: "c1", Tip: "base"}, t0))
 	_, err = r.Checked(s, "A", contract.CheckResult{OK: true}, contract.Accepted{How: contract.AcceptCheck, Commit: "c2"}, t0)
 	must(t, err)
-	if s.Run.Integration.Tip != "c2" || !s.Run.Scan.Due {
+	if s.Run.Integration.Tip != "c2" || !s.Run.Scan.Due || s.Tasks["A"].SyncBrief != "" || s.Tasks["A"].Synced != 1 {
 		t.Fatalf("after the accept the tip is %q and the scan due is %v", s.Run.Integration.Tip, s.Run.Scan.Due)
 	}
 	if got := code(r.CloseRun(s, false, t0)); got != "not_landed" {
@@ -74,6 +77,15 @@ func TestStuckAndFound(t *testing.T) {
 	}
 	if e := s.Inbox.Events[from]; e.Task != "B" || e.Text != clash.How {
 		t.Fatalf("a clash is the later task's to wait for: %+v", e)
+	}
+	// A task sent to sync keeps its brief until it is done, and counts.
+	if got := code(func() error { _, err := r.Synced(s, "A", "msg/1.md", t0); return err }()); got != "no_worktree" {
+		t.Fatalf("a sync of a task in a shared folder: %q", got)
+	}
+	s.Tasks["A"].Worktree = &contract.Worktree{Path: "wt"}
+	r.Synced(s, "A", "msg/1.md", t0)
+	if n, err := r.Synced(s, "A", "msg/2.md", t0); n != 2 || err != nil || s.Tasks["A"].SyncBrief != "msg/2.md" {
+		t.Fatalf("the second sync: %d, %v, %+v", n, err, s.Tasks["A"])
 	}
 	// A finding that went away and came back is new again.
 	r.Found(s, nil, t0)

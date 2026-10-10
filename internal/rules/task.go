@@ -200,6 +200,20 @@ func (r Rules) Looked(s *contract.State, task string, now time.Time) error {
 	return err
 }
 
+func (r Rules) Synced(s *contract.State, task, brief string, now time.Time) (int, error) {
+	t, err := r.FindTask(s, task)
+	switch {
+	case err != nil:
+		return 0, err
+	case t.Worktree == nil:
+		return 0, refused("no_worktree", "%s has no copy of the code of its own, so there is nothing to bring up to date.", t.ID)
+	case t.Status == contract.TaskDone || t.Status == contract.TaskCancelled:
+		return 0, refused("settled", "%s is %s.", t.ID, t.Status)
+	}
+	t.Synced, t.SyncBrief = t.Synced+1, brief
+	return t.Synced, nil
+}
+
 func (r Rules) SetWorktree(s *contract.State, task string, w *contract.Worktree, now time.Time) error {
 	t, err := r.FindTask(s, task)
 	if err != nil {

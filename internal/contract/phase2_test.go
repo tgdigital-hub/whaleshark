@@ -119,4 +119,8 @@ func TestThePhaseTwoStandIns(t *testing.T) {
 	if _, err := k.Integrator.PrepareAll("x", &State{}, nil); !errors.Is(err, ErrNotBuilt) {
 		t.Error("several tasks in one accept must say that it is not built")
 	}
+	brief := SyncBrief{Task: "T7", Base: "whaleshark/r3", Behind: 2, Clashes: []Finding{{Kind: "overlap", Files: []string{"a.go"}, How: "both changed"}}}
+	if got := k.SyncText(brief); got != "Bring T7 up to date with whaleshark/r3 (2 commits behind).\noverlap: both changed [a.go]\n" {
+		t.Errorf("until the guides word it, a sync brief reads %q", got)
+	}
 }

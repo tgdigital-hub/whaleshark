@@ -102,6 +102,10 @@ type Rules interface {
 
 	// 6.7 Worktree: nil removes the record.
 	SetWorktree(s *State, task string, w *Worktree, now time.Time) error
+	// Synced counts one more sync of a task that has a worktree and keeps
+	// its brief; sync then sends the brief with Tell. A task synced twice
+	// is the one to accept next.
+	Synced(s *State, task, brief string, now time.Time) (times int, err error)
 }
 
 // TaskEdit is what task edit may replace; a nil field is left as it is.
