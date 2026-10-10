@@ -1,0 +1,106 @@
+== less-80x24 after 13 of 51 ==
+cursor 44,0 shown
+|gamma line 31: the quick brown fox jumps ove                                    |
+|gamma line 32: the quick brown fox jumps over the lazy dog                      |
+|gamma line 33: the quick brown fox jumps over the lazy dog                      |
+|gamma line 34: the quick brown fox jumps over the lazy dog                      |
+|gamma line 35: the quick brown fox jumps over the lazy dog                      |
+|gamma line 36: the quick brown fox jumps over the lazy dog                      |
+|gamma line 37: the quick brown fox jumps over the lazy dog                      |
+|gamma line 38: the quick brown fox jumps over the lazy dog                      |
+|gamma line 39: the quick brown fox jumps over the lazy dog                      |
+|gamma line 40: the quick brown fox jumps over the lazy dog                      |
+|gamma line 41: the quick brown fox jumps over the lazy dog                      |
+|gamma line 42: the quick brown fox jumps over the lazy dog                      |
+|gamma line 43: the quick brown fox jumps over the lazy dog                      |
+|gamma line 44: the quick brown fox jumps over the lazy dog                      |
+|gamma line 45: the quick brown fox jumps over the lazy dog                      |
+|gamma line 46: the quick brown fox jumps over the lazy dog                      |
+|gamma line 47: the quick brown fox jumps over the lazy dog                      |
+|gamma line 48: the quick brown fox jumps over the lazy dog                      |
+|gamma line 49: the quick brown fox jumps over the lazy dog                      |
+|gamma line 50: the quick brown fox jumps over the lazy dog                      |
+|gamma line 51: the quick brown fox jumps over the lazy dog                      |
+|gamma line 52: the quick brown fox jumps over the lazy dog                      |
+|gamma line 53: the quick brown fox jumps over the lazy dog                      |
+|gamma line 54: the quick brown fox jumps over the lazy dog                      |
+== less-80x24 after 26 of 51 ==
+cursor 23,23 shown
+|gamma line 41: the quick brown fox jumps over the lazy dog                      |
+|gamma line 42: the quick brown fox jumps over the lazy dog                      |
+|gamma line 43: the quick brown fox jumps over the lazy dog                      |
+|gamma line 44: the quick brown fox jumps over the lazy dog                      |
+|gamma line 45: the quick brown fox jumps over the lazy dog                      |
+|gamma line 46: the quick brown fox jumps over the lazy dog                      |
+|...skipping...                                                                  |
+|gamma line 150: the quick brown fox jumps over the lazy dog                     |
+|gamma line 151: the quick brown fox jumps over the lazy dog                     |
+|gamma line 152: the quick brown fox jumps over the lazy dog                     |
+|gamma line 153: the quick brown fox jumps over the lazy dog                     |
+|gamma line 154: the quick brown fox jumps over the lazy dog                     |
+|gamma line 155: the quick brown fox jumps over the lazy dog                     |
+|gamma line 156: the quick brown fox jumps over the lazy dog                     |
+|gamma line 157: the quick brown fox jumps over the lazy dog                     |
+|gamma line 158: the quick brown fox jumps over the lazy dog                     |
+|gamma line 159: the quick brown fox jumps over the lazy dog                     |
+|gamma line 160: the quick brown fox jumps over the lazy dog                     |
+|gamma line 161: the quick brown fox jumps over the lazy dog                     |
+|gamma line 162: the quick brown fox jumps over the lazy dog                     |
+|gamma line 163: the quick brown fox jumps over the lazy dog                     |
+|gamma line 164: the quick brown fox jumps over the lazy dog                     |
+|gamma line 165: the quick brown fox jumps over the lazy dog                     |
+|gamma line 166: the qui                                                         |
+7:6-13 reverse
+== less-80x24 after 39 of 51 ==
+cursor 47,23 shown
+|gamma line 1: the quick brown fox jumps over the lazy dog                       |
+|gamma line 2: the quick brown fox jumps over the lazy dog                       |
+|gamma line 3: the quick brown fox jumps over the lazy dog                       |
+|gamma line 4: the quick brown fox jumps over the lazy dog                       |
+|gamma line 5: the quick brown fox jumps over the lazy dog                       |
+|gamma line 6: the quick brown fox jumps over the lazy dog                       |
+|gamma line 7: the quick brown fox jumps over the lazy dog                       |
+|gamma line 8: the quick brown fox jumps over the lazy dog                       |
+|gamma line 9: the quick brown fox jumps over the lazy dog                       |
+|gamma line 10: the quick brown fox jumps over the lazy dog                      |
+|gamma line 11: the quick brown fox jumps over the lazy dog                      |
+|gamma line 12: the quick brown fox jumps over the lazy dog                      |
+|gamma line 13: the quick brown fox jumps over the lazy dog                      |
+|gamma line 14: the quick brown fox jumps over the lazy dog                      |
+|gamma line 15: the quick brown fox jumps over the lazy dog                      |
+|gamma line 16: the quick brown fox jumps over the lazy dog                      |
+|gamma line 17: the quick brown fox jumps over the lazy dog                      |
+|gamma line 18: the quick brown fox jumps over the lazy dog                      |
+|gamma line 19: the quick brown fox jumps over the lazy dog                      |
+|gamma line 20: the quick brown fox jumps over the lazy dog                      |
+|gamma line 21: the quick brown fox jumps over the lazy dog                      |
+|gamma line 22: the quick brown fox jumps over the lazy dog                      |
+|gamma line 23: the quick brown fox jumps over the lazy dog                      |
+|Constantly display line numbers  (press RETURN)                                 |
+23:0-46 reverse
+== less-80x24 after 51 of 51 ==
+cursor 0,0 shown
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |

@@ -1,0 +1,206 @@
+== nano-120x40 after 15 of 58 ==
+cursor 12,4 shown
+|  UW PICO 5.09                                        File: alpha.txt                                         Modified  |
+|                                                                                                                        |
+|typed at the top alpha one                                                                                              |
+|alpha two                                                                                                               |
+|alpha three                                                                                                             |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|^G Get Help         ^O WriteOut         ^R Read File        ^Y Prev Pg          ^K Cut Text         ^C Cur Pos          |
+|^X Exit             ^J Justify          ^W Where is         ^V Next Pg          ^U UnCut Text       ^T To Spell         |
+0:0-119 reverse
+38:0-1 reverse
+38:20-21 reverse
+38:40-41 reverse
+38:60-61 reverse
+38:80-81 reverse
+38:100-101 reverse
+39:0-1 reverse
+39:20-21 reverse
+39:40-41 reverse
+39:60-61 reverse
+39:80-81 reverse
+39:100-101 reverse
+== nano-120x40 after 29 of 58 ==
+cursor 29,4 shown
+|  UW PICO 5.09                                        File: alpha.txt                                         Modified  |
+|                                                                                                                        |
+|typed at the top alpha one                                                                                              |
+|alpha two                                                                                                               |
+|alpha three and at the end of                                                                                           |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|^G Get Help         ^O WriteOut         ^R Read File        ^Y Prev Pg          ^K Cut Text         ^C Cur Pos          |
+|^X Exit             ^J Justify          ^W Where is         ^V Next Pg          ^U UnCut Text       ^T To Spell         |
+0:0-119 reverse
+38:0-1 reverse
+38:20-21 reverse
+38:40-41 reverse
+38:60-61 reverse
+38:80-81 reverse
+38:100-101 reverse
+39:0-1 reverse
+39:20-21 reverse
+39:40-41 reverse
+39:60-61 reverse
+39:80-81 reverse
+39:100-101 reverse
+== nano-120x40 after 44 of 58 ==
+cursor 13,37 shown
+|  UW PICO 5.09                                        File: alpha.txt                                         Modified  |
+|                                                                                                                        |
+|typed at the top alpha one                                                                                              |
+|alpha two                                                                                                               |
+|alpha three and at the end of a line                                                                                    |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|Search: three                                                                                                           |
+|^G Get Help         ^Y FirstLine        ^R Replace          ^T LineNumber       ^O End of Para                          |
+|^C Cancel           ^V LastLine         ^^ Optns Menu       ^W Start of Para    ^U FullJustify                          |
+0:0-119 reverse
+37:0-119 reverse
+38:0-1 reverse
+38:20-21 reverse
+38:40-41 reverse
+38:60-61 reverse
+38:80-81 reverse
+39:0-1 reverse
+39:20-21 reverse
+39:40-41 reverse
+39:60-61 reverse
+39:80-81 reverse
+== nano-120x40 after 58 of 58 ==
+cursor 0,0 shown
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |

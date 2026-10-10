@@ -1,0 +1,71 @@
+== top-50x15 after 2 of 8 ==
+cursor 43,11 shown
+|Processes: 669 total, 4 running, 665 sleeping, 429|
+|14:48:34 Load Avg: 6.41, 4.99, 5.62               |
+|CPU usage: 19.33% user, 17.92% sys, 62.74% idle   |
+|SharedLibs: 401M resident, 85M data, 65M linkedit.|
+|MemRegions: 641886 total, 4247M resident, 198M pri|
+|PhysMem: 15G used (2095M wired, 5310M compressor),|
+|VM: 354T vsize, 57G framework vsize, 2120563(0) sw|
+|Networks: packets: 31807167/22G in, 26497953/16G o|
+|Disks: 56826674/1359G read, 25930005/353G written.|
+|                                                  |
+|PID    COMMAND        %CPU   TIME       MEM       |
+|1      launchd        0.0    55:23.18   27M       |
+|                                                  |
+|                                                  |
+|                                                  |
+10:22-25 reverse
+== top-50x15 after 4 of 8 ==
+cursor 43,11 shown
+|Processes: 669 total, 3 running, 666 sleeping, 428|
+|14:48:37 Load Avg: 6.41, 4.99, 5.62               |
+|CPU usage: 18.70% user, 9.2% sys, 72.27% idle     |
+|SharedLibs: 401M resident, 85M data, 65M linkedit.|
+|MemRegions: 40 total, 928K resident, 198M private,|
+|PhysMem: 15G used (2094M wired, 5313M compressor),|
+|VM: 354T vsize, 57G framework vsize, 2120563(0) sw|
+|Networks: packets: 31807262/22G in, 26498048/16G o|
+|Disks: 56843707/1360G read, 25930555/353G written.|
+|                                                  |
+|PID    COMMAND        %CPU   TIME       MEM       |
+|1      launchd        0.2    55:23.19   27M       |
+|                                                  |
+|                                                  |
+|                                                  |
+10:22-25 reverse
+== top-50x15 after 6 of 8 ==
+cursor 43,11 shown
+|Processes: 663 total, 4 running, 659 sleeping, 423|
+|14:48:39 Load Avg: 6.41, 4.99, 5.62               |
+|CPU usage: 21.26% user, 11.53% sys, 67.20% idle   |
+|SharedLibs: 401M resident, 85M data, 65M linkedit.|
+|MemRegions: 0 total, 0B resident, 198M private, 11|
+|PhysMem: 15G used (2089M wired, 5306M compressor),|
+|VM: 351T vsize, 57G framework vsize, 2120563(0) sw|
+|Networks: packets: 31807404/22G in, 26498195/16G o|
+|Disks: 56844494/1360G read, 25931366/353G written.|
+|                                                  |
+|PID    COMMAND        %CPU   TIME       MEM       |
+|1      launchd        0.3    55:23.20   27M       |
+|                                                  |
+|                                                  |
+|                                                  |
+10:22-25 reverse
+== top-50x15 after 8 of 8 ==
+cursor 0,0 shown
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |

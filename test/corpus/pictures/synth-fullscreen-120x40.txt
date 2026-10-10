@@ -1,0 +1,269 @@
+== synth-fullscreen-120x40 after 75 of 297 ==
+cursor 2,37 hidden
+| ▗▄▄▄▖  ▛███▜ Pool 0.1 sample                                                                                           |
+|▝▜ █████ █▀ a made-up agent                                                                                             |
+|  ▘▘ ▝▝ ~/pool                                                                                                          |
+|                                                                                                                        |
+|❯ 🙂 looking drifts                                                                                                     |
+|                                                                                                                        |
+|⏺ small shadow number the from the on to the nobody diver a the while keeps from along reef a and a it fish past a      |
+|  past follow the shadow under writes back bars down whale the small                                                    |
+|                                                                                                                        |
+|❯ a 鯨                                                                                                                  |
+|                                                                                                                        |
+|⏺ seen a comes steady where past diver and 🦈 down then long the filters in it it                                       |
+|                                                                                                                        |
+|  func count(spots int ) {                                                                                              |
+|      report( "seen" , spots)                                                                                           |
+|  }                                                                                                                     |
+|                                                                                                                        |
+|❯ looking spots the                                                                                                     |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|✢ Drifting…                                                                                                             |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|❯                                                                                                                       |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help · ◐ steady                                                                            |
+0:0-6 fg=#40a0d0
+0:8-12 bg=#0a1e32
+0:14-17 bold
+0:19-21 bold
+0:23-28 fg=#969696
+1:0-1 fg=#40a0d0
+1:3-7 bg=#0a1e32
+1:9-10 fg=#40a0d0
+1:12-12 fg=#969696
+1:14-20 fg=#969696
+1:22-26 fg=#969696
+2:0-6 fg=#40a0d0
+2:8-13 fg=#969696
+4:0-18 fg=#ffffff bg=#32373c
+6:0-0 fg=#ffffff
+9:0-5 fg=#ffffff bg=#32373c
+11:0-0 fg=#ffffff
+13:2-6 fg=4
+13:19-22 fg=4
+14:14-20 fg=1
+17:0-18 fg=#ffffff bg=#32373c
+35:0-2 fg=#40a0d0
+35:3-3 fg=#8ccdeb
+35:4-10 fg=#40a0d0
+36:0-119 fg=#78828c
+37:2-2 reverse
+38:0-119 fg=#78828c
+39:2-3 fg=#969696
+39:5-9 fg=#969696
+39:11-14 fg=#969696
+39:16-17 fg=#969696
+39:19-19 fg=#969696
+39:21-23 fg=#969696
+39:25-27 fg=#969696
+39:29-32 fg=#969696
+39:34-34 fg=#969696
+39:36-36 fg=#969696
+39:38-43 fg=#969696
+== synth-fullscreen-120x40 after 149 of 297 ==
+cursor 2,37 hidden
+|                                                                                                                        |
+|❯ a 鯨                                                                                                                  |
+|                                                                                                                        |
+|⏺ seen a comes steady where past diver and 🦈 down then long the filters in it it                                       |
+|                                                                                                                        |
+|  func count(spots int ) {                                                                                              |
+|      report( "seen" , spots)                                                                                           |
+|  }                                                                                                                     |
+|                                                                                                                        |
+|❯ looking spots the                                                                                                     |
+|                                                                                                                        |
+|⏺ reef course comes it what light the pale shark the it shark spots 한국어 smaller                                      |
+|                                                                                                                        |
+|  ┌───────┬────────┬───────┐                                                                                            |
+|  │ Name  │ Colour │ Count │                                                                                            |
+|  ├───────┼────────┼───────┤                                                                                            |
+|  │ shark │ grey   │ 3     │                                                                                            |
+|  │ 鯨    │ blue   │ 12    │                                                                                            |
+|  └───────┴────────┴───────┘                                                                                            |
+|                                                                                                                        |
+|❯ it the                                                                                                                |
+|                                                                                                                        |
+|⏺ reef a back others writes slate counts the looking on tell past others and                                            |
+|                                                                                                                        |
+|❯ a along past slow its                                                                                                 |
+|                                                                                                                        |
+|⏺ 鯨 writes keeps in slow needs keeps light shark the back from whale whale its from pale and slate tell its drifts     |
+|  number slate on whale along what tell shadow reef tell it                                                             |
+|                                                                                                                        |
+|  func count(spots int ) {                                                                                              |
+|      report( "seen" , spots)                                                                                           |
+|  }                                                                                                                     |
+|                                                                                                                        |
+|❯ others whale                                                                                                          |
+|                                                                                                                        |
+|✢ Drifting…                                                                                                             |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|❯                                                                                                                       |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help · ◐ steady                                                                            |
+1:0-5 fg=#ffffff bg=#32373c
+3:0-0 fg=#ffffff
+5:2-6 fg=4
+5:19-22 fg=4
+6:14-20 fg=1
+9:0-18 fg=#ffffff bg=#32373c
+11:0-0 fg=#ffffff
+20:0-7 fg=#ffffff bg=#32373c
+22:0-0 fg=#ffffff
+24:0-22 fg=#ffffff bg=#32373c
+26:0-0 fg=#ffffff
+29:2-6 fg=4
+29:19-22 fg=4
+30:14-20 fg=1
+33:0-13 fg=#ffffff bg=#32373c
+35:0-4 fg=#40a0d0
+35:5-5 fg=#8ccdeb
+35:6-10 fg=#40a0d0
+36:0-119 fg=#78828c
+37:2-2 reverse
+38:0-119 fg=#78828c
+39:2-3 fg=#969696
+39:5-9 fg=#969696
+39:11-14 fg=#969696
+39:16-17 fg=#969696
+39:19-19 fg=#969696
+39:21-23 fg=#969696
+39:25-27 fg=#969696
+39:29-32 fg=#969696
+39:34-34 fg=#969696
+39:36-36 fg=#969696
+39:38-43 fg=#969696
+== synth-fullscreen-120x40 after 223 of 297 ==
+cursor 2,37 hidden
+|  │ shark │ grey   │ 3     │                                                                                            |
+|  │ 鯨    │ blue   │ 12    │                                                                                            |
+|  └───────┴────────┴───────┘                                                                                            |
+|                                                                                                                        |
+|❯ it the                                                                                                                |
+|                                                                                                                        |
+|⏺ reef a back others writes slate counts the looking on tell past others and                                            |
+|                                                                                                                        |
+|❯ a along past slow its                                                                                                 |
+|                                                                                                                        |
+|⏺ 鯨 writes keeps in slow needs keeps light shark the back from whale whale its from pale and slate tell its drifts     |
+|  number slate on whale along what tell shadow reef tell it                                                             |
+|                                                                                                                        |
+|  func count(spots int ) {                                                                                              |
+|      report( "seen" , spots)                                                                                           |
+|  }                                                                                                                     |
+|                                                                                                                        |
+|❯ others whale                                                                                                          |
+|                                                                                                                        |
+|⏺ shark comes on writes 海の魚 keeps was the its looking it warm course needs was                                       |
+|                                                                                                                        |
+|  ┌───────┬────────┬───────┐                                                                                            |
+|  │ Name  │ Colour │ Count │                                                                                            |
+|  ├───────┼────────┼───────┤                                                                                            |
+|  │ shark │ grey   │ 3     │                                                                                            |
+|  │ 鯨    │ blue   │ 12    │                                                                                            |
+|  └───────┴────────┴───────┘                                                                                            |
+|                                                                                                                        |
+|❯ tell and                                                                                                              |
+|                                                                                                                        |
+|⏺ others number today what the spots was whale from others spots writes warm back is course the café looking small      |
+|  warm down a spots on warm 🙂 pale water in its is the whale comes                                                     |
+|                                                                                                                        |
+|❯ a the the its                                                                                                         |
+|                                                                                                                        |
+|✢ Drifting…                                                                                                             |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|❯                                                                                                                       |
+|────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help · ◐ steady                                                                            |
+4:0-7 fg=#ffffff bg=#32373c
+6:0-0 fg=#ffffff
+8:0-22 fg=#ffffff bg=#32373c
+10:0-0 fg=#ffffff
+13:2-6 fg=4
+13:19-22 fg=4
+14:14-20 fg=1
+17:0-13 fg=#ffffff bg=#32373c
+19:0-0 fg=#ffffff
+28:0-9 fg=#ffffff bg=#32373c
+30:0-0 fg=#ffffff
+33:0-14 fg=#ffffff bg=#32373c
+35:0-4 fg=#40a0d0
+35:5-5 fg=#8ccdeb
+35:6-10 fg=#40a0d0
+36:0-119 fg=#78828c
+37:2-2 reverse
+38:0-119 fg=#78828c
+39:2-3 fg=#969696
+39:5-9 fg=#969696
+39:11-14 fg=#969696
+39:16-17 fg=#969696
+39:19-19 fg=#969696
+39:21-23 fg=#969696
+39:25-27 fg=#969696
+39:29-32 fg=#969696
+39:34-34 fg=#969696
+39:36-36 fg=#969696
+39:38-43 fg=#969696
+== synth-fullscreen-120x40 after 297 of 297 ==
+cursor 0,4 shown
+|                                                                                                                        |
+|The pool is closed.                                                                                                     |
+|Come back with: pool --again                                                                                            |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+|                                                                                                                        |
+1:0-18 dim
+2:0-27 dim

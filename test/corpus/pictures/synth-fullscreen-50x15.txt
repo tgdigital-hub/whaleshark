@@ -1,0 +1,116 @@
+== synth-fullscreen-50x15 after 60 of 237 ==
+cursor 2,12 hidden
+|  from tell to it was while deck its what         |
+|                                                  |
+|❯ small on it                                     |
+|                                                  |
+|⏺ long deck is comes is and in tell warm the the  |
+|  back slow its and the in down it under          |
+|                                                  |
+|  func count(spots int ) {                        |
+|      report( "seen" , spots)                     |
+|  }                                               |
+|                                                  |
+|──────────────────────────────────────────────────|
+|❯                                                 |
+|──────────────────────────────────────────────────|
+|  ▸▸ plain mode on · ? for help                   |
+2:0-12 fg=#ffffff bg=#32373c
+4:0-0 fg=#ffffff
+7:2-6 fg=4
+7:19-22 fg=4
+8:14-20 fg=1
+11:0-49 fg=#78828c
+12:2-2 reverse
+13:0-49 fg=#78828c
+14:2-3 fg=#969696
+14:5-9 fg=#969696
+14:11-14 fg=#969696
+14:16-17 fg=#969696
+14:19-19 fg=#969696
+14:21-21 fg=#969696
+14:23-25 fg=#969696
+14:27-30 fg=#969696
+== synth-fullscreen-50x15 after 119 of 237 ==
+cursor 2,12 hidden
+|  │ 鯨    │ blue   │ 12    │                      |
+|  └───────┴────────┴───────┘                      |
+|                                                  |
+|❯ on back spots under and                         |
+|                                                  |
+|⏺ comes the where writes counts along nobody the  |
+|  past in its filters small rises and             |
+|                                                  |
+|❯ follow from was comes                           |
+|                                                  |
+|✶ Drifting…                                       |
+|──────────────────────────────────────────────────|
+|❯                                                 |
+|──────────────────────────────────────────────────|
+|  ▸▸ plain mode on · esc for help                 |
+3:0-24 fg=#ffffff bg=#32373c
+5:0-0 fg=#ffffff
+8:0-22 fg=#ffffff bg=#32373c
+10:0-7 fg=#40a0d0
+10:8-8 fg=#8ccdeb
+10:9-10 fg=#40a0d0
+11:0-49 fg=#78828c
+12:2-2 reverse
+13:0-49 fg=#78828c
+14:2-3 fg=#969696
+14:5-9 fg=#969696
+14:11-14 fg=#969696
+14:16-17 fg=#969696
+14:19-19 fg=#969696
+14:21-23 fg=#969696
+14:25-27 fg=#969696
+14:29-32 fg=#969696
+== synth-fullscreen-50x15 after 178 of 237 ==
+cursor 14,12 hidden
+|  ├───────┼────────┼───────┤                      |
+|  │ shark │ grey   │ 3     │                      |
+|  │ 鯨    │ blue   │ 12    │                      |
+|  └───────┴────────┴───────┘                      |
+|                                                  |
+|❯ the whale rises course it slate                 |
+|                                                  |
+|⏺ fish the drifts seen to nobody on nobody down   |
+|  its water on its while whale                    |
+|                                                  |
+|                                                  |
+|──────────────────────────────────────────────────|
+|❯ and long in                                     |
+|──────────────────────────────────────────────────|
+|  ▸▸ plain mode on · ? for help                   |
+5:0-32 fg=#ffffff bg=#32373c
+7:0-0 fg=#ffffff
+11:0-49 fg=#78828c
+12:14-14 reverse
+13:0-49 fg=#78828c
+14:2-3 fg=#969696
+14:5-9 fg=#969696
+14:11-14 fg=#969696
+14:16-17 fg=#969696
+14:19-19 fg=#969696
+14:21-21 fg=#969696
+14:23-25 fg=#969696
+14:27-30 fg=#969696
+== synth-fullscreen-50x15 after 237 of 237 ==
+cursor 0,4 shown
+|                                                  |
+|The pool is closed.                               |
+|Come back with: pool --again                      |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+1:0-18 dim
+2:0-27 dim

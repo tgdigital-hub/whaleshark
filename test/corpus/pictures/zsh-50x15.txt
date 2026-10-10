@@ -1,0 +1,72 @@
+== zsh-50x15 after 98 of 391 ==
+cursor 7,14 shown
+|47                                                |
+|48                                                |
+|49                                                |
+|50                                                |
+|51                                                |
+|52                                                |
+|53                                                |
+|54                                                |
+|55                                                |
+|56                                                |
+|57                                                |
+|58                                                |
+|59                                                |
+|60                                                |
+|$ print                                           |
+== zsh-50x15 after 196 of 391 ==
+cursor 41,14 shown
+|51                                                |
+|52                                                |
+|53                                                |
+|54                                                |
+|55                                                |
+|56                                                |
+|57                                                |
+|58                                                |
+|59                                                |
+|60                                                |
+|$ printf '\033[31mred \033[1;32mbold green\033[0m |
+|\033[4munderlined\033[0m \033[7mreversed\033[0m\n'|
+|                                                  |
+|red bold green underlined reversed                |
+|$ printf '\033[38;5;208m256 colours\033[0         |
+13:0-3 fg=1
+13:4-13 fg=2 bold
+13:15-24 underline
+13:26-33 reverse
+== zsh-50x15 after 294 of 391 ==
+cursor 3,14 shown
+|ord51 word52 word53 word54 word55 word56 word57 wo|
+|rd58 word59                                       |
+|$ cat wide.txt                                    |
+|plain ascii                                       |
+|tab     here    aligned                           |
+|accents: é ü ñ                                    |
+|wide: 日本語 한국어                               |
+|emoji: 🙂 🐳                                      |
+|combining: é ä                                    |
+|box: ┌─┐ │ │ └─┘                                  |
+|$ cat alpha.txt                                   |
+|alpha one                                         |
+|alpha two                                         |
+|alpha three                                       |
+|$ e                                               |
+== zsh-50x15 after 391 of 391 ==
+cursor 0,3 shown
+|$ echo after clear                                |
+|after clear                                       |
+|$ exit                                            |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
+|                                                  |
