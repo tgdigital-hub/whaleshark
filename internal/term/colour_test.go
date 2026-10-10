@@ -1,6 +1,10 @@
 package term
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
+)
 
 func TestColourAndItsTwoFallbacks(t *testing.T) {
 	st := Style{Fg: RGB(0xff7f6b), Bg: RGB(0x0b1620), Bold: true, Reverse: true}
@@ -49,5 +53,23 @@ func TestModeOf(t *testing.T) {
 		if got := ModeOf(func(k string) string { return env[k] }); got != c.want {
 			t.Errorf("%+v: mode %d, want %d", c, got, c.want)
 		}
+	}
+}
+
+// Italic has its own number, and a colour of the 256 goes by its number in
+// either colour mode: the first sixteen in the short form.
+func TestItalicAndColoursByNumber(t *testing.T) {
+	st := Style{Italic: true, Underline: true, Fg: contract.Indexed(3), Bg: contract.Indexed(12)}
+	for mode, want := range map[Mode]string{FullColour: "\x1b[0;3;4;33;104m", Colour256: "\x1b[0;3;4;33;104m", NoColour: "\x1b[0;3;4m"} {
+		if got := string(mode.style(nil, st)); got != want {
+			t.Errorf("mode %d: %q, want %q", mode, got, want)
+		}
+	}
+	st = Style{Fg: contract.Indexed(0), Bg: contract.Indexed(208)}
+	if got := string(FullColour.style(nil, st)); got != "\x1b[0;30;48;5;208m" {
+		t.Errorf("black and number 208: %q", got)
+	}
+	if got := string(Colour256.style(nil, Style{Fg: contract.Indexed(15), Bg: contract.Indexed(7)})); got != "\x1b[0;97;47m" {
+		t.Errorf("the two whites: %q", got)
 	}
 }

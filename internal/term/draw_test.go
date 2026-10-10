@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/term/termtest"
 )
@@ -211,5 +212,87 @@ func TestHarnessKeys(t *testing.T) {
 	}
 	if ev := <-s.Term.Events; ev.Kind != term.Mouse || ev.X != 2 || ev.Y != 1 {
 		t.Errorf("click on the text: %+v", ev)
+	}
+}
+
+// A pane's picture is copied into its place and nowhere else: cut where it
+// is larger, a halved wide character blanked, and nothing in a cell that
+// could steer the terminal.
+func TestPaintCopiesAPictureIntoItsPlace(t *testing.T) {
+	p := contract.NewPicture(6, 3)
+	set := func(x, y int, cells ...string) {
+		for i, c := range cells {
+			p.Cells[y*p.W+x+i] = term.Cell{Text: c, Style: term.Style{Italic: true}}
+		}
+	}
+	set(0, 0, "a", "b", "漢", "", "c", "d")
+	set(0, 1, "x", "\x1b[2J", "\x07", "y", "漢", "")
+	set(0, 2, "", "z")
+	g := term.NewGrid(12, 5)
+	for y := range g.H {
+		g.Put(0, y, g.W, "............", term.Style{})
+	}
+	g.Put(4, 1, 2, "字", term.Style{})
+	g.Paint(3, 1, 6, 3, p)
+	want := []string{"............", "...ab漢cd...", "...x  y漢...", "... z    ...", "............"}
+	for y, w := range want {
+		if g.Row(y) != w {
+			t.Errorf("row %d is %q, want %q", y, g.Row(y), w)
+		}
+	}
+	if !g.At(3, 1).Style.Italic || g.At(2, 1).Style.Italic || g.At(9, 1).Style.Italic {
+		t.Error("the style did not come with the cells, or left the place")
+	}
+
+	g.Paint(8, 3, 3, 9, p) // cut in the middle of the wide character, and by the grid's last row
+	if g.Row(3) != "... z   ab ." || g.Row(4) != "........x  ." {
+		t.Errorf("the cut picture gave %q and %q", g.Row(3), g.Row(4))
+	}
+	g.Paint(10, 0, 6, 1, p) // cut by the grid's right edge
+	g.Paint(-1, 0, 6, 3, p) // outside: nothing
+	g.Paint(0, 9, 6, 3, p)
+	if g.Row(0) != "..........ab" {
+		t.Errorf("the grid's own edge gave %q", g.Row(0))
+	}
+}
+
+// The terminal's cursor is shown where the grid says and nowhere while the
+// cells are drawn; a frame may be wrapped to be drawn in one go.
+func TestTheCursorAndOneGo(t *testing.T) {
+	s := termtest.New(20, 5)
+	g := s.Term
+	sent := func() string {
+		was := len(s.Sent())
+		g.Flush()
+		return s.Sent()[was:]
+	}
+	g.Put(0, 0, g.W, "$ ", term.Style{})
+	g.CurX, g.CurY, g.CurShown = 2, 0, true
+	if got := sent(); !strings.HasSuffix(got, "$\x1b[0m\x1b[1;3H\x1b[?25h") || strings.Contains(got, "\x1b[?25l") {
+		t.Fatalf("the first frame with a cursor sent %q", got)
+	}
+	if got := sent(); got != "" {
+		t.Fatalf("nothing changed and %q was sent", got)
+	}
+	g.Put(2, 0, 1, "l", term.Style{})
+	g.CurX = 3
+	if got := sent(); got != "\x1b[?25l\x1b[1;3H\x1b[0ml\x1b[0m\x1b[1;4H\x1b[?25h" {
+		t.Fatalf("a typed character sent %q", got)
+	}
+	g.CurX, g.CurY = 0, 4
+	if got := sent(); got != "\x1b[?25l\x1b[5;1H\x1b[?25h" {
+		t.Fatalf("a moved cursor sent %q", got)
+	}
+	g.Sync = true
+	g.CurX = 20 // outside the grid: not shown
+	if got := sent(); got != "\x1b[?2026h\x1b[?25l\x1b[?2026l" {
+		t.Fatalf("a cursor outside the grid sent %q", got)
+	}
+	if got := sent(); got != "" {
+		t.Fatalf("nothing changed and %q was sent", got)
+	}
+	g.Put(0, 1, 1, "x", term.Style{})
+	if got := sent(); got != "\x1b[?2026h\x1b[2;1H\x1b[0mx\x1b[0m\x1b[?2026l" {
+		t.Fatalf("a frame in one go sent %q", got)
 	}
 }

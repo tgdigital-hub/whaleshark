@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -43,7 +44,9 @@ type Event struct {
 	// Key names a key press: the character itself ("a", "S", "/"), or
 	// "enter", "esc", "tab", "space", "backspace", "delete", "up", "down",
 	// "left", "right", "home", "end", "pageup", "pagedown", "insert", "f1"
-	// to "f12", with "ctrl+", "alt+" and "shift+" in front, in that order.
+	// to "f12", with "ctrl+", "alt+" and "shift+" in front, in that order,
+	// and "super+" (Cmd on a Mac) before those where the terminal sends keys
+	// in the extended form.
 	// Rune is the character the key types, 0 when it types none.
 	Key  string
 	Rune rune
@@ -191,7 +194,10 @@ func csi(b []byte, last bool) (Event, int) {
 	case args == "" && (end == 'I' || end == 'O'):
 		return Event{Kind: Focus, Focused: end == 'I'}, n
 	}
-	v := numbers(args)
+	if end == 'u' {
+		return extended(args), n
+	}
+	v := numbers(args, ";")
 	key := letterKeys[end]
 	if end == '~' {
 		key = tildeKeys[v[0]]
@@ -200,19 +206,76 @@ func csi(b []byte, last bool) (Event, int) {
 		return Event{}, n
 	}
 	if len(v) > 1 {
-		held := max(v[1], 1) - 1
-		for i, name := range [...]string{"shift+", "alt+", "ctrl+"} {
-			if held&(1<<i) != 0 {
-				key = name + key
-			}
-		}
+		key = held((max(v[1], 1)-1)&7) + key
 	}
 	return Event{Kind: KeyPress, Key: key}, n
 }
 
-func numbers(s string) []int {
+// held names the keys held with a key, from the sum of shift 1, alt 2,
+// ctrl 4 and super 8.
+func held(sum int) (names string) {
+	for i, name := range [...]string{"shift+", "alt+", "ctrl+", "super+"} {
+		if sum&(1<<i) != 0 {
+			names = name + names
+		}
+	}
+	return names
+}
+
+// The keys of the extended form that are no character: the four that are
+// control characters otherwise, and the keypad, numbered from keypad.
+var (
+	codeKeys   = map[rune]string{9: "tab", 13: "enter", 27: "esc", 32: "space", 127: "backspace"}
+	keypadKeys = strings.Fields("0 1 2 3 4 5 6 7 8 9 . / * - + enter = , left right up down pageup pagedown home end insert delete")
+)
+
+const keypad = 57399
+
+// extended reads a key in the extended form, the keyboard protocol that
+// kitty wrote down and several terminals speak: the key's number and after
+// a colon the character it gives with shift, then one more than the sum of
+// the keys held and after a colon 3 for a release, which is no event here.
+// It is how Escape arrives unmistakably, and shift+enter and Cmd+C at all.
+func extended(args string) Event {
+	f := strings.Split(args+";", ";")
+	code, with := numbers(f[0], ":"), numbers(f[1], ":")
+	r, sum := rune(code[0]), (max(with[0], 1)-1)&15
+	if len(with) > 1 && with[1] == 3 || code[0] > unicode.MaxRune {
+		return Event{}
+	}
+	key := codeKeys[r]
+	if i := int(r - keypad); key == "" && i >= 0 && i < len(keypadKeys) {
+		key = keypadKeys[i]
+	}
+	switch {
+	case len(key) == 1 && sum == 0:
+		return Event{Kind: KeyPress, Key: key, Rune: rune(key[0])}
+	case key != "":
+	case unicode.IsControl(r) || r >= 0xe000 && r <= 0xf8ff || !utf8.ValidRune(r):
+		return Event{}
+	default:
+		// Shift with a character is the other character, as it is when
+		// the terminal sends the character itself; with ctrl or super
+		// held it stays a key that is held.
+		if sum&1 != 0 && sum&12 == 0 {
+			if r, sum = unicode.ToUpper(r), sum&^1; len(code) > 1 && code[1] > 0 {
+				r = rune(code[1])
+			}
+		}
+		if key = string(r); sum == 0 {
+			return Event{Kind: KeyPress, Key: key, Rune: r}
+		}
+	}
+	ev := Event{Kind: KeyPress, Key: held(sum) + key}
+	if key == "space" && sum == 0 {
+		ev.Rune = ' '
+	}
+	return ev
+}
+
+func numbers(s, sep string) []int {
 	var v []int
-	for _, f := range strings.Split(s, ";") {
+	for _, f := range strings.Split(s, sep) {
 		n, _ := strconv.Atoi(f)
 		v = append(v, n)
 	}
@@ -222,7 +285,7 @@ func numbers(s string) []int {
 // mouse reads an "SGR" mouse report. Nothing of ours is on the right
 // button, which herdr keeps for its own menu, so its reports are dropped.
 func mouse(args string, up bool) Event {
-	v := numbers(args)
+	v := numbers(args, ";")
 	if len(v) != 3 {
 		return Event{}
 	}
