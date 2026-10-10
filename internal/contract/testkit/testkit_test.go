@@ -3,6 +3,7 @@ package testkit
 import (
 	"bytes"
 	"encoding/json"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -80,5 +81,20 @@ func TestFixtureMatchesTypes(t *testing.T) {
 func TestGrammar(t *testing.T) {
 	if len(Lines) != 23 || len(AgentSteps) != 13 {
 		t.Errorf("%d kinds of line and %d agent steps", len(Lines), len(AgentSteps))
+	}
+}
+
+// The scratch repository is a real one: a second copy of the code can be
+// made from it, and a change there is a commit on a branch of its own.
+func TestRepo(t *testing.T) {
+	root := Repo(t, map[string]string{"a.txt": "one\n", "src/b.txt": "two\n"})
+	tree := filepath.Join(t.TempDir(), "T1")
+	Git(t, root, "worktree", "add", "-q", "--no-track", "-b", "whaleshark/r1-T1", tree, "main")
+	id := Commit(t, tree, "T1: change a", map[string]string{"a.txt": "three\n", "src/b.txt": ""})
+	if got := Git(t, root, "rev-parse", "whaleshark/r1-T1"); got != id || got == Git(t, root, "rev-parse", "main") {
+		t.Fatalf("the worktree's commit is %s and its branch is at %s", id, got)
+	}
+	if got := Git(t, root, "diff", "--name-status", "main", "whaleshark/r1-T1"); got != "M\ta.txt\nD\tsrc/b.txt" {
+		t.Fatalf("the branch changed %q", got)
 	}
 }
