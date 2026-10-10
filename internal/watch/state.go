@@ -111,13 +111,20 @@ func (w *Watcher) look(now time.Time) State {
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if n < w.n {
+		// Another look has read a later screen meanwhile: this one would
+		// put an older picture's word in its place.
+		return w.st
+	}
 	if n != w.n {
 		w.n, w.grew, w.settled = n, now, false
 	}
 	w.settled = w.settled || late
 	// The program the pane is called after is the one in front once its
-	// start is over: a name taken sooner can be a launcher's.
-	if w.home == "" && err == nil && n > 0 && now.Sub(w.grew) >= homeAfter {
+	// start is over: a name taken sooner can be a launcher's. A shell that
+	// is still the program its pane started is taken at once, or an agent
+	// typed for in its first instant would be taken for the pane's own program.
+	if w.home == "" && err == nil && (n > 0 && now.Sub(w.grew) >= homeAfter || front != "" && front == w.first) {
 		w.home = front
 	}
 	w.st.Agent, w.away = w.own, w.home != "" && err == nil && front != w.home
