@@ -88,6 +88,7 @@ cloudflared)
 	*" create "*)
 		[ -s "$3" ] || exit 1
 		echo '{"AccountTag":"a","TunnelSecret":"s","TunnelID":"0f0f-aaaa-bbbb"}' >"$6"
+		ls -l "$6" | cut -c1-10 >"$F/credential-made"
 		log create "$last" ;;
 	*" route dns "*) [ -s "$3" ] || exit 1; log route dns "$6" "$7" ;;
 	*" ingress validate ") grep -q "service: http_status:404" "$3" && [ ! -e "$F/invalid" ] ;;

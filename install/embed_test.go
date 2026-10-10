@@ -654,3 +654,14 @@ func TestTheInstallerInstallsNothingItCouldNotCheck(t *testing.T) {
 		t.Fatalf("with every tool: %v\n%s", err, out)
 	}
 }
+
+// The tunnel's credential is nobody else's from the instant it is made, not
+// only once the script has set its mode: every login can list the folder.
+func TestTheTunnelsCredentialIsNeverReadableByAll(t *testing.T) {
+	m := newMachine(t)
+	m.ok("setup", "boss", "")
+	m.ok("tunnel", "team")
+	if made := strings.TrimSpace(m.read(m.fake, "credential-made")); made != "-rw-------" {
+		t.Errorf("as the connector made it, the tunnel's credential was %q", made)
+	}
+}

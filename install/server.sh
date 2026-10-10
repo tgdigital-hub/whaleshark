@@ -632,7 +632,9 @@ tunnel() {
 	if [ ! -s "$CF/tunnel.json" ]; then
 		doing="making the tunnel at Cloudflare"
 		account
-		cloudflared tunnel --origincert "$cert" create --credentials-file "$CF/tunnel.json" "whaleshark-$(uname -n)"
+		# Every login can list this folder: the credential is nobody else's
+		# from the instant the connector writes it, whatever mode it would give it.
+		(umask 077 && cloudflared tunnel --origincert "$cert" create --credentials-file "$CF/tunnel.json" "whaleshark-$(uname -n)")
 		chown "$TUNNEL" "$CF/tunnel.json"
 		chmod 400 "$CF/tunnel.json"
 	fi
