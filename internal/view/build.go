@@ -524,6 +524,7 @@ func (b *builder) around(v *contract.View) {
 	v.Strip.Mute = ui.Mute
 	if !ui.LastHere.IsZero() && in.Now.Sub(ui.LastHere) > contract.AwayAfter {
 		v.Strip.Away = ui.LastHere
+		v.Strip.DoneAsYou = asYou(b.s, b.s.Inbox.Events, ui.LastHere, in.Now)
 	}
 }
 

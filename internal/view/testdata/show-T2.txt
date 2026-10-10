@@ -1,0 +1,11 @@
+T2  sign-up page            ▲ needs you · try 1 · claude · 44m · context 48%                  run r3
+
+ Check     npm test -- sign-up
+ May edit  src/sign-up-page/**
+ Brief     .whaleshark/runs/r3/briefs/T2.md
+
+FOR YOU
+ ▲ q7   sign-up page       question       3m  must the old sign-up link keep working? (yes / no)
+        > whaleshark answer q7 yes --human
+
+ 20:30 started · 21:06 40% form written

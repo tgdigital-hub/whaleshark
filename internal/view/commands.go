@@ -8,4 +8,7 @@ import "github.com/tgdigital-hub/whaleshark/internal/contract"
 func Plug(k *contract.Kit) {
 	k.View = Build
 	k.Handle("status", status)
+	k.Handle("show", show)
+	k.Handle("jump", jump)
+	k.Handle("catchup", catchup)
 }

@@ -42,18 +42,7 @@ func Text(w io.Writer, v *contract.View, o Options) {
 	p := &printer{out: new(strings.Builder), o: o, v: v, forms: map[string]string{}, idw: 5, namew: 19, wordw: 12, agew: 3}
 	var items []row
 	for _, it := range v.Items {
-		p.forms[it.ID] = formWord(it.Form)
-		text := clean(it.News)
-		if it.Form == contract.FormChoice {
-			var options []string
-			for _, b := range it.Buttons {
-				if b.Answer != contract.AnswerOther {
-					options = append(options, clean(b.Answer))
-				}
-			}
-			text += "  (" + strings.Join(options, " / ") + ")"
-		}
-		items = append(items, p.measure(row{mark: p.mark(it.Look), id: it.ID, name: it.Name, word: formWord(it.Form), age: age(v.At.Sub(it.Since)), text: text, next: it.Next}))
+		items = append(items, p.item(it))
 	}
 	for _, it := range v.Held {
 		p.forms[it.ID] = formWord(it.Form)
@@ -118,6 +107,22 @@ func Text(w io.Writer, v *contract.View, o Options) {
 	io.WriteString(w, p.out.String())
 }
 
+// item is what waits for the person as a row, a choice with its options.
+func (p *printer) item(it contract.Item) row {
+	p.forms[it.ID] = formWord(it.Form)
+	text := clean(it.News)
+	if it.Form == contract.FormChoice {
+		var options []string
+		for _, b := range it.Buttons {
+			if b.Answer != contract.AnswerOther {
+				options = append(options, clean(b.Answer))
+			}
+		}
+		text += "  (" + strings.Join(options, " / ") + ")"
+	}
+	return p.measure(row{mark: p.mark(it.Look), id: it.ID, name: it.Name, word: formWord(it.Form), age: age(p.v.At.Sub(it.Since)), text: text, next: it.Next})
+}
+
 // card is a card as a row: its word is the figure while it builds, and what
 // stands after its news is what it clashes with, what waits about it, or how
 // far it had got.
@@ -179,7 +184,7 @@ func (p *printer) block(heading string, rows []row) {
 		prefix := " " + r.mark + " " + pad(r.id, p.idw) + pad(r.name, p.namew) + pad(r.word, p.wordw) +
 			strings.Repeat(" ", 2+p.agew-cells(r.age)) + r.age + "  "
 		p.line(prefix, r.text, r.trail)
-		p.steps(r.next)
+		p.steps(strings.Repeat(" ", 3+p.idw), r.next)
 	}
 }
 
@@ -207,14 +212,13 @@ func (p *printer) line(prefix, text, trail string) {
 	}
 }
 
-// steps prints the lines a reader may run: side by side where they fit, else
+// steps prints the lines a reader may run after an indent: side by side where they fit, else
 // one under the other, joined by the contract's word; after "or" the
 // program's name is not said again.
-func (p *printer) steps(next []string) {
+func (p *printer) steps(indent string, next []string) {
 	if len(next) == 0 {
 		return
 	}
-	indent := strings.Repeat(" ", 3+p.idw)
 	parts := make([]string, len(next))
 	for i, s := range next {
 		if parts[i] = clean(s); i == 0 {

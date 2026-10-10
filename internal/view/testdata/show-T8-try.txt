@@ -1,0 +1,14 @@
+T8  price list              ● to check · try 1 · claude · 40m · context 39%                   run r3
+
+ Says      "prices load from the sheet; 14 tests pass"
+ Check     npm test -- price
+ May edit  src/price-list/**
+ Brief     .whaleshark/runs/r3/briefs/T8.md
+ Result    .whaleshark/runs/r3/attempts/T8.1/result.md
+
+FOR YOU
+ ● n4   price list         sign-off      now  prices load from the sheet and 14 tests pass. Put it
+                                              with the finished work?
+        > whaleshark answer n4 approve --human        or        answer n4 "send back: <why>" --human
+
+ 20:34 started · 21:08 100% tests pass · 21:10 done
