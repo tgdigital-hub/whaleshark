@@ -106,6 +106,9 @@ func TestPlanThreeTasks(t *testing.T) {
 	// Edit, and what it frees.
 	orch(0, "task", "edit", "C", "--after", "A", "--check", "exit 0")("C is pending", "Changed: check, after")
 	orch(2, "task", "edit", "C")("--brief, --check")
+	// The word none takes the last dependency away, which frees the task.
+	orch(0, "task", "edit", "C", "--after", "none", "--owns", "none")("C is ready", "Changed: owns, after")
+	orch(0, "task", "edit", "C", "--after", "A")("C is pending")
 	orch(0, "task", "cancel", "list page")("B is cancelled")
 	orch(5, "task", "reset", "A")("only a failed task")
 	orch(0, "run", "list")("r1", "3 tasks", "1 kept", "pane "+p.Lead)

@@ -60,6 +60,9 @@ func task(c *contract.Call) (any, error) {
 			if f["check"] != nil {
 				edit.Check = &check
 			}
+			if slices.Equal(owns, none) {
+				owns = []string{}
+			}
 			if f["owns"] != nil {
 				edit.Owns = &owns
 			}
@@ -127,10 +130,16 @@ func keep(c *contract.Call, t *contract.Task, data []byte) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
+// none is the word that empties a list: an empty value is no value at all.
+var none = []string{"none"}
+
 // ids turns what --after was given, ids or names, into ids.
 func ids(c *contract.Call, s *contract.State) ([]string, error) {
-	out := []string{}
-	for _, name := range contract.List(c.Flags["after"]...) {
+	out, given := []string{}, contract.List(c.Flags["after"]...)
+	if slices.Equal(given, none) {
+		return out, nil
+	}
+	for _, name := range given {
 		t, err := c.Kit.Rules.FindTask(s, name)
 		if err != nil {
 			return nil, err
