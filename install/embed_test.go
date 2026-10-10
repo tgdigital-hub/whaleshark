@@ -605,3 +605,52 @@ func TestTheInstallerRefusesATamperedRelease(t *testing.T) {
 	out, err = install(home, script)
 	nothing("no folder and no version", home, out, err)
 }
+
+// With nothing to check a release with, nothing is installed: no signature,
+// an empty one, a list that names the file twice, and a system that has no
+// ssh-keygen or no program that makes a checksum.
+func TestTheInstallerInstallsNothingItCouldNotCheck(t *testing.T) {
+	tools := func(without ...string) string {
+		bin := t.TempDir()
+		for _, tool := range []string{"sh", "uname", "mkdir", "mktemp", "cp", "awk", "rm", "chmod", "mv", "cat", "ssh-keygen", "sha256sum", "shasum", "xattr"} {
+			for _, dir := range []string{"/usr/bin", "/bin"} {
+				if _, err := os.Stat(filepath.Join(dir, tool)); err == nil && !strings.Contains(strings.Join(without, " "), tool) {
+					os.Symlink(filepath.Join(dir, tool), filepath.Join(bin, tool))
+				}
+			}
+		}
+		return bin
+	}
+	for what, spoil := range map[string]func(dir string) (path string){
+		"no signature": func(dir string) string {
+			os.Rename(filepath.Join(dir, "SHA256SUMS.sig"), filepath.Join(dir, "gone"))
+			return ""
+		},
+		"an empty signature": func(dir string) string { os.WriteFile(filepath.Join(dir, "SHA256SUMS.sig"), nil, 0o644); return "" },
+		"no list": func(dir string) string {
+			os.Rename(filepath.Join(dir, "SHA256SUMS"), filepath.Join(dir, "gone"))
+			return ""
+		},
+		"no ssh-keygen":       func(string) string { return tools("ssh-keygen") },
+		"no checksum program": func(string) string { return tools("sha256sum", "shasum") },
+	} {
+		dir, script, home := release(t)
+		path := spoil(dir)
+		if path == "" {
+			path = tools()
+		}
+		cmd := exec.Command(filepath.Join(path, "sh"), script, "--from", dir)
+		cmd.Env = []string{"PATH=" + path, "HOME=" + home}
+		out, err := cmd.CombinedOutput()
+		if left, _ := os.ReadDir(filepath.Join(home, ".local", "bin")); err == nil || len(left) != 0 {
+			t.Errorf("%s: installed, or left %d entries behind (%v):\n%s", what, len(left), err, out)
+		}
+	}
+	// The whole tool box installs, so each refusal above was for its reason.
+	dir, script, home := release(t)
+	cmd := exec.Command("sh", script, "--from", dir)
+	cmd.Env = []string{"PATH=" + tools(), "HOME=" + home}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("with every tool: %v\n%s", err, out)
+	}
+}
