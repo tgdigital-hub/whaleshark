@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -166,7 +167,8 @@ func stop(c *contract.Call) (any, error) {
 }
 
 // closeTabs closes the tabs of attempts that have ended, and with each the
-// to-do item about a prompt in it.
+// to-do item about a prompt in it; a settled task gives back its copy of the
+// code and its ports.
 func closeTabs(c *contract.Call) (any, error) {
 	if (c.Flags["settled"] != nil) == (len(c.Args) > 0) {
 		return nil, usage(c, "close takes tasks, or --settled.")
@@ -224,17 +226,57 @@ func closeTabs(c *contract.Call) (any, error) {
 	if len(closed) == 0 {
 		fmt.Fprintln(c.Out, "No tab to close.")
 	}
-	if len(items) > 0 {
+	// A task's own copy of the code goes with its tab once the task is done;
+	// that of a failed or cancelled one only with --discard, which loses
+	// what was not committed there. The branch always stays.
+	discard, removed, done := c.Flags["discard"] != nil, map[string]*contract.Worktree{}, []string{}
+	var kept error
+	for _, t := range tasks {
+		over := t.Status == contract.TaskFailed || t.Status == contract.TaskCancelled
+		if t.Status != contract.TaskDone && !over {
+			continue
+		}
+		done = append(done, t.ID)
+		if w := t.Worktree; w == nil || !w.RemovedAt.IsZero() || c.Flags["keep-worktree"] != nil {
+			continue
+		}
+		if over && !discard {
+			fmt.Fprintf(c.Out, "kept: the copy of the code of %s, which is %s; %s removes it\n", t.ID, t.Status, line(c, "close "+t.ID+" --discard"))
+			continue
+		}
+		w, err := k.Placement.Remove(c.Root, s, t.ID, discard)
+		if err != nil {
+			fmt.Fprintf(c.Out, "kept: %s\n", refusal(err).Message)
+			kept = cmp.Or(kept, err)
+			continue
+		}
+		removed[t.ID] = w
+		fmt.Fprintf(c.Out, "removed: the copy of the code of %s; its branch %s stays\n", t.ID, w.Branch)
+	}
+	if len(items)+len(removed) > 0 {
 		err = change(c, func(s *contract.State) error {
 			for _, id := range items {
 				if err := k.Rules.CloseQuestion(s, id, c.Now); err != nil {
 					return err
 				}
 			}
+			for id, w := range removed {
+				if err := k.Rules.SetWorktree(s, id, w, c.Now); err != nil {
+					return err
+				}
+			}
 			return nil
 		})
 	}
-	return map[string]any{"closed": closed}, err
+	if root := k.Platform.PathKey(c.Root); err == nil {
+		_, err = contract.FreeSlots(k.Platform, func(o contract.Slot) bool {
+			return o.Root == root && o.Run == c.Run && slices.Contains(done, o.Task)
+		})
+	}
+	if err == nil && kept != nil {
+		return nil, refusal(kept)
+	}
+	return map[string]any{"closed": closed, "removed": slices.Sorted(maps.Keys(removed))}, err
 }
 
 // OwnTab moves a button's long command into a tab of its own (decision 57):

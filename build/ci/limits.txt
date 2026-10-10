@@ -33,7 +33,12 @@ lines 350 guide internal/guide
 # line, pays.
 # 200 more at the start of phase 2: trust is built (60), and accepting
 # several at once, a run's branch and removing a run are still to come.
-lines 1250 runtask internal/runtask
+# 75 more when tasks got their own copies of the code: accepting several at
+# once with its three refusals and its fall-back came to 110 lines, a run's
+# base and branch and the removal of what a run left to 35, and the wiring
+# after this one still adds the warning of task add. integrate, built at 690
+# with nothing left to come but one refusal, pays.
+lines 1325 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 lines 1250 launch internal/launch
@@ -51,7 +56,8 @@ lines 620 question internal/question
 lines 380 mail internal/mail
 lines 420 notify internal/notify
 lines 1100 gitwt internal/gitwt
-lines 900 integrate internal/integrate
+# integrate gives 100 of its 900: 75 to runtask, 25 to team.
+lines 800 integrate internal/integrate
 lines 800 overlap internal/overlap
 # doctor: its 30 of the engine's share (the keeper's rows, the paste line),
 # planned since the engine decision and kept out of this file until phase 2.
@@ -69,7 +75,9 @@ lines 120 theme internal/theme
 # hook: 60 more at the start of phase 2, for the settings of a second kind
 # of agent; it stood at 383.
 lines 460 hook internal/hook
-lines 250 team internal/team
+# team: 25 more. It was built at 273 after three rewrites, with nothing left
+# to cut that the row or the design does not ask for; integrate pays.
+lines 275 team internal/team
 lines 1910 dash internal/dash
 lines 350 push internal/push
 lines 450 connect internal/connect

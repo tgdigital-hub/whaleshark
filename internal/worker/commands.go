@@ -81,6 +81,16 @@ func report(c *contract.Call) (any, error) {
 			return nil, err
 		}
 	}
+	// In a copy of the code of its own, what is not committed is neither
+	// checked nor collected: asked before the change, never inside it.
+	clean := true
+	if s, err := c.Kit.Store.Read(c.Root, c.Run); err == nil && done {
+		if a := s.Attempts[c.Caller.Attempt]; a != nil && s.Tasks[a.Task].Worktree != nil {
+			if clean, err = c.Kit.Placement.Clean(s.Tasks[a.Task].Worktree.Path); err != nil {
+				return nil, err
+			}
+		}
+	}
 	result := file(c, "result.md")
 	// #nosec G703 -- the attempt's own result file: its id passed the validator and the folder is the store's
 	_, missing := os.Stat(result)
@@ -89,11 +99,16 @@ func report(c *contract.Call) (any, error) {
 	out, err := change(c, func(s *contract.State, a *contract.Attempt) error {
 		var err error
 		already, kept, err = c.Kit.Rules.Report(s, a.ID, hash, c.Args[0], c.Args[1], evidence, c.Now)
-		if err == nil && kept == nil && !already && done && missing != nil {
-			// Returned as an error, so nothing of the report is saved: the
-			// worker can mend this and report again.
-			return &contract.Refusal{Exit: contract.ExitFailed, Code: "no_result",
+		// Each returned as an error, so nothing of the report is saved: the
+		// worker can mend this and report again.
+		switch {
+		case err != nil || kept != nil || already || !done:
+		case missing != nil:
+			err = &contract.Refusal{Exit: contract.ExitFailed, Code: "no_result",
 				Message: "Write the result file first, then report again: " + result}
+		case !clean:
+			err = &contract.Refusal{Exit: contract.ExitFailed, Code: "uncommitted",
+				Message: "Commit first, then report again: your folder holds work that is not committed."}
 		}
 		return err
 	})

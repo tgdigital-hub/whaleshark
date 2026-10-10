@@ -151,7 +151,7 @@ func ids(c *contract.Call, s *contract.State) ([]string, error) {
 
 func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 	k, f := c.Kit, c.Flags
-	t := contract.Task{ID: id, Title: title, Name: last(c, "name"), Check: last(c, "check"), Placement: contract.PlaceShared,
+	t := contract.Task{ID: id, Title: title, Name: last(c, "name"), Check: last(c, "check"), Placement: contract.PlaceWorktree,
 		Agent: last(c, "agent"), Model: last(c, "model"), BrowserCheck: f["browser-check"] != nil, Owns: contract.List(f["owns"]...)}
 	err := cmp.Or(cli.Valid("id", id, ""), cli.Valid("title", title, ""))
 	switch {
@@ -165,6 +165,8 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		return nil, usage(c, "--shared and --cwd cannot both be given.")
 	case f["cwd"] != nil:
 		t.Placement = contract.PlaceCwd + last(c, "cwd")
+	case f["shared"] != nil:
+		t.Placement = contract.PlaceShared
 	}
 	// Every open tab's label is a name already taken.
 	var taken []string

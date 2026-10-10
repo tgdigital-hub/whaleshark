@@ -67,7 +67,7 @@ func TestPlanThreeTasks(t *testing.T) {
 
 	orch(5, "task", "add", "A", "data model", "--brief", "b.md", "--check", "none")("No run is open here")
 	orch(0, "run", "new", "a shop")("Run r1 is open")
-	orch(2, "run", "new", "b", "--park", "--base", "main")("phase 2")
+	orch(4, "run", "new", "b", "--park", "--base", "main")("no branch, tag or commit main") // no git here
 	orch(5, "run", "new", "another")("still open", "--park")
 	orch(0, "task", "add", "A", "data model", "--brief", "b.md", "--check", "exit 0", "--owns", "src/model/**")("A", "ready")
 	orch(0, "task", "add", "B", "the page with a list", "--name", "list page", "--brief", "b.md", "--check", "exit 0",
@@ -179,7 +179,7 @@ func TestEditResetAndAccept(t *testing.T) {
 	orch(5, "accept", "T9")("accepted by hand", "--by-hand")
 	orch(5, "accept", "T7", "--by-hand", "read it")("not waiting to be checked")
 	orch(5, "accept", "T1")("not waiting to be checked")
-	orch(2, "accept", "T7", "T8")("phase 2")
+	orch(5, "accept", "T7", "T8")("the run's check", "has none")
 	play(t, p.Command("T1.1", "accept", "T9", "--by-hand", "x"), 5, "not a worker's command")
 	play(t, p.Command(scenario.Human, "accept", "T9", "--by-hand", "read the page"), 0, "done (by hand)")
 

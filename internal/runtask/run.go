@@ -53,8 +53,29 @@ func run(c *contract.Call) (any, error) {
 			}
 			return k.Rules.CloseRun(s, false, c.Now)
 		})
+		// What the run left in git goes first: its worktrees and the task
+		// branches proven merged, which is asked of the collected branch, then
+		// that branch if it was landed, then its port slots.
+		var s *contract.State
+		if err == nil {
+			s, err = k.Store.Read(c.Root, id)
+		}
+		var kept []string
+		if err == nil {
+			kept, err = k.Placement.Forget(c.Root, s)
+		}
+		if err == nil {
+			err = k.Integrator.Drop(c.Root, s)
+		}
+		if err == nil {
+			root := k.Platform.PathKey(c.Root)
+			_, err = contract.FreeSlots(k.Platform, func(o contract.Slot) bool { return o.Root == root && o.Run == id })
+		}
 		if err == nil {
 			err = k.Store.Remove(c.Root, id)
+		}
+		for _, branch := range kept {
+			fmt.Fprintf(c.Out, "Kept, not proven merged: %s\n", cli.Plain(branch))
 		}
 	case "takeover":
 		said = "bound to this tab"
@@ -93,8 +114,8 @@ func runNew(c *contract.Call, objective string, runs []string) (any, error) {
 	switch {
 	case cli.Valid("text", objective, "") != nil || strings.TrimSpace(objective) == "":
 		return nil, usage(c, "A run needs its objective, in plain text.")
-	case c.Flags["base"] != nil:
-		return nil, usage(c, "--base comes with phase 2, when each worker has its own copy of the code.")
+	case c.Flags["base"] != nil && cli.Valid("title", last(c, "base"), "") != nil:
+		return nil, usage(c, "--base names a branch, a tag or a commit.")
 	}
 	if c.Run != "" && !park {
 		if s, err := k.Store.Read(c.Root, c.Run); err == nil && s.Run.ClosedAt.IsZero() {
@@ -120,7 +141,21 @@ func runNew(c *contract.Call, objective string, runs []string) (any, error) {
 	if c.Caller.Kind != contract.Human {
 		by.Pane = c.Caller.Pane
 	}
-	s := k.Rules.NewRun("r"+strconv.Itoa(n), objective, limit, nil, by, c.Now)
+	var base *contract.GitRef
+	if name := last(c, "base"); name != "" {
+		base = &contract.GitRef{Ref: name}
+	}
+	s := k.Rules.NewRun("r"+strconv.Itoa(n), objective, limit, base, by, c.Now)
+	// Where the project has git, accepted work is collected on a branch of
+	// the run's own, which begins at the base: land needs both written down.
+	base, in, err := k.Integrator.Begin(c.Root, s)
+	if err == nil && in != nil {
+		s.Run.Base = base
+		err = k.Rules.Integrated(s, *in)
+	}
+	if err != nil {
+		return nil, err
+	}
 	if err = k.Store.Create(c.Root, s); err == nil && !park {
 		err = k.Store.SetCurrent(c.Root, s.Run.ID)
 	}

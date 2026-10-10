@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -52,6 +53,8 @@ type launcher struct {
 	retry, single bool
 	agent, model  string
 	out           sync.Mutex
+	first         bool      // the run has no worktree yet
+	left          sync.Once // what a worktree lacks is said once
 }
 
 // start brings up a worker for each task named, or for every ready one, side
@@ -70,6 +73,7 @@ func start(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	l.first = !slices.ContainsFunc(slices.Collect(maps.Values(s.Tasks)), func(t *contract.Task) bool { return t.Worktree != nil })
 	var ids, argv, names []string
 	waiting := 0
 	if ready {
@@ -288,6 +292,7 @@ func (l *launcher) bring(task string) outcome {
 		return fail(refuse(contract.ExitRefused, "starting", "%s is being started by another command.", id))
 	}
 	defer unlock()
+	had := t.Worktree != nil && t.Worktree.RemovedAt.IsZero()
 	folder, tree, err := k.Placement.Place(c.Root, s, task)
 	if err != nil {
 		return fail(err)
@@ -295,27 +300,52 @@ func (l *launcher) bring(task string) outcome {
 	if !filepath.IsAbs(folder) {
 		folder = filepath.Join(c.Root, folder)
 	}
+	// The task's own copy of the code exists before its attempt does. A start
+	// that is refused from here on takes away the copy this call made.
+	undo := func(err error) outcome {
+		if tree != nil && !had {
+			t.Worktree = tree
+			k.Placement.Remove(c.Root, s, task, true)
+		}
+		return fail(err)
+	}
+	if tree != nil && tree.Setup == contract.SetupFailed {
+		return undo(refuse(contract.ExitFailed, "setup_failed", "The setup of the copy of the code for %s failed. Its log: %s", task, tree.Path+".setup.log"))
+	}
+	if tree != nil && !had && l.first {
+		l.left.Do(l.lacks)
+	}
 	// The hooks go into the folder's own settings only where the folder is
-	// this worker's alone; else they ride on the agent's command line.
+	// this worker's alone, and git is told not to see that file there; else
+	// they ride on the agent's command line.
 	setup, err := k.AgentSettings.Ensure(agent.Kind, folder, dir, tree != nil)
+	if err == nil && tree != nil && setup.File != "" {
+		err = k.Placement.Hide(c.Root, folder, setup.File)
+	}
 	if err == nil {
 		err = os.WriteFile(filepath.Join(dir, "token"), []byte(token+"\n"), 0o600)
 	}
 	if err != nil {
-		return fail(err)
+		return undo(err)
 	}
 	err = l.step(func(s *contract.State) error {
 		got, err := k.Rules.Start(s, task, l.retry, holds, contract.TokenHash(token), agent, setup.Gated, contract.Now())
 		if err == nil && got != id {
 			err = refuse(contract.ExitRefused, "starting", "%s was started by another command.", task)
 		}
-		if err == nil && tree != nil {
-			err = k.Rules.SetWorktree(s, task, tree, contract.Now())
+		if err != nil || tree == nil {
+			return err
 		}
-		return err
+		said := slices.ContainsFunc(slices.Collect(maps.Values(s.Tasks)), func(t *contract.Task) bool {
+			return t.Worktree != nil && t.Worktree.Setup == contract.SetupUntrusted
+		})
+		if tree.Setup == contract.SetupUntrusted && !said {
+			k.Rules.Raise(s, contract.Event{Kind: "untrusted", Text: "[setup] script is not approved, so no copy of the code is set up by it"}, contract.Now())
+		}
+		return k.Rules.SetWorktree(s, task, tree, contract.Now())
 	})
 	if err != nil {
-		return fail(err)
+		return undo(err)
 	}
 	r.Attempt = id
 
@@ -356,6 +386,24 @@ func (l *launcher) bring(task string) outcome {
 	}
 	r.State = working
 	return r
+}
+
+// lacks says, at the first copy of the code a run makes, what git ignores in
+// the project and such a copy therefore does not have, and how to change that.
+func (l *launcher) lacks() {
+	n, some, err := l.c.Kit.Placement.Left(l.c.Root)
+	if err != nil || n == 0 {
+		return
+	}
+	more := ""
+	if n > len(some) {
+		more = ", ..."
+	}
+	l.out.Lock()
+	defer l.out.Unlock()
+	fmt.Fprintf(l.c.Out, "%d ignored files or folders of the project are not in a task's own copy of the code (%s%s). "+
+		"To copy one there, name it on a line of .worktreeinclude; to link one, name it in whaleshark.toml, [worktrees] share = [\"%s\"], and have the person run whaleshark trust.\n",
+		n, cli.Plain(strings.Join(some, ", ")), more, cli.Plain(some[0]))
 }
 
 // earlier is what a retry is told of the attempt before it: the prompt's own

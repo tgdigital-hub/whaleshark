@@ -198,7 +198,7 @@ func run(c *contract.Call, t *team) (any, error) {
 			}
 		}
 		briefs[i] = fill(string(data))
-		tasks[i] = contract.Task{ID: it.ID, Name: it.Name, Title: fill(it.Title), Check: it.Check, Owns: it.Owns, Placement: contract.PlaceShared, Agent: it.Agent, Model: it.Model}
+		tasks[i] = contract.Task{ID: it.ID, Name: it.Name, Title: fill(it.Title), Check: it.Check, Owns: it.Owns, Placement: contract.PlaceWorktree, Agent: it.Agent, Model: it.Model}
 		if needs && c.Flags["goal"] == nil {
 			return nil, refuse(contract.ExitUsage, "goal_needed", "whaleshark team run "+t.Name+` --goal "<text>"`, "The team %s is run with a goal.", t.Name)
 		}
