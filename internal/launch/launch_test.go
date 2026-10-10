@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/rules"
@@ -242,9 +243,13 @@ func TestCleanStart(t *testing.T) {
 		name, _, _ := strings.Cut(kv, "=")
 		names = append(names, name)
 	}
-	want := []string{contract.EnvRoot, contract.EnvRun, contract.EnvTask, contract.EnvAttempt, contract.EnvDepth, contract.EnvBin, "PORT_BASE", "PORT"}
+	want := []string{contract.EnvRoot, contract.EnvRun, contract.EnvTask, contract.EnvAttempt, contract.EnvDepth, contract.EnvBin, contract.EnvEvidence, "PORT_BASE", "PORT"}
 	if !slices.Equal(names, want) {
 		t.Errorf("the tab was made with %+v, expected exactly the variables %v", tab, want)
+	}
+	evidence := filepath.Join(dir, "attempts", "R1.1", "evidence")
+	if info, err := os.Stat(evidence); err != nil || !info.IsDir() || !slices.Contains(tab.Env, contract.EnvEvidence+"="+evidence) {
+		t.Errorf("the evidence folder %s: %v; the tab has %v", evidence, err, tab.Env)
 	}
 	// Each task has ports of its own, ten of them, written down for the login.
 	dirs, _ := p.Kit.Platform.Dirs()
@@ -853,4 +858,110 @@ func kindsOf(s *contract.State, kind string) (texts []string) {
 		}
 	}
 	return texts
+}
+
+// here runs a command in this process as the lead agent, where a test can
+// name a server's file of its own, and returns what it printed and its exit.
+func here(t *testing.T, p *scenario.Project, line ...string) (string, int) {
+	t.Helper()
+	for _, kv := range os.Environ() {
+		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "WHALESHARK_") && name != contract.EnvClock {
+			t.Setenv(name, "")
+		}
+	}
+	t.Setenv(contract.EnvPane, p.Lead)
+	t.Chdir(p.Root)
+	var out strings.Builder
+	exit := p.Kit.Main(p.Kit, line, strings.NewReader(""), &out, &out)
+	return out.String(), exit
+}
+
+// On a server a worker's tab has the evidence folder, the shared browser, a
+// temp folder of the login's own and ports of the login's block, and the
+// login runs no more agents than the server's file lets it, over all its
+// projects; a file that cannot be used, or does not name the login, starts
+// nothing.
+func TestOnAServer(t *testing.T) {
+	p := evening(t, 4, nil) // twelve are live
+	rules.Plug(p.Kit)
+	cli.Plug(p.Kit)
+	Plug(p.Kit)
+	other, err := testkit.Load(testkit.Evening) // and twelve more in another project of the login
+	elsewhere := filepath.Join(filepath.Dir(p.Root), "elsewhere")
+	if err == nil {
+		err = errors.Join(os.Mkdir(elsewhere, 0o700), contract.ListProject(p.Kit.Platform, elsewhere), p.Kit.Store.Create(elsewhere, &other.State))
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, me, login := contract.ServerFile, contract.Me, "kai"
+	t.Cleanup(func() { contract.ServerFile, contract.Me = file, me })
+	contract.ServerFile, contract.Me = filepath.Join(t.TempDir(), "server.toml"), func() string { return login }
+	write := func(text string) {
+		if err := os.WriteFile(contract.ServerFile, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("version = 1\nagents = 99\n[login.kai]\nports = 23000\nagents = 26\n")
+
+	if out, exit := here(t, p, "start", "--ready"); exit != contract.ExitOK || !strings.Contains(out, "R2 ready 2: working") ||
+		!strings.Contains(out, "2 more ready tasks wait for a free place: this server lets this login run 26 agents.") {
+		t.Fatalf("exit %d:\n%s", exit, out)
+	}
+	if out, exit := here(t, p, "start", "R3"); exit != contract.ExitRefused || !strings.Contains(out, "as many agents live as this server lets it run") {
+		t.Fatalf("exit %d:\n%s", exit, out)
+	}
+	s, dir := p.Record()
+	dirs, _ := p.Kit.Platform.Dirs()
+	taken, _ := contract.ReadSlots(os.ReadFile, dirs.State)
+	if len(s.Tasks["R3"].Attempts) != 0 || s.Tasks["R3"].Status != contract.TaskReady || len(taken) != 2 {
+		t.Errorf("the refused start left something: %+v, slots %+v", s.Tasks["R3"], taken)
+	}
+	temps := map[string]bool{}
+	for _, id := range []string{"R1.1", "R2.1"} {
+		a := attempt(t, p, id, contract.AttemptWorking)
+		var saw []string
+		for range 200 { // the fake agent prints what it was started with
+			screen, _ := p.Double.Screen(a.Place.Pane)
+			if saw = strings.Split(screen, "\n"); slices.Contains(saw, "fakeagent: ready") {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		ports, tmp := 0, ""
+		for _, kv := range saw {
+			if v, ok := strings.CutPrefix(kv, "TMPDIR="); ok {
+				tmp = v
+			}
+			if v, ok := strings.CutPrefix(kv, "PORT="); ok && (v == "23000" || v == "23010") {
+				ports++
+			}
+		}
+		info, err := os.Stat(tmp)
+		if err != nil || !info.IsDir() || filepath.Dir(tmp) != filepath.Join(dirs.Cache, "tmp") || temps[tmp] || ports != 1 ||
+			!slices.Contains(saw, contract.EnvEvidence+"="+filepath.Join(dir, "attempts", id, "evidence")) ||
+			!slices.Contains(saw, contract.EnvBrowsers+"="+contract.ServerBrowsers) {
+			t.Errorf("the agent of %s saw (temp folder %q, %v):\n%s", id, tmp, err, strings.Join(saw, "\n"))
+		}
+		temps[tmp] = true
+	}
+
+	login = "nobody"
+	if out, exit := here(t, p, "start", "R3"); exit != contract.ExitEnv || !strings.Contains(out, "no_block") && !strings.Contains(out, "not one of this server's") {
+		t.Errorf("a login the server does not list: exit %d:\n%s", exit, out)
+	}
+	login = "kai"
+	write("version = 1\n[login.kai]\nports = 5\n")
+	if out, exit := here(t, p, "start", "R3"); exit != contract.ExitEnv || !strings.Contains(out, "Nothing is started on a server whose file cannot be used") {
+		t.Errorf("a file that cannot be used: exit %d:\n%s", exit, out)
+	}
+	write("version = 1\n[login.kai]\nports = 23000\nagents = 27\n")
+	// Two started side by side with room for one: each alone would fit, and
+	// the record lets one in.
+	out, exit := here(t, p, "start", "R3", "R4")
+	s, _ = p.Record()
+	taken, _ = contract.ReadSlots(os.ReadFile, dirs.State)
+	if exit != contract.ExitRefused || len(s.Tasks["R3"].Attempts)+len(s.Tasks["R4"].Attempts) != 1 || len(taken) != 3 {
+		t.Errorf("with room for one more: exit %d, slots %+v:\n%s", exit, taken, out)
+	}
 }

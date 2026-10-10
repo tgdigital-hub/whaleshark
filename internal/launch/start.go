@@ -87,6 +87,26 @@ type launcher struct {
 	out           sync.Mutex
 	first         bool      // the run has no worktree yet
 	left          sync.Once // what a worktree lacks is said once
+	server        bool
+	block         contract.Ports // the login's ports: its block on a server
+	room          int            // on a server with a cap: the agents this run may hold
+}
+
+func live(s *contract.State) (n int) {
+	for _, a := range s.Attempts {
+		if a.State.Live() {
+			n++
+		}
+	}
+	return n
+}
+
+// over refuses a run that holds more agents than the server leaves it.
+func (l *launcher) over(s *contract.State) error {
+	if l.server && live(s) > l.room {
+		return refuse(contract.ExitRefused, "limit", "This login has as many agents live as this server lets it run.")
+	}
+	return nil
 }
 
 // start brings up a worker for each task named, or for every ready one, side
@@ -112,22 +132,49 @@ func start(c *contract.Call) (any, error) {
 		return nil, refusal(err)
 	}
 	l.first = !slices.ContainsFunc(slices.Collect(maps.Values(s.Tasks)), func(t *contract.Task) bool { return t.Worktree != nil })
+	dirs, err := k.Platform.Dirs()
+	if err == nil {
+		l.state = dirs.State
+		l.self, err = k.Platform.SelfPath()
+	}
+	if err != nil {
+		return nil, err
+	}
+	// A server's file says which ports are this login's and how many agents
+	// it may run, over all its projects; a machine without one is a person's own.
+	srv, err := contract.ReadServer(k.Platform.Peek)
+	if err != nil {
+		return nil, refuse(contract.ExitEnv, "server_file", "Nothing is started on a server whose file cannot be used: %v.", err)
+	}
+	me, limit := contract.Me(), s.Run.Limit
+	var listed bool
+	if l.block, listed = srv.Block(me); !listed {
+		return nil, refuse(contract.ExitEnv, "no_block", "The login %s is not one of this server's, so it starts nothing here. The administrator adds it with whaleshark server add.", me)
+	}
+	if l.room, l.server = srv.Cap(me), srv != nil; l.room > 0 {
+		all, err := targets(c, l.state, true)
+		if err != nil {
+			return nil, refusal(err)
+		}
+		for _, t := range all {
+			if o, err := k.Store.Read(t.root, t.run); err == nil && !(t.run == c.Run && k.Platform.PathKey(t.root) == k.Platform.PathKey(c.Root)) {
+				l.room -= live(o)
+			}
+		}
+		limit = min(limit, l.room)
+	} else {
+		l.room = limit
+	}
 	var ids, argv, names []string
 	waiting := 0
 	if ready {
-		live := 0
-		for _, a := range s.Attempts {
-			if a.State.Live() {
-				live++
-			}
-		}
 		for id, t := range s.Tasks {
 			if t.Status == contract.TaskReady && (l.retry || len(t.Attempts) == 0) {
 				ids = append(ids, id)
 			}
 		}
 		slices.SortFunc(ids, byID)
-		if free := max(s.Run.Limit-live, 0); len(ids) > free {
+		if free := max(limit-live(s), 0); len(ids) > free {
 			ids, waiting = ids[:free], len(ids)-free
 		}
 		argv, names = []string{"--ready"}, []string{"ready"}
@@ -163,14 +210,6 @@ func start(c *contract.Call) (any, error) {
 			return nil, refusal(err)
 		}
 	}
-	dirs, err := k.Platform.Dirs()
-	if err == nil {
-		l.state = dirs.State
-		l.self, err = k.Platform.SelfPath()
-	}
-	if err != nil {
-		return nil, err
-	}
 
 	if len(ids) == 0 {
 		fmt.Fprintln(c.Out, "Nothing is ready to start.")
@@ -185,8 +224,10 @@ func start(c *contract.Call) (any, error) {
 		})
 	}
 	wg.Wait()
-	if waiting > 0 {
-		fmt.Fprintf(c.Out, "%d more ready tasks wait for a free place: the limit is %d agents.\n", waiting, s.Run.Limit)
+	if waiting > 0 && limit < s.Run.Limit {
+		fmt.Fprintf(c.Out, "%d more ready tasks wait for a free place: this server lets this login run %d agents.\n", waiting, srv.Cap(me))
+	} else if waiting > 0 {
+		fmt.Fprintf(c.Out, "%d more ready tasks wait for a free place: the limit is %d agents.\n", waiting, limit)
 	}
 	var worst *outcome
 	bad, created := 0, []outcome{}
@@ -326,6 +367,9 @@ func (l *launcher) bring(task string) outcome {
 	// Tried first on our own copy of the record: it says whether the start
 	// would be refused, and which attempt it will be, before anything exists.
 	id, err := k.Rules.Start(s, task, l.retry, holds, contract.TokenHash(token), agent, false, c.Now)
+	if err == nil {
+		err = l.over(s)
+	}
 	if err != nil {
 		return fail(err)
 	}
@@ -334,7 +378,8 @@ func (l *launcher) bring(task string) outcome {
 	}
 	run := k.Store.Dir(c.Root, c.Run)
 	dir := contract.AttemptDir(run, id)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	evidence := filepath.Join(dir, "evidence") // what the worker's browser check saves (8l)
+	if err := os.MkdirAll(evidence, 0o700); err != nil {
 		return fail(err)
 	}
 	unlock, ok, err := k.Platform.TryLock(filepath.Join(dir, "start.lock"))
@@ -373,7 +418,7 @@ func (l *launcher) bring(task string) outcome {
 		l.left.Do(l.lacks)
 	}
 	// The task's ports are its own whether or not it has a copy of the code.
-	slot, err = contract.TakeSlot(k.Platform, contract.DefaultPorts, c.Root, c.Run, task, l.project.Worktrees.PortBlock)
+	slot, err = contract.TakeSlot(k.Platform, l.block, c.Root, c.Run, task, l.project.Worktrees.PortBlock)
 	if errors.Is(err, contract.ErrNoSlot) {
 		r := refuse(contract.ExitRefused, "no_slot", "No port is free for %s: every port of this login is some task's. Closing settled tasks gives theirs back.", task)
 		r.Next = []string{line(c, "close --settled")}
@@ -395,6 +440,15 @@ func (l *launcher) bring(task string) outcome {
 	if err == nil {
 		err = os.WriteFile(filepath.Join(dir, "token"), []byte(token+"\n"), 0o600)
 	}
+	// On a server the tab gets the browser every login shares and a temp
+	// folder of the login's own, so nothing an agent's tools write lies in a
+	// shared one. A person's own machine has both already.
+	env := []string{contract.EnvRoot + "=" + c.Root, contract.EnvRun + "=" + c.Run, contract.EnvTask + "=" + task,
+		contract.EnvAttempt + "=" + id, contract.EnvDepth + "=1", contract.EnvBin + "=" + l.self, contract.EnvEvidence + "=" + evidence}
+	if tmp := ""; err == nil && l.server {
+		tmp, err = k.Platform.PrivateTemp()
+		env = append(env, contract.EnvBrowsers+"="+contract.ServerBrowsers, "TMPDIR="+tmp)
+	}
 	if err != nil {
 		return undo(err)
 	}
@@ -402,6 +456,9 @@ func (l *launcher) bring(task string) outcome {
 		got, err := k.Rules.Start(s, task, l.retry, holds, contract.TokenHash(token), agent, setup.Gated, contract.Now())
 		if err == nil && got != id {
 			err = refuse(contract.ExitRefused, "starting", "%s was started by another command.", task)
+		}
+		if err == nil {
+			err = l.over(s)
 		}
 		if other := shares(s, s.Tasks[task]); err == nil && tree == nil && !l.allow && other != "" {
 			r := refuse(contract.ExitRefused, "shared_overlap", "%s would work in one folder with %s, which is at work on files %s may change too.", task, other, task)
@@ -433,10 +490,8 @@ func (l *launcher) bring(task string) outcome {
 	}
 	r.Attempt = id
 
-	env := []string{contract.EnvRoot + "=" + c.Root, contract.EnvRun + "=" + c.Run, contract.EnvTask + "=" + task,
-		contract.EnvAttempt + "=" + id, contract.EnvDepth + "=1", contract.EnvBin + "=" + l.self}
 	if slot.Size > 0 {
-		env = append(env, slot.Env(contract.DefaultPorts)...)
+		env = append(env, slot.Env(l.block)...)
 	}
 	pane, err := k.Terms.TabCreate(folder, t.Name, env)
 	if err != nil {
