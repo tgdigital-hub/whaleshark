@@ -14,7 +14,7 @@ lines 2860 contract internal/contract cmd/whaleshark
 # its first instants. 35 more at the join of phase 1: the system's name, a
 # line run by the system's shell and the end of all it started came here
 # from the window and from accept, which are smaller by as much; the
-# window's line pays.
+# worker commands' line pays.
 lines 1170 platform internal/platform
 lines 900 cli internal/cli
 lines 1600 rules internal/rules
@@ -27,7 +27,7 @@ lines 350 guide internal/guide
 # line, pays.
 lines 1050 runtask internal/runtask
 lines 1150 launch internal/launch
-lines 200 worker internal/worker
+lines 165 worker internal/worker
 lines 850 inbox internal/inbox
 lines 1800 view internal/view
 lines 700 question internal/question
@@ -63,7 +63,7 @@ lines 850 pty internal/pty
 lines 850 watch internal/watch
 lines 750 input internal/input
 lines 460 restore internal/restore
-lines 415 window internal/window
+lines 450 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
 lines 250 overlay internal/overlay
