@@ -172,6 +172,14 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 		return false, nil
 	}
 	events := len(s.Inbox.Events)
+	// A version of the program that never swept this run before is an
+	// upgrade under a running job (8j). The lead agent is told once: a wait
+	// of the older program may have ended without a word.
+	if v := contract.Version; !slices.Contains(s.Run.Programs, v) {
+		if s.Run.Programs, changed = append(s.Run.Programs, v), true; len(s.Run.Programs) > 1 {
+			l.rules.Raise(s, contract.Event{Kind: "upgraded", Text: "upgraded to " + v + " at " + l.now.Local().Format("15:04") + "; start `wait` again"}, l.now)
+		}
+	}
 	// Another instance is the keeper started again (8g). For two minutes
 	// from now Seen believes nothing it does not see: no attempt is stamped
 	// gone while agents may still be coming back.
