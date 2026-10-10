@@ -457,21 +457,47 @@ func TestSaver(t *testing.T) {
 	_, dirs := login(t)
 	fs := &files{Files: platform.New(runtime.GOOS)}
 	var label atomic.Value
+	var begun atomic.Int32
 	label.Store("zero")
 	s := restore.Start(fs, dirs, func() *restore.File {
+		begun.Add(1)
 		lay := layout.Layout{}
 		lay.Add("t1", label.Load().(string), "p1")
 		f := &restore.File{}
 		f.Layout, _ = json.Marshal(&lay)
 		return f
 	})
+	// The file is read as any reader reads it. Load is the keeper's own
+	// reading at its start, before it has a Saver: it clears unfinished
+	// files away, and the one of a write under way would be among them.
 	read := func() string {
 		t.Helper()
-		_, lay, err := restore.Load(fs, dirs)
-		if err != nil || lay == nil {
+		f, lay := &restore.File{}, &layout.Layout{}
+		err := contract.ReadVersioned(fs.Read, restore.Path(dirs), contract.FileVersion, f)
+		if err == nil {
+			err = json.Unmarshal(f.Layout, lay)
+		}
+		if err != nil || len(lay.Tabs) == 0 {
 			t.Fatalf("reading back: %v", err)
 		}
 		return lay.Tabs[0].Label
+	}
+	// settle waits until the Saver has nothing under way and nothing left
+	// to do. A write begins by asking for the file and is counted at its
+	// end; a change still waiting is written a gap after the last write, so
+	// three gaps with no write begun or ended is the end of them. How long
+	// one write takes is the machine's to say, and no sleep can know it.
+	settle := func() {
+		t.Helper()
+		end, was := time.Now().Add(30*time.Second), fs.n.Load()
+		for quiet := time.Now(); time.Since(quiet) < 600*time.Millisecond; time.Sleep(5 * time.Millisecond) {
+			if n := fs.n.Load(); n != was || begun.Load() != n {
+				quiet, was = time.Now(), n
+			}
+			if time.Now().After(end) {
+				t.Fatalf("the Saver does not come to rest: %d writes begun, %d done", begun.Load(), fs.n.Load())
+			}
+		}
 	}
 	wait := func(n int32, within time.Duration) {
 		t.Helper()
@@ -500,7 +526,7 @@ func TestSaver(t *testing.T) {
 		}
 	}
 	wait(2, 2*time.Second)
-	time.Sleep(400 * time.Millisecond)
+	settle()
 	if n := fs.n.Load(); n > 4 || read() != "burst" {
 		t.Fatalf("%d writes for a burst, the file says %q", n, read())
 	}
