@@ -98,7 +98,7 @@ func acceptAll(c *contract.Call) (any, error) {
 			case project.Land.Check == "":
 				return refuse(contract.ExitRefused, "no_run_check", "Several tasks are accepted together on the run's check, and this project has none: check under [land] in whaleshark.toml. Accept one at a time.")
 			}
-			if err := k.Rules.Checking(s, t.ID, contract.Checked{}, c.Now); err != nil {
+			if err := checking(c, s, t); err != nil {
 				return err
 			}
 			if ids = append(ids, t.ID); !slices.Contains(lines, t.Check) {
@@ -184,6 +184,19 @@ func acceptAll(c *contract.Call) (any, error) {
 	return map[string]any{"accepted": done}, nil
 }
 
+// checking lets a task into its check. A browser check's pictures are read
+// again first, from the folder: what cannot be listed, or holds no picture
+// any more, is refused as a report without one is.
+func checking(c *contract.Call, s *contract.State, t *contract.Task) error {
+	if n := len(t.Attempts); t.BrowserCheck && n > 0 && s.Attempts[t.Attempts[n-1]].State == contract.AttemptReported {
+		files, err := c.Kit.Evidence.List(c.Root, c.Run, t.Attempts[n-1])
+		if err != nil || !slices.ContainsFunc(files, func(f contract.EvidenceFile) bool { return f.Kind != "" }) {
+			return refuse(contract.ExitRefused, "no_evidence", fmt.Sprintf("%s needs a browser check, and no screenshot of it can be read now (%v).", t.ID, cmp.Or(err, errors.New("none is there"))), "whaleshark show "+t.ID)
+		}
+	}
+	return c.Kit.Rules.Checking(s, t.ID, contract.Checked{}, c.Now)
+}
+
 // acceptOne checks one task and keeps its work. The check, the merge and the
 // collecting run between short locked steps, with the attempt marked as being
 // checked.
@@ -194,7 +207,7 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 	err = change(c, c.Run, "", func(s *contract.State) error {
 		found, err := k.Rules.FindTask(s, task)
 		if err == nil {
-			err = k.Rules.Checking(s, found.ID, contract.Checked{}, c.Now)
+			err = checking(c, s, found)
 		}
 		if err != nil {
 			return err

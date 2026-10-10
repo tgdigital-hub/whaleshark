@@ -14,6 +14,8 @@ var (
 	promptText string
 	//go:embed sync.tmpl
 	syncText string
+	//go:embed browser.tmpl
+	browserText string
 )
 
 // Prompt is what a worker's prompt file says. Bin is the program's path as a
@@ -34,6 +36,30 @@ func (p Prompt) Text() string {
 		Prompt
 		Paused string
 	}{p, contract.PausedReason})
+}
+
+// shots is the one command that takes a screenshot with no browser tool at
+// all, for each system: Chromium's own switches, with the place the browser
+// is usually found in. On a server it is the browser every login shares.
+var shots = map[string]string{
+	"darwin":  `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`,
+	"linux":   `chromium`,
+	"server":  `"$` + contract.EnvBrowsers + `"/chromium-*/chrome-linux/chrome`,
+	"windows": `chrome.exe`,
+}
+
+// Browser is the prompt's section for a task whose result must be looked at
+// in a browser (8l), empty for any other task: where the site runs, how it
+// is checked, where the proof goes, and the command for a worker with no
+// browser tool. system is the platform's name for this machine.
+func Browser(check bool, system string, server bool) string {
+	if !check {
+		return ""
+	}
+	if server {
+		system = "server"
+	}
+	return render(browserText, struct{ Loopback, Evidence, Shot string }{contract.Loopback, contract.EnvEvidence, shots[system]})
 }
 
 // Sync words a sync brief: the facts, then the rules for bringing a copy of

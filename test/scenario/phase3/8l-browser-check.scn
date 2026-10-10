@@ -1,0 +1,22 @@
+# 8l: a task whose result must be looked at in a browser. The worker's first
+# report is refused, since it saved nothing; with a screenshot in its
+# evidence folder the report is taken, the card and show say what is there,
+# and only then is the task accepted. A second worker that saves nothing
+# cannot report done at all.
+agent A.1: write-result | report done "I did not look" | shot home.png | report done "the home page shows its menu"
+agent B.1: write-result | hang
+
+file brief.md: Target: the shop's pages | Change: build yours | Constraints: none | Ownership: your own file | Acceptance: it shows in a browser
+orch: init
+orch: run new "a shop's first pages"                -> expect r1
+task A "Build the home page" --name "home page" --check "test -f brief.md" --brief brief.md --browser-check
+task B "Build the help page" --name "help page" --check "test -f brief.md" --brief brief.md --browser-check
+orch: start --ready                                 -> expect "(A.1)" "(B.1)"
+await: attempts A.1 reported
+as-worker B.1: report done "nothing was saved"      -> expect exit 1 "needs a browser check" screenshot
+orch: wait --timeout 10                             -> expect done A.1
+orch: show A                                        -> expect "1 screenshot" home.png "site stopped"
+orch: status                                        -> expect "1 screenshot"
+orch: accept A                                      -> expect "A is done, checked"
+
+assert: A status done; attempts A.1 accepted, B.1 working; no event lost; no event twice

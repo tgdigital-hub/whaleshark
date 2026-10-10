@@ -3,6 +3,9 @@ package view
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -432,5 +435,53 @@ func TestCatchupCountsAClashThatWasSorted(t *testing.T) {
 		if got := out.String(); got != block {
 			t.Errorf("read back %v: the block differs\n%s", read, diff(block, got))
 		}
+	}
+}
+
+// answering is the ports a site answers on, for show's site line.
+type answering struct {
+	contract.NoEvidence
+	up []int
+}
+
+func (a answering) Answering(ports []int) []int {
+	return slices.DeleteFunc(slices.Clone(ports), func(port int) bool { return !slices.Contains(a.up, port) })
+}
+
+// A browser check on the card and in show (8l): how many screenshots the
+// report lists, every file by its name, and whether the task's own ports
+// answer now. Without a site a browser check reads "site stopped", and a
+// task with neither says nothing of either.
+func TestShowOfABrowserCheck(t *testing.T) {
+	f := evening(t)
+	f.State.Tasks["T7"].BrowserCheck = true
+	f.State.Attempts["T7.1"].Report.Evidence = []contract.EvidenceFile{{Name: "home.png", Kind: "png"}, {Name: "trace.zip"}, {Name: "phone.webp", Kind: "webp"}}
+	c, out, _, _ := view(t, f, "show", contract.Human, "T7")
+	tv := run(t, c).(*contract.TaskView)
+	if got := out.String(); tv.Site != "site stopped" || !strings.Contains(got, " Site      site stopped\n") ||
+		!strings.Contains(got, " Evidence  2 screenshots · home.png, trace.zip, phone.webp\n") {
+		t.Errorf("show says %q of the site and prints\n%s", tv.Site, got)
+	}
+	in := f.Input(contract.Human)
+	if card := cardOf(Build(in), "T7"); card == nil || !strings.HasSuffix(card.News, " · 2 screenshots") {
+		t.Errorf("the card is %+v", card)
+	}
+
+	// The second port of the task's three answers: the site line names it.
+	dirs, _ := c.Kit.Platform.Dirs()
+	slots := contract.Slots{Taken: []contract.Slot{{N: 4, Size: 3, Root: c.Root, Run: c.Run, Task: "T7"}, {N: 5, Size: 3, Root: c.Root, Run: c.Run, Task: "T2"}}}
+	if err := contract.WriteVersioned(login{}, filepath.Join(dirs.State, "slots.json"), contract.FileVersion, slots); err != nil {
+		t.Fatal(err)
+	}
+	c.Kit.Evidence = answering{up: []int{contract.DefaultPorts.Base + 13, contract.DefaultPorts.Base + 16}}
+	out.Reset()
+	tv = run(t, c).(*contract.TaskView)
+	want := fmt.Sprintf("answering on port %d · http://%s:%[1]d", contract.DefaultPorts.Base+13, contract.Loopback)
+	if tv.Site != want || !strings.Contains(out.String(), " Site      "+want+"\n") {
+		t.Errorf("with a site answering, show says %q:\n%s", tv.Site, out)
+	}
+	c, out, _, _ = view(t, f, "show", contract.Human, "T3")
+	if tv = run(t, c).(*contract.TaskView); tv.Site != "" || strings.Contains(out.String(), "Site") || strings.Contains(out.String(), "Evidence") {
+		t.Errorf("a task with no browser check and no site:\n%s", out)
 	}
 }

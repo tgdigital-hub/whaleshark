@@ -175,6 +175,9 @@ func main() {
 		case "block":
 			tell(contract.StatusBlocked)
 			forever()
+		case "shot":
+			// What a browser tool leaves: a file that begins as a PNG does.
+			os.WriteFile(filepath.Join(os.Getenv(contract.EnvEvidence), arg(1)), []byte("\x89PNG\r\n\x1a\n a picture by "+os.Getenv(contract.EnvAttempt)), 0o600)
 		case "edit":
 			if file, err := os.OpenFile(arg(1), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
 				fmt.Fprintf(file, "a line by %s\n", os.Getenv(contract.EnvAttempt))

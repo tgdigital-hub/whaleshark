@@ -517,3 +517,38 @@ func TestInitAsksNobodyWhereNobodyIs(t *testing.T) {
 		t.Errorf("an empty answer was taken for nobody there:\n%s", out)
 	}
 }
+
+// A browser check is accepted only while its pictures can still be read
+// (8l): the folder is listed again at the accept, and a note alone, or a
+// folder that cannot be listed, refuses as a report without a picture does.
+func TestAcceptOfABrowserCheck(t *testing.T) {
+	f, err := testkit.Load(testkit.Evening)
+	if err != nil {
+		t.Fatal(err)
+	}
+	review(f, "T7", "echo all good")
+	f.State.Tasks["T7"].BrowserCheck = true
+	f.State.Attempts["T7.1"].Report.Evidence = []contract.EvidenceFile{{Name: "home.png", Kind: "png", Size: 20}}
+	p := scenario.Prepare(t, f, nil)
+	accept := func(exit int, words ...string) { play(t, p.Command(scenario.Orch, "accept", "T7"), exit, words...) }
+	_, dir := p.Record()
+	evidence := filepath.Join(dir, "attempts", "T7.1", "evidence")
+
+	accept(5, "no screenshot of it can be read now (none is there)", "whaleshark show T7")
+	write(t, filepath.Join(evidence, "notes.txt"), "it looked right to me")
+	accept(5, "no screenshot of it can be read now (none is there)")
+	if s, _ := p.Record(); s.Attempts["T7.1"].State != contract.AttemptReported {
+		t.Fatalf("a refused accept left T7.1 %s", s.Attempts["T7.1"].State)
+	}
+	// A file where the folder should be cannot be listed, and that refuses too.
+	if err := os.Rename(evidence, evidence+"-aside"); err != nil {
+		t.Fatal(err)
+	}
+	write(t, evidence, "no folder")
+	accept(5, "no screenshot of it can be read now (the evidence folder of T7.1 is no folder)")
+	if err := os.Rename(evidence, evidence+"-file"); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(evidence, "home.png"), "\x89PNG\r\n\x1a\n and the rest of a picture")
+	accept(0, "T7 is done, checked")
+}

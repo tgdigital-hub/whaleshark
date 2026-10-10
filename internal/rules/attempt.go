@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -157,6 +158,13 @@ func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, e
 	if outcome != outDone && outcome != outFailed {
 		return false, nil, refuse(contract.ExitUsage, "bad_outcome", "A report is done or failed.")
 	}
+	// A browser check is proven by a picture taken in this round of the work:
+	// since the worker began or was last sent back, to the second, which is
+	// as exactly as some file systems keep a file's time.
+	since := a.StartedAt.Truncate(time.Second)
+	if a.BackAt.After(a.StartedAt) {
+		since = a.BackAt.Truncate(time.Second)
+	}
 	reject := func(e *contract.Refusal) (bool, *contract.Refusal, error) {
 		raise(s, "rejected", t, a, e.Message, map[string]any{"outcome": outcome, "summary": summary}, now)
 		return false, e, nil
@@ -168,8 +176,8 @@ func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, e
 		return true, nil, nil
 	case a.State != contract.AttemptWorking && a.State != contract.AttemptAsked:
 		return reject(gone(a))
-	case outcome == outDone && t.BrowserCheck && len(evidence) == 0:
-		return false, nil, refuse(contract.ExitFailed, "no_evidence", "%s needs a browser check: save the evidence first, then report again.", t.ID)
+	case outcome == outDone && t.BrowserCheck && !slices.ContainsFunc(evidence, func(e contract.EvidenceFile) bool { return e.Kind != "" && !e.At.Before(since) }):
+		return false, nil, refuse(contract.ExitFailed, "no_evidence", "%s needs a browser check: save a screenshot of it into $%s first, then report again.", t.ID, contract.EnvEvidence)
 	}
 	a.Report = &contract.Report{Outcome: outcome, Summary: summary, At: now, Evidence: evidence}
 	if outcome == outFailed {
@@ -275,7 +283,7 @@ func (r Rules) Reject(s *contract.State, task, why string, agent contract.Livene
 	case agent == contract.Live:
 		setState(a, contract.AttemptWorking, now)
 		a.Round++
-		a.Report, a.Check = nil, nil
+		a.Report, a.Check, a.BackAt = nil, nil, now
 		a.Seen.LastWorking = now
 		t.Status = contract.TaskRunning
 		// A worker that was told to report once will not report twice

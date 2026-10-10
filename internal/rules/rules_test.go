@@ -282,9 +282,31 @@ func TestEverythingElse(t *testing.T) {
 		if code(err) != "no_evidence" || exit(err) != contract.ExitFailed || len(s.Inbox.Events) != n {
 			t.Errorf("without evidence: %v", err)
 		}
-		_, err = report(r.Report(s, "T1.1", token, outDone, "ok", []contract.EvidenceFile{{Name: "home.png", Size: 9}}, t0))
+		// A note is no picture, and a picture from before the worker began
+		// proves nothing of this round; a second counts as the same second.
+		a := s.Attempts["T1.1"]
+		a.StartedAt = t0.Add(900 * time.Millisecond)
+		shot := func(at time.Time) []contract.EvidenceFile {
+			return []contract.EvidenceFile{{Name: "notes.txt", Size: 4, At: at}, {Name: "home.png", Size: 9, Kind: "png", At: at}}
+		}
+		for name, files := range map[string][]contract.EvidenceFile{"a note alone": shot(after(time.Minute))[:1], "an old picture": shot(t0.Add(-time.Second))} {
+			if _, err = report(r.Report(s, "T1.1", token, outDone, "ok", files, after(time.Minute))); code(err) != "no_evidence" || len(s.Inbox.Events) != n {
+				t.Errorf("%s: %v", name, err)
+			}
+		}
+		_, err = report(r.Report(s, "T1.1", token, outDone, "ok", shot(t0), after(time.Minute)))
 		must(t, err)
-		s.Attempts["T1.1"].Report.Evidence = nil
+		if got := a.Report.Evidence; len(got) != 2 {
+			t.Errorf("the report lists %v", got)
+		}
+		// Sent back, the picture of the round before is not this round's.
+		must(t, r.Reject(s, "T1", "the menu is cut off", contract.Live, after(2*time.Minute)))
+		if _, err = report(r.Report(s, "T1.1", token, outDone, "ok", shot(after(time.Minute)), after(3*time.Minute))); code(err) != "no_evidence" {
+			t.Errorf("an earlier round's picture after being sent back: %v", err)
+		}
+		_, err = report(r.Report(s, "T1.1", token, outDone, "ok", shot(after(2*time.Minute)), after(3*time.Minute)))
+		must(t, err)
+		a.Report.Evidence = nil
 		if err := r.Checking(s, "T1", contract.Checked{}, t0); code(err) != "no_evidence" || exit(err) != contract.ExitRefused {
 			t.Errorf("accept without evidence: %v", err)
 		}

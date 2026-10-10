@@ -44,6 +44,9 @@ type Run struct {
 	// StuckFlagged: stuck was raised for this episode, as quiet_flagged is
 	// for an attempt.
 	StuckFlagged bool `json:"stuck_flagged,omitempty"`
+	// Programs is every version of the program that has swept this run: one
+	// more while the run is open is an upgrade, and raises "upgraded" once.
+	Programs []string `json:"programs,omitempty"`
 }
 
 // ScanSeen is the overlap scan as the record knows it: Due since a report
@@ -217,6 +220,7 @@ type Attempt struct {
 	Exit       *Exit        `json:"exit"`
 	Mail       []Mail       `json:"mail,omitempty"`
 	StartedAt  time.Time    `json:"started_at"`
+	BackAt     time.Time    `json:"back_at,omitzero"` // when its result was last sent back
 	EndedAt    time.Time    `json:"ended_at,omitzero"`
 	Temp       string       `json:"temp,omitempty"` // on a server, the temp folder of its own that start made
 }

@@ -207,7 +207,7 @@ func locked(t *testing.T, p *scenario.Project, id string) bool {
 }
 
 func TestCleanStart(t *testing.T) {
-	p := evening(t, 2, nil)
+	p := evening(t, 2, func(f *testkit.Fixture) { f.State.Tasks["R2"].BrowserCheck = true })
 	must(t, p.Command(scenario.Orch, "start", "R1", "ready 2"), 0, "R1 ready 1: working (R1.1)", "R2 ready 2: working (R2.1)")
 
 	s, dir := p.Record()
@@ -227,6 +227,12 @@ func TestCleanStart(t *testing.T) {
 		if !strings.Contains(string(prompt), want) {
 			t.Errorf("the prompt lacks %q:\n%s", want, prompt)
 		}
+	}
+	// Only a task whose result must be looked at in a browser is told how (8l).
+	checked, _ := os.ReadFile(filepath.Join(dir, "attempts", "R2.1", "prompt.md"))
+	if section := "\n## Browser check\n"; strings.Contains(string(prompt), section) || !strings.Contains(string(checked), section) ||
+		!strings.Contains(string(checked), ".png files into $"+contract.EnvEvidence) || !strings.Contains(string(checked), "sandbox off") {
+		t.Errorf("the prompt of a browser check:\n%s", checked)
 	}
 	if locked(t, p, "R1.1") {
 		t.Error("start.lock is still held")

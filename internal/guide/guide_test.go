@@ -15,7 +15,7 @@ import (
 )
 
 // phase is the phase these texts are written for: they name nothing later.
-const phase = 2
+const phase = 3
 
 func fullPrompt() Prompt {
 	return Prompt{
@@ -565,5 +565,36 @@ func TestLeadGuideOnAFailedStart(t *testing.T) {
 	}
 	if !strings.Contains(Lead, "A `start_failed` is not counted") {
 		t.Error("the lead guide does not say that a failed start is no failure of the task")
+	}
+}
+
+// The browser section is the lines of 8l: the port, the worker's own tool,
+// the place of the proof, one command for a worker with no tool, and the
+// sandbox. A task without a browser check has none of it.
+func TestThePromptOfABrowserCheck(t *testing.T) {
+	if got := Browser(false, "darwin", false); got != "" {
+		t.Errorf("a task with no browser check is told %q", got)
+	}
+	for system, bin := range map[string]string{"darwin": "Google Chrome\"", "linux": "\n  chromium", "windows": "chrome.exe", "plan9": ""} {
+		got := Browser(true, system, false)
+		for _, want := range []string{"on $PORT, bound to " + contract.Loopback, "your own browser tool, without a screen",
+			".png files into $" + contract.EnvEvidence, "Never switch the browser's sandbox off."} {
+			if !strings.Contains(got, want) {
+				t.Errorf("%s: the section lacks %q:\n%s", system, want, got)
+			}
+		}
+		line := bin + ` --headless --screenshot="$` + contract.EnvEvidence + `/page.png" --window-size=1280,900 "http://` + contract.Loopback + `:$PORT/"`
+		if has := strings.Contains(got, line); has != (bin != "") || strings.Contains(got, "no browser tool") != (bin != "") {
+			t.Errorf("%s: the one command is wrong or missing:\n%s", system, got)
+		}
+	}
+	// On a server it is the browser every login shares, wherever the server runs.
+	if got := Browser(true, "linux", true); !strings.Contains(got, `"$`+contract.EnvBrowsers+`"/chromium-`) || strings.Contains(got, "\n  chromium ") {
+		t.Errorf("on a server:\n%s", got)
+	}
+	p := fullPrompt()
+	p.Browser = Browser(true, "linux", false)
+	if text := p.Text(); !strings.Contains(text, "\n## Browser check\nThis task's result must be looked at in a browser.") || strings.Contains(text, "\n\n\n") {
+		t.Errorf("the prompt with the section:\n%s", text)
 	}
 }

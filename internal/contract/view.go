@@ -325,6 +325,7 @@ type TaskView struct {
 	Run       string       `json:"run"`
 	Says      string       `json:"says,omitempty"`
 	Check     string       `json:"check,omitempty"`
+	Site      string       `json:"site,omitempty"` // whether the task's own ports answer now, in words
 	Result    *CheckResult `json:"result,omitempty"`
 	Changed   string       `json:"changed,omitempty"` // "9 files, +410 -12", as git counts it
 	ByHand    string       `json:"by_hand,omitempty"`

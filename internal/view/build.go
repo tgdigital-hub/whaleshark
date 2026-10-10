@@ -225,7 +225,21 @@ func (b *builder) seat(t *contract.Task) *seat {
 			}
 		}
 	}
+	// What a browser check left is counted on the card; show lists it (8l).
+	if r := a.Report; r != nil && shots(r.Evidence) > 0 {
+		c.News = strings.TrimPrefix(c.News+" · "+plural(shots(r.Evidence), "screenshot", "screenshots"), " · ")
+	}
 	return st
+}
+
+// shots counts the pictures among the files of a browser check.
+func shots(files []contract.EvidenceFile) (n int) {
+	for _, f := range files {
+		if f.Kind != "" {
+			n++
+		}
+	}
+	return n
 }
 
 // items sorts every question into what waits for the person, what Do not

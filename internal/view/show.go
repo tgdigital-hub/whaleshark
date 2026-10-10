@@ -68,6 +68,7 @@ func show(c *contract.Call) (any, error) {
 		stat, _ := c.Kit.Integrator.Diff(c.Root, s, t.ID, true)
 		tv.Changed = changed(stat)
 	}
+	tv.Site = site(c, t)
 	if c.Flags["screen"] != nil {
 		tv.Screen = "its tab is closed"
 		if tv.Card.Tab != "" && len(tv.Tries) > 0 {
@@ -81,6 +82,29 @@ func show(c *contract.Call) (any, error) {
 	taskText(c.Out, tv, c.Now, options(c))
 	looked(c, t.ID)
 	return tv, nil
+}
+
+// site says whether a site answers on the task's own ports now, and on
+// which (8l); a browser check whose site is gone reads "site stopped".
+func site(c *contract.Call, t *contract.Task) string {
+	k := c.Kit
+	dirs, err := k.Platform.Dirs()
+	srv, bad := contract.ReadServer(k.Platform.Peek)
+	block, mine := srv.Block(contract.Me())
+	slots, _ := contract.ReadSlots(k.Platform.Peek, dirs.State)
+	for _, sl := range slots {
+		if err != nil || bad != nil || !mine || sl.Root != k.Platform.PathKey(c.Root) || sl.Run != c.Run || sl.Task != t.ID {
+			continue
+		}
+		var ports []int
+		for port := sl.First(block); port < sl.First(block)+sl.Size; port++ {
+			ports = append(ports, port)
+		}
+		if up := k.Evidence.Answering(ports); len(up) > 0 {
+			return fmt.Sprintf("answering on port %d · http://%s:%[1]d", slices.Min(up), contract.Loopback)
+		}
+	}
+	return map[bool]string{true: "site stopped"}[t.BrowserCheck]
 }
 
 var statLine = regexp.MustCompile(`(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?\s*$`)
@@ -181,8 +205,11 @@ func taskText(w io.Writer, tv *contract.TaskView, now time.Time, o Options) {
 	for _, e := range newest.Evidence {
 		evidence = append(evidence, clean(e.Name))
 	}
+	if n := shots(newest.Evidence); n > 0 {
+		evidence[0] = plural(n, "screenshot", "screenshots") + " · " + evidence[0]
+	}
 	for _, f := range [][2]string{
-		{"Says", says}, {"Changed", tv.Changed}, {"Check", check}, {"By hand", clean(tv.ByHand)}, {"May edit", clean(strings.Join(tv.Owns, ", "))}, {"Brief", clean(tv.Brief)},
+		{"Says", says}, {"Changed", tv.Changed}, {"Check", check}, {"Site", tv.Site}, {"By hand", clean(tv.ByHand)}, {"May edit", clean(strings.Join(tv.Owns, ", "))}, {"Brief", clean(tv.Brief)},
 		{"Result", clean(newest.Result)}, {"Check log", clean(newest.CheckLog)}, {"Evidence", strings.Join(evidence, ", ")},
 	} {
 		if f[1] != "" {
