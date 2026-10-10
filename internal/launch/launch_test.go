@@ -787,6 +787,13 @@ const brief = "# Target\nthe parser\n## Change\nadd it\nConstraints: none\n**Own
 // and out of git's sight, the two folders that lie outside it, its ports in
 // the copy's record, and the brief of a sync it still owes in its prompt.
 func TestCodexInItsOwnCopy(t *testing.T) {
+	// The program's git and the test's read the same settings, the test
+	// kit's: a machine whose own turn line ends on the way out would have
+	// the one write a file the other then reads as changed.
+	for _, pair := range testkit.GitEnv()[len(os.Environ()):] {
+		name, value, _ := strings.Cut(pair, "=")
+		t.Setenv(name, value)
+	}
 	p := scenario.Prepare(t, nil, nil)
 	testkit.Git(t, p.Root, "init", "-q", "-b", "main")
 	testkit.Git(t, p.Root, "config", "user.name", "a test")

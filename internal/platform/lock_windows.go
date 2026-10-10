@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"syscall"
 
 	"golang.org/x/sys/windows"
 )
@@ -92,11 +93,14 @@ func moveUnder(tmp, final string) error {
 // owner cannot tell: who may write a file on Windows is not read yet.
 func owner(fs.FileInfo) (uid, gid uint32, ok bool) { return 0, 0, false }
 
-// shell runs a line by the command processor Windows names; endTree asks
-// the system's own tool to end it with all it started.
+// shell runs a line by the command processor Windows names, handed over as
+// it stands: Go's own joining puts a backslash before each double quote,
+// which it does not read. endTree has the system's tool end all it started.
 func shell(line string) *exec.Cmd {
 	// #nosec G204 -- the line is a task's check, which is the lead agent's to give
-	return exec.Command(os.Getenv("ComSpec"), "/C", line)
+	cmd := exec.Command(os.Getenv("ComSpec"))
+	cmd.SysProcAttr = &syscall.SysProcAttr{CmdLine: `cmd /S /C "` + line + `"`}
+	return cmd
 }
 
 func endTree(cmd *exec.Cmd) error {
