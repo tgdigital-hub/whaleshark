@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -633,7 +634,8 @@ func TestTheCommandLog(t *testing.T) {
 			t.Errorf("the log holds %q, which somebody typed", typed)
 		}
 	}
-	if info, err := os.Stat(files[0]); err != nil || info.Mode().Perm() != 0o600 {
+	// Windows keeps no such bits: there the file is private by the profile folder it lies in.
+	if info, err := os.Stat(files[0]); err != nil || runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Errorf("the log file: %v %v", info, err)
 	}
 }

@@ -475,7 +475,7 @@ func TestResumeSkipsAnAgentAtAPrompt(t *testing.T) {
 	dirs, _ := p.Kit.Platform.Dirs()
 	must(t, p.Command(scenario.Human, "resume"), 5, "Nothing here is paused")
 	must(t, p.Command(scenario.Human, "pause"), 0)
-	if mark, err := contract.Paused(dirs.State); err != nil || mark == nil {
+	if mark, err := contract.Paused(os.ReadFile, dirs.State); err != nil || mark == nil {
 		t.Fatalf("no pause mark: %v", err)
 	}
 	// A second run of the login is paused too: the one mark holds both.
@@ -493,7 +493,7 @@ func TestResumeSkipsAnAgentAtAPrompt(t *testing.T) {
 	if took := time.Since(began); took < 8*50*time.Millisecond {
 		t.Errorf("nine agents at twenty a second were told in %v", took)
 	}
-	if mark, _ := contract.Paused(dirs.State); mark != nil {
+	if mark, _ := contract.Paused(os.ReadFile, dirs.State); mark != nil {
 		t.Error("the pause mark is still there")
 	}
 	if r4, err := p.Kit.Store.Read(p.Root, "r4"); err != nil || r4.Run.Paused != nil {
@@ -538,9 +538,14 @@ func TestAButtonsStartRunsInATabOfItsOwn(t *testing.T) {
 	}
 	made := calls(p, "tab", "create")
 	typed := calls(p, "pane", "run")
-	if len(made) != 1 || !slices.Contains(made[0], "start ready 1") || len(typed) != 1 ||
-		!strings.Contains(typed[0][3], " start R1 --human --root ") || !strings.HasSuffix(typed[0][3], " --run r3") {
+	if len(made) != 1 || !slices.Contains(made[0], "start ready 1") || len(typed) != 1 {
 		t.Fatalf("the tab %v and the line typed into it %v", made, typed)
+	}
+	// The line is written for the system's own shell, which on Windows
+	// puts every word between single quotes.
+	line := strings.ReplaceAll(typed[0][3], "'", "")
+	if !strings.Contains(line, " start R1 --human --root ") || !strings.HasSuffix(line, " --run r3") {
+		t.Fatalf("the line typed into the tab: %s", typed[0][3])
 	}
 
 	// The same line, run in such a tab, is still the button's and is not

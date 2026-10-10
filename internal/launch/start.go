@@ -222,7 +222,7 @@ var errPaused = refuse(contract.ExitRefused, "paused", "All work is paused.")
 // step is one short locked step of a start. It reads the login's pause mark
 // first, which Stop all writes before it marks any run.
 func (l *launcher) step(fn func(*contract.State) error) error {
-	if p, err := contract.Paused(l.state); err != nil {
+	if p, err := contract.Paused(l.c.Kit.Platform.Peek, l.state); err != nil {
 		return err
 	} else if p != nil {
 		return errPaused

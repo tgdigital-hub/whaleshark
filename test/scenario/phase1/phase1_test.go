@@ -76,7 +76,7 @@ func popups(p *scenario.Project) (out [][]string) {
 func TestTheFourButtons(t *testing.T) {
 	p := play(t, "8o-buttons.scn")
 	dirs, _ := p.Kit.Platform.Dirs()
-	if mark, err := contract.Paused(dirs.State); mark != nil || err != nil {
+	if mark, err := contract.Paused(os.ReadFile, dirs.State); mark != nil || err != nil {
 		t.Errorf("after Resume the pause mark is %v, %v", mark, err)
 	}
 	paused := false
@@ -128,7 +128,8 @@ func TestTheRulesAndTheHooks(t *testing.T) {
 		t.Fatalf("the project's settings lack a hook:\n%s", data)
 	}
 	// The worker's own harness hands its status line the figure.
-	run(t, p, `{"context_window":{"used_percentage":37.4},"workspace":{"project_dir":"`+p.Root+`"}}`, "A.1", "hook", "statusline")
+	root, _ := json.Marshal(p.Root) // a folder's name on Windows has backslashes in it
+	run(t, p, `{"context_window":{"used_percentage":37.4},"workspace":{"project_dir":`+string(root)+`}}`, "A.1", "hook", "statusline")
 	var view struct{ Result contract.View }
 	if err := json.Unmarshal([]byte(run(t, p, "", scenario.Orch, "status", "--json")), &view); err != nil {
 		t.Fatal(err)

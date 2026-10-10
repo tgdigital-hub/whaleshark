@@ -19,6 +19,9 @@ as-worker T1.1: mail                                -> expect "The person has pa
 orch: wait --timeout 0                              -> expect paused
 
 key r
+# The button's command is a child of the pane and takes its time: the pane
+# shows what it printed once it has ended.
+expect-row "Resumed."
 await: T1.1 state working
 as-worker T1.1: hook gate
 as-worker T1.1: mail                                -> expect "You were paused at" "git status"

@@ -52,22 +52,22 @@ func TestProjects(t *testing.T) {
 
 func TestPauseMark(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "state")
-	if p, err := Paused(dir); p != nil || err != nil {
+	if p, err := Paused(os.ReadFile, dir); p != nil || err != nil {
 		t.Fatalf("no mark yet: %v, %v", p, err)
 	}
 	at := time.Date(2026, 10, 8, 21, 14, 0, 0, time.UTC)
-	if err := SetPaused(dir, &Pause{At: at, By: WherePane}); err != nil {
+	if err := SetPaused(plain{}, dir, &Pause{At: at, By: WherePane}); err != nil {
 		t.Fatal(err)
 	}
-	if p, err := Paused(dir); err != nil || p == nil || !p.At.Equal(at) || p.By != WherePane {
+	if p, err := Paused(os.ReadFile, dir); err != nil || p == nil || !p.At.Equal(at) || p.By != WherePane {
 		t.Fatalf("read back %+v, %v", p, err)
 	}
 	for range 2 {
-		if err := SetPaused(dir, nil); err != nil {
+		if err := SetPaused(plain{}, dir, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if p, _ := Paused(dir); p != nil {
+	if p, _ := Paused(os.ReadFile, dir); p != nil {
 		t.Errorf("the mark is still there")
 	}
 }
