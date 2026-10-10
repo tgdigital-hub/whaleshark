@@ -59,6 +59,7 @@ func GitEnv() []string {
 // line break; a git that fails fails the test with all it said.
 func Git(t testing.TB, dir string, args ...string) string {
 	t.Helper()
+	// #nosec G204 -- git, with the words a test gives, in the test's own temporary repository
 	cmd := exec.Command("git", args...)
 	cmd.Dir, cmd.Env = dir, GitEnv()
 	out, err := cmd.CombinedOutput()
