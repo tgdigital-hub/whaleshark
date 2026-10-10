@@ -36,7 +36,7 @@ A task that has not started is changed with `whaleshark task edit` and dropped w
 Run `start` and `wait` in the background. Do not open tabs yourself, and start agents no other way.
 `wait` returns a batch of events and its delivery id, such as d17. Deal with every event, then:
     whaleshark wait --ack d17 --timeout 540
-A batch you do not acknowledge is handed out again. After every step, wait again.
+A batch you do not acknowledge is handed out again. Do what your own plan still asks, then wait again.
 
 ## What each event asks of you
 - `done`: run `whaleshark show T3` and read the result against the brief. Good: `whaleshark accept T3`.
