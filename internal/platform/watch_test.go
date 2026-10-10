@@ -221,6 +221,68 @@ func TestNamedNoticeIsBelieved(t *testing.T) {
 	}
 }
 
+// TestAChangeFoundAheadOfItsNoticeIsToldOnce: Windows names a folder when
+// something changed inside it. With a run's folder watched from the folder
+// above, that notice has the run's folder looked into, and the look can find
+// the record changed before the record's own notice has come. The one change
+// is told once; a notice after that is believed again.
+func TestAChangeFoundAheadOfItsNoticeIsToldOnce(t *testing.T) {
+	runs := t.TempDir()
+	run := filepath.Join(runs, "r1")
+	state, n := filepath.Join(run, "state.json"), named{ch: make(chan string, 4)}
+	if err := os.Mkdir(run, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	replaceFile(t, state, "0")
+	w := watch(n, []string{runs, state})
+	defer w.Close()
+	replaceFile(t, state, "1")
+	n.ch <- run
+	told(t, w, soon, state, holds(state, "1"))
+	n.ch <- state
+	select {
+	case p := <-w.Changes():
+		t.Errorf("told of %s a second time for one change", filepath.Base(p))
+	case <-time.After(100 * time.Millisecond):
+	}
+	n.ch <- state
+	told(t, w, soon, state, holds(state, "1"))
+}
+
+// TestOneReplaceUnderAWatchedFolder is the same with the system's own
+// notices, as a pane has them: the folder of the runs watched whole and one
+// run's record by name. A replace is told, and at most twice, which is how
+// often Windows names a file that another was moved over.
+func TestOneReplaceUnderAWatchedFolder(t *testing.T) {
+	runs := t.TempDir()
+	state := filepath.Join(runs, "r1", "state.json")
+	if err := os.Mkdir(filepath.Dir(state), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	replaceFile(t, state, "start")
+	w := real(t, runs, state)
+	for i := range 20 {
+		text := strconv.Itoa(i)
+		replaceFile(t, state, text)
+		told(t, w, soon, state, holds(state, text))
+		said := []string{filepath.Base(state)}
+		for more := true; more; {
+			select {
+			case p := <-w.Changes():
+				said = append(said, filepath.Base(p))
+			case <-time.After(200 * time.Millisecond):
+				more = false
+			}
+		}
+		if len(said) > 2 {
+			t.Fatalf("replace %d was told %d times: %v", i, len(said), said)
+		}
+	}
+	if w.Slow() {
+		t.Error("the watcher stopped trusting the notices")
+	}
+}
+
 // ending is a system that names the file and can end a folder's notices.
 type ending struct {
 	named
