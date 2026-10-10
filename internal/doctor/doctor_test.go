@@ -98,6 +98,9 @@ func project(t *testing.T) *desk {
 	for _, name := range []string{"XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "SSH_CONNECTION", "SSH_TTY", contract.EnvSocket, contract.EnvSystem} {
 		t.Setenv(name, "")
 	}
+	server := contract.ServerFile
+	contract.ServerFile = filepath.Join(home, "etc", "whaleshark", "server.toml")
+	t.Cleanup(func() { contract.ServerFile = server })
 	d := &desk{T: t, k: contract.NewKit(), terms: &terms{version: contract.Version}, hooks: &hooks{}, nudges: &nudges{}}
 	platform.Plug(d.k)
 	store.Plug(d.k)
@@ -242,7 +245,7 @@ func TestClean(t *testing.T) {
 		t.Fatalf("outside a project: exit %d\n%s", exit, e.text())
 	}
 	bare.want(e, note, "is not set up as a project", "whaleshark init")
-	bare.want(e, note, "server", "not built yet")
+	bare.want(e, note, " server")
 }
 
 // The keeper: stopped, of another version by either sign, with a socket
@@ -608,6 +611,21 @@ func TestNotify(t *testing.T) {
 	}
 	if e, _ = d.doctor(); len(d.terms.shown) != 2 || len(d.nudges.sent) != 2 || e.line("test nudge") != nil {
 		t.Error("a nudge was sent without --notify")
+	}
+	e, _ = d.doctor()
+	d.want(e, note, "nudge.phone is on and no address is set", "only a phone paired with the page")
+	d.write(filepath.Join(d.dirs.Config, contract.ConfigFile), "[nudge]\nphone = false\n[notify]\nurl = \"https://notices.example/x\"\n")
+	e, _ = d.doctor()
+	d.want(e, note, "an address for your phone is set and nudge.phone is off", "whaleshark set nudge.phone on")
+	hooks := filepath.Join(d.dirs.Config, "hooks", "nudge.d")
+	d.write(filepath.Join(hooks, "ring"), "#!/bin/sh\n")
+	if e, _ = d.doctor(); e.line("nudge hooks") != nil {
+		t.Errorf("a private hook folder was spoken of:\n%s", e.text())
+	}
+	if d.k.Platform.System() != "windows" { // which cannot tell whose a folder is
+		os.Chmod(hooks, 0o777)
+		e, _ = d.doctor()
+		d.want(e, note, "the nudge hooks in", "are not run", "another login can write to "+hooks)
 	}
 	d.write(filepath.Join(d.dirs.Config, contract.ConfigFile), "[nudge\n")
 	e, exit = d.doctor()

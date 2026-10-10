@@ -105,6 +105,17 @@ func (e *exam) nudge() {
 	default:
 		e.say(ok, "", "the pop-up is switched on, without its sound")
 	}
+	hooks := filepath.Join(e.dirs.Config, "hooks", "nudge.d")
+	for _, dir := range []string{e.dirs.Config, filepath.Dir(hooks), hooks} {
+		if others, _ := p.WritableByOthers(dir); others {
+			e.say(note, "", "the nudge hooks in %s are not run: another login can write to %s", hooks, dir)
+		}
+	}
+	if cfg.Notify.URL != "" && !cfg.Nudge.Phone {
+		e.say(note, "whaleshark set nudge.phone on", "an address for your phone is set and nudge.phone is off: nothing is sent there")
+	} else if cfg.Notify.URL == "" && cfg.Nudge.Phone {
+		e.say(note, "", "nudge.phone is on and no address is set under [notify] in your %s: only a phone paired with the page is nudged", contract.ConfigFile)
+	}
 	if e.c.Flags["notify"] == nil {
 		return
 	}
