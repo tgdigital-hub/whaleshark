@@ -2,6 +2,7 @@ package doctor
 
 import (
 	"bytes"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -36,7 +37,7 @@ func TestTheServerCommandRunsTheScriptCompiledIn(t *testing.T) {
 		}
 	}
 	b.k.Platform = placed{b.k.Platform, m.Self}
-	ask, sysRoot, script = system, m.Root, install.Server
+	ask, sysRoot, script = system, m.Root, testkit.Release(t, install.Server)
 	run := func(args ...string) (*record, string, error) {
 		t.Helper()
 		c := &contract.Call{Kit: b.k, Command: contract.Find("server"), Flags: map[string][]string{}, Now: time.Now(), Out: new(bytes.Buffer), Err: new(bytes.Buffer)}
@@ -142,4 +143,37 @@ func TestTheServerCommandRunsTheScriptCompiledIn(t *testing.T) {
 		t.Errorf("after the phone was taken off: %+v", r)
 	}
 	asked("tailscale serve --https=" + strconv.Itoa(servePorts[0]) + " off")
+
+	// The other way in. The command hands the script the team and each
+	// person's name, door and tag; doctor --server then finds the connector,
+	// its credential and the routing file as the script left them, and no
+	// certificate of the account anywhere under the root.
+	if _, said := must("tunnel", "--team=myteam"); !strings.Contains(said, "a program that is not ours") || !strings.Contains(said, "audience tag") {
+		t.Errorf("server tunnel said:\n%s", said)
+	}
+	r, _ = must("phone", "--user=ben", "--name=ws2.example.com", "--aud=0a1b2c3d", "--email=ben@example.com")
+	if a, ok := r.Access("ben"); !ok || r.Road != contract.RoadCloudflare || a.Team != "myteam" {
+		t.Errorf("after ben's public name: %+v", r)
+	}
+	asked("cloudflared route dns ")
+	b.said["GET http://"+net.JoinHostPort(contract.Loopback, tunnelPort)+"/ready"] = "200"
+	e, _ = b.doctor("server")
+	for _, words := range [][]string{{"Cloudflare's connector is held at its version", testkit.Connector}, {"tunnel's credential is readable by the connector's login alone"},
+		{"no certificate of the Cloudflare account"}, {"routing file is root's and valid"}, {"tunnel is connected"}, {"no public name is set up for ana"}} {
+		if l := e.line(words...); l == nil || l.Mark == problem {
+			t.Errorf("doctor --server does not find %q as the script left it:\n%s", words, e.text())
+		}
+	}
+	// A rule changed by hand, to lead where no door is, fails the proof.
+	routes := filepath.Join(m.Root, tunnelDir, "config.yml")
+	b.write(routes, strings.Replace(read(routes), ":"+strconv.Itoa(r.Door("ben")), ":22", 1))
+	if e, _ = b.doctor("server"); e.line("ws2.example.com leads to", ":22 and not to the door of ben") == nil {
+		t.Errorf("a rule that leads to SSH's port passes:\n%s", e.text())
+	}
+	if r, _ = must("tunnel", "--off="); r.Road != "" || r.Login["ben"].Name != "" {
+		t.Errorf("after the tunnel was taken off: %+v", r)
+	}
+	if _, err := os.Stat(filepath.Join(m.Root, tunnelDir)); err == nil || read(m.Root, "etc", "systemd", "system", tunnelLogin+".service") != "" {
+		t.Error("the tunnel is off and its folder or its service entry is still there")
+	}
 }

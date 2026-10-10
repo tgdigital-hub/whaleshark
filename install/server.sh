@@ -6,13 +6,18 @@
 #   harden  ADMIN
 #   add     LOGIN PORTS [KEYFILE] ADMIN
 #   phone   LOGIN PHONE DOOR [off]
+#   tunnel  TEAM [off]
+#   public  LOGIN DOOR NAME TAG [off]
 #   upgrade
 #   status
 #
 # The program has checked each word and names its own file in
 # WHALESHARK_BIN. ADMIN is the administrator login, PORTS the first port of
 # a login's block, DOOR its last, PHONE the port Tailscale answers at; an
-# empty KEYFILE stands for none. The program alone writes server.toml.
+# empty KEYFILE stands for none. tunnel and public are the Cloudflare way:
+# TEAM is the team's name there, and public is server phone on that way,
+# with a person's public NAME and the TAG of their Access application. The
+# program alone writes server.toml.
 #
 # It ends with 0, with 1 when a step failed (it says which), with 3 when
 # this is not root or not a system it knows. Every step first looks whether
@@ -31,6 +36,11 @@ PLAYWRIGHT=1.64.0
 # its setup page prints it.
 CLAUDE_KEY=31DDDE24DDFAB679F42D
 CLAUDE_KEY=${CLAUDE_KEY}7BD2BAA929FF1A7ECACE
+# Cloudflare's connector: its version, and the SHA-256 of the key its
+# packages are signed with, for which Cloudflare prints no fingerprint. A
+# release gives both; a copy without them installs no connector.
+CONNECTOR=''
+CONNECTOR_KEY=''
 
 # The range every login's block of a thousand ports lies in, and what one
 # login may take of the machine.
@@ -57,6 +67,10 @@ DASH=whaleshark-dash.service
 PROCGROUP=whaleshark-proc
 LO=127.0.0
 LO=$LO.1
+# The Cloudflare way: the connector's login and service, and its folder with
+# the tunnel's own credential, the routing file and a line for each person.
+TUNNEL=whaleshark-tunnel
+CF=$ETC/cloudflared
 
 say() { printf '%s\n' "$*"; }
 die() {
@@ -389,15 +403,20 @@ harden() {
 
 # walls: who may connect to a login's block on this machine: that login and
 # the system, which is how Tailscale hands a phone's connection to the page.
+# Cloudflare's connector reaches the door of a login with a public name and
+# no other port of any block.
 walls() {
 	doing="keeping each login's ports its own"
+	cuid=$(id -u "$TUNNEL" 2>/dev/null) || cuid=
 	{
 		say "table inet whaleshark"
 		say "delete table inet whaleshark"
 		say "table inet whaleshark {"
 		say "	chain out {"
 		say "		type filter hook output priority 0; policy accept;"
-		logins | while read -r n _ first; do
+		logins | while read -r n who first; do
+			[ -z "$cuid" ] || [ ! -e "$CF/rules/$who" ] ||
+				say "		oifname \"lo\" tcp dport $((first + 999)) meta skuid $cuid accept"
 			say "		oifname \"lo\" tcp dport $first-$((first + 999)) meta skuid != { 0, $n } reject with tcp reset"
 		done
 		say "	}"
@@ -506,6 +525,190 @@ phone() {
 	say "Next, as $login: whaleshark dash phone on"
 }
 
+# Cloudflare's connector from Cloudflare's own signed package source, at the
+# one version this release pins and held there, so that no update moves it.
+connector() {
+	doing="installing Cloudflare's connector from its maker's signed package source"
+	moved=
+	! cloudflared --version 2>/dev/null | grep -qF "version $CONNECTOR " || return 0
+	curl -fsSL --proto '=https' --tlsv1.2 -o "$tmp/cloudflare.gpg" https://pkg.cloudflare.com/cloudflare-main.gpg
+	got=$(sha256sum "$tmp/cloudflare.gpg")
+	[ "${got%% *}" = "$CONNECTOR_KEY" ] ||
+		die "the key fetched for Cloudflare's packages is not the one this version pins; no connector was installed"
+	put "$R/etc/apt/keyrings/cloudflare-main.gpg" 644 <"$tmp/cloudflare.gpg" || true
+	say "deb [signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" |
+		put "$R/etc/apt/sources.list.d/cloudflared.list" 644 || true
+	apt-get update -q
+	DEBIAN_FRONTEND=noninteractive apt-get install -y -q --allow-change-held-packages "cloudflared=$CONNECTOR"
+	apt-mark hold cloudflared >/dev/null
+	moved=1
+}
+
+# account: Cloudflare's own login, which shows one link to open in a
+# browser. What it leaves can make and delete tunnels and change the
+# account's names, so it lies in the private folder that goes when this
+# script ends, however it ends.
+account() {
+	cert=$tmp/.cloudflared/cert.pem
+	[ ! -s "$cert" ] || return 0
+	say "Open the link below in a browser, log in at Cloudflare and pick the domain."
+	HOME=$tmp cloudflared tunnel login
+	[ -s "$cert" ] || die "Cloudflare's login left no certificate where it was told to; doctor --server finds one left anywhere else"
+}
+
+tunnel_id() { sed -n 's/.*"TunnelID" *: *"\([0-9a-f-]*\)".*/\1/p' "$CF/tunnel.json"; }
+
+# routing: the routing file, whole each time: each person's name leads to
+# that login's door and nowhere else, the connector checks Cloudflare's pass
+# for that person's tag before it hands anything on, and the last rule
+# refuses all else. Cloudflare's own check reads it before it is in place.
+routing() {
+	doing="writing the tunnel's routing file"
+	{
+		say "tunnel: $(tunnel_id)"
+		say "credentials-file: ${CF#"$R"}/tunnel.json"
+		say "ingress:"
+		for f in "$CF"/rules/*; do
+			[ -e "$f" ] || continue
+			read -r host door aud <"$f"
+			say "  - hostname: $host"
+			say "    service: http://$LO:$door"
+			say "    originRequest:"
+			say "      access:"
+			say "        required: true"
+			say "        teamName: $(cat "$CF/team")"
+			say "        audTag: [$aud]"
+		done
+		say "  - service: http_status:404"
+	} >"$tmp/config.yml"
+	cloudflared tunnel --config "$tmp/config.yml" ingress validate >/dev/null ||
+		die "Cloudflare's connector refuses the routing file; the one in place was left as it was"
+	if put "$CF/config.yml" 644 <"$tmp/config.yml" && systemctl is-active -q "$TUNNEL.service"; then
+		systemctl restart "$TUNNEL.service"
+	fi
+}
+
+untunnel() {
+	doing="taking the tunnel away"
+	! systemctl is-enabled -q "$TUNNEL.service" 2>/dev/null || systemctl disable -q --now "$TUNNEL.service"
+	if [ -e "$UNITS/$TUNNEL.service" ]; then
+		rm -f "$UNITS/$TUNNEL.service"
+		systemctl daemon-reload
+	fi
+	rm -rf "$CF"
+	[ ! -e "$NFT" ] || walls
+	! id "$TUNNEL" >/dev/null 2>&1 || userdel "$TUNNEL"
+	if installed cloudflared; then
+		apt-mark unhold cloudflared >/dev/null
+		DEBIAN_FRONTEND=noninteractive apt-get purge -y -q cloudflared
+	fi
+	rm -f "$R/etc/apt/keyrings/cloudflare-main.gpg" "$R/etc/apt/sources.list.d/cloudflared.list"
+	say "The tunnel is off: the connector, its login, its files and its way to the doors are gone."
+	say "Nothing here holds a key to your Cloudflare account, so delete there yourself:"
+	say "  the tunnel (Zero Trust, Networks, Tunnels), each person's name (the domain's DNS records)"
+	say "  and each person's Access application."
+}
+
+# The one case in which this script installs a program that keeps a
+# connection open to somebody else's network; it says so first.
+tunnel() {
+	team=${1:-} off=${2:-}
+	if [ -n "$off" ]; then
+		untunnel
+		return 0
+	fi
+	case $team in
+	"" | *[!a-z0-9-]*) die "$team is not a team name at Cloudflare: the first part of <team>.cloudflareaccess.com" ;;
+	esac
+	if [ -z "$CONNECTOR" ] || [ -z "$CONNECTOR_KEY" ]; then
+		die "this copy of the program pins no version of Cloudflare's connector, so it installs none: use a release. Nothing was changed"
+	fi
+	say "This installs Cloudflare's connector, a program that is not ours. It keeps a connection"
+	say "open from this machine to Cloudflare, which can read all that passes between a phone and the page."
+	connector
+	doing="making the connector's own login"
+	id "$TUNNEL" >/dev/null 2>&1 || useradd -r -M -d /nonexistent -s /usr/sbin/nologin "$TUNNEL"
+	mkdir -p "$CF/rules"
+	if [ ! -s "$CF/tunnel.json" ]; then
+		doing="making the tunnel at Cloudflare"
+		account
+		cloudflared tunnel --origincert "$cert" create --credentials-file "$CF/tunnel.json" "whaleshark-$(uname -n)"
+		chown "$TUNNEL" "$CF/tunnel.json"
+		chmod 400 "$CF/tunnel.json"
+	fi
+	say "$team" | put "$CF/team" 644 || true
+	routing
+	doing="starting the connector"
+	# Our own entry and not the connector's installer: a login with no shell,
+	# no home and no sudo, and the connector's own updater switched off.
+	if put "$UNITS/$TUNNEL.service" 644 <<EOF; then
+[Unit]
+Description=WhaleShark: the way in for phones through Cloudflare
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=$TUNNEL
+ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate --metrics $LO:20241 --config ${CF#"$R"}/config.yml run
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+		systemctl daemon-reload
+	fi
+	systemctl is-enabled -q "$TUNNEL.service" 2>/dev/null || systemctl enable -q --now "$TUNNEL.service"
+
+	say "The tunnel is made and its connector runs as $TUNNEL. The certificate of your"
+	say "Cloudflare account that made it is deleted again; adding a person asks for the login once more."
+	say "Now in Cloudflare's own pages (Zero Trust, Access, Applications), for each person:"
+	say "  1. Add an application, self-hosted, under a name of that person's alone, such as"
+	say "     ws1.<your domain>. The name is public: never a person's or a client's."
+	say "  2. Its one rule: Allow, for that person's email addresses and nobody else's."
+	say "  3. Session duration 24 hours, and its cookie's switch \"HTTP Only\" on."
+	say "  4. Copy the application's audience tag (AUD)."
+	say "Then here: sudo whaleshark server phone --user NAME --name ws1.<your domain> --aud TAG --email ADDRESS"
+	say "Put a second step on the Cloudflare account and on the mailbox it logs in with:"
+	say "whoever takes either gets as far as the pairing of a phone."
+}
+
+# public: server phone on the Cloudflare way. A name is made at Cloudflare
+# only once the login was shown again, and the rule only once the name is.
+public() {
+	login=${1:-} door=${2:-} host=${3:-} aud=${4:-} off=${5:-}
+	name "the work login" "$login"
+	number "$door" || die "$door is not a port"
+	[ -s "$CF/tunnel.json" ] || die "this server has no tunnel: sudo whaleshark server tunnel --team NAME. Nothing was changed"
+	if [ -n "$off" ]; then
+		rm -f "$CF/rules/$login"
+		routing
+		walls
+		say "$login has no public name any more. Its Access application and its name are still"
+		say "at Cloudflare: delete both there, since nothing here holds a key to that account."
+		return 0
+	fi
+	case $host in
+	*[!a-z0-9.-]* | [.-]* | *. | *..*) die "$host is not a public name" ;;
+	*.*) ;;
+	*) die "$host is not a public name" ;;
+	esac
+	case $aud in
+	"" | *[!0-9a-f]*) die "$aud is not the tag of an Access application" ;;
+	esac
+	doing="giving $login the public name $host"
+	if ! say "$host $door $aud" | cmp -s - "$CF/rules/$login"; then
+		account
+		cloudflared tunnel --origincert "$cert" route dns "$(tunnel_id)" "$host"
+		say "$host $door $aud" | put "$CF/rules/$login" 644
+	fi
+	routing
+	walls
+	say "$login's page answers at https://$host once phone access is on, behind Cloudflare's login."
+	say "Next, as $login: whaleshark dash phone on"
+}
+
 status() {
 	logins | while read -r n who first; do
 		line="$who  ports $first-$((first + 999))"
@@ -515,6 +718,7 @@ status() {
 		! pgrep -u "$who" -f 'whaleshark accept' >/dev/null 2>&1 || line="$line  accept in progress"
 		say "$line"
 	done
+	[ ! -s "$CF/tunnel.json" ] || say "the tunnel's connector $(systemctl is-active "$TUNNEL.service" 2>/dev/null || true)"
 	[ ! -e "$R/var/run/reboot-required" ] ||
 		say "restart needed since $(date -r "$R/var/run/reboot-required" +%Y-%m-%d): pick the moment, nothing restarts by itself"
 }
@@ -534,6 +738,11 @@ upgrade() {
 		program
 	fi
 	units
+	# A new release pins a newer connector: Cloudflare supports one for a year.
+	if [ -s "$CF/tunnel.json" ] && [ -n "$CONNECTOR" ]; then
+		connector
+		[ -z "$moved" ] || systemctl restart "$TUNNEL.service"
+	fi
 	doing="restarting each login's page"
 	logins | while read -r _ who _; do
 		of "$who" daemon-reload
@@ -586,8 +795,9 @@ leave() {
 	exit "$rc"
 }
 trap leave EXIT
+trap 'exit 1' HUP INT TERM
 
 case $verb in
-setup | harden | add | phone | upgrade) "$verb" "$@" ;;
+setup | harden | add | phone | tunnel | public | upgrade) "$verb" "$@" ;;
 *) die "there is no server $verb" ;;
 esac

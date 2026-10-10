@@ -5,9 +5,14 @@
 // standard input and the program's own file named in contract.EnvBin:
 // `sh -s -- setup ADMIN [KEYFILE]`, `harden ADMIN`,
 // `add LOGIN PORTS [KEYFILE] ADMIN`, `phone LOGIN PHONE DOOR [off]`,
-// `upgrade`, `status`. ADMIN is the administrator login, PORTS the first
-// port of the login's block, DOOR its last, PHONE the port Tailscale
-// answers at; an empty KEYFILE stands for none. The
+// `tunnel TEAM [off]`, `public LOGIN DOOR NAME TAG [off]`, `upgrade`,
+// `status`. ADMIN is the administrator login, PORTS the first port of the
+// login's block, DOOR its last, PHONE the port Tailscale answers at; an
+// empty KEYFILE stands for none. tunnel and public are the Cloudflare way:
+// the connector from Cloudflare's signed package source under a login of
+// its own, and a person's public name led to that login's door and nowhere
+// else. A release gives the script the connector's version and the
+// checksum of its packages' key, as it gives install.sh its key. The
 // command in the program checks the arguments, works out a new login's
 // block with contract.Server.Free, and is the one writer of
 // contract.ServerFile; the script does the system's part, is safe to run

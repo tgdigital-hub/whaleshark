@@ -82,6 +82,8 @@ type desk struct {
 	nudges *nudges
 	caller contract.Caller
 	errw   bytes.Buffer
+	// typed is what the person types when doctor asks; with none, nobody is there.
+	typed string
 }
 
 func project(t *testing.T) *desk {
@@ -169,6 +171,9 @@ func (d *desk) doctor(flags ...string) (*exam, int) {
 		Root: d.root, Now: time.Now(), Out: new(bytes.Buffer), Err: &d.errw}
 	for _, f := range flags {
 		c.Flags[f] = []string{""}
+	}
+	if d.typed != "" {
+		c.Stdin = strings.NewReader(d.typed)
 	}
 	result, err := run(c)
 	if testing.Verbose() {

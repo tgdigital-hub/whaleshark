@@ -41,9 +41,11 @@ type box struct {
 	sys   string
 	said  map[string]string // by how a command line starts; "!" first is a failure
 	asked []string
-	// bindRule and dialRule say whether the system keeps each port rule.
+	// bindRule and dialRule say whether the system keeps each port rule;
+	// reach is the ports Cloudflare's connector is let through to.
 	bindRule, dialRule bool
 	blocks             map[string]int
+	reach              map[int]bool
 }
 
 const (
@@ -79,9 +81,22 @@ func server(t *testing.T, text string, root bool) *box {
 	}
 	b := &box{desk: d, sys: t.TempDir(), bindRule: true, dialRule: true, blocks: map[string]int{"kim": kimAt, "ana": anaAt}}
 	d.k.Platform = linux{d.k.Platform, "linux"}
-	me, wasRoot, wasAsk, wasRootDir, wasScript := contract.Me, isRoot, ask, sysRoot, script
-	t.Cleanup(func() { contract.Me, isRoot, ask, sysRoot, script = me, wasRoot, wasAsk, wasRootDir, wasScript })
+	me, wasRoot, wasAsk, wasRootDir, wasScript, wasGet := contract.Me, isRoot, ask, sysRoot, script, get
+	t.Cleanup(func() {
+		contract.Me, isRoot, ask, sysRoot, script, get = me, wasRoot, wasAsk, wasRootDir, wasScript, wasGet
+	})
 	contract.Me, isRoot, ask, sysRoot = func() string { return "kim" }, func() bool { return root }, b.ask, b.sys
+	// Nothing here asks beyond this machine: only a door of the test's own
+	// is asked for real, and everything else is answered from the table.
+	get = func(url, host, pass string) (int, http.Header, error) {
+		if strings.HasPrefix(url, "http://"+contract.Loopback+":") && !strings.Contains(url, ":"+tunnelPort+"/") {
+			return wasGet(url, host, pass)
+		}
+		b.asked = append(b.asked, "GET "+url)
+		status, to, _ := strings.Cut(b.said["GET "+url], " ")
+		code, err := strconv.Atoi(status)
+		return code, http.Header{"Location": {to}}, err
+	}
 	if root {
 		contract.Me = func() string { return "root" }
 	}
@@ -134,6 +149,9 @@ func (b *box) ask(name string, args ...string) (string, error) {
 	if name == "systemd-run" {
 		login, port := strings.TrimPrefix(args[4], "--uid="), 0
 		fmt.Sscan(args[len(args)-1], &port)
+		if login == tunnelLogin && b.reach[port] {
+			return "open", nil
+		}
 		own := port >= b.blocks[login] && port < b.blocks[login]+contract.BlockSize
 		switch what := args[len(args)-2]; {
 		case own || what == "bind" && !b.bindRule || what == "dial" && !b.dialRule:
@@ -280,7 +298,6 @@ func TestEachFaultOfAWorkLoginIsNamed(t *testing.T) {
 		{"no sign-in", file, func(b *box) { b.page(false, true) }, problem, []string{"signing in to the page does not work"}},
 		{"foreign origin", file, func(b *box) { b.page(true, false) }, problem, []string{"did not refuse a change asked for by another site"}},
 		{"no road", strings.Replace(file, `road = "tailscale"`, "", 1), nil, note, []string{"no way in for a phone", phoneCmd + "kim"}},
-		{"cloudflare", strings.Replace(file, "tailscale", "cloudflare", 1), nil, note, []string{"come in by cloudflare", "not built yet"}},
 		{"no door", strings.Replace(file, "phone = 443", "", 1), nil, note, []string{"no door for a phone is set up for kim", phoneCmd + "kim"}},
 		{"no forwarding", file, func(b *box) { b.said["tailscale serve status"] = "No serve config" }, problem, []string{"does not forward port 443 to the door of kim", phoneCmd + "kim"}},
 		{"forwarding unread", file, func(b *box) { b.said["tailscale serve status"] = "!access denied" }, note, []string{"forwarding could not be read", "access denied", proveCmd}},
@@ -463,7 +480,7 @@ func TestTheServerCommandWritesTheFileAndHandsTheScriptItsPart(t *testing.T) {
 		if refusal != nil || len(handed) != 1 || handed[0] != self+","+want {
 			t.Fatalf("server %v: %+v, the script got %q, wanted %q", args, refusal, handed, self+","+want)
 		}
-		if s, err := contract.ReadServer(os.ReadFile); slices.Contains([]string{"setup", "add", "phone"}, args[0]) && (err != nil || s == nil || s.Rules != r.Rules || len(s.Login) != len(r.Login)) {
+		if s, err := contract.ReadServer(os.ReadFile); slices.Contains([]string{"setup", "add", "phone", "tunnel"}, args[0]) && (err != nil || s == nil || s.Rules != r.Rules || len(s.Login) != len(r.Login)) {
 			t.Fatalf("after server %v the contract reads %+v %v", args, s, err)
 		}
 		return r
@@ -507,6 +524,22 @@ func TestTheServerCommandWritesTheFileAndHandsTheScriptItsPart(t *testing.T) {
 	if r := step("phone,ana,8443,22999,off,", "phone", "--user=ana", "--off="); r.Road != "" {
 		t.Errorf("after the last phone was taken off: %+v", r)
 	}
+	// The other way in: the tunnel, a person's three values, and back.
+	if r := step("tunnel,myteam,,", "tunnel", "--team=myteam"); r.Road != contract.RoadCloudflare || r.Team != "myteam" {
+		t.Errorf("after the tunnel: %+v", r)
+	}
+	r = step("public,kim,21999,ws1.example.com,0a1b2c3d,,", "phone", "--user=kim", "--name=ws1.example.com", "--aud=0a1b2c3d", "--email=kim@example.com,k@example.org")
+	if a, ok := r.Access("kim"); !ok || a.Issuer() != "https://myteam.cloudflareaccess.com" || a.Name != "ws1.example.com" || a.Aud != "0a1b2c3d" || len(a.Email) != 2 {
+		t.Errorf("what the page checks a pass of kim's against: %+v %v", a, ok)
+	}
+	step("tunnel,myteam,,", "tunnel")
+	if r := step("public,kim,21999,,,off,", "phone", "--user=kim", "--off="); r.Login["kim"].Name != "" || r.Road != contract.RoadCloudflare {
+		t.Errorf("after kim's name was taken off: %+v", r)
+	}
+	step("public,ana,22999,ws2.example.com,0a1b2c3d,,", "phone", "--user=ana", "--name=ws2.example.com", "--aud=0a1b2c3d", "--email=ana@example.com")
+	if r := step("tunnel,,off,", "tunnel", "--off="); r.Road != "" || r.Team != "" || r.Login["ana"].Name+r.Login["ana"].Aud != "" || r.Login["ana"].Email != nil || r.Login["ana"].Ports != 22000 {
+		t.Errorf("after the tunnel was taken off: %+v", r)
+	}
 	step("upgrade,", "upgrade")
 	b.Setenv("SUDO_USER", "boss")
 	step("harden,boss,", "harden")
@@ -543,8 +576,15 @@ func TestTheServerCommandRefuses(t *testing.T) {
 		{"a twelfth login", full, nil, []string{"add", "--user=eve"}, "full", contract.ExitEnv},
 		{"a phone for nobody", file, nil, []string{"phone", "--user=eve"}, "no_login", contract.ExitEnv},
 		{"a fourth phone", full, nil, []string{"phone", "--user=w5"}, "road_full", contract.ExitEnv},
-		{"the other road", file, nil, []string{"phone", "--user=kim", "--name=ws1.example.com"}, "not_built", contract.ExitEnv},
-		{"the tunnel", file, nil, []string{"tunnel"}, "not_built", contract.ExitEnv},
+		{"a public name without a tunnel", file, nil, []string{"phone", "--user=kim", "--name=ws1.example.com"}, "no_tunnel", contract.ExitEnv},
+		{"a tunnel beside Tailscale", file, nil, []string{"tunnel", "--team=myteam"}, "road_taken", contract.ExitEnv},
+		{"a tunnel for no team", tunnelFile[:strings.Index(tunnelFile, "road")], nil, []string{"tunnel"}, "bad_team", contract.ExitEnv},
+		{"a team that is an address", tunnelFile, nil, []string{"tunnel", "--team=myteam.cloudflareaccess.com"}, "bad_team", contract.ExitEnv},
+		{"no name on the Cloudflare way", tunnelFile, nil, []string{"phone", "--user=ana"}, "bad_name", contract.ExitEnv},
+		{"a name that is an address", tunnelFile, nil, []string{"phone", "--user=ana", "--name=https://ws2.example.com/", "--aud=0a1b2c3d", "--email=ana@example.com"}, "bad_name", contract.ExitEnv},
+		{"another's name", tunnelFile, nil, []string{"phone", "--user=ana", "--name=ws1.example.com", "--aud=0a1b2c3d", "--email=ana@example.com"}, "bad_name", contract.ExitEnv},
+		{"a tag that is none", tunnelFile, nil, []string{"phone", "--user=ana", "--name=ws2.example.com", "--aud=$(id)", "--email=ana@example.com"}, "bad_name", contract.ExitEnv},
+		{"no address", tunnelFile, nil, []string{"phone", "--user=ana", "--name=ws2.example.com", "--aud=0a1b2c3d", "--email=ana"}, "bad_name", contract.ExitEnv},
 		{"the script fails", file, func(b *box) { b.Setenv("WS_FAIL", "add") }, []string{"add", "--user=eve"}, "script", contract.ExitFailed},
 	} {
 		t.Run(c.name, func(t *testing.T) {
