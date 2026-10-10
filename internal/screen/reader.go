@@ -46,7 +46,7 @@ func (s *Screen) feed(b byte) {
 	switch {
 	case b == 0x1b:
 		if s.state == osc {
-			s.command()
+			s.command("\x1b\\")
 		}
 		s.state, s.prefix, s.mid, s.bad = esc, 0, 0, false
 		return
@@ -93,7 +93,7 @@ func (s *Screen) feed(b byte) {
 		switch {
 		case b == 0x07:
 			s.state = ground
-			s.command()
+			s.command("\a")
 		case b >= 0x20 && len(s.str) < maxStr:
 			s.str = append(s.str, b)
 		case b >= 0x20:
