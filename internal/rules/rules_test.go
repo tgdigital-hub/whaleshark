@@ -335,7 +335,7 @@ func TestEverythingElse(t *testing.T) {
 			t.Errorf("event %+v", e)
 		}
 		must(t, r.Reject(s, "T1", "fix the bounce tests", contract.Live, t0))
-		if a.Check != nil || a.Report != nil || a.Round != 1 || len(a.Mail) != 1 || a.Mail[0].Text != "fix the bounce tests" {
+		if a.Check != nil || a.Report != nil || a.Round != 1 || len(a.Mail) != 1 || !strings.Contains(a.Mail[0].Text, "sent back: fix the bounce tests\nMend it") || !strings.Contains(a.Mail[0].Text, "report again") {
 			t.Errorf("after reject: %+v", a)
 		}
 	})

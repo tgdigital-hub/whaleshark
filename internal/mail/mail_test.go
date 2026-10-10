@@ -244,7 +244,7 @@ func TestReject(t *testing.T) {
 		want(t, "attempt", at.State, contract.AttemptWorking)
 		want(t, "round", at.Round, 1)
 		want(t, "failures", s.Tasks["T7"].Failures, 0)
-		if m := at.Mail; len(m) != 1 || m[0].Text != "tests for the bounce case are missing" || m[0].NudgedAt.IsZero() {
+		if m := at.Mail; len(m) != 1 || !strings.Contains(m[0].Text, "sent back: tests for the bounce case are missing") || !strings.Contains(m[0].Text, "report again") || m[0].NudgedAt.IsZero() {
 			t.Fatalf("mail: %+v", m)
 		}
 		a, _ = run(t, p, "T7.1", "mail")

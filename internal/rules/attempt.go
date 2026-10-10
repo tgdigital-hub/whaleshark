@@ -274,7 +274,9 @@ func (r Rules) Reject(s *contract.State, task, why string, agent contract.Livene
 		a.Report, a.Check = nil, nil
 		a.Seen.LastWorking = now
 		t.Status = contract.TaskRunning
-		mail(s, a, why, "", now)
+		// A worker that was told to report once will not report twice
+		// unless it is told to: seen with a real agent.
+		mail(s, a, "Your result was sent back: "+why+"\nMend it, update the result file, then report again.", "", now)
 	case agent == contract.Gone:
 		end(s, a, contract.AttemptStopped, contract.ExitExited, now)
 		back(t, false, now)

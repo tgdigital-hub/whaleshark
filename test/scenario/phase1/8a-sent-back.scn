@@ -14,7 +14,7 @@ orch: status                                        -> expect "check failed"
 orch: wait --timeout 10                             -> expect done check_failed
 orch: reject A "page.txt is not there"              -> expect "A is back with A.1 as message"
 await: attempts A.1 working
-as-worker A.1: mail                                 -> expect "page.txt is not there"
+as-worker A.1: mail                                 -> expect "page.txt is not there" "report again"
 as-worker A.1: mail                                 -> expect "No new messages."
 file page.txt: the page
 as-worker A.1: progress 90 "the page is there now"
