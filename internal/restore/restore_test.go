@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -511,6 +512,93 @@ func TestSaver(t *testing.T) {
 	s.Stop()
 	if read() != "stopped" {
 		t.Fatal("the stop did not write")
+	}
+}
+
+// A pane's last lines are in a file of their own beside the layout file:
+// written a few seconds after output and at the stop, never for a change of
+// the layout, and not again while the pane's program has printed nothing.
+// The lines of a pane that is gone go with it.
+func TestAPanesLinesAreWrittenWhenItPrinted(t *testing.T) {
+	_, dirs := login(t)
+	fs := &files{Files: platform.New(runtime.GOOS)}
+	var printed, read atomic.Uint64
+	var alone atomic.Bool
+	s := restore.Start(fs, dirs, func() *restore.File {
+		lay, f := layout.Layout{}, &restore.File{}
+		lay.Add("t1", "one", "p1")
+		f.Panes = []restore.Pane{{Rec: contract.Pane{ID: "p1"}, Count: printed.Load(), Text: func() []string {
+			return []string{"reef " + strconv.FormatUint(printed.Load(), 10)}
+		}}}
+		if !alone.Load() {
+			lay.Split("p1", contract.Right, 0.5, "p2")
+			f.Panes = append(f.Panes, restore.Pane{Rec: contract.Pane{ID: "p2"}, Count: 7, Text: func() []string {
+				read.Add(1)
+				return []string{"quiet"}
+			}})
+		}
+		f.Layout, _ = json.Marshal(&lay)
+		return f
+	})
+	wait := func(n int32) {
+		t.Helper()
+		for end := time.Now().Add(6 * time.Second); fs.n.Load() < n; time.Sleep(5 * time.Millisecond) {
+			if time.Now().After(end) {
+				t.Fatalf("%d writes, want %d", fs.n.Load(), n)
+			}
+		}
+		time.Sleep(300 * time.Millisecond)
+		if fs.n.Load() != n {
+			t.Fatalf("%d writes, want %d and no more", fs.n.Load(), n)
+		}
+	}
+	lines := func() (got []string) {
+		t.Helper()
+		f, _, err := restore.Load(fs, dirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range f.Panes {
+			got = append(got, p.Rec.ID+": "+strings.Join(p.Lines, "|"))
+		}
+		return got
+	}
+	// A change of the layout reads no pane's lines and writes one small file.
+	s.Changed()
+	wait(1)
+	if left, _ := os.ReadDir(dirs.State); len(left) != 1 || read.Load() != 0 {
+		t.Fatalf("after a change: %d files, the quiet pane read %d times", len(left), read.Load())
+	}
+	// Output: the layout and both panes' lines. More of it: the layout and
+	// the lines of the pane that printed.
+	printed.Store(1)
+	s.Flowed()
+	wait(4)
+	if got := lines(); !slices.Equal(got, []string{"p1: reef 1", "p2: quiet"}) {
+		t.Fatalf("after output the files give %q", got)
+	}
+	printed.Store(2)
+	s.Flowed()
+	wait(6)
+	if got := lines(); !slices.Equal(got, []string{"p1: reef 2", "p2: quiet"}) || read.Load() != 1 {
+		t.Fatalf("after more output the files give %q, the quiet pane read %d times", got, read.Load())
+	}
+	// The stop writes what printed since, and a closed pane's lines go.
+	printed.Store(3)
+	alone.Store(true)
+	s.Stop()
+	if left, _ := os.ReadDir(dirs.State); len(left) != 2 || fs.n.Load() != 8 || s.Err() != nil {
+		t.Fatalf("after the stop: %d files, %d writes, %v", len(left), fs.n.Load(), s.Err())
+	}
+	// Reading back removes what belongs to no pane, and a file of lines
+	// that cannot be read costs the pane its lines and nothing else.
+	os.WriteFile(restore.Path(dirs)+".p9", []byte(`{"version":1,"text":""}`), 0o600)
+	if got := lines(); !slices.Equal(got, []string{"p1: reef 3"}) {
+		t.Fatalf("after the stop the files give %q", got)
+	}
+	os.WriteFile(restore.Path(dirs)+".p1", []byte(`{"version":1,"text":"cmVlZg=="}`), 0o600)
+	if left, _ := os.ReadDir(dirs.State); len(left) != 2 || !slices.Equal(lines(), []string{"p1: "}) {
+		t.Fatalf("%d files after reading back", len(left))
 	}
 }
 

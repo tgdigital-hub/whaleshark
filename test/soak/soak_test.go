@@ -354,7 +354,7 @@ the keeper's memory as the system counts it: %s at most; %s in the second fifth 
 the keeper's heap in use as Go counts it: %s at most, %s at the end; from the system in all %s
 the keeper's processor time: %v, which is %.0f%% of one processor
 goroutines: %d before the keeper started, %d at most while it ran, %d after it stopped (one waits for a signal by design); open files: %d before, %d at most, %d after
-the layout file: %d writes (one every %v), %s at its largest, %v a write from reading the old file to replacing it
+the layout file: %d writes (one every %v), %s at its largest; the files beside it: %d writes; written to disk for both: %s (%s an hour)
 a watcher asking which program is in front: %d times (%.0f a second), %v each
 one read of the settings file, %d reads: half within %v, 19 of 20 within %v, the slowest %v`,
 		lasted.Round(time.Second), loadAfter, status,
@@ -366,7 +366,7 @@ one read of the settings file, %d reads: half within %v, 19 of 20 within %v, the
 		mb(slices.Max(append(heap, 0))), mb(mid.Heap), mb(mid.Sys),
 		cpu.Round(time.Second), 100*cpu.Seconds()/lasted.Seconds(),
 		final.BaseGoroutines, slices.Max(append(goroutines, 0)), final.Goroutines, final.BaseFiles, slices.Max(append(files, 0)), final.Files,
-		mid.Saves, (lasted / time.Duration(max(mid.Saves, 1))).Round(time.Millisecond), mb(uint64(layoutSize)), per(mid.SaveNanos, mid.Saves).Round(time.Microsecond),
+		mid.Saves, (lasted / time.Duration(max(mid.Saves, 1))).Round(time.Millisecond), mb(uint64(layoutSize)), mid.LineSaves, mb(uint64(mid.Wrote)), mb(uint64(float64(mid.Wrote)*float64(time.Hour)/float64(lasted))), // #nosec G115 -- counts of bytes
 		mid.Looks, float64(mid.Looks)/lasted.Seconds(), per(mid.LookNanos, mid.Looks).Round(time.Microsecond),
 		len(reads), part(reads, 0.5), part(reads, 0.95), part(reads, 1))
 }

@@ -56,7 +56,7 @@ type report struct {
 	Heap, Sys                  uint64
 	Goroutines, BaseGoroutines int
 	Files, BaseFiles           int   // open files; -1 where the system does not list them
-	Saves, SaveNanos           int64 // the layout file: writes, and the time from reading the old one to replacing it
+	Saves, LineSaves, Wrote    int64 // writes of the layout file, of the files beside it, and the bytes of both
 	Looks, LookNanos           int64 // a watcher asking which program is in front
 	Read                       map[string]tally
 	Left                       string

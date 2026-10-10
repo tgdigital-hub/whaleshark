@@ -1,9 +1,13 @@
 package restore
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -28,15 +32,35 @@ const (
 // aside, and the keeper comes back empty.
 var ErrUnusable = errors.New("the layout file could not be used and was moved aside")
 
-// Pane is one pane in the file: its record, the program it was started with
-// from its first argument on (none is the shell) and its last lines as text.
-// Run is set by Load: what to start in the pane now, none for the shell.
+// Pane is one pane in the file: its record and the program it was started
+// with from its first argument on (none is the shell). Its last lines are
+// in a file of their own, named after the pane: they change with every
+// line printed, the layout with every tab shown. A running keeper gives
+// Count, the bytes its program has printed, and Text, which reads the lines
+// and is called with no lock of the keeper's held. Load sets Lines, from
+// that file or from a layout file of before there was one, and Run: what
+// to start in the pane now, none for the shell.
 type Pane struct {
-	Rec   contract.Pane `json:"pane"`
-	Argv  []string      `json:"argv,omitempty"`
-	Lines []string      `json:"lines,omitempty"`
-	Run   []string      `json:"-"`
+	Rec   contract.Pane   `json:"pane"`
+	Argv  []string        `json:"argv,omitempty"`
+	Lines []string        `json:"lines,omitempty"`
+	Run   []string        `json:"-"`
+	Count uint64          `json:"-"`
+	Text  func() []string `json:"-"`
 }
+
+// old is the file of one pane's last lines: the text as gzip packs it,
+// which is a third of it and less.
+type old struct {
+	contract.Versioned
+	Text []byte `json:"text"`
+}
+
+// unread writes a file without reading the one that is there first: the
+// keeper holds the login's lock, and Load saw that no file is a newer one.
+type unread struct{ contract.Files }
+
+func (unread) Read(string) ([]byte, error) { return nil, fs.ErrNotExist }
 
 // File is the layout file, private to the login: the layout as it marshals,
 // the size of the window it was last fitted to, each tab's own variables,
@@ -72,17 +96,25 @@ func Save(files contract.Files, d contract.Dirs, f *File) error {
 // is not sound is moved aside and answered with ErrUnusable; one of a newer
 // program is left alone and answered with contract.ErrNewer. Load is for
 // the keeper alone, which holds the login's lock: it also removes the
-// unfinished files a keeper killed in the middle of a write left behind.
+// unfinished files a keeper killed in the middle of a write left behind,
+// and the lines of panes that are gone.
 func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) {
 	f, lay := &File{}, &layout.Layout{}
+	beside := map[string]bool{}
 	left, _ := os.ReadDir(d.State)
 	for _, e := range left {
 		if end, ok := strings.CutPrefix(e.Name(), name+"."); ok && end != "bad" {
-			os.Remove(filepath.Join(d.State, e.Name()))
+			beside[end] = true
 		}
 	}
+	defer func() {
+		for end := range beside {
+			os.Remove(Path(d) + "." + end)
+		}
+	}()
 	err := contract.ReadVersioned(files.Read, Path(d), contract.FileVersion, f)
 	if errors.Is(err, contract.ErrNewer) {
+		clear(beside)
 		return nil, nil, err
 	}
 	if err == nil && f.Version == 0 {
@@ -110,6 +142,14 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 		}
 		for _, id := range t.Panes() {
 			p := saved[id]
+			// Only a file that is there: on Windows a missing one is waited for.
+			if o := (old{}); beside[id] && contract.ReadVersioned(files.Read, Path(d)+"."+id, contract.FileVersion, &o) == nil {
+				if z, err := gzip.NewReader(bytes.NewReader(o.Text)); err == nil {
+					text, _ := io.ReadAll(io.LimitReader(z, most))
+					p.Lines = strings.Split(string(text), "\n")
+				}
+				delete(beside, id)
+			}
 			p.Rec = contract.Pane{ID: id, Tab: t.ID, Label: t.Label, Cwd: p.Rec.Cwd, Agent: p.Rec.Agent,
 				Name: p.Rec.Name, Session: p.Rec.Session, Status: contract.StatusUnknown}
 			p.plan()
@@ -128,9 +168,14 @@ func number(id string) int {
 }
 
 // Saver writes the layout file for a running keeper, one write at a time:
-// at once when the layout changed, and a few seconds after output.
+// at once when the layout changed, and a few seconds after output. Only
+// then, and at the stop, are panes' lines written, each pane's when its
+// program has printed since they last were.
 type Saver struct {
-	save   func() error
+	files  contract.Files
+	dirs   contract.Dirs
+	pack   func() *File
+	wrote  map[string]string // the terminal and its count of bytes a pane's lines were written at
 	now    chan struct{}
 	quit   chan struct{}
 	done   chan struct{}
@@ -139,32 +184,67 @@ type Saver struct {
 	err    error
 }
 
-// Start begins saving. pack gives the file as it is at that moment; the
-// keeper takes its own lock in it, and nothing of the Saver is called under
-// that lock but Changed and Flowed.
+// Start begins saving. pack gives the file as it is at that moment, with
+// no pane's lines read; the keeper takes its own lock in it, and nothing of
+// the Saver is called under that lock but Changed and Flowed.
 func Start(files contract.Files, d contract.Dirs, pack func() *File) *Saver {
-	s := &Saver{save: func() error { return Save(files, d, pack()) },
+	s := &Saver{files: unread{files}, dirs: d, pack: pack, wrote: map[string]string{},
 		now: make(chan struct{}, 1), quit: make(chan struct{}), done: make(chan struct{})}
 	go s.run()
 	return s
+}
+
+// save writes the layout file, and with lines the lines of every pane that
+// printed since its own were written; those of a pane that is gone go.
+func (s *Saver) save(lines bool) error {
+	f := s.pack()
+	err := Save(s.files, s.dirs, f)
+	if !lines {
+		return err
+	}
+	live := map[string]bool{}
+	for _, p := range f.Panes {
+		id, at := p.Rec.ID, p.Rec.Terminal+" "+strconv.FormatUint(p.Count, 10)
+		if live[id] = true; p.Text == nil || s.wrote[id] == at {
+			continue
+		}
+		var b bytes.Buffer
+		z, _ := gzip.NewWriterLevel(&b, gzip.BestSpeed)
+		io.WriteString(z, strings.Join(p.Text(), "\n"))
+		z.Close()
+		text := &old{contract.Versioned{Version: contract.FileVersion}, b.Bytes()}
+		if werr := contract.WriteVersioned(s.files, Path(s.dirs)+"."+id, contract.FileVersion, text); werr != nil {
+			err = werr
+		} else {
+			s.wrote[id] = at
+		}
+	}
+	for id := range s.wrote {
+		if !live[id] {
+			os.Remove(Path(s.dirs) + "." + id)
+			delete(s.wrote, id)
+		}
+	}
+	return err
 }
 
 func (s *Saver) run() {
 	defer close(s.done)
 	tick := time.NewTicker(flow)
 	defer tick.Stop()
-	for last, end := (time.Time{}), false; !end; {
+	for last, end, lines := (time.Time{}), false, false; !end; {
 		select {
 		case <-s.now:
 			time.Sleep(time.Until(last.Add(gap)))
+			lines = false
 		case <-tick.C:
-			if !s.flowed.Swap(false) {
+			if lines = s.flowed.Swap(false); !lines {
 				continue
 			}
 		case <-s.quit:
-			end = true
+			end, lines = true, true
 		}
-		err := s.save()
+		err := s.save(lines)
 		last = time.Now()
 		s.mu.Lock()
 		s.err = err

@@ -21,7 +21,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/restore"
 )
 
-var looks, lookNanos, saves, saveNanos, saveBegan atomic.Int64
+var looks, lookNanos, saves, lineSaves, wrote atomic.Int64
 
 // counted is a pane's real terminal, with everything the keeper takes from
 // it counted and summed on the way.
@@ -48,27 +48,25 @@ func (c *counted) Front() (string, error) {
 	return c.Pty.Front()
 }
 
-// disk is the real platform, with the writes of the layout file counted
-// and timed: a write reads the file that is there and replaces it.
+// disk is the real platform, with what the keeper writes for a restart
+// counted: the layout file, the files beside it, and the bytes of both.
 type disk struct {
 	contract.Platform
 	layout string
 }
 
-func (d disk) Read(path string) ([]byte, error) {
-	if path == d.layout {
-		saveBegan.Store(time.Now().UnixNano())
-	}
-	return d.Platform.Read(path)
-}
-
 func (d disk) Replace(tmp, final string) error {
-	err := d.Platform.Replace(tmp, final)
-	if final == d.layout {
-		saves.Add(1)
-		saveNanos.Add(time.Now().UnixNano() - saveBegan.Load())
+	if strings.HasPrefix(final, strings.TrimSuffix(d.layout, "json")) {
+		if info, err := os.Stat(tmp); err == nil {
+			wrote.Add(info.Size())
+		}
+		if final == d.layout {
+			saves.Add(1)
+		} else {
+			lineSaves.Add(1)
+		}
 	}
-	return err
+	return d.Platform.Replace(tmp, final)
 }
 
 func openFiles() int {
@@ -127,7 +125,7 @@ func keep() {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 		r.Heap, r.Sys, r.Goroutines, r.Files = m.HeapInuse, m.Sys, runtime.NumGoroutine(), openFiles()
-		r.Saves, r.SaveNanos, r.Looks, r.LookNanos = saves.Load(), saveNanos.Load(), looks.Load(), lookNanos.Load()
+		r.Saves, r.LineSaves, r.Wrote, r.Looks, r.LookNanos = saves.Load(), lineSaves.Load(), wrote.Load(), looks.Load(), lookNanos.Load()
 		r.Read = map[string]tally{}
 		mu.Lock()
 		for pane, c := range read {
