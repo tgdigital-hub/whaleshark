@@ -219,3 +219,44 @@ func TestPaleAndPlainMarks(t *testing.T) {
 		}
 	}
 }
+
+// Every command is in exactly one of the two lists, so that one added to the
+// table cannot be forgotten: it changes a run's record, and what the person
+// does with it is written down, or it does not. A form stands only in the
+// list its command is not in, and is a word of that command's usage.
+func TestEveryCommandIsRecordedOrNot(t *testing.T) {
+	listed := map[string]int{}
+	for _, entry := range slices.Concat(Recorded, Unrecorded) {
+		listed[entry]++
+	}
+	for _, c := range Commands {
+		if listed[c.Name] != 1 {
+			t.Errorf("%s is %d times in Recorded and Unrecorded together, want once", c.Name, listed[c.Name])
+		}
+	}
+	for entry, n := range listed {
+		name, form, _ := strings.Cut(entry, " ")
+		c := Find(name)
+		switch {
+		case c == nil:
+			t.Errorf("%q is listed and is no command", entry)
+		case n != 1:
+			t.Errorf("%q is listed %d times", entry, n)
+		case form == "":
+		case !strings.Contains(c.Usage, name+" "+form) || slices.Contains(Recorded, entry) == slices.Contains(Recorded, name):
+			t.Errorf("%q must be a form of the usage, in the list its command is not in", entry)
+		case (c.Deed([]string{form, "x"}) == entry) != slices.Contains(Recorded, entry):
+			t.Errorf("%q is named %q", entry, c.Deed([]string{form, "x"}))
+		}
+	}
+	for line, want := range map[string]string{
+		"task add T2 planted": "task add", "accept T2": "accept", "tell T3 hello": "tell", "tell lead hello": "",
+		"run close": "run close", "run list": "", "run": "", "answer q7 yes": "", "status": "", "need close n3": "need close",
+		"team run site": "team run", "team save site": "", "pause": "pause", "close": "close",
+	} {
+		words := strings.Fields(line)
+		if got := Find(words[0]).Deed(words[1:]); got != want {
+			t.Errorf("%q is named %q, want %q", line, got, want)
+		}
+	}
+}

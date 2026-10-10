@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -330,3 +331,33 @@ var (
 	Aliases     = map[string]string{"remove": "rm", "delete": "rm"}
 	Destructive = []string{"rm", "cancel", "reset", "stop", "close", "reject", "pause", "land"}
 )
+
+// Recorded lists the commands that change a run's record, and Unrecorded the
+// rest: what only reads, what changes the login's or the project's own files
+// and no run, a worker's commands, and answer, tell lead and catchup, which
+// write the person's doing down themselves. A command stands in one of the
+// two; a form of it ("run close") may stand in the other. What the person
+// does with a recorded one is a human event that says what was done and where
+// the command says it came from: the lead agent is handed it, and "done as
+// you" counts it unless that place is a pane of ours, the page or a phone.
+var (
+	Recorded = []string{"trust", "dash phone", "run new", "run close", "run rm", "run takeover", "task", "start", "wait",
+		"escalate", "need", "tell", "accept", "reject", "stop", "close", "pause", "resume", "team run", "sync", "land"}
+	Unrecorded = []string{"init", "doctor", "guide", "help", "version", "dash", "connect", "server", "ui", "open",
+		"engine", "set", "hook", "run", "answer", "tell lead", "team", "report", "progress", "ask", "mail", "status",
+		"graph", "log", "show", "jump", "catchup", "overlap"}
+)
+
+// Deed names what a command line does to a run's record, as its human event
+// says it: the command and its form, where the first argument is a word of
+// the usage. It is empty for a line that is not recorded.
+func (c *Command) Deed(args []string) string {
+	deed := c.Name
+	if words := strings.FieldsFunc(c.Usage, func(r rune) bool { return r < 'a' || r > 'z' }); len(args) > 0 && slices.Contains(words, args[0]) {
+		deed += " " + args[0]
+	}
+	if slices.Contains(Unrecorded, deed) || !slices.Contains(Recorded, deed) && !slices.Contains(Recorded, c.Name) {
+		return ""
+	}
+	return deed
+}
