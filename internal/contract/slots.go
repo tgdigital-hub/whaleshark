@@ -81,6 +81,17 @@ func change(p Platform, file string, v any, fn func() error) error {
 	return WriteVersioned(p, path, FileVersion, v)
 }
 
+// LoginLock is held over a step that counts over every project of the login
+// and then writes one: a server's cap of agents is exact only if no other
+// project's start can count between the two.
+func LoginLock(p Platform) (unlock func(), err error) {
+	dirs, err := p.Dirs()
+	if err != nil {
+		return nil, err
+	}
+	return p.Lock(filepath.Join(dirs.State, "agents.lock"), true)
+}
+
 // changeSlots is the one writer of slots.json.
 func changeSlots(p Platform, fn func(taken []Slot) ([]Slot, error)) error {
 	list := Slots{Versioned: Versioned{FileVersion}}

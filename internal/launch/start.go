@@ -89,7 +89,7 @@ type launcher struct {
 	left          sync.Once // what a worktree lacks is said once
 	server        bool
 	block         contract.Ports // the login's ports: its block on a server
-	room          int            // on a server with a cap: the agents this run may hold
+	room, cap     int            // on a server with a cap: the agents this run may hold, and the login
 }
 
 func live(s *contract.State) (n int) {
@@ -102,11 +102,41 @@ func live(s *contract.State) (n int) {
 }
 
 // over refuses a run that holds more agents than the server leaves it.
-func (l *launcher) over(s *contract.State) error {
-	if l.server && live(s) > l.room {
+func (l *launcher) over(s *contract.State, room int) error {
+	if l.server && live(s) > room {
 		return refuse(contract.ExitRefused, "limit", "This login has as many agents live as this server lets it run.")
 	}
 	return nil
+}
+
+// others counts the agents live in every other run of the login.
+func (l *launcher) others() (n int, err error) {
+	c, k := l.c, l.c.Kit
+	all, err := targets(c, l.state, true)
+	for _, t := range all {
+		if o, err := k.Store.Read(t.root, t.run); err == nil && !(t.run == c.Run && k.Platform.PathKey(t.root) == k.Platform.PathKey(c.Root)) {
+			n += live(o)
+		}
+	}
+	return n, err
+}
+
+// exact is the room this run has at the moment a start is written. Where a
+// server caps the login, the other projects are counted again under a lock
+// over the login, held until unlock: two projects started in one instant
+// would else each count the other before it had written.
+func (l *launcher) exact() (room int, unlock func(), err error) {
+	if l.cap == 0 {
+		return l.room, func() {}, nil
+	}
+	if unlock, err = contract.LoginLock(l.c.Kit.Platform); err != nil {
+		return 0, nil, err
+	}
+	n, err := l.others()
+	if err != nil {
+		unlock()
+	}
+	return l.cap - n, unlock, err
 }
 
 // start brings up a worker for each task named, or for every ready one, side
@@ -151,16 +181,12 @@ func start(c *contract.Call) (any, error) {
 	if l.block, listed = srv.Block(me); !listed {
 		return nil, refuse(contract.ExitEnv, "no_block", "The login %s is not one of this server's, so it starts nothing here. The administrator adds it with whaleshark server add.", me)
 	}
-	if l.room, l.server = srv.Cap(me), srv != nil; l.room > 0 {
-		all, err := targets(c, l.state, true)
+	if l.cap, l.server = srv.Cap(me), srv != nil; l.cap > 0 {
+		n, err := l.others()
 		if err != nil {
 			return nil, refusal(err)
 		}
-		for _, t := range all {
-			if o, err := k.Store.Read(t.root, t.run); err == nil && !(t.run == c.Run && k.Platform.PathKey(t.root) == k.Platform.PathKey(c.Root)) {
-				l.room -= live(o)
-			}
-		}
+		l.room = l.cap - n
 		limit = min(limit, l.room)
 	} else {
 		l.room = limit
@@ -368,7 +394,7 @@ func (l *launcher) bring(task string) outcome {
 	// would be refused, and which attempt it will be, before anything exists.
 	id, err := k.Rules.Start(s, task, l.retry, holds, contract.TokenHash(token), agent, false, c.Now)
 	if err == nil {
-		err = l.over(s)
+		err = l.over(s, l.room)
 	}
 	if err != nil {
 		return fail(err)
@@ -454,13 +480,17 @@ func (l *launcher) bring(task string) outcome {
 	if err != nil {
 		return undo(err)
 	}
+	room, counted, err := l.exact()
+	if err != nil {
+		return undo(err)
+	}
 	err = l.step(func(s *contract.State) error {
 		got, err := k.Rules.Start(s, task, l.retry, holds, contract.TokenHash(token), agent, setup.Gated, contract.Now())
 		if err == nil && got != id {
 			err = refuse(contract.ExitRefused, "starting", "%s was started by another command.", task)
 		}
 		if err == nil {
-			err = l.over(s)
+			err = l.over(s, room)
 		}
 		if other := shares(s, s.Tasks[task]); err == nil && tree == nil && !l.allow && other != "" {
 			r := refuse(contract.ExitRefused, "shared_overlap", "%s would work in one folder with %s, which is at work on files %s may change too.", task, other, task)
@@ -488,7 +518,7 @@ func (l *launcher) bring(task string) outcome {
 		}
 		return k.Rules.SetWorktree(s, task, tree, contract.Now())
 	})
-	if err != nil {
+	if counted(); err != nil {
 		return undo(err)
 	}
 	r.Attempt = id

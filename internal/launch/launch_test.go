@@ -894,6 +894,7 @@ func TestOnAServer(t *testing.T) {
 	Plug(p.Kit)
 	other, err := testkit.Load(testkit.Evening) // and twelve more in another project of the login
 	elsewhere := filepath.Join(filepath.Dir(p.Root), "elsewhere")
+	second := elsewhere // the other project's folder, whatever the name is used for below
 	if err == nil {
 		err = errors.Join(os.Mkdir(elsewhere, 0o700), contract.ListProject(p.Kit.Platform, elsewhere), p.Kit.Store.Create(elsewhere, &other.State))
 	}
@@ -1002,5 +1003,49 @@ func TestOnAServer(t *testing.T) {
 	}
 	if out, exit := here(t, p, "stop", s.Attempts[last[0]].Task); exit != contract.ExitOK || !has(elsewhere) || !has(own) {
 		t.Errorf("stop removed a folder that is no attempt's temp folder: exit %d:\n%s", exit, out)
+	}
+
+	// Two projects started in one instant, with room for one agent: this
+	// one's start has counted the other project and waits at the lock over
+	// the login while that one writes its own start. It counts again under
+	// the lock, and is refused.
+	s, _ = p.Record()
+	there, _ := p.Kit.Store.Read(second, other.State.Run.ID)
+	write(fmt.Sprintf("version = 1\n[login.kai]\nports = 23000\nagents = %d\n", live(s)+live(there)+1))
+	rest := "R3"
+	if len(s.Tasks["R3"].Attempts) > 0 {
+		rest = "R4"
+	}
+	unlock, err := contract.LoginLock(p.Kit.Platform)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ended := make(chan string, 1)
+	go func() {
+		out, exit := here(t, p, "start", rest)
+		ended <- fmt.Sprint(exit, " ", out)
+	}()
+	select {
+	case got := <-ended:
+		t.Fatalf("the start did not wait for the lock over the login: %s", got)
+	case <-time.After(2 * time.Second):
+	}
+	err = p.Kit.Store.Change(second, other.State.Run.ID, func(s *contract.State) error {
+		for _, a := range s.Attempts {
+			if !a.State.Live() {
+				a.State = contract.AttemptWorking
+				return nil
+			}
+		}
+		return errors.New("the other project has no attempt left to start")
+	})
+	if unlock(); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-ended; !strings.HasPrefix(got, fmt.Sprint(contract.ExitRefused, " ")) || !strings.Contains(got, "as many agents live as this server lets it run") {
+		t.Errorf("started beside another project's start, with room for one: %s", got)
+	}
+	if s, _ = p.Record(); len(s.Tasks[rest].Attempts) != 0 {
+		t.Errorf("the refused start left an attempt: %+v", s.Tasks[rest])
 	}
 }
