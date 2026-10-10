@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // A project folder with a colon in its name: git reads the project's objects
@@ -25,4 +26,20 @@ func TestAProjectFolderWithAColonInItsName(t *testing.T) {
 		t.Fatalf("the scan does not find the project's objects: %v", err)
 	}
 	must(t, g.merge([][2]string{{g.tip, g.tip}}))
+}
+
+// A task's folder with links in it, one in a circle and one out of the
+// project: the scan, the deep one included, names each link and follows none.
+func TestAScanFollowsNoLink(t *testing.T) {
+	f := start(t, map[string]string{"a.txt": alpha()})
+	dir, outside := f.task("A", map[string]string{"a.txt": alpha(3)}, "a.txt"), t.TempDir()
+	must(t, os.WriteFile(filepath.Join(outside, "secret"), []byte("not the project's\n"), 0o600))
+	if os.Symlink(".", filepath.Join(dir, "loop")) != nil || os.Symlink(outside, filepath.Join(dir, "out")) != nil {
+		t.Skip("this login cannot make links")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	found, err := f.o.Scan(ctx, f.root, f.state(), nil, true)
+	must(t, err)
+	same(t, "the scan of a folder with links", lines(found), "scope A (outside what it owns) loop out")
 }
