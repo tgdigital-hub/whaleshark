@@ -286,7 +286,7 @@ func TestCleanStart(t *testing.T) {
 
 func TestReadyStartsUpToTheLimit(t *testing.T) {
 	p := evening(t, 3, func(f *testkit.Fixture) { f.State.Run.Limit = 14 }) // twelve are live
-	must(t, p.Command(scenario.Orch, "start", "--ready"), 0, "R1 ready 1: working", "R2 ready 2: working", "1 more ready tasks wait")
+	must(t, p.Command(scenario.Orch, "start", "--ready"), 0, "R1 ready 1: working", "R2 ready 2: working", "1 more ready task waits")
 	s, _ := p.Record()
 	if s.Tasks["R3"].Status != contract.TaskReady {
 		t.Errorf("R3 is %s", s.Tasks["R3"].Status)

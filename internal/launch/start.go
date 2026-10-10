@@ -250,10 +250,10 @@ func start(c *contract.Call) (any, error) {
 		})
 	}
 	wg.Wait()
-	if waiting > 0 && limit < s.Run.Limit {
-		fmt.Fprintf(c.Out, "%d more ready tasks wait for a free place: this server lets this login run %d agents.\n", waiting, srv.Cap(me))
+	if wait := map[bool]string{true: " waits", false: "s wait"}[waiting == 1]; waiting > 0 && limit < s.Run.Limit {
+		fmt.Fprintf(c.Out, "%d more ready task%s for a free place: this server lets this login run %d agents.\n", waiting, wait, srv.Cap(me))
 	} else if waiting > 0 {
-		fmt.Fprintf(c.Out, "%d more ready tasks wait for a free place: the limit is %d agents.\n", waiting, limit)
+		fmt.Fprintf(c.Out, "%d more ready task%s for a free place: the limit is %d agents.\n", waiting, wait, limit)
 	}
 	var worst *outcome
 	bad, created := 0, []outcome{}
