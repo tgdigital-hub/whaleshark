@@ -3,10 +3,17 @@
 package platform
 
 import (
+	"path/filepath"
 	"runtime"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
 // Plug binds this package's handlers and puts its implementations into the kit.
-func Plug(k *contract.Kit) { k.Platform = New(runtime.GOOS) }
+func Plug(k *contract.Kit) {
+	k.Platform = New(runtime.GOOS)
+	contract.TrustHome = func() (string, error) {
+		dirs, err := New(runtime.GOOS).Dirs()
+		return filepath.Join(dirs.State, "trust"), err
+	}
+}

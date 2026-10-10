@@ -3,6 +3,7 @@ package contract
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,9 +13,8 @@ import (
 	"time"
 )
 
-// Trust is trust.json in the project's folder of ours: what a person last
-// approved with the trust command. Lines is what they were shown and Hash
-// the hash of exactly that.
+// Trust is what a person last approved of one project with the trust
+// command. Lines is what they were shown and Hash the hash of exactly that.
 type Trust struct {
 	Versioned
 	Hash  string    `json:"hash"`
@@ -27,8 +27,19 @@ type Trust struct {
 const (
 	ProjectDir = ".whaleshark"
 	TeamsDir   = "whaleshark-teams"
-	trustFile  = "trust.json"
 )
+
+// TrustHome names the folder of the login's own that holds the approvals, a
+// file a project; the platform sets it. None is kept in a project: a folder
+// there can come along with a repository, and an approval found in it would
+// be the repository's own word.
+var TrustHome = func() (string, error) { return "", errors.New("the login has no folder to keep an approval in") }
+
+func trustFile(root string) (string, error) {
+	home, err := TrustHome()
+	sum := sha256.Sum256([]byte(filepath.Clean(root)))
+	return filepath.Join(home, hex.EncodeToString(sum[:8])+".json"), err
+}
 
 // TrustLines is everything a project brings along that can run something or
 // reach outside it, one line a thing, as trust shows it: the keys of
@@ -99,14 +110,20 @@ func trustHash(lines []string) string {
 // ReadTrust returns what was last approved; nothing yet is no error.
 func ReadTrust(read func(path string) ([]byte, error), root string) (Trust, error) {
 	var t Trust
-	err := ReadVersioned(read, filepath.Join(root, ProjectDir, trustFile), FileVersion, &t)
+	file, err := trustFile(root)
+	if err == nil {
+		err = ReadVersioned(read, file, FileVersion, &t)
+	}
 	return t, err
 }
 
 // WriteTrust records that a person approved exactly these lines.
 func WriteTrust(p Files, root string, lines []string, now time.Time) error {
-	t := Trust{Versioned{FileVersion}, trustHash(lines), lines, now}
-	return WriteVersioned(p, filepath.Join(root, ProjectDir, trustFile), FileVersion, t)
+	file, err := trustFile(root)
+	if err != nil {
+		return err
+	}
+	return WriteVersioned(p, file, FileVersion, Trust{Versioned{FileVersion}, trustHash(lines), lines, now})
 }
 
 // held puts every key that needs approval back to its default when the

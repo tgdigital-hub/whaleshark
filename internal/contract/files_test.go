@@ -89,10 +89,19 @@ func TestClockAndProjectFile(t *testing.T) {
 	if err != nil || p.Limits.Agents != 6 || p.Limits.StaleMinutes != 30 || p.Agent.Args != nil || !slices.Equal(p.Held, []string{"agent.args"}) {
 		t.Errorf("before anybody approved it, read %+v, %v", p, err)
 	}
+	approvals(t)
 	WriteTrust(plain{}, root, []string{"agent.args = [--x]"}, Now())
 	if p, err = ReadProjectFile(root); err != nil || p.Held != nil || !slices.Equal(p.Agent.Args, []string{"--x"}) {
 		t.Errorf("once approved, read %+v, %v", p, err)
 	}
+}
+
+// approvals gives the test a folder of a login's own to keep approvals in.
+func approvals(t *testing.T) string {
+	home, was := t.TempDir(), TrustHome
+	TrustHome = func() (string, error) { return home, nil }
+	t.Cleanup(func() { TrustHome = was })
+	return home
 }
 
 // plain is a platform that replaces with the plain rename.

@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -94,13 +95,26 @@ func TestTrustLinesAndANewerRecord(t *testing.T) {
 	if err != nil || !slices.Equal(lines, want) {
 		t.Fatalf("the lines to approve are %q, %v", lines, err)
 	}
+	// An approval that lies in the project, as a repository could bring one
+	// along, approves nothing: the login keeps its own.
+	os.MkdirAll(filepath.Join(root, ProjectDir), 0o700)
+	brought, _ := json.Marshal(Trust{Versioned{FileVersion}, trustHash(lines), lines, Now()})
+	os.WriteFile(filepath.Join(root, ProjectDir, "trust.json"), brought, 0o600)
+	if p, err := ReadProjectFile(root); err != nil || len(p.Held) != 3 {
+		t.Fatalf("with no folder of the login's and an approval in the project, it reads as %+v, %v", p, err)
+	}
+	approvals(t)
+	if p, err := ReadProjectFile(root); err != nil || len(p.Held) != 3 {
+		t.Fatalf("an approval that came with the project counted: %+v, %v", p, err)
+	}
 	if err := WriteTrust(plain{}, root, lines, Now()); err != nil {
 		t.Fatal(err)
 	}
 	if p, err := ReadProjectFile(root); err != nil || len(p.Held) != 0 || p.Land.Who != ForOrchestrator || p.Worktrees.PortBlock != 20 {
 		t.Fatalf("an approved project reads as %+v, %v", p, err)
 	}
-	os.WriteFile(filepath.Join(root, ProjectDir, trustFile), []byte(`{"version": 99, "hash": "`+trustHash(lines)+`"}`), 0o600)
+	file, _ := trustFile(root)
+	os.WriteFile(file, []byte(`{"version": 99, "hash": "`+trustHash(lines)+`"}`), 0o600)
 	p, err := ReadProjectFile(root)
 	if err != nil || len(p.Held) != 3 || p.Land.Who != ForHuman || p.Agent.Args != nil || p.Worktrees.PortBlock != 20 || !p.Notify.FullText {
 		t.Fatalf("with a newer trust record the project reads as %+v, %v", p, err)
