@@ -65,6 +65,15 @@ var kinds = map[string]kind{
 
 const heldArgs = "[agent] args is not approved, so workers are started without it"
 
+// heldSays is what a start tells the lead agent, once while it is unread, of
+// each setting of the project that nobody approved and that is not used.
+var heldSays = [][2]string{
+	{"agent.args", heldArgs},
+	{"worktrees.dir", "[worktrees] dir is not approved, so copies of the code are made in the usual place"},
+	{"worktrees.share", "[worktrees] share is not approved, so nothing is shared into a copy of the code"},
+	{"check.timeout_seconds", "[check] timeout_seconds is not approved, so a check is ended after the usual time"},
+}
+
 type launcher struct {
 	c             *contract.Call
 	state         string // the login's state folder, where the pause mark is
@@ -401,9 +410,11 @@ func (l *launcher) bring(task string) outcome {
 		if err != nil {
 			return err
 		}
-		told := func(e contract.Event) bool { return e.Kind == "untrusted" && e.Text == heldArgs }
-		if slices.Contains(l.project.Held, "agent.args") && !slices.ContainsFunc(s.Inbox.Events, told) {
-			k.Rules.Raise(s, contract.Event{Kind: "untrusted", Text: heldArgs}, contract.Now())
+		for _, say := range heldSays {
+			told := func(e contract.Event) bool { return e.Kind == "untrusted" && e.Text == say[1] }
+			if slices.Contains(l.project.Held, say[0]) && (tree != nil || !strings.HasPrefix(say[0], "worktrees.")) && !slices.ContainsFunc(s.Inbox.Events, told) {
+				k.Rules.Raise(s, contract.Event{Kind: "untrusted", Text: say[1]}, contract.Now())
+			}
 		}
 		if tree == nil {
 			return nil

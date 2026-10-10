@@ -682,7 +682,8 @@ func approve(t *testing.T, p *scenario.Project, toml string) {
 // arguments for its agents, which count only once a person approved them.
 func TestTwoKindsThroughStopAllAndResume(t *testing.T) {
 	p := evening(t, 2, nil)
-	toml := "[agent]\nargs = [\"--permission-mode\", \"acceptEdits\", \"--allowedTools\", \"Bash({whaleshark}:*)\", \"Bash(git:*)\"]\n"
+	toml := "[agent]\nargs = [\"--permission-mode\", \"acceptEdits\", \"--allowedTools\", \"Bash({whaleshark}:*)\", \"Bash(git:*)\"]\n" +
+		"[check]\ntimeout_seconds = 86400\n[worktrees]\nshare = [\"node_modules\"]\n"
 	if err := os.WriteFile(filepath.Join(p.Root, "whaleshark.toml"), []byte(toml), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -709,6 +710,11 @@ func TestTwoKindsThroughStopAllAndResume(t *testing.T) {
 	}
 	if said != 1 {
 		t.Errorf("%d events say that the project's arguments were not used, expected one for both starts", said)
+	}
+	// Every other setting nobody approved says so as well, once; one that
+	// is for copies of the code only where a task has one.
+	if got := strings.Join(kindsOf(s, "untrusted"), "\n"); strings.Count(got, "[check] timeout_seconds") != 1 || strings.Contains(got, "[worktrees]") {
+		t.Errorf("the settings nobody approved were said as:\n%s", got)
 	}
 
 	// Stop all: the held one reads paused once it rests, the other still
@@ -825,7 +831,19 @@ func TestCodexInItsOwnCopy(t *testing.T) {
 	if len(taken) != 1 || taken[0].Size != 4 || tree.Slot != taken[0].N {
 		t.Errorf("the slot %+v, the copy's %d", taken, tree.Slot)
 	}
-	if prompt, _ := os.ReadFile(filepath.Join(dir, "prompt.md")); !strings.Contains(string(prompt), "## Sync\nMerge main first: two commits behind.") {
+	// The guide puts one line of its own between the heading and the brief.
+	prompt, _ := os.ReadFile(filepath.Join(dir, "prompt.md"))
+	if _, after, found := strings.Cut(string(prompt), "## Sync\n"); !found || !strings.Contains(after, "\nMerge main first: two commits behind.\n\n") {
 		t.Errorf("the prompt lacks the sync it owes:\n%s", prompt)
 	}
+}
+
+// kindsOf is the text of every waiting event of one kind.
+func kindsOf(s *contract.State, kind string) (texts []string) {
+	for _, e := range s.Inbox.Events {
+		if e.Kind == kind {
+			texts = append(texts, e.Text)
+		}
+	}
+	return texts
 }
