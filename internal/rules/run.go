@@ -56,7 +56,7 @@ func (Rules) CloseRun(s *contract.State, abandon bool, now time.Time) error {
 		unlanded = unlanded || t.Accepted != nil && t.Accepted.Commit != ""
 	}
 	if in := s.Run.Integration; unlanded && !abandon && in != nil && in.Landed != in.Tip {
-		return next(refused("not_landed", "Accepted work has not been landed."), "whaleshark land", "whaleshark run close --abandon")
+		return next(refused("not_landed", "Accepted work has not been landed."), "whaleshark land --pr", "whaleshark land --local", "whaleshark run close --abandon")
 	}
 	s.Run.ClosedAt = now
 	return nil
