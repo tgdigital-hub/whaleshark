@@ -427,3 +427,28 @@ func TestTrust(t *testing.T) {
 	}
 	person(0, "y\n", "  setup.script = make deps", "+ "+contract.TeamsDir+"/review.toml", "- "+contract.TeamsDir+"/review.toml")
 }
+
+// task add says when a new task may change files another open task may
+// change too, unless one of the two waits for the other.
+func TestTaskAddSaysWhenOwnedFilesMeet(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	orch := func(exit int, args ...string) func(words ...string) string {
+		return func(words ...string) string { return play(t, p.Command(scenario.Orch, args...), exit, words...) }
+	}
+	write(t, filepath.Join(p.Root, "b.md"), briefText)
+	orch(0, "run", "new", "a shop")()
+	add := func(id string, more ...string) string {
+		return orch(0, append([]string{"task", "add", id, "task " + id, "--name", "n" + id, "--brief", "b.md", "--check", "none"}, more...)...)()
+	}
+	for id, more := range map[string][]string{"A": {"--owns", "src/model/**"}, "D": {"--owns", "docs/*.md"}, "N": nil} {
+		if out := add(id, more...); strings.Contains(out, "may change") {
+			t.Fatalf("%s meets nobody, yet:\n%s", id, out)
+		}
+	}
+	if out := add("B", "--owns", "src/**", "--after", "A"); strings.Contains(out, "may change") {
+		t.Fatalf("B waits for A, yet:\n%s", out)
+	}
+	if out := add("C", "--owns", "src/model/user.go,docs"); !strings.Contains(out, "C may change files that A, B, D may change too") {
+		t.Fatalf("C meets A, B and D:\n%s", out)
+	}
+}

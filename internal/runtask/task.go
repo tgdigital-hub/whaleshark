@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -177,6 +178,7 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 	} else {
 		fmt.Fprintln(c.Err, "The open tabs could not be asked, so the name was compared with this run's tasks only.")
 	}
+	var meets []string
 	err = change(c, c.Run, "add", func(s *contract.State) error {
 		if t.After, err = ids(c, s); err != nil {
 			return err
@@ -188,12 +190,44 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		if err := cli.Valid("name", added.Name, ""); err != nil {
 			return usage(c, "%v. Give a name with --name.", err)
 		}
-		t = *added
+		t, meets = *added, meeting(s, added)
 		return keep(c, added, data)
 	})
 	if err != nil {
 		return nil, err
 	}
 	fmt.Fprintf(c.Out, "%s %q is %s.\n", t.ID, cli.Plain(t.Name), t.Status)
-	return map[string]any{"id": t.ID, "name": t.Name, "status": t.Status}, nil
+	out := map[string]any{"id": t.ID, "name": t.Name, "status": t.Status}
+	if len(meets) > 0 {
+		out["meets"] = meets
+		fmt.Fprintf(c.Out, "%s may change files that %s may change too. Let one wait for the other (--after), or expect them to overlap.\n", t.ID, strings.Join(meets, ", "))
+	}
+	return out, nil
+}
+
+// meeting names the tasks still open whose --owns meets t's. Two patterns
+// meet when the fixed beginning of one, up to its first wildcard, begins the
+// other's, and neither task waits for the other.
+func meeting(s *contract.State, t *contract.Task) (ids []string) {
+	fixed := func(p string) string {
+		if i := strings.IndexAny(p, "*?["); i >= 0 {
+			return p[:i]
+		}
+		return strings.TrimSuffix(p, "/") + "/"
+	}
+	for _, id := range slices.Sorted(maps.Keys(s.Tasks)) {
+		o := s.Tasks[id]
+		if id == t.ID || !o.SettledAt.IsZero() || slices.Contains(t.After, id) || slices.Contains(o.After, t.ID) {
+			continue
+		}
+		if slices.ContainsFunc(t.Owns, func(p string) bool {
+			return slices.ContainsFunc(o.Owns, func(q string) bool {
+				p, q := fixed(p), fixed(q)
+				return strings.HasPrefix(p, q) || strings.HasPrefix(q, p)
+			})
+		}) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
