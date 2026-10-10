@@ -65,6 +65,7 @@ type server struct {
 	refusals int
 	refused  time.Time
 	caller   string
+	guard
 }
 
 // job is one open run of the login with its record as just read.
@@ -249,6 +250,12 @@ type status struct {
 	// Caller who the road named at the door last.
 	Door   int    `json:"door,omitempty"`
 	Caller string `json:"caller,omitempty"`
+	// On Cloudflare's road: why the door last refused a request, the heading
+	// and field names of the last pass whose signature held, and when the
+	// door last shut itself for a minute.
+	Refused string    `json:"refused,omitempty"`
+	Pass    string    `json:"pass,omitempty"`
+	Shut    time.Time `json:"shut,omitzero"`
 }
 
 // own answers this login's own dash command, which proves itself with a
@@ -266,7 +273,7 @@ func (s *server) own(w http.ResponseWriter, r *http.Request, word string, now ti
 	runtime.ReadMemStats(&m)
 	s.mu.Lock()
 	st := status{Running: word != "stop", Socket: s.sock, Version: contract.Version, Since: s.since,
-		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran, Door: s.port, Caller: s.caller}
+		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran, Door: s.port, Caller: s.caller, Refused: s.why, Pass: s.shape, Shut: s.shut}
 	s.mu.Unlock()
 	json.NewEncoder(w).Encode(st)
 	if word == "stop" {
@@ -305,7 +312,11 @@ func (s *server) open() (all []job) {
 // own list of projects can be chosen, whatever the browser sends.
 func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job) {
 	choice, chosen := r.URL.Query(), r.URL.Query().Has(contract.FieldRoot)
-	if c, err := r.Cookie(s.cookie + "j"); !chosen && err == nil {
+	name := s.cookie + "j"
+	if from(r.Context()) != "" {
+		name = bound + name
+	}
+	if c, err := r.Cookie(name); !chosen && err == nil {
 		choice, _ = url.ParseQuery(c.Value)
 	}
 	all = s.open()
@@ -323,7 +334,7 @@ func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job)
 	}
 	if chosen && fit > 1 {
 		// #nosec G124 -- as the session's cookie in grant: no Secure on the loopback road, and Secure at the door
-		http.SetCookie(w, &http.Cookie{Name: s.cookie + "j", Value: url.Values{contract.FieldRoot: {j.root}, contract.FieldRun: {j.run}}.Encode(),
+		http.SetCookie(w, &http.Cookie{Name: name, Value: url.Values{contract.FieldRoot: {j.root}, contract.FieldRun: {j.run}}.Encode(),
 			Path: "/", MaxAge: int(sessionLife / time.Second), HttpOnly: true, Secure: from(r.Context()) != "", SameSite: http.SameSiteStrictMode})
 	}
 	return j, all

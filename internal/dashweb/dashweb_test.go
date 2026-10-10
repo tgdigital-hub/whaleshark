@@ -171,7 +171,9 @@ func TestTheRoutesAreTheContracts(t *testing.T) {
 			t.Errorf("no screen holds %s", want)
 		}
 	}
-	for _, want := range []string{"'" + contract.RouteLive + "'", "'" + contract.RoutePush + "'", "'" + contract.RouteAsset + "notice.js'", "[name=" + contract.FieldToken + "]"} {
+	for _, want := range []string{"'" + contract.RouteLive + "'", "'" + contract.RoutePush + "'", "'" + contract.RouteAsset + "notice.js'", "[name=" + contract.FieldToken + "]",
+		// A login in front of the page that has run out sends the script's request elsewhere: the page is then loaded anew.
+		"redirect: 'manual'", "r.type === 'opaqueredirect'"} {
 		if !bytes.Contains(js, []byte(want)) {
 			t.Errorf("the script does not hold %s", want)
 		}

@@ -74,12 +74,14 @@ func house(t *testing.T, rules string) *browser {
 	return b
 }
 
-// phone is one phone's browser before the door.
+// phone is one phone's browser before the door. On Cloudflare's road it
+// asks under host, the person's public name, and carries pass.
 type phone struct {
-	b      *browser
-	who    string
-	agent  string
-	cookie []*http.Cookie
+	b          *browser
+	who        string
+	agent      string
+	cookie     []*http.Cookie
+	host, pass string
 }
 
 // ask hands the door one request as the private network's program would.
@@ -89,14 +91,21 @@ func (p *phone) ask(method, path string, form url.Values, change func(*http.Requ
 	if form != nil {
 		body = strings.NewReader(form.Encode())
 	}
-	r := httptest.NewRequest(method, outside+path, body)
+	at := outside
+	if p.host != "" {
+		at = "https://" + p.host
+	}
+	r := httptest.NewRequest(method, at+path, body)
 	if r.Header.Set("User-Agent", p.agent); method == http.MethodPost {
 		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		r.Header.Set("Origin", outside)
-		r.Header.Set("Referer", outside+contract.RouteTeam)
+		r.Header.Set("Origin", at)
+		r.Header.Set("Referer", at+contract.RouteTeam)
 	}
 	if p.who != "" {
 		r.Header.Set(contract.HeaderTailscale, p.who)
+	}
+	if p.pass != "" {
+		r.Header.Set(contract.HeaderAccess, p.pass)
 	}
 	for _, c := range p.cookie {
 		r.AddCookie(c)
@@ -154,7 +163,7 @@ func listOf(t *testing.T, b *browser) contract.Phones {
 
 // A phone that is not his: nothing is shown to a phone that is not paired
 // but a number, under one address, whatever it asks for; with phone access
-// off, or on a road whose check is not built, the door answers nothing.
+// off, or on Cloudflare's road without its pass, the door answers nothing.
 func TestAnUnpairedPhoneSeesANumberAndNothingElse(t *testing.T) {
 	b := house(t, contract.RulesProven)
 	p := &phone{b: b, who: robin}
