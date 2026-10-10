@@ -29,16 +29,16 @@ const (
 	TeamsDir   = "whaleshark-teams"
 )
 
-// TrustHome names the folder of the login's own that holds the approvals, a
-// file a project; the platform sets it. None is kept in a project: a folder
-// there can come along with a repository, and an approval found in it would
-// be the repository's own word.
-var TrustHome = func() (string, error) { return "", errors.New("the login has no folder to keep an approval in") }
+// LoginDirs names the login's own folders; the platform sets it. The
+// approvals are kept in the state folder, a file a project, and none in a
+// project: a folder there can come along with a repository, and an approval
+// found in it would be the repository's own word.
+var LoginDirs = func() (Dirs, error) { return Dirs{}, errors.New("the login has no folder to keep an approval in") }
 
 func trustFile(root string) (string, error) {
-	home, err := TrustHome()
+	dirs, err := LoginDirs()
 	sum := sha256.Sum256([]byte(filepath.Clean(root)))
-	return filepath.Join(home, hex.EncodeToString(sum[:8])+".json"), err
+	return filepath.Join(dirs.State, "trust", hex.EncodeToString(sum[:8])+".json"), err
 }
 
 // TrustLines is everything a project brings along that can run something or

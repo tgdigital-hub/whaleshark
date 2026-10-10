@@ -98,9 +98,9 @@ func TestClockAndProjectFile(t *testing.T) {
 
 // approvals gives the test a folder of a login's own to keep approvals in.
 func approvals(t *testing.T) string {
-	home, was := t.TempDir(), TrustHome
-	TrustHome = func() (string, error) { return home, nil }
-	t.Cleanup(func() { TrustHome = was })
+	home, was := t.TempDir(), LoginDirs
+	LoginDirs = func() (Dirs, error) { return Dirs{State: home}, nil }
+	t.Cleanup(func() { LoginDirs = was })
 	return home
 }
 
