@@ -48,6 +48,12 @@ var shots = map[string]string{
 	"windows": `chrome.exe`,
 }
 
+// Profile is the folder the one command's browser keeps its profile in: the
+// attempt's own, in the tab's temp folder, which on a server is the
+// attempt's and private. Without it the browser would run with the person's
+// own profile, their saved logins and cookies before whatever page it loads.
+const Profile = `${TMPDIR:-$HOME/.cache}/whaleshark-browser-$` + contract.EnvRun + `-$` + contract.EnvAttempt
+
 // Browser is the prompt's section for a task whose result must be looked at
 // in a browser (8l), empty for any other task: where the site runs, how it
 // is checked, where the proof goes, and the command for a worker with no
@@ -59,7 +65,7 @@ func Browser(check bool, system string, server bool) string {
 	if server {
 		system = "server"
 	}
-	return render(browserText, struct{ Loopback, Evidence, Shot string }{contract.Loopback, contract.EnvEvidence, shots[system]})
+	return render(browserText, struct{ Loopback, Evidence, Shot, Profile string }{contract.Loopback, contract.EnvEvidence, shots[system], Profile})
 }
 
 // Sync words a sync brief: the facts, then the rules for bringing a copy of

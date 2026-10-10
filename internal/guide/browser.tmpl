@@ -1,10 +1,11 @@
 This task's result must be looked at in a browser. A report of done is refused until a screenshot
 of it, taken since you began or were last sent back, lies in the evidence folder.
 - Run your site on $PORT, bound to {{.Loopback}}. $PORT_BASE is the first of the ports that are yours.
-- Check it with your own browser tool, without a screen (headless). Look at what the brief names.
+- Check it with your own browser tool, without a screen (headless) and with a profile folder of this
+  task's own, never the person's own browser profile. Look at what the brief names.
 - Save screenshots as .png files into ${{.Evidence}}. A trace file or a short note may go there too.
 {{- if .Shot}}
 - If you have no browser tool, this one command takes a screenshot:
-  {{.Shot}} --headless --screenshot="${{.Evidence}}/page.png" --window-size=1280,900 "http://{{.Loopback}}:$PORT/"
+  {{.Shot}} --headless --user-data-dir="{{.Profile}}" --screenshot="${{.Evidence}}/page.png" --window-size=1280,900 "http://{{.Loopback}}:$PORT/"
 {{- end}}
 - Never switch the browser's sandbox off.

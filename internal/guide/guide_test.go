@@ -578,12 +578,14 @@ func TestThePromptOfABrowserCheck(t *testing.T) {
 	for system, bin := range map[string]string{"darwin": "Google Chrome\"", "linux": "\n  chromium", "windows": "chrome.exe", "plan9": ""} {
 		got := Browser(true, system, false)
 		for _, want := range []string{"on $PORT, bound to " + contract.Loopback, "your own browser tool, without a screen",
-			".png files into $" + contract.EnvEvidence, "Never switch the browser's sandbox off."} {
+			".png files into $" + contract.EnvEvidence, "never the person's own browser profile", "Never switch the browser's sandbox off."} {
 			if !strings.Contains(got, want) {
 				t.Errorf("%s: the section lacks %q:\n%s", system, want, got)
 			}
 		}
-		line := bin + ` --headless --screenshot="$` + contract.EnvEvidence + `/page.png" --window-size=1280,900 "http://` + contract.Loopback + `:$PORT/"`
+		// A profile folder of the attempt's own, in a private place: with none
+		// named, the browser is the person's own, logins and all.
+		line := bin + ` --headless --user-data-dir="${TMPDIR:-$HOME/.cache}/whaleshark-browser-$` + contract.EnvRun + `-$` + contract.EnvAttempt + `" --screenshot="$` + contract.EnvEvidence + `/page.png" --window-size=1280,900 "http://` + contract.Loopback + `:$PORT/"`
 		if has := strings.Contains(got, line); has != (bin != "") || strings.Contains(got, "no browser tool") != (bin != "") {
 			t.Errorf("%s: the one command is wrong or missing:\n%s", system, got)
 		}
