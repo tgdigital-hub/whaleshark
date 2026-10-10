@@ -443,9 +443,12 @@ type files struct {
 	n atomic.Int32
 }
 
+// A write is counted once the file is in place: a test that waits for the
+// count and then reads would else find no file yet.
 func (f *files) Replace(tmp, final string) error {
+	err := f.Files.Replace(tmp, final)
 	f.n.Add(1)
-	return f.Files.Replace(tmp, final)
+	return err
 }
 
 func TestSaver(t *testing.T) {
