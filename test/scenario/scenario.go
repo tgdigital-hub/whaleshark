@@ -109,9 +109,6 @@ func RunOn(t testing.TB, on Backend, path string, pane Pane) *Project {
 			if testkit.Lines[s.kind] == "" {
 				t.Fatalf("%s: %q does not start a line of a scenario", s.at, s.kind)
 			}
-			if on == Keeper && slices.Contains(driven, s.kind) {
-				t.Skipf("waits for the keeper's agent calls: %s: %s", s.at, s.kind)
-			}
 			steps = append(steps, s)
 		}
 	}
@@ -130,9 +127,6 @@ func RunOn(t testing.TB, on Backend, path string, pane Pane) *Project {
 	r.p.Log = append(r.p.Log, r.record()...)
 	return r.p
 }
-
-// driven are the lines that change the terminals behind the tool's back.
-var driven = []string{"kill-orchestrator", "restart-terminals", "term-event", "term-drop"}
 
 // record is the end of a run's log: every task, attempt and question with
 // its state, and how many events of each kind the run has had.

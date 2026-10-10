@@ -118,6 +118,12 @@ const (
 	EnvCorpus = "WHALESHARK_CORPUS_EXTRA"
 	EnvEvents = "FAKEHERDR_EVENTS"
 	EnvAgent  = "FAKEHERDR_AGENT"
+	// EnvScripts names the folder of the fake agents' scripts, one file an
+	// attempt, for the real keeper: it starts an agent by its kind's name and
+	// knows nothing of scripts, so the fake agent finds its own there. Set,
+	// it also has the fake agent report every moment of a session, as a real
+	// agent's hooks do.
+	EnvScripts = "FAKEAGENT_SCRIPTS"
 )
 
 // FakeCall is what the stand-in program sends; FakeAnswer is what it gets back.

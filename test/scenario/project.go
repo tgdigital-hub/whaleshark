@@ -5,8 +5,6 @@
 package scenario
 
 import (
-	"bytes"
-	"context"
 	"fmt"
 	"maps"
 	"os"
@@ -19,7 +17,6 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
-	"github.com/tgdigital-hub/whaleshark/internal/engine"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/store"
 	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
@@ -48,6 +45,13 @@ func Main(m *testing.M) {
 				"./cmd/whaleshark", "./test/fakeherdr/herdr", "./test/fakeagent")
 			build.Dir, build.Stderr = module, os.Stderr
 			err = build.Run()
+		}
+		// The real keeper starts an agent by its kind's name, found on the
+		// PATH: under both names stands the fake agent, and no real one.
+		for _, kind := range []string{"claude", "codex"} {
+			if agent, _ := filepath.Glob(filepath.Join(dir, "fakeagent*")); err == nil && len(agent) == 1 {
+				err = os.Link(agent[0], filepath.Join(dir, kind+filepath.Ext(agent[0])))
+			}
 		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "scenario: building the programs:", err)
@@ -100,7 +104,7 @@ type Project struct {
 	Log []string
 
 	on        Backend
-	drive     driver   // nil on Keeper, which nothing but its own calls can change
+	drive     driver   // nil on a Keeper with no picture and no agents
 	env       []string // what a program needs to reach the terminals
 	t         testing.TB
 	bin       string
@@ -122,13 +126,10 @@ func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Proje
 }
 
 // PrepareOn is Prepare with another backend behind the terminals. The real
-// keeper answers none of the agent calls yet and cannot be handed a
-// picture, so a project with a fixture or a fake agent is skipped on it.
+// keeper is handed a picture as it hands one to itself: in its layout file,
+// read at its start, with the agents started in their panes by its own call.
 func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]string) *Project {
 	t.Helper()
-	if on == Keeper && (f != nil || len(scripts) > 0) {
-		t.Skip("waits for the keeper's agent calls: this project has agents in its panes")
-	}
 	if tools == "" {
 		t.Fatal("scenario: the package's TestMain must call scenario.Main")
 	}
@@ -160,8 +161,15 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 		p.must(err)
 		t.Cleanup(func() { os.RemoveAll(dir) })
 		socket := filepath.Join(dir, "s")
-		if p.env = []string{contract.EnvSocket + "=" + socket}; on == Keeper {
-			p.keeper(socket)
+		if p.env = []string{contract.EnvSocket + "=" + socket}; on == Keeper && f == nil && len(scripts) == 0 {
+			p.keeper(socket, dir)
+			lead, err := p.Kit.Terms.TabCreate(p.Root, "Lead", nil)
+			p.must(err)
+			own, err := p.Kit.Terms.TabCreate(p.Root, "you", nil)
+			p.must(err)
+			p.Lead, p.Own = lead.ID, own.ID
+		} else if on == Keeper {
+			p.drive = &onKeeper{p: p, socket: socket, dir: dir}
 		} else {
 			// One version on both stand-ins, so that a scenario's words hold on both.
 			p.Double = fakeengine.New()
@@ -244,38 +252,6 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 		p.must(contract.WriteVersioned(p.Kit.Platform, contract.CtxPath(dirs.State, pane), contract.FileVersion, c))
 	}
 	return p
-}
-
-// keeper starts the real keeper in the project's login, on a socket of its
-// own, with a tab for the lead agent and one for the person, and stops it
-// with the test. This process reaches it as every command does: by the
-// socket its surroundings name.
-func (p *Project) keeper(socket string) {
-	p.t.Helper()
-	var said bytes.Buffer
-	run := exec.Command(p.bin, "engine", "run")
-	run.Env, run.Stdout, run.Stderr = append(p.surroundings(), p.env...), &said, &said
-	p.must(run.Start())
-	p.t.Setenv(contract.EnvSocket, socket)
-	client := engine.New(p.Kit)
-	p.t.Cleanup(func() {
-		ended := time.AfterFunc(patience, func() { run.Process.Kill() })
-		client.Call(context.Background(), contract.WireCall{Op: contract.OpStop})
-		run.Wait()
-		ended.Stop()
-	})
-	for end := time.Now().Add(patience); ; time.Sleep(20 * time.Millisecond) {
-		if _, err := client.Version(); err == nil {
-			break
-		} else if time.Now().After(end) {
-			p.t.Fatalf("scenario: the keeper did not start: %v\n%s", err, &said)
-		}
-	}
-	lead, err := client.TabCreate(p.Root, "Lead", nil)
-	p.must(err)
-	own, err := client.TabCreate(p.Root, "you", nil)
-	p.must(err)
-	p.Kit.Terms, p.Lead, p.Own = client, lead.ID, own.ID
 }
 
 // surroundings is the environment of the test without the variables of ours

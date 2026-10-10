@@ -21,15 +21,22 @@ func TestMain(m *testing.M) { Main(m) }
 // tabs is a pane for this test only: one row for each pane of the
 // terminals' picture, the clock, and on the last line what was last done to
 // it. Done reads idle: the two are one state to the tool, and only herdr
-// tells them apart.
+// tells them apart. A pane with no agent reads unknown: the keeper knows a
+// shell at its prompt from one at work, which is no agent's state. While the
+// terminals are being started again there is no picture, and nothing is drawn.
 func tabs(p *Project, name string, t *term.Term) {
 	said, typed := name+", notices "+os.Getenv(contract.EnvNotices), ""
 	for {
 		t.Clear()
 		picture, _ := p.Kit.Terms.Snapshot(context.Background())
+		if picture == nil {
+			picture = &contract.Snapshot{}
+		}
 		for y, pane := range picture.Panes {
 			if pane.Status == contract.StatusDone {
 				pane.Status = contract.StatusIdle
+			} else if pane.Agent == "" {
+				pane.Status = contract.StatusUnknown
 			}
 			t.Put(0, y, t.W, pane.Label+" · "+pane.Status, term.Style{})
 		}

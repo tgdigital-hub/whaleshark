@@ -89,7 +89,7 @@ A scenario file needs no change: the same lines are played on each. `p.Kit.Terms
 
 Two things differ on the engine, both because the engine differs. An agent that has finished its turn is `idle`, never `done`. And `restart-terminals` keeps each tab's variables, as the keeper will, so a worker's command after it still has them.
 
-The real keeper has no agents yet and its picture changes only through its own calls. A scenario with a `fixture`, an `agent` line, `kill-orchestrator`, `restart-terminals`, `term-event` or `term-drop` is skipped on it, and the skip says why.
+The real keeper is changed by nothing but its own file and its own calls, so what a stand-in is simply told comes about there as it does for real. A `fixture` is written as the keeper's layout file before it starts, each pane under the fixture's id, and each agent is started in its pane by `agent-start`: the fake agent, which stands on the `PATH` under the names of the agent kinds, says through the `hook` call that it is in the fixture's state. An `agent` line's script is a file the fake agent finds by its attempt. `term-event` and `term-drop` are the event of an agent's own hooks, a shell run in the pane, or the call that closes or focuses; the keeper loses no event, so the two are one. `restart-terminals` stops the keeper and starts it again, and it brings everything back by itself. A pane with no agent reads `idle` or `working` on the keeper, as a shell at its prompt or at work does.
 
 ## What is not played
 

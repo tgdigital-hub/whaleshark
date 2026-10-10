@@ -7,6 +7,7 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -25,16 +26,29 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 )
 
+// started is the state of an agent whose session has just begun.
+const started = "started"
+
+// option is the argument after one, as a real agent takes its options.
+func option(name string) string {
+	if i := slices.Index(os.Args, name); i >= 0 && i+1 < len(os.Args) {
+		return os.Args[i+1]
+	}
+	return ""
+}
+
 // tell reports this agent's state as a real agent's hook does: to the fake
 // herdr in herdr's words, and to the keeper, where a socket is named, by
-// the event of the agent that means the state.
+// the event of the agent that means the state, with its session.
 func tell(state string) {
 	if os.Getenv(contract.EnvSocket) != "" {
 		k := contract.NewKit()
 		platform.Plug(k)
 		pane, _ := contract.PaneOf(os.Getenv)
-		event := map[string]string{contract.StatusIdle: "Stop", contract.StatusBlocked: "PermissionRequest"}[state]
-		engine.New(k).Call(context.Background(), contract.WireCall{Op: contract.OpHook, Kind: event, Pane: pane})
+		event := map[string]string{started: "SessionStart", contract.StatusWorking: "UserPromptSubmit", contract.StatusIdle: "Stop",
+			contract.StatusDone: "Stop", contract.StatusBlocked: "PermissionRequest"}[state]
+		session := cmp.Or(option("--resume"), option("--session"), "session-of-"+pane)
+		engine.New(k).Call(context.Background(), contract.WireCall{Op: contract.OpHook, Kind: event, Pane: pane, Session: session})
 		return
 	}
 	conn, err := net.Dial("unix", os.Getenv(testkit.EnvFake))
@@ -67,11 +81,38 @@ func main() {
 	fmt.Println(strings.Join(env, "\n"))
 	fmt.Println("fakeagent: ready")
 
+	// The real keeper starts an agent by its kind's name alone: the script
+	// is in a file of the attempt's, and every moment of the session is told.
+	script, real := "", os.Getenv(testkit.EnvScripts) != ""
+	if data, err := os.ReadFile(filepath.Join(os.Getenv(testkit.EnvScripts), os.Getenv(contract.EnvAttempt))); real && err == nil {
+		script = string(data)
+	} else if !real && len(os.Args) > 1 {
+		script = os.Args[1]
+	}
+	if real {
+		tell(started)
+	}
 	lines := bufio.NewScanner(os.Stdin)
+	if state := option("--state"); real && state != "" {
+		// An agent of a prepared picture is in its state until it is told
+		// something, which sets it to work as it does a real one; one that
+		// was resumed is at its prompt.
+		if option("--resume") == "" {
+			time.Sleep(300 * time.Millisecond) // whoever started it is told it is ready first
+			tell(state)
+		}
+		for lines.Scan() {
+			tell(contract.StatusWorking)
+		}
+		forever()
+	}
 	if !lines.Scan() {
 		return
 	}
 	prompt := lines.Text()
+	if real {
+		tell(contract.StatusWorking)
+	}
 	go func() {
 		for lines.Scan() {
 			fmt.Println("fakeagent: told:", lines.Text())
@@ -87,7 +128,7 @@ func main() {
 		return string(out)
 	}
 	answer := ""
-	for _, step := range strings.Split(os.Args[1], " | ") {
+	for _, step := range strings.Split(script, " | ") {
 		w := words(step)
 		if len(w) == 0 {
 			continue
