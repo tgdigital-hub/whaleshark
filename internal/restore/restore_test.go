@@ -353,6 +353,11 @@ func TestWhatAPaneStarts(t *testing.T) {
 		{"claude", "s2", []string{"/opt/reef/claude", "--resume", "s1", "--settings", "f.json", "-c", "--session-id=s0", "-r", "--fork-session", "--session-id", "s0", "--resume=s1"},
 			[]string{"/opt/reef/claude", "--resume", "s2", "--settings", "f.json"}},
 		{"claude", "", []string{"claude"}, nil},
+		// A session that is no plain id is nobody's: as the value of the
+		// option to resume it would be an option of its own.
+		{"claude", "--dangerously-skip-permissions", []string{"claude"}, nil},
+		{"claude", "s1 --and-more", []string{"claude"}, nil},
+		{"claude", "s1\n", []string{"claude"}, nil},
 		{"claude", "s1", nil, nil},
 		{"codex", "s1", []string{"codex"}, nil},
 		{"", "", []string{"/opt/reef/whaleshark", "ui", "run", "fleet", "--root", "/reef"}, []string{"/opt/reef/whaleshark", "ui", "run", "fleet", "--root", "/reef"}},

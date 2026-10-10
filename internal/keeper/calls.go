@@ -14,6 +14,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/overlay"
+	"github.com/tgdigital-hub/whaleshark/internal/restore"
 )
 
 // onPane are the calls that are about one pane, which must be there.
@@ -25,7 +26,7 @@ var onPane = []string{contract.OpRun, contract.OpScreen, contract.OpSplit, contr
 // the person's keys or close something. A fence against mistakes, no wall:
 // whoever runs as the login can leave the pane's name out.
 var fenced = []string{contract.OpPrompt, contract.OpRun, contract.OpAgentStart, contract.OpTabFocus, contract.OpPaneFocus,
-	contract.OpPaneClose, contract.OpTabClose, contract.OpSetKeys}
+	contract.OpPaneClose, contract.OpTabClose, contract.OpSetKeys, contract.OpOverlay}
 
 // call answers one call. The terminals it ended are closed after the lock
 // is given back and before the answer goes out; and an agent is waited for,
@@ -154,6 +155,11 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		k.saved()
 		k.wake()
 	case contract.OpHook:
+		// A session that could be read as an option is nobody's session: it
+		// would stand on the agent's command line after a restart.
+		if !restore.Session(c.Session) {
+			c.Session = ""
+		}
 		p.hooked = true
 		p.watch.Hook(c.Kind, c.Session, c.Cwd)
 	case contract.OpPrompt:

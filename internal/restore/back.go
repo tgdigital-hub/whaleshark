@@ -27,16 +27,28 @@ var kinds = map[string]kind{
 	"claude": {"--resume", []string{"--resume", "-r", "--session-id"}, []string{"--continue", "-c", "--fork-session"}},
 }
 
+// Session reports whether a session's id can stand on a command line as
+// the value of the option to resume: plain characters, and never the form
+// of an option. The id is a harness's word, which any program of the login
+// can speak in its place, and the layout file can be written by hand.
+func Session(id string) bool {
+	plain := func(r rune) bool {
+		return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.'
+	}
+	return id != "" && len(id) <= 128 && id[0] != '-' && strings.IndexFunc(id, func(r rune) bool { return !plain(r) }) < 0
+}
+
 // plan decides what a pane of the file starts now. An agent with a session
 // is started with the arguments it had and its option to resume, so its
 // model and its hooks survive. A pane program of ours is started as it was.
 // Anything else is a shell under the same id: an agent that cannot be
-// resumed, whose record then says so, and a command that was run there
-// once, which a restart must not run a second time.
+// resumed, whose record then says so, one whose session is no plain id,
+// and a command that was run there once, which a restart must not run a
+// second time.
 func (p *Pane) plan() {
 	k, known := kinds[p.Rec.Agent]
 	switch {
-	case known && p.Rec.Session != "" && len(p.Argv) > 0:
+	case known && Session(p.Rec.Session) && len(p.Argv) > 0:
 		p.Run = []string{p.Argv[0], k.option, p.Rec.Session}
 		for i := 1; i < len(p.Argv); i++ {
 			name, _, joined := strings.Cut(p.Argv[i], "=")
