@@ -1,0 +1,23 @@
+----- sync brief for {{.Task}} -----
+Your copy of the code has fallen behind the work collected so far.
+Merge in:        {{.Base}}
+Commits behind:  {{.Behind}}
+{{- if .Clashes}}
+These files clash with yours (git's own word for each):
+{{- range .Clashes}}
+- {{names .Files}}{{with line .How}}: {{.}}{{end}}
+{{- end}}
+{{- end}}
+
+Do this now, in your own folder, before any other work:
+1. Commit what you have.
+2. Merge the branch named above into yours: git merge {{.Base}}
+3. Resolve one file at a time, and keep what both sides were for: the other change was checked
+   and accepted, and yours is your task. Never settle a file by taking one side whole.
+4. Run the tests again on the merged work.
+5. Commit, then report done again as your prompt says.
+
+Do not run `git reset --hard`, do not stash and do not abort the merge without saying so first:
+use your ask command and wait for the answer. Never push.
+If both changes cannot be kept in a file, do not choose: ask.
+----- end of sync brief -----

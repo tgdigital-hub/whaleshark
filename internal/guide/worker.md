@@ -9,6 +9,17 @@ ids are already set in this tab.
 - Never ask your question in this chat: nobody reads it. Use `ask`.
 - Change files only in the folder, and only the files, your prompt names.
 
+## When the folder is your own copy of the code
+Your prompt says so when it is: a copy on a branch of its own, in which nobody else works.
+- Stay on that branch. Never switch, rebase, delete or push a branch, and never touch the
+  project's own folder or another task's copy.
+- Commit at each real milestone: work that is not committed can be seen by nobody but you.
+- Commit, then report: `report done` is refused while anything in your folder is not committed.
+- The brief, the prompt and the result file lie outside your folder, at the paths your prompt
+  gives. Write the result file with your file tool, never with a shell redirect.
+- Sent a sync brief? Your copy has fallen behind. Do what the brief says before anything else:
+  merge in the branch it names, keep what both sides were for, run the tests, commit, report again.
+
 ## At each real milestone
     whaleshark progress 40 "tests written"
 A number from 0 to 100 and a few plain words. It also shows that you are alive.

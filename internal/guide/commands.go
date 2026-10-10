@@ -20,7 +20,10 @@ var (
 const FirstMessage = "Run `whaleshark guide lead` and follow it."
 
 // Plug binds this package's handlers and puts its implementations into the kit.
-func Plug(k *contract.Kit) { k.Handle("guide", run) }
+func Plug(k *contract.Kit) {
+	k.Handle("guide", run)
+	k.SyncText = Sync
+}
 
 // run prints one guide: the one asked for, else the caller's own.
 func run(c *contract.Call) (any, error) {
