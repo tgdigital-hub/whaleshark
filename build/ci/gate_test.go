@@ -124,6 +124,19 @@ func TestPublish(t *testing.T) {
 	exec.Command("git", "-C", root, "init", "-q").Run()
 	gateSays(t, root, "publish")
 
+	// The program the tool once ran on is named nowhere but on one line
+	// of the README.
+	once := "Her" + "dr"
+	for file, want := range map[string]string{"notes.txt": "notes.txt:2: names the program", "README.md": "README.md:3: names the program",
+		"internal/" + strings.ToLower(once) + "/a.go": "a.go:0: names the program"} {
+		root := tree(t, "build/ci/limits.txt", "", file, "one\ncredit to "+once+"\nand "+strings.ToUpper(once)+" again\n")
+		exec.Command("git", "-C", root, "init", "-q").Run()
+		gateSays(t, root, "publish", want)
+	}
+	root = tree(t, "build/ci/limits.txt", "", "README.md", "one\ncredit to "+once+"\n")
+	exec.Command("git", "-C", root, "init", "-q").Run()
+	gateSays(t, root, "publish")
+
 	msg := filepath.Join(t.TempDir(), "msg")
 	os.WriteFile(msg, []byte("Fix the parser\n\nfound in "+home+"\n"), 0o644)
 	if err := run(root, []string{"message", msg}, io.Discard); err == nil {

@@ -17,10 +17,10 @@ It runs every step even after one has failed, prints what each found, and ends w
 | `modules` | the whole module list, not only the direct ones: at most four, each one named |
 | `page` | the weight of everything of the page that is not Go |
 | `commands` | the number of top-level commands |
-| `imports` | the panes, the page and the connection reach neither the store nor the sweep, however many packages lie between, and nothing they reach names the kit's store at all: they read through its reader; the operating system is asked for in one folder only |
+| `imports` | the panes, the page and the connection reach neither the store nor the sweep, however many packages lie between, and nothing they reach names the kit's store at all: they read through its reader; the operating system is asked for in one folder only, and the keeper's socket in four |
 | `timing` | the commands that must be fast, the middle one of 21 runs each (not on Windows) |
 | `security` | the outside checkers below |
-| `publish` | nothing private in what git would publish |
+| `publish` | nothing private in what git would publish, and no file that names the program the tool once ran on |
 
 ## The limits
 
@@ -45,11 +45,11 @@ A finding that is wrong for this code is silenced at its own line, with the reas
 
 gosec has two rules set aside for every folder, because the program is a command a person runs as themselves on files they name: G304 (a file opened by a path held in a variable, which is every file this program opens) and G104 (an error nobody reads: what is left is a close after the work is done or has failed, a line to a terminal or a connection that has gone, and the note of who holds a lock). `security.go` says the same beside the rule numbers.
 
-**The stand-ins under `test/` are held to a lighter rule.** The fake herdr and the fake agent are in no program we ship. A test tells them through their environment which program to start, which socket to call and which files to touch, so for those folders gosec also leaves out G204, G702, G703 and G704. It runs once over everything else and once over them.
+**The stand-ins under `test/` are held to a lighter rule.** The engine's double and the fake agent are in no program we ship. A test tells them through their environment which program to start, which socket to call and which files to touch, so for those folders gosec also leaves out G204, G702, G703 and G704. It runs once over everything else and once over them.
 
 ## The publish check
 
-`publish` reads every file git would commit, as it is in the folder and as it is staged, and fails on a private file name, a path under a home folder, a private key, the shape of a well-known token or access key, or an email address that is not GitHub's no-reply one or an example. `message FILE` checks a commit message, and `history [RANGE]` checks who made each commit, what it says and what it adds.
+`publish` reads every file git would commit, as it is in the folder and as it is staged, and fails on a private file name, a path under a home folder, a private key, the shape of a well-known token or access key, or an email address that is not GitHub's no-reply one or an example. It also fails when a published file, by its name or on any line, names the terminal program WhaleShark ran on while its own engine was being built: the tool depends on no other program, and the tree says so by not holding the name. One line of `README.md` may hold it, for the credits. `message FILE` checks a commit message, and `history [RANGE]` checks who made each commit, what it says and what it adds.
 
 To run it before every commit and every push:
 

@@ -42,7 +42,7 @@ var checkers = []struct {
 // failed, a line to a terminal or a connection that has gone, the restoring
 // of a terminal on the way out, and the note of who holds a lock.
 //
-// The stand-ins under test/, the fake herdr and the fake agent, are in no
+// The stand-ins under test/, the engine's double and the fake agent, are in no
 // program we ship and are held to a lighter rule. A test tells them through
 // their environment which program to start (G204, G702), which socket to
 // call (G704) and which files to touch (G703), and that is their whole use.
@@ -134,6 +134,29 @@ func marks(where string, text []byte) []error {
 	return errs
 }
 
+// scaffold is the name of the program the tool ran on while its own engine
+// was built. Nothing published may hold it: not a file's name and not a
+// line, but one line of the README, for its credits. It is put together
+// here so that this file holds none.
+var scaffold = []byte("her" + "dr")
+
+// foreign finds that name in a file's own name and on each of its lines.
+func foreign(f string, data []byte) (errs []error) {
+	allowed := 0
+	if f == "README.md" {
+		allowed = 1
+	}
+	for i, line := range bytes.Split(append([]byte(f+"\n"), data...), []byte("\n")) {
+		if !bytes.Contains(bytes.ToLower(line), scaffold) {
+			continue
+		}
+		if allowed--; i == 0 || allowed < 0 {
+			errs = append(errs, fmt.Errorf("%s:%d: names the program the tool once ran on", f, i))
+		}
+	}
+	return errs
+}
+
 // publish checks everything git would publish, as it is in the folder and
 // as it is staged.
 func (g *gate) publish() error {
@@ -147,9 +170,11 @@ func (g *gate) publish() error {
 			errs = append(errs, fmt.Errorf("%s: a private file", f))
 		}
 		errs = append(errs, marks(f, []byte(f))...)
-		if data, err := os.ReadFile(filepath.Join(g.root, f)); err == nil {
+		data, err := os.ReadFile(filepath.Join(g.root, f))
+		if err == nil {
 			errs = append(errs, marks(f, data)...)
 		}
+		errs = append(errs, foreign(f, data)...)
 	}
 	staged, err := g.cmd(nil, "git", "diff", "--cached", "--no-color", "-U0")
 	if err != nil {
