@@ -45,7 +45,14 @@ jobs:
         if: always() && runner.os == 'Linux'
         run: |
           uname -r; nproc; ls -l /bin/sh
-          go test ./internal/keeper -run TestTwentyNoisyShellsLoseNoByte -count=3 -v -timeout 4m
+          # With the machine as busy as the gate's own tests make it.
+          (go test -count=1 ./internal/panes ./test/scenario ./internal/platform ./internal/pty > /dev/null 2>&1 &)
+          go test ./internal/keeper -run TestTwentyNoisyShellsLoseNoByte -count=12 -v -timeout 6m
+      - name: Who may connect, many times on a busy machine (a bench, to be taken out)
+        if: always() && runner.os == 'Windows'
+        run: |
+          (go test -count=1 ./internal/panes ./internal/platform ./internal/pty > /dev/null 2>&1 &)
+          go test ./internal/keeper -run TestWhoMayConnect -count=1500 -failfast -timeout 4m
 
   security:
     runs-on: ubuntu-24.04
