@@ -316,3 +316,27 @@ func TestNothingIsSentForAPhoneThatIsNotPaired(t *testing.T) {
 		t.Fatal("an address elsewhere:", n, err, len(d.heard))
 	}
 }
+
+// A paired phone, or whoever writes the login's file of phones, names the
+// address a nudge goes to. However the address is dressed, the program calls
+// nothing but a phone maker's push service: no other host, no address of
+// this machine or its network, and no name that only looks like a maker's.
+func TestNoAddressOfAStrangersChoosingIsEverCalled(t *testing.T) {
+	d := newDesk(t)
+	at := "@" // the mark that makes what stands before it a mere name for signing in
+	dressed := []string{
+		"https://fcm.googleapis.com" + at + "elsewhere.example/a", "https://elsewhere.example/fcm.googleapis.com", "https://elsewhere.example#.push.apple.com",
+		"https://elsewhere.example?x=.push.apple.com", "https://elsewhere.example\\" + at + "fcm.googleapis.com/a", "https://fcm.googleapis.com.:443/a",
+		"https://FCM.GOOGLEAPIS.COM.elsewhere.example/a", "https://xpush.apple.com/a", "https://push.apple.com.elsewhere.example/a",
+		"https://[::1]/a", "https://" + contract.Loopback + "/a", "https://169.254.169.254.push.apple.com:80/a", "//fcm.googleapis.com/a",
+		"fcm.googleapis.com/a", "file:///etc/passwd", "https://fcm.googleapis.com%2f" + at + "elsewhere.example/", "https://elsewhere.example/.notify.windows.com",
+		"https:///fcm.googleapis.com/a", " https://fcm.googleapis.com/a", "https://fcm.googleapis.com\n.elsewhere.example/a",
+	}
+	d.pair(dressed...)
+	if n, err := d.k.Push(contract.Nudge{Title: "x"}, ""); n != 0 || err == nil || len(d.heard) != 0 {
+		for _, r := range d.heard {
+			t.Errorf("called: %+v", r)
+		}
+		t.Fatalf("%d phones were reached, %d requests made, %v", n, len(d.heard), err)
+	}
+}
