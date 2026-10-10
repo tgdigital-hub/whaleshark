@@ -33,12 +33,13 @@ human: answer n8 done
 orch: need todo "Renew the name of the site" -> expect n9
 human: answer n9 "cannot: the card is not mine"
 
-# What is not a form, and what phase 2 brings.
+# What is not a form, and what a flag needs.
 orch: need poll "Which day?"                 -> expect exit 2 "no form of an item"
 orch: need question                          -> expect exit 2
 orch: need signoff "Go?" --options a,b       -> expect exit 2 "for a choice"
-orch: need todo "Wait for me" --task T10 --holds -> expect exit 1 "phase 2"
-orch: need question "Which logo?" --wait     -> expect exit 1 "phase 2"
+orch: need todo "Wait for me" --holds        -> expect exit 2 "--task"
+orch: need todo "Wait for me" --task P1 --holds -> expect exit 5 "nothing can hold it"
+orch: need question "Which logo?" --timeout 5 -> expect exit 2 "for --wait"
 orch: need question "Which logo?" --task T99 -> expect exit 4
 
 # An item for the person is the person's to answer; the lead agent passes on

@@ -176,9 +176,12 @@ func TestEightB(t *testing.T) {
 		t.Fatalf("the lead agent was not told of the person's answer: %+v", e)
 	}
 
-	// Step 6: the time is up. Exit 75, the resume command, the question still
-	// open and nothing asked twice; and the same when the time passes while it waits.
-	must(t, p, 75, "T6.1", "ask --resume q9 --timeout 0", "q9 is still open", "Next: whaleshark ask --resume q9")
+	// Step 6: the time is up. Exit 75 and the question still open, nothing
+	// asked twice; and the same when the time passes while it waits. A
+	// resumed ask is the second: it is told to stop, and given no third.
+	if out := must(t, p, 75, "T6.1", "ask --resume q9 --timeout 0", "q9 is still open. Stop now and wait"); strings.Contains(out, "Next:") {
+		t.Fatalf("the second time the time was up, the worker was told to go on: %q", out)
+	}
 	ask = begin(t, p, "T6.1", "ask", "--resume", "q9")
 	until(t, "T6.1's ask waits", func() bool { return waiting(p, "q9") })
 	p.Clock(539 * time.Second)
@@ -187,7 +190,7 @@ func TestEightB(t *testing.T) {
 		t.Fatal("the ask gave up before its 540 seconds")
 	}
 	p.Clock(time.Second)
-	if out, exit := ask.end(t); exit != 75 || !strings.Contains(out, "whaleshark ask --resume q9") {
+	if out, exit := ask.end(t); exit != 75 || !strings.Contains(out, "Stop now and wait") {
 		t.Fatalf("the ask whose time passed ended %d with %q", exit, out)
 	}
 	if s, _ = p.Record(); s.Questions["q9"].State != contract.QuestionOpen || s.Counters.Question != 11 {
@@ -340,7 +343,7 @@ func TestPaused(t *testing.T) {
 	must(t, p, 75, "T6.1", "ask --resume q9 --timeout 0")
 	// A worker with no gate is told to stop, and its question is recorded all the same.
 	out, exit := run(p, "T1.1", "ask", "Which base branch?", "--timeout", "0")
-	if exit != 75 || !strings.Contains(out, contract.PausedReply) {
+	if exit != 75 || !strings.Contains(out, contract.PausedReply) || !strings.Contains(out, "Next: whaleshark ask --resume q11") {
 		t.Fatalf("an ask during the pause ended %d with %q", exit, out)
 	}
 	time.Sleep(3 * look / 2)
@@ -496,5 +499,124 @@ func TestAskReadsOnlyWhatChanged(t *testing.T) {
 	must(t, p, 0, scenario.Orch, "answer q10 the-shop-address")
 	if got := <-exit; got != 0 || out.String() != "the-shop-address\n" {
 		t.Fatalf("the ask ended %d with %q", got, out.String())
+	}
+}
+
+// Both ways into 8d, and the late answers: what was decided is in the prompt
+// of the attempt that starts afterwards.
+func TestEightD(t *testing.T) {
+	p := scenario.Run(t, filepath.Join("testdata", "8d.scn"), nil)
+	_, dir := p.Record()
+	for attempt, words := range map[string][]string{
+		"A.1": {"## Decisions", "Ship with the old API kept?", "Decided: yes"},
+		"C.2": {"## Decisions", "which font?", "Decided: serif"},
+	} {
+		prompt, err := os.ReadFile(filepath.Join(contract.AttemptDir(dir, attempt), "prompt.md"))
+		for _, w := range words {
+			if !strings.Contains(string(prompt), w) {
+				t.Errorf("the prompt of %s lacks %q (%v):\n%s", attempt, w, err, prompt)
+			}
+		}
+	}
+	s, _ := p.Record()
+	if d := s.Tasks["A"].Decisions; len(d) != 2 || d[1].Answer != "8080" || len(s.Tasks["C"].Decisions) != 2 {
+		t.Errorf("the decisions of A are %+v and of C %+v", d, s.Tasks["C"].Decisions)
+	}
+}
+
+// need --wait blocks as a worker's ask does: it returns the answer once it
+// has settled, and when its time is up it names the lead agent's wait.
+func TestNeedWait(t *testing.T) {
+	p := evening(t, nil)
+	must(t, p, 75, scenario.Orch, "need todo Look --wait --timeout 0", "n5 is still open", "Next: whaleshark wait")
+	need := begin(t, p, scenario.Orch, "need", "choice", "Keep the old API?", "--task", "T7", "--holds", "--wait")
+	until(t, "the lead agent's need waits", func() bool { return waiting(p, "n6") })
+	must(t, p, 5, scenario.Orch, "accept T7", "held by n6")
+	must(t, p, 0, scenario.Page, "answer n6 yes --json", `"told":"waiting"`)
+	time.Sleep(3 * look / 2)
+	if !waiting(p, "n6") {
+		t.Fatal("the need returned an answer that had not settled")
+	}
+	must(t, p, 5, scenario.Orch, "accept T7", "held by n6")
+	p.Clock(4 * time.Second)
+	if out, exit := need.end(t); exit != 0 || out != "yes\n" {
+		t.Fatalf("the need ended %d with %q", exit, out)
+	}
+	s, _ := p.Record()
+	if q, d := s.Questions["n6"], s.Tasks["T7"].Decisions; q.State != contract.QuestionUsed || len(d) != 1 || d[0].Answer != "yes" ||
+		!slices.Contains(kinds(s), "answered") || len(s.Attempts["T7.1"].Mail) != 1 {
+		t.Fatalf("after the answer: %+v, decisions %+v, events %v, mail %+v", q, d, kinds(s), s.Attempts["T7.1"].Mail)
+	}
+	if shown := screen(p, p.Lead); strings.Contains(shown, "Run: whaleshark wait") {
+		t.Fatalf("the lead agent was pointed at an answer its own command returned:\n%s", shown)
+	}
+}
+
+// items is what status shows the person as waiting for them.
+func items(t *testing.T, p *scenario.Project) string {
+	t.Helper()
+	return must(t, p, 0, scenario.Human, "status --items")
+}
+
+// The tool's two further items appear and clear. A question the lead agent
+// has left for ten minutes is put in front of the person by the blocked ask
+// itself, and leaves with its answer. Settings nobody has approved raise one
+// item, once, which closes when the person has approved them.
+func TestTheToolsItems(t *testing.T) {
+	p := evening(t, nil)
+	ask := begin(t, p, "T11.1", "ask", "--resume", "q10")
+	until(t, "T11.1's ask waits", func() bool { return waiting(p, "q10") })
+	p.Clock(5 * time.Minute)
+	time.Sleep(3 * look / 2)
+	if s, _ := p.Record(); !s.Questions["q10"].ShownAt.IsZero() || strings.Contains(items(t, p), "q10") {
+		t.Fatalf("q10 was put in front of the person after nine minutes:\n%s", items(t, p))
+	}
+	p.Clock(time.Minute)
+	until(t, "q10 is put in front of the person", func() bool {
+		s, _ := p.Record()
+		return !s.Questions["q10"].ShownAt.IsZero()
+	})
+	if shown := items(t, p); !strings.Contains(shown, "q10  order emails") {
+		t.Fatalf("after ten minutes the person is shown:\n%s", shown)
+	}
+	must(t, p, 0, scenario.Orch, "answer q10 the-shop-address")
+	if out, exit := ask.end(t); exit != 0 || out != "the-shop-address\n" {
+		t.Fatalf("the ask ended %d with %q", exit, out)
+	}
+	if shown := items(t, p); strings.Contains(shown, "q10") {
+		t.Fatalf("after the answer the person is still shown:\n%s", shown)
+	}
+
+	open := func() (found []*contract.Question) {
+		s, _ := p.Record()
+		for _, q := range s.Questions {
+			if q.From == contract.FromTool && q.Cause == contract.CauseTrust {
+				found = append(found, q)
+			}
+		}
+		return found
+	}
+	must(t, p, 0, scenario.Orch, "need todo Look")
+	if got := open(); got != nil {
+		t.Fatalf("with nothing to approve there is %+v", got[0])
+	}
+	if err := os.WriteFile(filepath.Join(p.Root, "whaleshark.toml"), []byte("[setup]\nscript = \"make deps\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	must(t, p, 0, scenario.Human, "answer n4 approve")
+	must(t, p, 0, scenario.Orch, "need todo Look-again")
+	got := open()
+	if len(got) != 1 || got[0].State != contract.QuestionOpen || got[0].Form != contract.FormTodo || got[0].ShownAt.IsZero() ||
+		!strings.Contains(got[0].Text, "setup.script") || !strings.Contains(items(t, p), "whaleshark trust --human") {
+		t.Fatalf("with a setup script nobody approved: %+v\n%s", got, items(t, p))
+	}
+	yes := p.Command(scenario.Human, "trust")
+	yes.Stdin = strings.NewReader("yes\n")
+	if out, err := yes.CombinedOutput(); err != nil {
+		t.Fatalf("trust: %v\n%s", err, out)
+	}
+	must(t, p, 0, scenario.Orch, "need todo Look-once-more")
+	if got = open(); len(got) != 1 || got[0].State != contract.QuestionClosed || strings.Contains(items(t, p), "whaleshark trust") {
+		t.Fatalf("after the approval: %+v\n%s", got, items(t, p))
 	}
 }

@@ -1,0 +1,57 @@
+# 8d: a decision that needs the person, both ways in and the one way out,
+# and what becomes of an answer that comes late (6.6, 8b step 8).
+agent A.1: hang
+agent B.1: ask "which colour?" | expect-answer blue | write-result | report done "blue it is"
+agent C.1: ask "which font?"
+agent C.2: hang
+
+file brief.md: Target: a page | Change: your part | Constraints: none | Ownership: your file | Acceptance: the check
+orch: init
+orch: run new "three decisions"
+task A "Ship the API" --name shipping --check "exit 0" --brief brief.md
+task B "Paint the wall" --name painting --check "exit 0" --brief brief.md
+task C "Set the type" --name typing --check "exit 0" --brief brief.md
+
+# Planned in advance: the task cannot start while its item is open, nor
+# while a button's answer can still be taken back.
+orch: need choice "Ship with the old API kept?" --task A --holds --options yes,no -> expect n1
+orch: start A                                       -> expect exit 5 "held by n1"
+human: page: answer n1 yes                          -> expect "taken back for 4s"
+orch: start A                                       -> expect exit 5 "held by n1"
+clock +4s
+orch: start A
+await: attempts A.1 working; n1 state used
+human: answer n1 --undo                             -> expect exit 5 "Already acted on"
+
+# An item that holds a task at work: its answer is the task's decision, and
+# the worker gets it as a message.
+orch: need question "Which port?" --task A --holds  -> expect n2
+human: answer n2 8080
+orch: wait --timeout 10                             -> expect answered 8080
+as-worker A.1: mail                                 -> expect "Decided: Which port? Answer: 8080"
+
+# Raised by a worker: the lead agent cannot say and hands it to the person,
+# whose answer the blocked ask returns.
+orch: start B
+await: attempts B.1 asked
+orch: escalate q1                                   -> expect "for the person"
+human: answer q1 blue
+await: attempts B.1 reported; q1 state used
+orch: accept B
+orch: need todo "Look at the wall" --task B --holds -> expect exit 5 "nothing can hold it"
+
+# An answer after the attempt ended is kept for the next attempt's prompt.
+orch: start C
+await: attempts C.1 asked
+orch: stop C
+human: answer q2 serif                              -> expect "C's attempt has ended; your answer will be in the next attempt's prompt."
+orch: start C --retry
+await: attempts C.2 working
+
+# A late answer to a closed item goes to the attempt at work as a message.
+orch: need question "Which size?" --task C          -> expect n3
+orch: need close n3
+human: answer n3 12                                 -> expect "kept with the decisions of C" "gets it as a message"
+as-worker C.2: mail                                 -> expect "Decided: Which size? Answer: 12"
+
+assert: n2 state used; q2 state closed answer serif; n3 state closed answer 12
