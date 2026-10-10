@@ -41,9 +41,6 @@ jobs:
         run: go version
       - name: The gate
         run: go run ./build/ci build vet fmt test cross lines modules page commands imports timing publish
-      - name: The noisy shells three times more, by themselves (a bench, to be taken out)
-        if: runner.os == 'Linux'
-        run: go test ./internal/keeper -run TestTwentyNoisyShellsLoseNoByte -count=3 -v -timeout 4m
 
   security:
     runs-on: ubuntu-24.04
