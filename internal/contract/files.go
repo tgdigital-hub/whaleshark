@@ -257,9 +257,6 @@ type ProjectFile struct {
 		StaleMinutes    int `toml:"stale_minutes"`
 		MaxMinutes      int `toml:"max_minutes"`
 	} `toml:"limits"`
-	Notify struct {
-		FullText bool `toml:"full_text"`
-	} `toml:"notify"`
 }
 
 // ProjectDefaults is a ProjectFile with every default filled in.
@@ -382,11 +379,14 @@ type PersonConfig struct {
 		Phone       bool `toml:"phone"`
 		LeadMinutes int  `toml:"lead_minutes"`
 	} `toml:"nudge"`
-	// Notify is the phone's channel: the address one request goes to, and
-	// the link a tap on the notice opens.
+	// Notify is the phone's channel: the address one request goes to, the
+	// link a tap on the notice opens, and whether a nudge's text goes along
+	// with its title. The service is somebody else's, so that is the
+	// person's to say and no project's.
 	Notify struct {
-		URL  string `toml:"url,omitempty"`
-		Link string `toml:"link,omitempty"`
+		URL      string `toml:"url,omitempty"`
+		Link     string `toml:"link,omitempty"`
+		FullText bool   `toml:"full_text,omitempty"`
 	} `toml:"notify,omitempty"`
 }
 

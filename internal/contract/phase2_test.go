@@ -88,7 +88,7 @@ func TestSlots(t *testing.T) {
 // and nothing else; a newer trust.json approves nothing.
 func TestTrustLinesAndANewerRecord(t *testing.T) {
 	root := t.TempDir()
-	text := "[worktrees]\nshare = [\"node_modules\"]\nport_block = 20\n[agent]\nargs = [\"--x\"]\n[land]\nwho = \"orchestrator\"\n[notify]\nfull_text = true\n"
+	text := "[worktrees]\nshare = [\"node_modules\"]\nport_block = 20\n[agent]\nargs = [\"--x\"]\n[land]\nwho = \"orchestrator\"\n"
 	os.WriteFile(filepath.Join(root, "whaleshark.toml"), []byte(text), 0o600)
 	lines, err := TrustLines(root)
 	want := []string{"worktrees.share = [node_modules]", "agent.args = [--x]", "land.who = orchestrator"}
@@ -116,7 +116,7 @@ func TestTrustLinesAndANewerRecord(t *testing.T) {
 	file, _ := trustFile(root)
 	os.WriteFile(file, []byte(`{"version": 99, "hash": "`+trustHash(lines)+`"}`), 0o600)
 	p, err := ReadProjectFile(root)
-	if err != nil || len(p.Held) != 3 || p.Land.Who != ForHuman || p.Agent.Args != nil || p.Worktrees.PortBlock != 20 || !p.Notify.FullText {
+	if err != nil || len(p.Held) != 3 || p.Land.Who != ForHuman || p.Agent.Args != nil || p.Worktrees.PortBlock != 20 {
 		t.Fatalf("with a newer trust record the project reads as %+v, %v", p, err)
 	}
 }

@@ -23,7 +23,7 @@ type channel func(ctx context.Context, set settings, c contract.Nudge) bool
 // phone is one web request to the address the person configured, such as a
 // topic of a notice service or a chat bot's. It passes through somebody
 // else's service, so it carries the title, which names the task, and the
-// nudge's text only where the project's [notify] full_text allows it.
+// nudge's text only where the person's own [notify] full_text allows it.
 //
 // In the address, {text} stands for the message and {link} for the address
 // a tap opens, each escaped for a query; a service that takes a link is
@@ -34,10 +34,8 @@ func phone(ctx context.Context, set settings, c contract.Nudge) bool {
 		return false
 	}
 	text := c.Title
-	if c.Root != "" && c.Body != "" {
-		if p, err := contract.ReadProjectFile(c.Root); err == nil && p.Notify.FullText {
-			text += "\n" + c.Body
-		}
+	if set.Notify.FullText && c.Body != "" {
+		text += "\n" + c.Body
 	}
 	var body io.Reader
 	if !strings.Contains(set.Notify.URL, "{text}") {

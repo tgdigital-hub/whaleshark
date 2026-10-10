@@ -341,8 +341,12 @@ func TestPhone(t *testing.T) {
 	}{
 		{name: "title and name only, and the link", rest: "/topic?click={link}",
 			want: []string{"POST /topic?click=https%3A%2F%2Fpage.example%2Fr3 " + title}},
-		{name: "the text once the project allows it", rest: "/topic", project: "[notify]\nfull_text = true\n",
+		{name: "the text once the person allows it", rest: "/topic", more: "full_text = true\n",
 			want: []string{"POST /topic " + title + "\n" + text}},
+		// The service is somebody else's: what is sent there is the person's
+		// to say, never a file's that comes with a repository.
+		{name: "a project's own file switches nothing on", rest: "/topic", project: "[notify]\nfull_text = true\n",
+			want: []string{"POST /topic " + title}},
 		{name: "the message as a part of the address", rest: "/send?chat=7&text={text}",
 			want: []string{"POST /send?chat=7&text=sign-up+page+%E2%80%94+needs+you "}},
 		{name: "the phone switched off", rest: "/topic", more: "[nudge]\nphone = false\n"},
