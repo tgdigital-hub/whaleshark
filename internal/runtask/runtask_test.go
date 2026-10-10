@@ -3,6 +3,7 @@ package runtask_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -115,7 +116,19 @@ func TestPlanThreeTasks(t *testing.T) {
 	orch(0, "run", "show")("3 tasks", "pane "+p.Lead)
 	orch(0, "run", "close")("Run r1 is closed")
 	orch(0, "run", "new", "the next")("Run r2 is open")
+	// A temp folder a start on a server gave an attempt goes with its run.
+	places, _ := p.Kit.Platform.Dirs()
+	temp := filepath.Join(places.Cache, "tmp", "an-attempts-own")
+	if err := errors.Join(os.MkdirAll(temp, 0o700), p.Kit.Store.Change(p.Root, "r1", func(s *contract.State) error {
+		s.Attempts["A.1"] = &contract.Attempt{ID: "A.1", Task: "A", State: contract.AttemptStopped, Temp: temp}
+		return nil
+	})); err != nil {
+		t.Fatal(err)
+	}
 	orch(0, "run", "rm", "r1")("Run r1 is removed")
+	if _, err := os.Stat(temp); err == nil {
+		t.Error("run rm left an attempt's temp folder")
+	}
 	orch(4, "run", "use", "r1")("no run")
 	orch(2, "run", "sideways")()
 	if runs, _ := p.Kit.Store.Runs(p.Root); len(runs) != 1 || runs[0] != "r2" {

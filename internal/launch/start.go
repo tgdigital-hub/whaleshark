@@ -401,7 +401,9 @@ func (l *launcher) bring(task string) outcome {
 	// that is refused from here on takes away the copy this call made, and
 	// the ports of a task that has never had an attempt.
 	var slot contract.Slot
+	var tmp string
 	undo := func(err error) outcome {
+		os.RemoveAll(tmp)
 		if tree != nil && !had {
 			t.Worktree = tree
 			k.Placement.Remove(c.Root, s, task, true)
@@ -445,7 +447,7 @@ func (l *launcher) bring(task string) outcome {
 	// shared one. A person's own machine has both already.
 	env := []string{contract.EnvRoot + "=" + c.Root, contract.EnvRun + "=" + c.Run, contract.EnvTask + "=" + task,
 		contract.EnvAttempt + "=" + id, contract.EnvDepth + "=1", contract.EnvBin + "=" + l.self, contract.EnvEvidence + "=" + evidence}
-	if tmp := ""; err == nil && l.server {
+	if err == nil && l.server {
 		tmp, err = k.Platform.PrivateTemp()
 		env = append(env, contract.EnvBrowsers+"="+contract.ServerBrowsers, "TMPDIR="+tmp)
 	}
@@ -468,6 +470,7 @@ func (l *launcher) bring(task string) outcome {
 		if err != nil {
 			return err
 		}
+		s.Attempts[id].Temp = tmp // recorded, so that stop, close and run rm take it away
 		for _, say := range heldSays {
 			told := func(e contract.Event) bool { return e.Kind == "untrusted" && e.Text == say[1] }
 			if slices.Contains(l.project.Held, say[0]) && (tree != nil || !strings.HasPrefix(say[0], "worktrees.")) && !slices.ContainsFunc(s.Inbox.Events, told) {

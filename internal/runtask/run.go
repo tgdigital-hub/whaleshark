@@ -8,6 +8,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/launch"
 )
 
 func run(c *contract.Call) (any, error) {
@@ -62,6 +63,9 @@ func run(c *contract.Call) (any, error) {
 		}
 		var kept []string
 		if err == nil {
+			for _, a := range s.Attempts {
+				launch.DropTemp(k, a)
+			}
 			kept, err = k.Placement.Forget(c.Root, s)
 		}
 		if err == nil {

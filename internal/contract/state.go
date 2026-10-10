@@ -218,6 +218,7 @@ type Attempt struct {
 	Mail       []Mail       `json:"mail,omitempty"`
 	StartedAt  time.Time    `json:"started_at"`
 	EndedAt    time.Time    `json:"ended_at,omitzero"`
+	Temp       string       `json:"temp,omitempty"` // on a server, the temp folder of its own that start made
 }
 
 // Agent is the program in the attempt's pane. Name is what the keeper knows it by and

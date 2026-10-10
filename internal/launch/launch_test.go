@@ -964,4 +964,32 @@ func TestOnAServer(t *testing.T) {
 	if exit != contract.ExitRefused || len(s.Tasks["R3"].Attempts)+len(s.Tasks["R4"].Attempts) != 1 || len(taken) != 3 {
 		t.Errorf("with room for one more: exit %d, slots %+v:\n%s", exit, taken, out)
 	}
+
+	// Each attempt's temp folder is in the record and goes with its tab; the
+	// start that was refused left none, and a kept tab keeps its own.
+	has := func(path string) bool { _, err := os.Stat(path); return err == nil }
+	if all, _ := os.ReadDir(filepath.Join(dirs.Cache, "tmp")); len(all) != 3 || !temps[s.Attempts["R1.1"].Temp] || !temps[s.Attempts["R2.1"].Temp] {
+		t.Fatalf("%d temp folders for three attempts; recorded: %q, %q", len(all), s.Attempts["R1.1"].Temp, s.Attempts["R2.1"].Temp)
+	}
+	if out, exit := here(t, p, "stop", "R1"); exit != contract.ExitOK || has(s.Attempts["R1.1"].Temp) {
+		t.Errorf("stop left the temp folder: exit %d:\n%s", exit, out)
+	}
+	if out, exit := here(t, p, "stop", "R2", "--keep-tab"); exit != contract.ExitOK || !has(s.Attempts["R2.1"].Temp) {
+		t.Errorf("stop --keep-tab took the kept tab's temp folder: exit %d:\n%s", exit, out)
+	}
+	if out, exit := here(t, p, "close", "R2"); exit != contract.ExitOK || has(s.Attempts["R2.1"].Temp) {
+		t.Errorf("close left the temp folder: exit %d:\n%s", exit, out)
+	}
+	// A record's word is not taken for a folder that lies anywhere else.
+	last := s.Tasks["R3"].Attempts
+	if len(last) == 0 {
+		last = s.Tasks["R4"].Attempts
+	}
+	own, elsewhere := s.Attempts[last[0]].Temp, t.TempDir()
+	if err := p.Kit.Store.Change(p.Root, s.Run.ID, func(s *contract.State) error { s.Attempts[last[0]].Temp = elsewhere; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if out, exit := here(t, p, "stop", s.Attempts[last[0]].Task); exit != contract.ExitOK || !has(elsewhere) || !has(own) {
+		t.Errorf("stop removed a folder that is no attempt's temp folder: exit %d:\n%s", exit, out)
+	}
 }

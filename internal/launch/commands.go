@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -120,6 +121,14 @@ func shut(k *contract.Kit, snap *contract.Snapshot, name string, p contract.Plac
 	return err == nil, err
 }
 
+// DropTemp removes the temp folder a start on a server gave an attempt. The
+// record's word counts only for a folder where such folders are made.
+func DropTemp(k *contract.Kit, a *contract.Attempt) {
+	if dirs, err := k.Platform.Dirs(); err == nil && filepath.Dir(a.Temp) == filepath.Join(dirs.Cache, "tmp") {
+		os.RemoveAll(a.Temp)
+	}
+}
+
 type stopped struct {
 	Task    string `json:"task"`
 	Attempt string `json:"attempt"`
@@ -161,6 +170,7 @@ func stop(c *contract.Call) (any, error) {
 		if err != nil {
 			r.Tab = "left open: " + err.Error()
 		}
+		DropTemp(c.Kit, &a)
 	}
 	fmt.Fprintf(c.Out, "%s stopped (%s); its tab: %s.\n", name, a.ID, r.Tab)
 	return r, nil
@@ -212,6 +222,7 @@ func closeTabs(c *contract.Call) (any, error) {
 			if err != nil {
 				return nil, refusal(err)
 			}
+			DropTemp(k, a)
 			if did {
 				closed = append(closed, stopped{Task: t.ID, Attempt: id, Tab: "closed"})
 				fmt.Fprintf(c.Out, "closed: %s (%s)\n", t.Name, id)
