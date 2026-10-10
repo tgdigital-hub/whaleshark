@@ -132,12 +132,12 @@ func do(p *contract.Page, action string, with ...string) *form {
 }
 
 // press is a button of an item: an answer given at once, the line for an
-// answer that needs words, or the row of the action table it names. A phone
-// has no tab to go to.
+// answer that needs words, or the row of the action table it names. Going
+// to a tab is the panes' own: a browser has no tab of the terminals to show.
 func press(p *contract.Page, it contract.Item, b contract.Button) *form {
 	var f *form
 	switch {
-	case b.Action == "go" && p.Phone:
+	case b.Action == "go":
 		return nil
 	case b.Action != "":
 		f = do(p, b.Action, "id", it.ID, "task", it.Task, "label", b.Label)
@@ -162,7 +162,7 @@ func line(p *contract.Page, it contract.Item) *form {
 
 // act is one of the things a card offers, for its task.
 func act(p *contract.Page, c contract.Card, action string) *form {
-	if action == "go" && p.Phone {
+	if action == "go" {
 		return nil
 	}
 	return do(p, action, "task", c.Task)
@@ -283,7 +283,7 @@ func word(p *contract.Page, c contract.Card) string {
 func news(p *contract.Page, c contract.Card) string {
 	text := c.News
 	if c.Pale && !c.Said.IsZero() {
-		text = "said " + age(p, c.Said) + " ago: " + text
+		text = strings.Replace("said "+age(p, c.Said)+" ago: ", "now ago", "just now", 1) + text
 	}
 	if x := c.Clash; x != nil && x.Conflicts {
 		return "clashes with " + x.Name + ": " + x.File

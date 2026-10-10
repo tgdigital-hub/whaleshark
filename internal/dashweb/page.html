@@ -25,6 +25,7 @@
 <main class="alone">
 <h1>WhaleShark</h1>
 {{template "said" .}}
+{{range .Notes}}<p class="c-dim">&gt; {{.}}</p>{{end}}
 </main>
 {{- else}}
 <header id="top">
@@ -86,7 +87,7 @@
 {{- if .Answer}}<span class="c-accent">{{.Answer}} · {{if .Used.IsZero}}Undo{{with left $p $it}} · <b class="left">{{.}}</b>{{end}}{{else}}used at {{clock $p .Used}}{{end}}</span> <span class="c-dim">{{by .By}}</span>{{end}}
 {{- if and .Line (not .Buttons) (not .Answer)}}{{template "form" line $p $it}}{{end}}
 {{- range .Buttons}}{{template "form" press $p $it .}}{{end}}
-{{- if and $p.Phone (eq .Look "at a prompt")}}<span class="c-dim">at a prompt: needs a terminal</span>{{end}}
+{{- if eq .Look "at a prompt"}}<span class="c-dim">at a prompt: needs a terminal</span>{{end}}
 </div>
 </article>
 {{- end}}

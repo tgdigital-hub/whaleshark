@@ -185,7 +185,7 @@ func (p *printer) card(c contract.Card) row {
 		r.name += " " + p.mark(contract.LookNeedsYou)
 	}
 	if c.Pale {
-		r.text = fmt.Sprintf("last said %s ago: %q", age(p.v.At.Sub(c.Said)), r.text)
+		r.text = strings.Replace(fmt.Sprintf("last said %s ago: %q", age(p.v.At.Sub(c.Said)), r.text), "now ago", "just now", 1)
 		if !figure {
 			r.text += " (" + pct + ")"
 		}

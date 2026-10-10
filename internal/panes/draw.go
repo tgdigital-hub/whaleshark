@@ -493,7 +493,7 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 	if rows > 2 {
 		news := c.News
 		if c.Pale && !c.Said.IsZero() {
-			news = "said " + ago(now.Sub(c.Said)) + " ago: " + news
+			news = strings.Replace("said "+ago(now.Sub(c.Said))+" ago: ", "now ago", "just now", 1) + news
 		}
 		// A change that would conflict is the news; one that only meets
 		// another follows it.

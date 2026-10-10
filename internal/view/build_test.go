@@ -168,6 +168,14 @@ func TestPale(t *testing.T) {
 	if got := text(v, Options{Width: 100}); !strings.Contains(got, ` ◐ T5   help pages         70%           41m  last said 34m ago: "nine of twelve pages written"`+"\n") {
 		t.Errorf("a pale figure prints\n%s", got)
 	}
+	for _, sec := range v.Sections {
+		for i := range sec.Cards {
+			sec.Cards[i].Said = v.At
+		}
+	}
+	if got := text(v, Options{Width: 100}); !strings.Contains(got, `last said just now: "nine of twelve pages written"`) {
+		t.Errorf("a figure said within the minute prints\n%s", got)
+	}
 }
 
 // Without the terminals' picture the cards come from the record and from what the

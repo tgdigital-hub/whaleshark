@@ -235,7 +235,8 @@ func TestEveryButtonIsAnOrdinaryForm(t *testing.T) {
 				has := slices.ContainsFunc(forms, func(m []string) bool {
 					return m[1] == contract.RouteDo+action && (strings.Contains(m[2], `name="id" value="`+it.ID+`"`) || strings.Contains(m[2], `name="task" value="`+it.Task+`"`)) && strings.Contains(m[2], `value="`+value)
 				})
-				if gone := p.Phone && b.Action == "go"; has == gone {
+				// Going to a tab is the panes' own: no screen of the page offers it.
+				if gone := b.Action == "go"; has == gone {
 					t.Errorf("the %s screen (phone %v): the form of %s for %s is there: %v", p.Screen, p.Phone, b.Label, it.ID, has)
 				}
 			}
@@ -278,6 +279,17 @@ func TestTheScreensShowWhatTheViewSays(t *testing.T) {
 		if !strings.Contains(phone, want) {
 			t.Errorf("the phone's screen does not hold %s", want)
 		}
+	}
+	if strings.Contains(full+task, contract.RouteDo+"go") || !strings.Contains(full, "at a prompt: needs a terminal") {
+		t.Errorf("the laptop's page offers to go to a tab, which only a pane can, or does not say that a prompt needs a terminal")
+	}
+	// An agent that spoke within the minute said it just now, not "now ago".
+	if got := news(all[1], contract.Card{Pale: true, Said: all[1].View.At, News: "the menu is in"}); got != "said just now: the menu is in" {
+		t.Errorf("what was said within the minute reads %q", got)
+	}
+	// A refusal's next step is on its screen.
+	if out := draw(t, &contract.Page{Screen: contract.ScreenRefused, Said: &contract.Refusal{Message: "Nobody is signed in in this browser."}, Notes: []string{"whaleshark dash url"}}); !strings.Contains(out, "&gt; whaleshark dash url</p>") {
+		t.Errorf("the refusal's screen leaves out what to do:\n%s", out)
 	}
 	for _, want := range []string{"$ npm test\n&lt;b&gt;2 failing&lt;/b&gt;", "npm test -- email · FAILED 21:14 · 2 of 41 tests fail", `alt="home.png"`, `download>trace.zip</a>`,
 		"answering on port 20143", `<span class="c-blocked">sure?</span> <button class="b a-stop">Stop</button>`, "Accept by hand", "21:14 started"} {
