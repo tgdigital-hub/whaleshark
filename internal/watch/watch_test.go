@@ -190,6 +190,27 @@ func TestAKindNothingIsKnownOf(t *testing.T) {
 	}
 }
 
+// Codex is known by its hooks alone: they give it an exact state and its
+// session, and no word of its screen is read.
+func TestCodexByItsHooks(t *testing.T) {
+	s := listen(t)
+	p := open(t, s.env("agent"), os.Args[0], "hooks")
+	w := s.watch(t, p, "codex")
+	if err := w.Ready(wait); err != nil {
+		t.Fatal(err)
+	}
+	if st := s.reach(t, idle, wait); st.Agent != "codex" || st.Session != "session-one" {
+		t.Fatalf("ready as %+v", st)
+	}
+	if err := w.Prompt("say hello", wait); err != nil {
+		t.Fatal(err)
+	}
+	s.reach(t, idle, wait)
+	if got := s.statuses(); !slices.Contains(got, contract.StatusWorking) || slices.Contains(after(got, idle), Quiet) {
+		t.Errorf("the states were %v", got)
+	}
+}
+
 // A shell is at its prompt or runs a command, by who is in front in its
 // terminal; nothing is ever typed at it. An agent started in it by hand is
 // known by its program's name, for as long as it is in front.

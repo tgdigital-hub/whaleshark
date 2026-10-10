@@ -499,15 +499,73 @@ func TestEnsureRefusesWhatItCannotRead(t *testing.T) {
 
 func TestOtherKindsGetNothing(t *testing.T) {
 	l := newLogin(t)
-	setup, err := l.k.AgentSettings.Ensure("codex", l.root, t.TempDir(), true)
+	setup, err := l.k.AgentSettings.Ensure("aider", l.root, t.TempDir(), true)
 	if err != nil || !reflect.DeepEqual(setup, contract.AgentSetup{}) {
 		t.Errorf("%+v, %v", setup, err)
 	}
-	if err := l.k.AgentSettings.Remove("codex", l.root); err != nil {
+	if err := l.k.AgentSettings.Remove("aider", l.root); err != nil {
 		t.Error(err)
 	}
+	if list, _ := os.ReadDir(l.root); len(list) != 1 {
+		t.Errorf("something was made for a kind with no settings of ours: %v", list)
+	}
+}
+
+// Codex has its own file, its own moments and its own answer: the deny
+// alone, since by its page an answer that also ends the turn lets the step
+// through. None of this has run on a real Codex.
+func TestCodexGetsItsOwnFileAndAnswer(t *testing.T) {
+	l := newLogin(t)
+	file := filepath.Join(l.root, ".codex", "hooks.json")
+	if setup, err := l.k.AgentSettings.Ensure("codex", l.root, t.TempDir(), false); err != nil || !reflect.DeepEqual(setup, contract.AgentSetup{}) {
+		t.Fatalf("in a folder that is not its alone: %+v, %v", setup, err)
+	}
+	if _, err := os.Stat(file); err == nil {
+		t.Fatal("the folder's file was written without leave")
+	}
+	write(t, file, `{"description":"mine","hooks":{"Stop":[{"hooks":[{"type":"command","command":"say done"}]}]}}`)
+	setup, err := l.k.AgentSettings.Ensure("codex", l.root, "", true)
+	if err != nil || setup.File != file || setup.Args != nil || setup.Gated {
+		t.Fatalf("%+v, %v: its file, nothing on its line, and not held until it has run", setup, err)
+	}
+	var s struct {
+		Description string
+		StatusLine  *entry
+		Hooks       map[string][]group
+	}
+	data, _ := os.ReadFile(file)
+	if err := json.Unmarshal(data, &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Description != "mine" || s.StatusLine != nil || len(s.Hooks) != len(harnesses["codex"].events) {
+		t.Errorf("the file: %s", data)
+	}
+	pre, stop := s.Hooks["PreToolUse"], s.Hooks["Stop"]
+	if len(pre) != 2 || !strings.HasSuffix(pre[0].Hooks[0].Command, " hook gate codex") || !strings.HasSuffix(pre[1].Hooks[0].Command, " hook state PreToolUse") ||
+		len(stop) != 2 || stop[0].Hooks[0].Command != "say done" {
+		t.Errorf("before a step %+v, at a turn's end %+v", pre, stop)
+	}
 	if _, err := os.Stat(filepath.Join(l.root, ".claude")); err == nil {
-		t.Error("a folder was made for a kind with no settings of ours")
+		t.Error("Claude Code's folder was made for Codex")
+	}
+
+	t.Setenv(contract.EnvPane, "w1:p2")
+	t.Setenv(contract.EnvAttempt, "T3.1")
+	l.pause()
+	out := l.hook(step("echo second"), "gate", "codex")
+	var a answer
+	if err := json.Unmarshal([]byte(out), &a); err != nil || a.Continue != nil || a.StopReason != "" || strings.Contains(out, "continue") {
+		t.Errorf("Codex was answered with more than the deny: %s (%v)", out, err)
+	}
+	if a.Specific.Event != "PreToolUse" || a.Specific.Decision != "deny" || a.Specific.Reason != contract.PausedReason {
+		t.Errorf("the step is not refused: %s", out)
+	}
+
+	if err := l.k.AgentSettings.Remove("codex", l.root); err != nil {
+		t.Fatal(err)
+	}
+	if got := settingsOf(t, file)["hooks"].(map[string]any); len(got) != 1 || len(got["Stop"].([]any)) != 1 {
+		t.Errorf("after the removal: %v", got)
 	}
 }
 
@@ -626,7 +684,7 @@ func TestEnsureSetsTheStateHooks(t *testing.T) {
 	if err := json.Unmarshal(data, &s); err != nil {
 		t.Fatal(err)
 	}
-	for _, event := range stateEvents {
+	for _, event := range harnesses[claude].events {
 		n := 0
 		for _, g := range s.Hooks[event] {
 			if len(g.Hooks) == 1 && g.Hooks[0].Command == quoted(os.Args[0])+" hook state "+event && g.Matcher == "*" {
@@ -637,7 +695,7 @@ func TestEnsureSetsTheStateHooks(t *testing.T) {
 			t.Errorf("%s has %d entries of ours: %+v", event, n, s.Hooks[event])
 		}
 	}
-	if len(s.Hooks) != len(stateEvents) || len(s.Hooks["Stop"]) != 2 || len(s.Hooks["SubagentStop"])+len(s.Hooks["Notification"]) != 0 {
+	if len(s.Hooks) != len(harnesses[claude].events) || len(s.Hooks["Stop"]) != 2 || len(s.Hooks["SubagentStop"])+len(s.Hooks["Notification"]) != 0 {
 		t.Errorf("the hooks are %+v", s.Hooks)
 	}
 	if err := l.k.AgentSettings.Remove(claude, l.root); err != nil {
