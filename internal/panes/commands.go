@@ -82,8 +82,8 @@ func again(self string) error {
 }
 
 // Run draws one pane, "fleet" or "actions", on a terminal until its input
-// ends or the person leaves. With no run named it shows the project's
-// current one. A button starts the program WHALESHARK_BIN names, and with
+// ends or the person leaves. With no run named it shows the run of the lead
+// agent in its own tab, and with none there the project's current one. A button starts the program WHALESHARK_BIN names, and with
 // none it starts nothing: a pane inside a test never runs the test again.
 func Run(kind string, t *term.Term, k *contract.Kit, root, run string) {
 	p := newPane(kind, t, k, root, run, contract.Now)
