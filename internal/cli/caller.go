@@ -109,6 +109,7 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	switch {
 	case run != "":
 		if c.Run = run; !slices.Contains(runs, run) {
+			c.Run = "" // a word somebody typed and no run: nothing takes it for one, the log least of all
 			problem = &contract.Refusal{Exit: contract.ExitMissing, Code: "no_run",
 				Message: fmt.Sprintf("There is no run %s here.", run), Next: []string{"whaleshark run list"}}
 		}

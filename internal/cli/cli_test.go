@@ -619,17 +619,18 @@ func TestTheCommandLog(t *testing.T) {
 	call(t, k, person, "version")
 	seen(k, "status")
 	call(t, k, lead, "status", "--sweep", "--quiet")
+	call(t, k, lead, "status", "--run", "plugh") // no such run: its name is a word somebody typed
 	files, _ := filepath.Glob(filepath.Join(dir, "log", "*.log"))
 	if len(files) != 1 {
 		t.Fatalf("the log folder holds %v", files)
 	}
 	data, _ := os.ReadFile(files[0])
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) != 2 || !strings.Contains(lines[0], " orchestrator r3 need choice --options --urgent exit=0 ") ||
-		!strings.Contains(lines[1], " worker r3 need todo exit=5 ") {
+	if len(lines) != 3 || !strings.Contains(lines[0], " orchestrator r3 need choice --options --urgent exit=0 ") ||
+		!strings.Contains(lines[1], " worker r3 need todo exit=5 ") || !strings.Contains(lines[2], " - status --run exit=4 ") {
 		t.Fatalf("the log:\n%s", data)
 	}
-	for _, typed := range []string{"plover", "aye", "nay"} {
+	for _, typed := range []string{"plover", "aye", "nay", "plugh"} {
 		if strings.Contains(string(data), typed) {
 			t.Errorf("the log holds %q, which somebody typed", typed)
 		}
