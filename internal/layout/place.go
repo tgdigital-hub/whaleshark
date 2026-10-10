@@ -130,6 +130,12 @@ func (l *Layout) Beside(pane, direction string) string {
 	if t == nil {
 		return ""
 	}
+	if l.W == 0 || l.H == 0 {
+		// Before the first window nothing has a place; the panes lie as
+		// they would in any window with room for them all.
+		roomy := Layout{Tabs: l.Tabs, Active: l.Active, W: 1 << 12, H: 1 << 12}
+		return roomy.Beside(pane, direction)
+	}
 	places := l.Places(t)
 	var probe Rect
 	for _, p := range places {

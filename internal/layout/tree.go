@@ -53,6 +53,10 @@ type Layout struct {
 	Tabs   []*Tab `json:"tabs"`
 	Active int    `json:"active"`
 	W, H   int    `json:"-"`
+	// Over is a pane drawn over the tab that shows, and OverAt its inside:
+	// the keeper's, kept here so that At can say a click landed in it.
+	Over   string `json:"-"`
+	OverAt Rect   `json:"-"`
 	first  int    // the first tab the tab row shows
 }
 

@@ -26,6 +26,7 @@ const (
 	Select                 // the mouse selects in Pane: Action at the window's cell X, Y
 	Mark                   // start selecting in Pane with the keys
 	Copy                   // put the selection on the clipboard
+	Allow                  // let Pane's program copy what it asked to
 	tabBy                  // show the tab Step places on
 	tabAt                  // show tab number Step
 )
@@ -70,7 +71,7 @@ func New(s contract.Settings, system string) *Keys {
 		"t": call(contract.OpTabCreate, "", 0), "w": call(contract.OpPaneClose, "", 0),
 		"r": call(contract.OpSplit, contract.Right, 0.5), "d": call(contract.OpSplit, contract.Down, 0.5),
 		"n": {Kind: tabBy, Step: 1}, "p": {Kind: tabBy, Step: -1},
-		"z": {Kind: Zoom}, "l": {Kind: Redraw}, "v": {Kind: Mark},
+		"z": {Kind: Zoom}, "l": {Kind: Redraw}, "v": {Kind: Mark}, "y": {Kind: Allow},
 	}
 	for _, dir := range []string{contract.Left, contract.Right, contract.Up, contract.Down} {
 		k.after[dir] = call(contract.OpPaneFocus, dir, 0)

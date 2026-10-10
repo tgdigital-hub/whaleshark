@@ -111,6 +111,9 @@ func (l *Layout) shown() *Tab {
 // At says what is under a cell of the window.
 func (l *Layout) At(x, y int) (h Hit) {
 	t := l.shown()
+	if l.Over != "" && l.OverAt.has(x, y) {
+		return Hit{Kind: OnPane, Pane: l.Over, X: x - l.OverAt.X, Y: y - l.OverAt.Y}
+	}
 	if x < 0 || y < 0 || x >= l.W || y >= l.H || y == 1 || t == nil {
 		return h
 	}

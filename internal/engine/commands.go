@@ -13,10 +13,11 @@ import (
 )
 
 // Plug puts the keeper behind the kit where the surroundings name it: in a
-// pane of the keeper's, and where a socket is named, as a test does. Anywhere
+// pane of the keeper's, in the command of a shortcut of its, and where a
+// socket is named, as a test does. Anywhere
 // else herdr stays behind the kit until the swap, which takes the condition out.
 func Plug(k *contract.Kit) {
-	if os.Getenv(contract.EnvSocket) != "" || os.Getenv(contract.EnvTermPane) != "" {
+	if os.Getenv(contract.EnvSocket)+os.Getenv(contract.EnvTermPane)+os.Getenv(contract.EnvTermActivePane) != "" {
 		k.Terms = New(k)
 	}
 }
@@ -100,6 +101,9 @@ func (c *Client) Call(ctx context.Context, call contract.WireCall) (contract.Wir
 	}
 	defer conn.Close()
 	defer stop()
+	if call.From == "" {
+		call.From = os.Getenv(contract.EnvTermPane)
+	}
 	r, err := ask(conn, call)
 	if ctx.Err() != nil {
 		err = ctx.Err()
@@ -246,6 +250,12 @@ func (c *Client) Notify(title, body string, sound bool) (reason, delivery string
 
 func (c *Client) SetKeys(entries []contract.KeyEntry) error {
 	return c.do(contract.WireCall{Op: contract.OpSetKeys, Keys: entries})
+}
+
+// Hook hands the keeper one event of an agent's own harness, as `hook
+// state` hears it in the agent's pane.
+func (c *Client) Hook(event, pane, session, cwd string) error {
+	return c.do(contract.WireCall{Op: contract.OpHook, Kind: event, Pane: pane, Session: session, Cwd: cwd})
 }
 
 func (c *Client) Overlay(argv []string, w, h float64) error {
