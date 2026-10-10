@@ -73,6 +73,7 @@ printf 'END %%d\r\n' $i; printf %%d $i > "$0"; exec sleep 86411`
 		time.Sleep(200 * time.Millisecond)
 	}
 	var total uint64
+	wait := 10 * time.Second
 	for i := range panes {
 		id := fmt.Sprint("p", i+1)
 		var lines uint64
@@ -86,19 +87,32 @@ printf 'END %%d\r\n' $i; printf %%d $i > "$0"; exec sleep 86411`
 		})
 		last := fmt.Sprintf("END %d", lines)
 		want := lines*uint64(len("00000000 ")+len(words)+2) + uint64(len(last)+2)
+		// What the keeper has read of it, and the program in front there.
 		var got uint64
-		r.until("the keeper to have read all of "+id, func() bool {
-			r.locked(func() bool { got = k.panes[id].count.Load(); return true })
-			return got >= want
-		})
-		time.Sleep(50 * time.Millisecond)
-		r.locked(func() bool { got = k.panes[id].count.Load(); return true })
-		if got != want {
-			t.Errorf("%s: the shell printed %d lines, which is %d bytes, and the keeper read %d", id, lines, want, got)
+		front := "is gone with its pane"
+		read := func() bool {
+			return r.locked(func() bool {
+				p := k.panes[id]
+				if p == nil {
+					return true
+				}
+				got = p.count.Load()
+				name, err := p.tty.Front()
+				front = fmt.Sprintf("is %q (%v)", name, err)
+				return got >= want
+			})
 		}
+		for end := time.Now().Add(wait); !read() && time.Now().Before(end); {
+			time.Sleep(time.Millisecond)
+		}
+		time.Sleep(50 * time.Millisecond)
+		read()
 		text := strings.Split(c.call(contract.WireCall{Op: contract.OpScreen, Pane: id}).Text, "\n")
-		if n := len(text); lines == 0 || n < 2 || text[n-1] != last || text[n-2] != fmt.Sprintf("%08d %s", lines-1, words) {
-			t.Errorf("%s: the screen ends with %q", id, text[max(len(text)-2, 0):])
+		n := len(text)
+		if got != want || lines == 0 || n < 2 || text[n-1] != last || text[n-2] != fmt.Sprintf("%08d %s", lines-1, words) {
+			t.Errorf("%s: the shell printed %d lines, which is %d bytes, and the keeper read %d (%+d); the program in front %s; the screen ends with %q",
+				id, lines, want, got, int64(got-want), front, text[max(n-2, 0):])
+			wait = time.Second // the next pane says the same sooner
 		}
 		total += got
 	}
