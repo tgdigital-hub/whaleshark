@@ -309,7 +309,9 @@ func TestWithoutThePersonsValuesTheDoorAnswersNothing(t *testing.T) {
 }
 
 // A wrong setting at Cloudflare: more than twenty requests in a minute
-// without a valid pass shut the door for a minute and raise an item.
+// without a valid pass shut the door for a minute and raise an item. The
+// shut door still lets a pass that holds through: whoever sends refusals
+// keeps nobody out but themselves.
 func TestTwentyRefusalsShutTheDoorAndRaiseAnItem(t *testing.T) {
 	const item = "Requests without a valid pass are reaching your page; check the Cloudflare set-up."
 	b, _ := tunnel(t)
@@ -318,29 +320,45 @@ func TestTwentyRefusalsShutTheDoorAndRaiseAnItem(t *testing.T) {
 	for i := range refusalsMost {
 		nothing(t, "request "+strconv.Itoa(i+1), bare.ask("GET", contract.RouteTeam, nil, nil))
 	}
-	if w := good.ask("GET", contract.RoutePair, nil, nil); w.Code != http.StatusOK {
+	w := good.ask("GET", contract.RoutePair, nil, nil)
+	if w.Code != http.StatusOK {
 		t.Fatalf("after twenty refusals the right pass: %d", w.Code)
 	}
+	good.cookie = w.Result().Cookies() // one phone from here on, shown its number again
 	if strings.Contains(b.ask("GET", contract.RouteTeam, nil, nil).Body.String(), item) {
 		t.Error("the item is there before the door shut")
 	}
 	nothing(t, "the one too many", bare.ask("GET", contract.RouteTeam, nil, nil))
-	nothing(t, "the right pass at the shut door", good.ask("GET", contract.RoutePair, nil, nil))
+	if w := good.ask("GET", contract.RoutePair, nil, nil); w.Code != http.StatusOK {
+		t.Errorf("the right pass at the shut door: %d", w.Code)
+	}
 	if !strings.Contains(b.ask("GET", contract.RouteTeam, nil, nil).Body.String(), item) {
 		t.Error("the door shut and the laptop's page has no item")
 	}
 	var st status
-	w := b.ask("GET", routeOwn+"status?"+contract.FieldCode+"="+newCode(b.s.key, "status", contract.Now()), nil, nil)
+	w = b.ask("GET", routeOwn+"status?"+contract.FieldCode+"="+newCode(b.s.key, "status", contract.Now()), nil, nil)
 	if err := json.Unmarshal(w.Body.Bytes(), &st); err != nil || st.Refused != "no pass" || !st.Shut.Equal(contract.Now()) {
 		t.Errorf("the status after the door shut: %v %+v", err, st)
 	}
+	// Refusals at the shut door are refused and no more: they neither keep
+	// the right pass out nor shut the door for longer.
+	for i := range 2 * refusalsMost {
+		nothing(t, "at the shut door, request "+strconv.Itoa(i+1), bare.ask("GET", contract.RouteTeam, nil, nil))
+	}
 	b.p.Clock(shutFor - time.Second)
-	nothing(t, "the right pass a second before the minute is over", good.ask("GET", contract.RoutePair, nil, nil))
+	if w := good.ask("GET", contract.RoutePair, nil, nil); w.Code != http.StatusOK {
+		t.Errorf("the right pass a second before the minute is over: %d", w.Code)
+	}
+	w = b.ask("GET", routeOwn+"status?"+contract.FieldCode+"="+newCode(b.s.key, "status", contract.Now()), nil, nil)
+	if err := json.Unmarshal(w.Body.Bytes(), &st); err != nil || !st.Shut.Equal(contract.Now().Add(time.Second-shutFor)) {
+		t.Errorf("the status after refusals at the shut door: %v %+v", err, st)
+	}
 	b.p.Clock(time.Second)
 	if w := good.ask("GET", contract.RoutePair, nil, nil); w.Code == http.StatusForbidden {
 		t.Error("the door stayed shut after its minute")
 	}
 	// The refusals of an old minute do not count towards a new one.
+	good.cookie = nil // its number will have run out: it asks as a new phone
 	for range refusalsMost {
 		bare.ask("GET", contract.RouteTeam, nil, nil)
 	}
