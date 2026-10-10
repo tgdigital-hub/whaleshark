@@ -25,6 +25,8 @@ Target, Change, Constraints, Ownership, Acceptance. Then:
 - `--check` is required: the command that proves the work. Write `--check none` only when no
   command can prove it, never to save effort.
 - `--after T1,T2` makes a task wait for others. `--owns` says which files it may change.
+- `--browser-check` marks work that must be seen in a browser. Its worker saves screenshots, and
+  `show` lists them: read each against the brief before `accept`, which is refused without one.
 - In a git project every task gets a copy of the code of its own, on its own branch, made at
   `start` from the work collected so far. `--shared` or `--cwd DIR` puts a task in a folder with
   others, where nothing protects one worker's files from another. Either way give tasks that run
@@ -68,9 +70,8 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   read the brief: when a start fails twice the same way, stop and `whaleshark need todo "<why>"`.
   A failed or cancelled task's copy goes only with `whaleshark close T3 --discard`.
 - A start that ends "at a prompt" in a project nobody has opened in Claude Code: the agent asks
-  whether it trusts the folder, and only the person can say. The cure is theirs and is needed
-  once: they start an agent in the project's own folder and say yes. After that no copy of the
-  code is asked about; then `whaleshark start T3 --retry`.
+  whether it trusts the folder. Only the person can say, and once is enough: they start an agent
+  in the project's own folder and say yes. Then `whaleshark start T3 --retry`.
 - `overlap`, `scope`: see "When tasks touch the same files".
 - `stale`, `overtime`: a worker has sent no note for half an hour, or works past the task's time.
   Nothing was stopped. Look with `whaleshark show T3 --screen`, then `tell` it or `stop` it.
@@ -80,13 +81,12 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   the file as it stands. If the work needs it, ask as for the run's check below. A `land` or an
   `accept` of several refused with this word ran and moved nothing: the project's `[land] check`
   waits for the person's approval. Ask for it as below; do not land round it.
-- `stuck`: nothing can run, because a task waits on one that failed or was cancelled. Edit, reset
-  or cancel.
+- `stuck`: nothing can run: a task waits on one that failed or was cancelled. Edit, reset or cancel.
+- `upgraded`: the program was upgraded under the job. Nothing is lost: start `wait` again.
 - `paused`: the person pressed Stop all. Start nothing and change nothing until `resumed`. You
   may still read, and talk with the person. `still_running` names a worker that works on through
   the pause; it stops at its next whaleshark command, and `whaleshark stop T3` ends it now.
-- `land_failed`: the check of the collected work failed when the person landed it. Read the
-  log it names, and plan the task that mends it.
+- `land_failed`: the collected work's check failed at the landing. Read its log and plan the mend.
 
 ## Several results at once
     whaleshark accept T1 T2 T3
