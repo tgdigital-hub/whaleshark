@@ -26,6 +26,17 @@ const (
 // machine and under the race detector, where each hook takes a second.
 const wait = 30 * time.Second
 
+// shows waits until the pane shows a text: a state can be known before the
+// lines printed just ahead of it are read.
+func shows(t *testing.T, p *pane, text string) {
+	t.Helper()
+	for end := time.Now().Add(wait); !strings.Contains(p.Text(), text); time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatalf("the pane does not show %q:\n%s", text, p.Text())
+		}
+	}
+}
+
 func pasted(text string) string { return pasteOpen + text + pasteClose + "\r" }
 
 // typedAs reports whether what was typed is the text, once, and its Enter:
@@ -479,15 +490,13 @@ func TestTheEnterWaitsForTheText(t *testing.T) {
 	if got := p.wasTyped(); !typedAs(got, "Read and follow a file") {
 		t.Errorf("typed %q", got)
 	}
+	shows(t, p, "did: Read and follow a file")
 	s.reach(t, idle, wait)
-	if text := p.Text(); !strings.Contains(text, "did: Read and follow a file") {
-		t.Errorf("the agent did not get its prompt whole:\n%s", text)
-	}
 	// A pointer goes the same way.
 	if err := w.Point(contract.PointMail, ""); err != nil {
 		t.Fatalf("a pointer for the same agent: %v", err)
 	}
-	s.reach(t, idle, wait)
+	shows(t, p, "did: whaleshark: a message is waiting")
 	if got := strings.Count(p.wasTyped(), pasteOpen); got != 2 {
 		t.Errorf("%d texts typed for two", got)
 	}
@@ -508,10 +517,7 @@ func TestEnterAgainForATextThatLiesThere(t *testing.T) {
 	if got := p.wasTyped(); !typedAs(got, "hello") || strings.Count(got, "\r") < 3 {
 		t.Errorf("typed %q", got)
 	}
-	s.reach(t, idle, wait)
-	if text := p.Text(); !strings.Contains(text, "did: hello") {
-		t.Errorf("the agent got\n%s", text)
-	}
+	shows(t, p, "did: hello")
 }
 
 // An agent that never takes the Enter: a few are pressed and no more, the

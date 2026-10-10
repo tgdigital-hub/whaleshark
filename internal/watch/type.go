@@ -121,7 +121,7 @@ func (w *Watcher) typed(text string, timeout time.Duration, enough func(State) b
 		if err := enter(true, from, againAfter); err != nil {
 			return err
 		}
-		shown, from, err = w.open()
+		shown, _, err = w.open()
 	}
 	if w.lies = ""; err != nil {
 		return err
