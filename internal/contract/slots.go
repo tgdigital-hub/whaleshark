@@ -2,6 +2,7 @@ package contract
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strconv"
 )
@@ -57,6 +58,9 @@ func ReadSlots(read func(path string) ([]byte, error), stateDir string) ([]Slot,
 // reads the list, lets fn change it and writes it back.
 func changeSlots(p Platform, fn func(taken []Slot) ([]Slot, error)) error {
 	dirs, err := p.Dirs()
+	if err == nil {
+		err = os.MkdirAll(dirs.State, 0o700) // a login's first task finds no folder yet
+	}
 	if err != nil {
 		return err
 	}

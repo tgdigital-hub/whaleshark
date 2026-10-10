@@ -8,10 +8,10 @@
 # contract: 460 more for the engine: the picture, a pane's terminal, the
 # socket's frame and messages, the settings. 240 of them were planned in the
 # keeper, the adapter and the restore, which are smaller by as much.
-# 440 more at the start of phase 2, built at 3,229: the port slots and the
+# 440 more at the start of phase 2, built at 3,233: the port slots and the
 # trust record with their one writer each, the calls on the three interfaces
 # of the code's own copies, a sync's count and words, the plan and the
-# messages of the view model. The 71 left are for the contracts of phase 3.
+# messages of the view model. The 67 left are for the contracts of phase 3.
 # screen pays, see there.
 lines 3300 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
