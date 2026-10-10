@@ -43,6 +43,7 @@ printf 'END %%d\r\n' $i; printf %%d $i > "$0"; exec sleep 86411`
 	)
 	kit := login(t)
 	pty.Plug(kit)
+	kit.Pty = tapped(kit.Pty)
 	t.Setenv("SHELL", "/bin/sh")
 	k, err := open(kit)
 	if err != nil {
@@ -112,6 +113,7 @@ printf 'END %%d\r\n' $i; printf %%d $i > "$0"; exec sleep 86411`
 		if got != want || lines == 0 || n < 2 || text[n-1] != last || text[n-2] != fmt.Sprintf("%08d %s", lines-1, words) {
 			t.Errorf("%s: the shell printed %d lines, which is %d bytes, and the keeper read %d (%+d); the program in front %s; the screen ends with %q",
 				id, lines, want, got, int64(got-want), front, text[max(n-2, 0):])
+			t.Log(told(file(i), words))
 			wait = time.Second // the next pane says the same sooner
 		}
 		total += got
