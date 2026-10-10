@@ -66,6 +66,10 @@ type watcher struct {
 	files map[string]fs.FileInfo // each watched file as last seen; nil when absent
 	// unheard are changes the last check found where a notice was due.
 	unheard map[string]bool
+	// found is when a look found a file changed, and told of it, before the
+	// file's own notice came: where the system names files that notice is
+	// still on its way, and it is of the change already told.
+	found map[string]time.Time
 }
 
 // watch reports every change to the named files and to the entries of the
@@ -73,7 +77,7 @@ type watcher struct {
 // notices, and takes their place four times a second once one has failed.
 func watch(n notifier, paths []string) *watcher {
 	w := &watcher{n: n, out: make(chan string), done: make(chan struct{}),
-		dirs: map[string]*folder{}, files: map[string]fs.FileInfo{}, unheard: map[string]bool{}}
+		dirs: map[string]*folder{}, files: map[string]fs.FileInfo{}, unheard: map[string]bool{}, found: map[string]time.Time{}}
 	for _, p := range paths {
 		p = filepath.Clean(p)
 		d := filepath.Dir(p)
@@ -128,7 +132,15 @@ func (w *watcher) run() {
 			}
 			if f := w.dirs[filepath.Dir(p)]; f != nil {
 				delete(w.unheard, p)
-				if _, named := w.files[p]; (named || f.whole) && (w.see(p) || w.n.exact() && inside == nil) {
+				// One change is told once. Windows names a folder when
+				// something changed inside it, so a look into a watched
+				// folder can find a file's change before the file is named;
+				// the one notice that then names it, with nothing new to
+				// see, is not told again.
+				at, ahead := w.found[p]
+				delete(w.found, p)
+				ahead = ahead && time.Since(at) < checkEvery
+				if _, named := w.files[p]; (named || f.whole) && (w.see(p) || w.n.exact() && inside == nil && !ahead) {
 					w.tell(p)
 				}
 			}
@@ -196,6 +208,9 @@ func (w *watcher) scan(d string, f *folder) []string {
 	for _, p := range w.entries(d, f) {
 		if w.see(p) {
 			changed = append(changed, p)
+			if w.n.exact() {
+				w.found[p] = time.Now()
+			}
 			w.tell(p)
 		}
 	}

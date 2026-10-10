@@ -284,6 +284,7 @@ func (s *server) own(w http.ResponseWriter, r *http.Request, word string, now ti
 	st := status{Running: word != "stop", Socket: s.sock, Version: contract.Version, Since: s.since,
 		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran, Door: s.port, Caller: s.caller, Refused: s.why, Pass: s.shape, Shut: s.shut, Decided: decided}
 	s.mu.Unlock()
+	// #nosec G117 -- "pass" is the heading and the field names of a signed pass, never a value of its fields nor the pass itself
 	json.NewEncoder(w).Encode(st)
 	if word == "stop" {
 		http.NewResponseController(w).Flush()
