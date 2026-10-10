@@ -117,6 +117,7 @@ var ValueRules = []ValueRule{
 	{Value: "attempt", Pattern: `^[A-Za-z0-9_][A-Za-z0-9_-]{0,15}\.[0-9]{1,9}$`},
 	{Value: "pane", Max: 64, Pattern: `^[A-Za-z0-9][A-Za-z0-9:._-]*$`},
 	{Value: "agent", Max: 32, Pattern: `^[a-z][a-z0-9_-]*$`},
+	{Value: "model", Max: 64, Pattern: `^[^-]`, OneLine: true}, // an argument on the agent's command line: never the form of an option
 	{Value: "slug", Pattern: `^[a-z0-9-]+$`},
 	{Value: "path", Inside: true, OneLine: true},
 	{Value: "text"},

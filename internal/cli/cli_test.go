@@ -475,6 +475,7 @@ func TestValid(t *testing.T) {
 		{"name", "a name that is far too long", false}, {"name", "   ", false},
 		{"task", "T3", true}, {"task", "sign-up page", true}, {"task", "-x", false}, {"name", "-x", false}, {"name", "x -y", true}, {"task", "a\tb\x00", false},
 		{"agent", "claude", true}, {"agent", "Claude", false}, {"agent", "-claude", false},
+		{"model", "opus[1m]", true}, {"model", "--dangerously-skip-permissions", false}, {"model", "-m", false}, {"model", "a\nb", false},
 		{"slug", "url-parser", true}, {"slug", "url parser", false},
 		{"number", "540", true}, {"number", "-5", false}, {"number", "1e3", false},
 		{"attempt", "T3.2", true}, {"attempt", "T3", false}, {"attempt", "T3.2.1", false}, {"attempt", "../T3.2", false},

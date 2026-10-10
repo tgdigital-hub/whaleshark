@@ -84,7 +84,7 @@ func parse(cmd *contract.Command, argv []string) (parsed, *contract.Refusal) {
 // is not listed is free text, which is stored and never run.
 var kinds = map[string]string{
 	"ID": "id", "QID": "id", "T": "task", "A,B": "task", "KIND": "agent", "KIND,...": "agent",
-	"N": "number", "SEC": "number", "PATTERN,...": "path", "DIR": "path",
+	"N": "number", "SEC": "number", "PATTERN,...": "path", "DIR": "path", "M": "model",
 }
 
 // check passes every flag value through the validator. A path is checked
