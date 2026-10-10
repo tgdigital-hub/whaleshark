@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -436,7 +437,12 @@ func TestSync(t *testing.T) {
 		!strings.Contains(out, "Sent to T1 as message") {
 		t.Fatalf("after sync: synced %d, brief %q, mail %+v, printed:\n%s", t1.Synced, t1.SyncBrief, mail, out)
 	}
-	for _, w := range []string{"whaleshark/r1", "1 commits behind", "add/add", "helper.txt", "content", "alpha.txt"} {
+	// The words are the guide's; held here are the facts the scan gave it.
+	behind := regexp.MustCompile(`(?m)^Commits behind:\s+1$`)
+	if !behind.Match(text) {
+		t.Fatalf("the brief does not say one commit behind:\n%s", text)
+	}
+	for _, w := range []string{"whaleshark/r1", "add/add", "helper.txt", "content", "alpha.txt"} {
 		if !strings.Contains(string(text), w) {
 			t.Fatalf("the brief lacks %q:\n%s", w, text)
 		}
