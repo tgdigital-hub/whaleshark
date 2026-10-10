@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -122,8 +123,11 @@ func (e *exam) nudge() {
 	}
 	if cfg.Notify.URL != "" && !cfg.Nudge.Phone {
 		e.say(note, "whaleshark set nudge.phone on", "an address for your phone is set and nudge.phone is off: nothing is sent there")
-	} else if cfg.Notify.URL == "" && cfg.Nudge.Phone {
-		e.say(note, "", "nudge.phone is on and no address is set under [notify] in your %s: only a phone paired with the page is nudged", contract.ConfigFile)
+	} else if phones, _ := contract.ReadPhones(p.Peek, e.dirs.State); cfg.Notify.URL == "" && cfg.Nudge.Phone && e.c.Flags["notify"] != nil &&
+		!slices.ContainsFunc(phones.Paired, func(ph contract.Phone) bool { return ph.Push != nil }) {
+		// The switch is on from the start, so this is said only to a person
+		// who asks about nudges, and only while nothing would reach a phone.
+		e.say(note, "", "nudge.phone is on, but no address is set under [notify] in your %s and no paired phone has asked for nudges: nothing reaches a phone", contract.ConfigFile)
 	}
 	if e.c.Flags["notify"] == nil {
 		return

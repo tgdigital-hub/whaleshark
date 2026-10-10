@@ -617,8 +617,18 @@ func TestNotify(t *testing.T) {
 	if e, _ = d.doctor(); len(d.terms.shown) != 2 || len(d.nudges.sent) != 2 || e.line("test nudge") != nil {
 		t.Error("a nudge was sent without --notify")
 	}
-	e, _ = d.doctor()
-	d.want(e, note, "nudge.phone is on and no address is set", "only a phone paired with the page")
+	// nudge.phone is on from the start: a fresh login is told nothing of it,
+	// and one that asks about nudges is told while nothing reaches a phone.
+	d.write(filepath.Join(d.dirs.Config, contract.ConfigFile), "")
+	if e, _ = d.doctor(); e.line("nudge.phone") != nil {
+		t.Errorf("a fresh login is told of nudge.phone:\n%s", e.text())
+	}
+	e, _ = d.doctor("notify")
+	d.want(e, note, "nudge.phone is on, but no address is set", "no paired phone has asked for nudges")
+	d.write(filepath.Join(d.dirs.State, contract.PhonesFile), `{"version":1,"paired":[{"id":"ph1","name":"iPhone","session":"x","paired_at":"2026-10-08T21:00:00Z","push":{"endpoint":"https://push.example/1","p256dh":"k","auth":"a"}}]}`)
+	if e, _ = d.doctor("notify"); e.line("nudge.phone") != nil {
+		t.Errorf("with a paired phone that asked for nudges:\n%s", e.text())
+	}
 	d.write(filepath.Join(d.dirs.Config, contract.ConfigFile), "[nudge]\nphone = false\n[notify]\nurl = \"https://notices.example/x\"\n")
 	e, _ = d.doctor()
 	d.want(e, note, "an address for your phone is set and nudge.phone is off", "whaleshark set nudge.phone on")
