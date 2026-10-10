@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 
+	"golang.org/x/term"
+
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/guide"
@@ -42,11 +44,21 @@ func (i *setting) say(format string, a ...any) {
 }
 
 // ask puts a question to a person at a terminal and returns the line typed.
-func (i *setting) ask(question string) string {
+// Where standard input is no terminal and holds nothing, nobody is there:
+// the question is not printed, and ok says that it was not answered.
+func (i *setting) ask(question string) (answer string, ok bool) {
+	f, file := i.c.Stdin.(*os.File)
+	if !file || !term.IsTerminal(int(f.Fd())) {
+		if _, err := i.in.Peek(1); err != nil {
+			return "", false
+		}
+	}
 	fmt.Fprint(i.c.Err, question)
 	line, _ := i.in.ReadString('\n')
-	return strings.TrimSpace(line)
+	return strings.TrimSpace(line), true
 }
+
+func yes(answer string, _ bool) bool { return strings.EqualFold(answer, "yes") }
 
 // record reads a record, or with write replaces it; an empty one is deleted.
 func (i *setting) record(path string, in *contract.Installed, write bool) error {
@@ -188,8 +200,10 @@ func (i *setting) project() error {
 		for _, row := range guide.Files {
 			known = append(known, row.Kind)
 		}
-		answer := i.ask("Which agent tools do you use here? (" + strings.Join(known, ", ") + "; several with commas, none with Enter) ")
-		kinds = strings.FieldsFunc(answer, func(r rune) bool { return r == ',' || r == ' ' })
+		answer, ok := i.ask("Which agent tools do you use here? (" + strings.Join(known, ", ") + "; several with commas, none with Enter) ")
+		if kinds = strings.FieldsFunc(answer, func(r rune) bool { return r == ',' || r == ' ' }); !ok {
+			i.say("no agent tool was set up: nobody is at a terminal to say which. It is set up with `whaleshark init --agent KIND`")
+		}
 	}
 	for _, kind := range kinds {
 		if err = cli.Valid("agent", kind, ""); err != nil {
@@ -311,7 +325,7 @@ func (i *setting) keys(person, reachable bool) error {
 		i.say("They are written when the person runs `whaleshark init --keys` in a terminal of their own and says yes.")
 	case !reachable:
 		i.say("They are not written while the engine is not running: run `whaleshark open` first.")
-	case !strings.EqualFold(i.ask("Write them into your WhaleShark settings? (yes/no) "), "yes"):
+	case !yes(i.ask("Write them into your WhaleShark settings? (yes/no) ")):
 		i.say("Nothing was written.")
 	default:
 		if err = i.c.Kit.Terms.SetKeys(entries); err == nil {

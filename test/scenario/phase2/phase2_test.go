@@ -16,6 +16,10 @@ func TestTasksInTheirOwnCopies(t *testing.T) { scenario.Run(t, "8c-own-copies.sc
 // Two tasks on one file, from the scan to the sync and the landing (8f).
 func TestTwoTasksOnOneFile(t *testing.T) { scenario.Run(t, "8f-one-file.scn", nil) }
 
+// The same where the second worker has reported: sync sends its result back
+// with the brief, and the same worker mends it with no person and no retry.
+func TestTwoTasksOnOneFileBothReported(t *testing.T) { scenario.Run(t, "8f-reported.scn", nil) }
+
 // A setup line of the project is run only while it is what the person approved.
 func TestASetupIsRunOnlyOnceApproved(t *testing.T) { scenario.Run(t, "trust-setup.scn", nil) }
 

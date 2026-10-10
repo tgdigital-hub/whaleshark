@@ -67,8 +67,9 @@ func run(c *contract.Call) (any, error) {
 			launch.Leave(k, s)
 			kept, err = k.Placement.Forget(c.Root, s)
 		}
+		unlanded := ""
 		if err == nil {
-			err = k.Integrator.Drop(c.Root, s)
+			unlanded, err = k.Integrator.Drop(c.Root, s)
 		}
 		if err == nil {
 			root := k.Platform.PathKey(c.Root)
@@ -79,6 +80,9 @@ func run(c *contract.Call) (any, error) {
 		}
 		for _, branch := range kept {
 			fmt.Fprintf(c.Out, "Kept, not proven merged: %s\n", cli.Plain(branch))
+		}
+		if unlanded != "" {
+			fmt.Fprintf(c.Out, "Kept, it holds accepted work that was not landed: %s\n", cli.Plain(unlanded))
 		}
 	case "takeover":
 		said = "bound to this tab"
@@ -165,10 +169,17 @@ func runNew(c *contract.Call, objective string, runs []string) (any, error) {
 	if name := last(c, "base"); name != "" {
 		base = &contract.GitRef{Ref: name}
 	}
-	s := k.Rules.NewRun("r"+strconv.Itoa(n), objective, limit, base, by, c.Now)
 	// Where the project has git, accepted work is collected on a branch of
 	// the run's own, which begins at the base: land needs both written down.
-	base, in, err := k.Integrator.Begin(c.Root, s)
+	// A number whose branch a removed run left with work on it is passed over.
+	var s *contract.State
+	var in *contract.Integration
+	for taken, named := new(*contract.Refusal), base; ; n++ {
+		s = k.Rules.NewRun("r"+strconv.Itoa(n), objective, limit, named, by, c.Now)
+		if base, in, err = k.Integrator.Begin(c.Root, s); !errors.As(err, taken) || (*taken).Code != "branch_exists" {
+			break
+		}
+	}
 	if err == nil && in != nil {
 		s.Run.Base = base
 		err = k.Rules.Integrated(s, *in)

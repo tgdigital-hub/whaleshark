@@ -128,7 +128,7 @@ func cannot(format string, a ...any) *contract.Refusal {
 }
 
 // place opens and closes our two panes beside the pane the command was run
-// in, and in no other tab. want says, for one of ours and whether it is open,
+// in; one that is open in another tab is closed there first. want says, for one of ours and whether it is open,
 // whether it shall be. A pane counts as ours only while the keeper marks it
 // as a pane program of ours; nothing else is ever closed.
 func place(c *contract.Call, want func(kind string, open bool) bool) (any, error) {
@@ -164,7 +164,13 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 		case !o.open:
 			*o.pane = ""
 		case p.Tab != panes[me].Tab:
-			return nil, cannot("The panes are open in another tab (%s): run `whaleshark ui close` there first.", p.Label)
+			// The panes belong beside the conversation this is run in: the
+			// lead agent of a new tab cannot type into the old one, so a pane
+			// of ours there is closed here, and opened again below if wanted.
+			if err := k.Terms.PaneClose(p.ID); err != nil {
+				return nil, err
+			}
+			*o.pane, o.open = "", false
 		case o.kind == fleet:
 			if w, _, err := k.Terms.Size(p.ID); err == nil && w > 0 {
 				ui.FleetWidth = w

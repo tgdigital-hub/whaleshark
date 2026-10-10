@@ -154,7 +154,7 @@ func TestTellPointer(t *testing.T) {
 		{[]string{"tell", "T3", "x", "--now"}, "typed", ""},
 		{[]string{"tell", "T12", "x", "--quiet"}, "skipped", "--quiet"},
 		{[]string{"tell", "T12", "x"}, "typed", ""},
-		{[]string{"tell", "T7", "x"}, "skipped", "sent back"},
+		{[]string{"tell", "T7", "x"}, "skipped", `sent back: whaleshark reject T7 "<why>"`},
 		{[]string{"tell", "T5", "x", "--now"}, "deferred", "started"},
 	} {
 		a, exit := run(t, p, scenario.Orch, c.args...)

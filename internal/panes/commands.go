@@ -35,7 +35,13 @@ func ui(c *contract.Call) (any, error) {
 			return nil, err
 		}
 		defer t.Close()
-		p := newPane(cmp.Or(a[1], menu), t, c.Kit, c.Root, c.Run, contract.Now)
+		// Only a run that was named is held to: a pane of the lead agent's
+		// tab shows whichever run that agent drives, also the next one.
+		run := ""
+		if c.Flags["run"] != nil {
+			run = c.Run
+		}
+		p := newPane(cmp.Or(a[1], menu), t, c.Kit, c.Root, run, contract.Now)
 		if p.self, _ = c.Kit.Platform.SelfPath(); p.loop() {
 			t.Close()
 			return nil, again(p.self)
@@ -76,8 +82,8 @@ func again(self string) error {
 }
 
 // Run draws one pane, "fleet" or "actions", on a terminal until its input
-// ends or the person leaves. With no run named it shows the project's
-// current one. A button starts the program WHALESHARK_BIN names, and with
+// ends or the person leaves. With no run named it shows the run of the lead
+// agent in its own tab, and with none there the project's current one. A button starts the program WHALESHARK_BIN names, and with
 // none it starts nothing: a pane inside a test never runs the test again.
 func Run(kind string, t *term.Term, k *contract.Kit, root, run string) {
 	p := newPane(kind, t, k, root, run, contract.Now)

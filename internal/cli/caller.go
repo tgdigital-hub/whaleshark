@@ -194,6 +194,27 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	return nil
 }
 
+// Parked is what a person is told whose commands go to no run while runs are
+// open in the project: a run opened with --park, or by an agent's tab, moves
+// nobody's pointer. It names them and the command that goes to each. With no
+// run open, or for another caller, it is empty.
+func Parked(c *contract.Call) (message string, next []string) {
+	if c.Run != "" || c.Caller.Kind != contract.Human {
+		return "", nil
+	}
+	r, open := c.Kit.Reader(), []string{}
+	runs, _ := r.Runs(c.Root)
+	for _, id := range runs {
+		if s, err := r.Read(c.Root, id); err == nil && s.Run.ClosedAt.IsZero() {
+			open, next = append(open, id), append(next, "whaleshark run use "+id+" --human")
+		}
+	}
+	if next != nil {
+		message = "Your commands go to no run, and this project has open ones: " + strings.Join(open, ", ") + ". Say which one you mean."
+	}
+	return message, next
+}
+
 // permit refuses a command, a form of it or a flag that the table does not
 // mark for this caller.
 func permit(c *contract.Call, sub string) *contract.Refusal {

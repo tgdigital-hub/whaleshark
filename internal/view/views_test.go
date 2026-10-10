@@ -406,3 +406,31 @@ func TestHostileViews(t *testing.T) {
 		}
 	}
 }
+
+// A clash that was sorted is in no scan any more: the run keeps the findings
+// of its last scan only. The block still counts it, from the event that told
+// of it, read as it was raised and as the record hands it back.
+func TestCatchupCountsAClashThatWasSorted(t *testing.T) {
+	for _, read := range []bool{false, true} {
+		f := hour(t)
+		s := &f.State
+		var clash contract.Finding
+		for _, x := range s.Run.Findings {
+			if len(x.Tasks) == 2 {
+				clash = x
+			}
+		}
+		data := map[string]any{"kind": "overlap", "tasks": clash.Tasks, "files": clash.Files}
+		if read {
+			data["tasks"], data["files"] = []any{clash.Tasks[0], clash.Tasks[1]}, []any{clash.Files[0]}
+		}
+		s.Run.Findings = nil
+		s.Inbox.Events = append(s.Inbox.Events, contract.Event{Kind: "overlap", At: f.UI.LastHere.Add(time.Minute), Data: data})
+		c, out, _, _ := view(t, f, "catchup", contract.Orchestrator)
+		t.Setenv("COLUMNS", "120")
+		run(t, c)
+		if got := out.String(); got != block {
+			t.Errorf("read back %v: the block differs\n%s", read, diff(block, got))
+		}
+	}
+}

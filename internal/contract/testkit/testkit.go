@@ -101,6 +101,7 @@ var AgentSteps = map[string]string{
 	"die":               `die                    exit without reporting`,
 	"hang":              `hang                   stay idle`,
 	"block":             `block                  the pane's agent is at a prompt`,
+	"rest":              `rest                   stay idle until a line is typed in the tab, then go on`,
 	"edit":              `edit <file>`,
 	"commit":            `commit`,
 	"merge":             `merge <branch>         merge it in, keeping both sides' lines where the two clash`,

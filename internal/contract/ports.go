@@ -354,8 +354,10 @@ type Integrator interface {
 	// Diff is what a task changed against the collected work, or with stat
 	// one line a file.
 	Diff(root string, s *State, task string, stat bool) (string, error)
-	// Drop removes the branch of a closed run once it was landed.
-	Drop(root string, s *State) error
+	// Drop removes the run's own copy of the code and the branch of a
+	// closed run that was landed or holds nothing; a branch with work that
+	// was not landed stays and is named.
+	Drop(root string, s *State) (kept string, err error)
 }
 
 // Finding is one result of an overlap scan, kept on the run once announced.
@@ -540,7 +542,7 @@ func (NoIntegrator) Prepare(string, *State, string) (Checked, error)         { r
 func (NoIntegrator) PrepareAll(string, *State, []string) ([]Checked, error)  { return nil, ErrNotBuilt }
 func (NoIntegrator) Collect(string, *State, string, Checked) (string, error) { return "", nil }
 func (NoIntegrator) Diff(string, *State, string, bool) (string, error)       { return "", ErrNotBuilt }
-func (NoIntegrator) Drop(string, *State) error                               { return nil }
+func (NoIntegrator) Drop(string, *State) (string, error)                     { return "", nil }
 
 func (NoOverlap) Scan(context.Context, string, *State, []string, bool) ([]Finding, error) {
 	return nil, nil

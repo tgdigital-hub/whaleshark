@@ -176,10 +176,20 @@ func TestUIActsInItsOwnTabOnlyAndOnItsOwnPanesOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	d.did()
-	for _, args := range [][]string{nil, {"close"}, {"fleet"}} {
-		if _, err := d.ui(other.ID, args...); usage(err) != contract.ExitEnv || !strings.Contains(err.Error(), "another tab") || d.did() != "" {
-			t.Errorf("ui %v from another tab: %v", args, err)
-		}
+	// From another tab, as a lead agent's after a takeover, the panes come
+	// to it: they are closed where they were, which no agent could do there,
+	// and opened beside the pane that asked.
+	moved, err := d.ui(other.ID)
+	if got := d.did(); err != nil || moved.Fleet == "" || moved.Fleet == o.Fleet || moved.Actions == o.Actions ||
+		!strings.HasPrefix(got, "pane-close "+o.Fleet+"\npane-close "+o.Actions+"\nsplit "+other.ID+" right") {
+		t.Errorf("ui from another tab: %+v, %v\n%s", moved, err, got)
+	}
+	// Closing from the first tab closes them where they are now.
+	if none, err := d.ui(d.me, "close"); err != nil || none != (Opened{}) || d.did() != "pane-close "+moved.Fleet+"\npane-close "+moved.Actions {
+		t.Errorf("ui close from another tab than the panes': %+v, %v", none, err)
+	}
+	if o, err = d.ui(d.me); err != nil {
+		t.Fatal(err)
 	}
 
 	// After a restart of the keeper our panes are back and still ours:

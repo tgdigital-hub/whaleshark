@@ -143,7 +143,7 @@ func (g integrator) Prepare(root string, s *contract.State, task string) (contra
 	if waiting != "" {
 		return contract.Checked{}, refuse(contract.ExitRefused, "uncommitted", fmt.Sprintf(
 			"%s has %d files that are not committed, or not known to git. Its worker commits or removes them first.", task, strings.Count(waiting, "\n")+1),
-			"whaleshark tell "+task+` "commit your work, or remove what does not belong to it"`)
+			"whaleshark reject "+task+` "commit your work, or remove what does not belong to it"`)
 	}
 	head, err := at(dir, "HEAD")
 	c := contract.Checked{Dir: dir, OID: head, Tip: tip}
@@ -288,33 +288,47 @@ func (g integrator) Diff(root string, s *contract.State, task string, stat bool)
 	return out, nil
 }
 
-func (g integrator) Drop(root string, s *contract.State) error {
+func (g integrator) Drop(root string, s *contract.State) (kept string, err error) {
 	in := s.Run.Integration
 	if in == nil {
-		return nil
+		return "", nil
 	}
+	if err := g.clear(root, s); err != nil || s.Run.ClosedAt.IsZero() {
+		return "", err
+	}
+	// Git deletes the branch only where it still stands at what was landed,
+	// or at the run's base, where nothing was ever collected on it. Work
+	// collected and not landed is kept, and said.
+	if in.Landed != "" {
+		git(root, "update-ref", "-d", ref(in.Branch), in.Landed)
+	} else if s.Run.Base != nil && s.Run.Base.OID != "" {
+		git(root, "update-ref", "-d", ref(in.Branch), s.Run.Base.OID)
+	}
+	if _, err := at(root, ref(in.Branch)); err == nil {
+		kept = in.Branch
+	}
+	return kept, nil
+}
+
+// clear takes the run's own copy of the code away, and its entry in git's
+// list of worktrees with it.
+func (g integrator) clear(root string, s *contract.State) error {
 	dir, err := g.scratch(root, s)
 	if err != nil {
 		return err
 	}
 	git(root, "worktree", "remove", "--force", dir)
 	os.Remove(dir + ready)
-	if err := os.RemoveAll(dir); err != nil {
-		return err
-	}
-	// Git deletes the branch only where it still stands at what was landed:
-	// work collected since is kept.
-	if !s.Run.ClosedAt.IsZero() && in.Landed != "" {
-		git(root, "update-ref", "-d", ref(in.Branch), in.Landed)
-	}
-	return nil
+	err = os.RemoveAll(dir)
+	git(root, "worktree", "prune")
+	return err
 }
 
 // ready is the ending of the file beside the run's copy that says it was set up.
 const ready = ".ready"
 
 // scratch names the run's own copy of the code: a folder in the login's
-// private cache, kept from the first use until Drop.
+// private cache, kept from the first use until a landing or Drop.
 func (g integrator) scratch(root string, s *contract.State) (string, error) {
 	dirs, err := g.k.Platform.Dirs()
 	sum := sha256.Sum256([]byte(g.k.Platform.PathKey(root)))

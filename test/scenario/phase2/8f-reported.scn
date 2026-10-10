@@ -1,0 +1,34 @@
+# 8f where the second worker has already reported, which is the common case:
+# both tasks change one file and both report. The first is accepted; the
+# second no longer merges. sync sends its result back with the brief and
+# types the line that says a message waits, the same worker merges the
+# collected work in, keeps both and reports again. No person does anything,
+# and nobody is stopped or started again.
+agent A.1: edit search.txt | commit | write-result | report done "the search box is in"
+agent B.1: edit search.txt | commit | write-result | report done "the search results are in" | rest | mail | merge whaleshark/r1 | write-result | report done "merged, and both kept"
+
+file brief.md: Target: the search page | Change: your part of it | Constraints: none | Ownership: search.txt | Acceptance: the check passes
+file search.txt: the search page
+git
+orch: init
+orch: run new "the search page"                     -> expect r1
+task A "Add the search box" --name "search box" --owns search.txt --check "grep -q A.1 search.txt" --brief brief.md
+task B "Add the search results" --name "search results" --owns search.txt --check "grep -q A.1 search.txt && grep -q B.1 search.txt" --brief brief.md
+orch: start --ready                                 -> expect "(A.1)" "(B.1)"
+await: attempts A.1 reported, B.1 reported
+orch: wait --timeout 10                             -> expect done overlap search.txt
+orch: accept A                                      -> expect "A is done, checked"
+orch: accept B                                      -> expect exit 5 "does not merge with the collected work" "whaleshark sync B"
+term-event idle B
+orch: tell B "the box came first"                   -> expect "Pointer skipped" 'whaleshark reject B "<why>"'
+orch: sync B                                        -> expect "Sent to B" "1 kind of clash" "its result was sent back with the brief" "Pointer typed"
+await: B.1 round 1 state reported
+orch: wait --ack last --timeout 10                  -> expect done "merged, and both kept"
+orch: overlap                                       -> expect "everything lands"
+orch: accept B                                      -> expect "B is done, checked"
+orch: close --settled
+orch: wait --ack last --timeout 0
+human: land --local                                 -> expect "main"
+orch: run close
+
+assert: A status done; B status done synced 1; attempts A.1 accepted, B.1 accepted; no event lost; no event twice

@@ -139,6 +139,13 @@ func run(c *contract.Call, argv []string) (any, error) {
 		return nil, bad
 	}
 	result, err := h(c)
+	// "No run is open" is not so for a person while runs are open here.
+	var none *contract.Refusal
+	if errors.As(err, &none) && none.Code == "no_run" && strings.HasPrefix(none.Message, "No run is open") {
+		if message, next := Parked(c); next != nil {
+			none.Message, none.Next = message, next
+		}
+	}
 	if deed := cmd.Deed(c.Args); err == nil && deed != "" && c.Caller.Kind == contract.Human {
 		// What the person did to the record is written into it with where the
 		// command says it came from (18.1): a new run's into the new run.

@@ -476,3 +476,44 @@ func TestTaskAddSaysWhenOwnedFilesMeet(t *testing.T) {
 		t.Fatalf("C meets A, B and D:\n%s", out)
 	}
 }
+
+// A run the lead agent opened with --park moves nobody's pointer. The person
+// is not told that no run is open: the open one is named, with the command
+// that turns their commands to it.
+func TestAParkedRunIsNamedToThePerson(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	play(t, p.Command(scenario.Orch, "run", "new", "a shop", "--park"), 0, "Run r1 is open")
+	for _, args := range [][]string{{"status"}, {"catchup"}, {"graph"}, {"log"}, {"team", "save", "five"}, {"land", "--local"}, {"run", "show"}} {
+		cmd := p.Command(scenario.Human, args...)
+		out, _ := cmd.CombinedOutput()
+		if strings.Contains(string(out), "No run is open") || !strings.Contains(string(out), "open ones: r1.") || !strings.Contains(string(out), "whaleshark run use r1 --human") {
+			t.Errorf("%v, exit %d, printed:\n%s", args, cmd.ProcessState.ExitCode(), out)
+		}
+	}
+	// An agent is offered no run of another tab's.
+	play(t, p.Command(scenario.Unbound, "status"), 0, "No run is open in this project")
+	play(t, p.Command(scenario.Human, "run", "use", "r1"), 0, "where your commands go now")
+	play(t, p.Command(scenario.Human, "status"), 0, "r1")
+	// With nothing open the old words stand.
+	play(t, p.Command(scenario.Human, "run", "close"), 0, "closed")
+	play(t, p.Command(scenario.Human, "run", "rm", "r1"), 0, "removed")
+	play(t, p.Command(scenario.Human, "status"), 0, "No run is open in this project", "whaleshark run new")
+}
+
+// init by a person with no terminal and nothing on standard input, as a
+// script or another program runs it: the question about agent tools is put
+// to nobody. It is not printed, and init says that no tool was set up and
+// how one is.
+func TestInitAsksNobodyWhereNobodyIs(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	out := play(t, p.Command(scenario.Human, "init", "--adopt"), 0, "no agent tool was set up", "whaleshark init --agent KIND")
+	if strings.Contains(out, "Which agent tools") {
+		t.Errorf("init asked with nobody there:\n%s", out)
+	}
+	// A line handed in is an answer, and Enter alone is "none".
+	cmd := p.Command(scenario.Human, "init")
+	cmd.Stdin = strings.NewReader("\n")
+	if out := play(t, cmd, 0, "Which agent tools"); strings.Contains(out, "no agent tool was set up") {
+		t.Errorf("an empty answer was taken for nobody there:\n%s", out)
+	}
+}

@@ -14,7 +14,7 @@ It says whose tab this is and what is open. Then:
 - You are the lead agent in another tab than before, and a command is refused as `not_bound`:
   `whaleshark run takeover`.
 - Another tab is the lead agent's: you are a visitor. Read, and change nothing.
-Open the two panes the person watches with `whaleshark ui`. After a restart they come back by themselves.
+`whaleshark ui` opens the two panes the person watches, or brings them to this tab; a restart keeps them.
 
 ## Plan
 One task is one piece of work for one worker. Write its brief as a file with these five headings:
@@ -31,8 +31,7 @@ Target, Change, Constraints, Ownership, Acceptance. Then:
   side by side different files with `--owns`; where two tasks' patterns meet, `task add` says so
   and `--after` is the cure.
 - A set of tasks the person saved as a team is added in one step: `whaleshark team run "<name>"`.
-A task that has not started is changed with `whaleshark task edit` and dropped with
-`whaleshark task cancel`.
+A task not yet started is changed with `whaleshark task edit`, dropped with `whaleshark task cancel`.
 
 ## Hand out, then wait
     whaleshark start T3
@@ -110,10 +109,10 @@ says that a worker changed a file outside its `--owns`. What to do:
 - Only work not yet committed overlaps: `tell` the worker to commit. Never stop a worker for this.
 - A task no longer lands on the collected work: `whaleshark sync T7` now, before it reports done.
 - Two names that differ only in capital letters: `tell` one worker to rename its file.
-- A task that was synced twice because others were accepted first goes next: accept it before any
-  other task that touches its files.
-`sync` sends the worker what to merge in and the rules. The worker mends it in its own copy;
-never you, and never the tool. Worker gone: `whaleshark start T7 --retry` hands the brief on.
+- A task synced twice because others were accepted first goes next, before any other on its files.
+`sync` sends the worker what to merge in and the rules; the worker mends it in its own copy, never
+you and never the tool. A worker that had reported is set to work again by `sync` itself: wait for
+its next `done`. Worker gone: `whaleshark start T7 --retry` hands the brief on.
 
 ## What you need from the person
 All of it goes into the action pane, and none of it into this chat:
@@ -130,8 +129,9 @@ instead, record it with `whaleshark answer n4 "<their words>" --relayed`.
 ## Talking to a worker
     whaleshark tell T3 "The base branch is main."
     whaleshark tell T3 --file notes.md
-Use `--file` for anything longer than a line and for anything private: on a shared machine,
-text on a command line can be seen by others. `whaleshark stop T3` ends a worker.
+Use `--file` for anything longer than a line or private: a command line can be seen by others on a
+shared machine. A worker that has reported is not shown a `tell`: `reject` it with the words.
+`whaleshark stop T3` ends a worker.
 
 ## Looking
 `whaleshark status` is the team at work (`--all` adds what has not started and what is done),

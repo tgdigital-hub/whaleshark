@@ -29,6 +29,14 @@ func TestLandLocal(t *testing.T) {
 		return play(t, r.p.Command(who, "land", "--local"), exit, words...)
 	}
 	main := func() string { return r.git(r.root, "rev-parse", "main") }
+	// The copy the check ran in is for that check alone: git's list of
+	// worktrees does not keep it, however the landing ended.
+	copyGone := func(when string) {
+		t.Helper()
+		if list := r.git(r.root, "worktree", "list"); strings.Contains(list, "-r1 ") {
+			t.Fatalf("after %s the run's copy is still registered:\n%s", when, list)
+		}
+	}
 	base := main()
 
 	play(t, r.p.Command(scenario.Human, "land"), 2, "--pr", "--local")
@@ -62,6 +70,7 @@ func TestLandLocal(t *testing.T) {
 	if log, _ := os.ReadFile(filepath.Join(runDir, "land.log")); !strings.Contains(string(log), "broken") || main() != moved {
 		t.Fatalf("after a failed check main is at %s, the log holds %q\n%s", main(), log, out)
 	}
+	copyGone("a failed check")
 	if s := r.state(); s.Run.Integration.Landed != "" || !strings.Contains(r.kinds(), "land_failed") {
 		t.Fatalf("a failed landing left landed %q and the events %s", s.Run.Integration.Landed, r.kinds())
 	}
@@ -72,6 +81,7 @@ func TestLandLocal(t *testing.T) {
 	land(scenario.Human, 5, "not committed")
 	r.git(r.root, "checkout", "-q", "a.txt")
 	land(scenario.Human, 0, "merged into main")
+	copyGone("the landing")
 	if s := r.state(); main() != tip || s.Run.Integration.Landed != tip || s.Run.Integration.Tip != tip {
 		t.Fatalf("landed: main %s, tip %s, the record %+v", main(), tip, s.Run.Integration)
 	}

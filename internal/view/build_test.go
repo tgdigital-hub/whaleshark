@@ -324,3 +324,33 @@ func whole(in contract.ViewInput) contract.ViewInput {
 	in.All = true
 	return in
 }
+
+// A worker that has reported done sent its last note on the way: its card's
+// bar is full, and goes back to the note's figure when the result is sent back.
+func TestAReportedCardIsFull(t *testing.T) {
+	f, err := testkit.Load(testkit.Evening)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bar := func() int {
+		in := f.Input(contract.Human)
+		in.All = true
+		c := cardOf(Build(in), "T7")
+		if c == nil {
+			t.Fatal("no card of T7")
+		}
+		return c.Progress
+	}
+	a := f.State.Attempts["T7.1"]
+	if a.State != contract.AttemptReported || a.Report == nil {
+		t.Fatalf("the fixture's T7.1 is %s", a.State)
+	}
+	a.Progress = &contract.Progress{Pct: 40, Note: "tests written", At: a.StateSince.Add(-time.Minute)}
+	if got := bar(); got != 100 {
+		t.Errorf("the card of a worker that has reported stands at %d%%", got)
+	}
+	a.Report, a.State = nil, contract.AttemptWorking
+	if got := bar(); got != 40 {
+		t.Errorf("sent back, the card stands at %d%%", got)
+	}
+}
