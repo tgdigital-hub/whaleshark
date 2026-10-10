@@ -294,11 +294,31 @@ type Platform interface {
 	EndTree(cmd *exec.Cmd) error
 }
 
-// Placement decides the folder a task's attempts work in.
+// Placement decides the folder a task's attempts work in, and is every
+// worktree the tool makes. Its callers hold no lock of the store: each
+// result is written down afterwards, with Rules.SetWorktree.
 type Placement interface {
-	// Place returns the folder, creating a worktree when the task has one.
+	// Place returns the folder, creating the worktree of a task that has
+	// none yet and running the project's setup there when it is trusted; w
+	// is nil for a task in a shared folder. start calls it before the
+	// attempt exists, and again for a retry, which changes nothing.
 	Place(root string, s *State, task string) (dir string, w *Worktree, err error)
-	Remove(root string, s *State, task string) error
+	// Remove takes a task's worktree away; without discard it refuses one
+	// that holds work not committed. The branch stays. The record it
+	// returns has RemovedAt set, nil for a task that had none.
+	Remove(root string, s *State, task string, discard bool) (*Worktree, error)
+	// Clean reports whether nothing in a worktree waits to be committed;
+	// a folder that is no worktree of ours is clean.
+	Clean(dir string) (bool, error)
+	// Left counts what git ignores in the project and a new worktree will
+	// not have, with the first few names, for the notice start prints once.
+	Left(root string) (n int, some []string, err error)
+	// Forget removes what a closed run left: its worktrees, and each task
+	// branch that is proven merged. It lists the branches it kept.
+	Forget(root string, s *State) (kept []string, err error)
+	// Repair finds removals that were interrupted and worktrees no run
+	// records, one line each, and with fix finishes or removes them.
+	Repair(root string, runs []*State, fix bool) (found []string, err error)
 }
 
 // Checked is the work an accept is about to check: the folder, the commit the
@@ -306,12 +326,28 @@ type Placement interface {
 // means nothing is collected and the check runs in the task's own folder.
 type Checked struct{ Dir, OID, Tip string }
 
-// Integrator collects accepted work in one place.
+// Integrator collects accepted work in one place: the run's integration
+// branch. It binds land itself. Nothing here writes the record: the caller
+// hands what comes back to Rules.Integrated and Rules.Checked.
 type Integrator interface {
+	// Begin makes the branch of a new run at its base and returns it; where
+	// the project has no git it returns nil and no error.
+	Begin(root string, s *State) (*Integration, error)
 	// Prepare simulates the merge and brings the tip into the task's folder.
+	// A conflict is a *Refusal that lists the files.
 	Prepare(root string, s *State, task string) (Checked, error)
-	// Collect keeps exactly the checked tree and returns its commit.
+	// PrepareAll merges the tasks, in order, in the run's scratch copy: Dir
+	// is that copy for each, OID the merged commit after it, and Tip empty,
+	// for the caller to fill with the commit collected before it.
+	PrepareAll(root string, s *State, tasks []string) ([]Checked, error)
+	// Collect keeps exactly the checked tree and returns its commit; it
+	// refuses when the tip or the checked folder has moved.
 	Collect(root string, s *State, task string, c Checked) (commit string, err error)
+	// Diff is what a task changed against the collected work, or with stat
+	// one line a file.
+	Diff(root string, s *State, task string, stat bool) (string, error)
+	// Drop removes the branch of a closed run once it was landed.
+	Drop(root string, s *State) error
 }
 
 // Finding is one result of an overlap scan, kept on the run once announced.
@@ -325,13 +361,19 @@ type Finding struct {
 	How   string   `json:"how,omitempty"`
 }
 
-// Overlap scans a run's tasks against each other and the collected work.
+// Overlap scans a run's tasks against each other and the collected work;
+// no tasks named is all that are in flight. It returns every finding there
+// is now, to be handed to Rules.Found, which knows the new ones. deep also
+// looks at work not committed, as the five-minute scan does. A scan cut off
+// by ctx returns what it has and ctx's error.
 type Overlap interface {
-	Scan(root string, s *State, tasks []string) ([]Finding, error)
+	Scan(ctx context.Context, root string, s *State, tasks []string, deep bool) ([]Finding, error)
 }
 
-// Nudge is one call for the person's attention.
+// Nudge is one call for the person's attention. Root and Run say whose it
+// is, so that two projects' tasks of one name are kept apart.
 type Nudge struct {
+	Root, Run         string
 	Title, Body, Task string
 	Urgent            bool
 }
@@ -464,12 +506,22 @@ func (NoPlacement) Place(root string, s *State, task string) (string, *Worktree,
 	}
 	return root, nil, nil
 }
-func (NoPlacement) Remove(string, *State, string) error { return nil }
+func (NoPlacement) Remove(string, *State, string, bool) (*Worktree, error) { return nil, nil }
+func (NoPlacement) Clean(string) (bool, error)                             { return true, nil }
+func (NoPlacement) Left(string) (int, []string, error)                     { return 0, nil, nil }
+func (NoPlacement) Forget(string, *State) ([]string, error)                { return nil, nil }
+func (NoPlacement) Repair(string, []*State, bool) ([]string, error)        { return nil, nil }
 
+func (NoIntegrator) Begin(string, *State) (*Integration, error)              { return nil, nil }
 func (NoIntegrator) Prepare(string, *State, string) (Checked, error)         { return Checked{}, nil }
+func (NoIntegrator) PrepareAll(string, *State, []string) ([]Checked, error)  { return nil, ErrNotBuilt }
 func (NoIntegrator) Collect(string, *State, string, Checked) (string, error) { return "", nil }
+func (NoIntegrator) Diff(string, *State, string, bool) (string, error)       { return "", ErrNotBuilt }
+func (NoIntegrator) Drop(string, *State) error                               { return nil }
 
-func (NoOverlap) Scan(string, *State, []string) ([]Finding, error) { return nil, nil }
+func (NoOverlap) Scan(context.Context, string, *State, []string, bool) ([]Finding, error) {
+	return nil, nil
+}
 
 func (NoNotifier) Nudge(Nudge) error                                { return nil }
 func (NoNotifier) Items(string, string, *Snapshot, time.Time) error { return nil }

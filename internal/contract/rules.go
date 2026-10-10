@@ -12,6 +12,19 @@ type Rules interface {
 	// 6.2 Run.
 	NewRun(id, objective string, limit int, base *GitRef, by Binding, now time.Time) *State
 	CloseRun(s *State, abandon bool, now time.Time) error
+	// Integrated writes down where accepted work is collected: a field of
+	// in that is not empty takes the place of the record's. Checked moves
+	// the tip itself, to the commit it is given.
+	Integrated(s *State, in Integration) error
+	// Stuck keeps the mark of one stuck episode: with on it raises stuck
+	// unless the mark is set, and reports whether it did; without, it
+	// clears the mark. What stuck means is the wait's to say.
+	Stuck(s *State, on bool, now time.Time) (raised bool)
+	// Found takes a scan's findings as the run's own and raises one event
+	// for each that the run did not have: overlap for "overlap" and
+	// "lands", scope for "scope", nothing for "same". It ends a scan that
+	// was due.
+	Found(s *State, findings []Finding, now time.Time) (fresh []Finding)
 	// Takeover binds the run to another pane and raises gen, fencing the old one.
 	Takeover(s *State, by Binding, now time.Time) error
 	Pause(s *State, by string, now time.Time) error

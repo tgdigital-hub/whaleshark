@@ -179,6 +179,7 @@ func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, e
 		setState(a, contract.AttemptReported, now)
 		closeAsks(s, a, now)
 		t.Status = contract.TaskReview
+		s.Run.Scan.Due = s.Run.Scan.Due || t.Worktree != nil
 	}
 	raise(s, outcome, t, a, summary, nil, now)
 	return false, nil, nil
@@ -241,6 +242,9 @@ func (r Rules) Checked(s *contract.State, task string, result contract.CheckResu
 	end(s, a, contract.AttemptAccepted, contract.ExitReported, now)
 	how.At = now
 	t.Status, t.Accepted, t.SettledAt = contract.TaskDone, &how, now
+	if in := s.Run.Integration; in != nil && how.Commit != "" {
+		in.Tip, s.Run.Scan.Due = how.Commit, true
+	}
 	return promote(s), nil
 }
 

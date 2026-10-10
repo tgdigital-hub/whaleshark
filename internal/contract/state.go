@@ -40,6 +40,17 @@ type Run struct {
 	Terms        TermsSeen    `json:"terminals"`
 	Lead         LeadSeen     `json:"lead,omitzero"`
 	Findings     []Finding    `json:"findings,omitempty"`
+	Scan         ScanSeen     `json:"scan,omitzero"`
+	// StuckFlagged: stuck was raised for this episode, as quiet_flagged is
+	// for an attempt.
+	StuckFlagged bool `json:"stuck_flagged,omitempty"`
+}
+
+// ScanSeen is the overlap scan as the record knows it: Due since a report
+// or an accept moved something, At when findings were last written down.
+type ScanSeen struct {
+	Due bool      `json:"due,omitempty"`
+	At  time.Time `json:"at,omitzero"`
 }
 
 // LeadSeen is since when the lead agent has rested after work with nobody
@@ -77,9 +88,11 @@ type Integration struct {
 	Landed string `json:"landed"`
 }
 
-// TermsSeen is when a sweep last had the terminals' picture.
+// TermsSeen is when a sweep last had the terminals' picture, and which start
+// of the keeper that picture was of: another Instance is a restart.
 type TermsSeen struct {
-	SeenAt time.Time `json:"seen_at,omitzero"`
+	SeenAt   time.Time `json:"seen_at,omitzero"`
+	Instance string    `json:"instance,omitempty"`
 }
 
 type TaskStatus string
@@ -368,6 +381,7 @@ const (
 	CauseLeadUnread = "lead_unread"
 	CauseLeadSilent = "lead_silent"
 	CauseTogether   = "together"
+	CauseAskWaiting = "ask_waiting"
 	CauseTrust      = "trust"
 	CausePair       = "pair"
 )

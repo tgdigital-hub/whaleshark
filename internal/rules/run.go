@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"fmt"
 	"slices"
 	"time"
 
@@ -158,4 +159,52 @@ func agentPane(s *contract.State, pane string) bool {
 		}
 	}
 	return false
+}
+
+func (Rules) Integrated(s *contract.State, in contract.Integration) error {
+	if err := open(s); err != nil {
+		return err
+	}
+	if s.Run.Integration == nil {
+		s.Run.Integration = &contract.Integration{}
+	}
+	for _, f := range []struct{ to, from *string }{
+		{&s.Run.Integration.Branch, &in.Branch}, {&s.Run.Integration.Tip, &in.Tip}, {&s.Run.Integration.Landed, &in.Landed}} {
+		if *f.from != "" {
+			*f.to = *f.from
+		}
+	}
+	return nil
+}
+
+func (Rules) Stuck(s *contract.State, on bool, now time.Time) bool {
+	raised := on && !s.Run.StuckFlagged
+	if s.Run.StuckFlagged = on; raised {
+		raise(s, "stuck", nil, nil, "", nil, now)
+	}
+	return raised
+}
+
+// Found knows a finding again by its kind, its tasks and its files, so one
+// that is still there after the next scan is not said twice.
+func (Rules) Found(s *contract.State, findings []contract.Finding, now time.Time) (fresh []contract.Finding) {
+	key := func(f contract.Finding) string { return fmt.Sprint(f.Kind, f.Tasks, f.Files) }
+	had := map[string]bool{}
+	for _, f := range s.Run.Findings {
+		had[key(f)] = true
+	}
+	for _, f := range findings {
+		if had[key(f)] {
+			continue
+		}
+		had[key(f)], fresh = true, append(fresh, f)
+		kind := map[string]string{"overlap": "overlap", "lands": "overlap", "scope": "scope"}[f.Kind]
+		if kind == "" || len(f.Tasks) == 0 {
+			continue
+		}
+		data := map[string]any{"kind": f.Kind, "tasks": f.Tasks, "files": f.Files}
+		raise(s, kind, s.Tasks[f.Tasks[len(f.Tasks)-1]], nil, f.How, data, now)
+	}
+	s.Run.Findings, s.Run.Scan = findings, contract.ScanSeen{At: now}
+	return fresh
 }

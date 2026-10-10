@@ -148,8 +148,12 @@ type View struct {
 	Held     []Item    `json:"held,omitempty"`
 	Answered []Item    `json:"answered,omitempty"`
 	Sections []Section `json:"sections"`
-	Strip    Strip     `json:"strip"`
-	Fresh    Fresh     `json:"fresh"`
+	// Lines are the plain sentences under the team list: how long the
+	// results to check would take one by one and together, and most
+	// workers having stopped together.
+	Lines []string `json:"lines,omitempty"`
+	Strip Strip    `json:"strip"`
+	Fresh Fresh    `json:"fresh"`
 }
 
 // Counts are the figures of the headers and the last lines.
@@ -339,4 +343,42 @@ type Try struct {
 	CheckLog string         `json:"check_log,omitempty"`
 	Evidence []EvidenceFile `json:"evidence,omitempty"`
 	History  []Event        `json:"history,omitempty"`
+}
+
+// Plan is the plan screen under the view's own items: every task, none
+// above one it waits for. Chain is the longest chain of tasks left and
+// Holding the one sentence that says what the next step waits for. Loop is
+// set when the tasks wait for each other in a circle: the rows are then in
+// the order the tasks were added, and the screen says so.
+type Plan struct {
+	Rows    []PlanRow `json:"rows"`
+	Chain   []string  `json:"chain,omitempty"`
+	Holding string    `json:"holding,omitempty"`
+	Loop    bool      `json:"loop,omitempty"`
+}
+
+// PlanRow is one task of the plan: its card, what it waits for, how many of
+// those are not done, and the item that holds it.
+type PlanRow struct {
+	Card   Card     `json:"card"`
+	After  []string `json:"after,omitempty"`
+	Waits  int      `json:"waits,omitempty"`
+	HeldBy string   `json:"held_by,omitempty"`
+}
+
+// Message is one line of the messages screen, the one screen in time order.
+// Dir is ">" to a worker, "<" from one, or empty; Kind is the word of the
+// third column. A progress note is Dim and never New. By is set for what was
+// done as the person, and Struck for an answer that was taken back.
+type Message struct {
+	At     time.Time `json:"at"`
+	Dir    string    `json:"dir,omitempty"`
+	Look   Look      `json:"look,omitempty"`
+	Task   string    `json:"task,omitempty"`
+	Kind   string    `json:"kind"`
+	Text   string    `json:"text"`
+	By     *Origin   `json:"by,omitempty"`
+	New    bool      `json:"new,omitempty"`
+	Dim    bool      `json:"dim,omitempty"`
+	Struck bool      `json:"struck,omitempty"`
 }
