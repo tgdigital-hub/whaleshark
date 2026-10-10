@@ -85,6 +85,11 @@ func child(args []string) int {
 		json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": true, "result": contract.Catchup{From: at, To: at.Add(64 * time.Minute),
 			Waiting: contract.CatchLine{N: 1, Text: "a question from checkout form"}, Finished: contract.CatchLine{N: 5, Text: "login page, search box"},
 			AnsweredLead: 3, StillBuilding: 4}})
+	case args[0] == "team" && args[1] == "list":
+		fmt.Println(`{"ok":true,"result":[{"name":"site-review","from":"yours","about":"Three reviewers and one writer","tasks":[{"title":"Read {goal}"},{"title":"Write it up"}]},` +
+			`{"name":"lint-all","from":"project","held":true,"tasks":[{"title":"Run the linter"}]}]}`)
+	case args[0] == "answer":
+		fmt.Println(args[1] + " answered\nIt can be taken back for 4s: whaleshark answer " + args[1] + " --undo --human")
 	default:
 		fmt.Println("ran " + args[0])
 	}
@@ -218,7 +223,7 @@ var outcomes = map[string]outcome{
 	"theme":          {child: "set theme "},
 	"set":            {typed: "nudge.sound off", child: "set nudge.sound off --human"},
 	"catchup":        {child: "catchup --json --human", shows: "WHILE YOU WERE AWAY  1h 04m"},
-	"team":           {typed: "site review", child: "team run site review --human"},
+	"team":           {child: "team list --json --human", shows: " saved teams"},
 	"go":             {terms: "tab-focus w1:t3"},
 	"fleet":          {child: "ui fleet --human"},
 	"actions":        {child: "ui actions --human"},

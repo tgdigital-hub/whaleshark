@@ -305,7 +305,7 @@ func TestHowTheFleetIsColoured(t *testing.T) {
 		t.Errorf("a stale card's mark is drawn in %x", got)
 	}
 
-	press(p, "t", "t")
+	p.scheme = theme.Get(theme.None)
 	p.draw()
 	p.find(t, "▓▓▓▓▓▓▓▓▓▓░░░░░░░░░  50%")
 	if st := p.t.At(5, 5).Style; st.Fg != 0 || st.Bg != 0 {
@@ -676,7 +676,7 @@ func TestWhatIsLit(t *testing.T) {
 		t.Errorf("Mute, switched off, is drawn %+v", st)
 	}
 
-	press(p, "t", "t")
+	p.scheme = theme.Get(theme.None)
 	p.draw()
 	for name, at := range map[string]int{"the lit button": x + 2, "the title": 1, "the switch that is on": dnd} {
 		row := map[string]int{"the lit button": y}[name]
