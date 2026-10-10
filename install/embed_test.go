@@ -22,7 +22,7 @@ func TestTheScriptsAreCompiledIn(t *testing.T) {
 	for _, s := range []struct {
 		name, text string
 		most       int
-	}{{"server.sh", Server, 900}, {"install.sh", Installer, 150}} {
+	}{{"server.sh", Server, 1030}, {"install.sh", Installer, 150}} {
 		if !strings.HasPrefix(s.text, "#!/bin/sh\n") {
 			t.Errorf("%s starts with %.20q", s.name, s.text)
 		}
@@ -53,17 +53,17 @@ func TestTheServerScriptUsesTheContractsNames(t *testing.T) {
 	}
 }
 
-// machine is a pretended server: a root folder the script writes under, and
-// the fakes with what they know.
+// machine is a pretended server: a root folder the script writes under, the
+// fakes with what they know, and the script as a release carries it.
 type machine struct {
-	t                *testing.T
-	root, fake, self string
-	env              []string
+	t                        *testing.T
+	root, fake, self, script string
+	env                      []string
 }
 
 func newMachine(t *testing.T) *machine {
 	k := testkit.New(t, Server)
-	return &machine{t: t, root: k.Root, fake: k.Fake, self: k.Self, env: k.Env}
+	return &machine{t: t, root: k.Root, fake: k.Fake, self: k.Self, script: testkit.Release(t, Server), env: k.Env}
 }
 
 func (m *machine) write(path, text string, mode os.FileMode) {
@@ -90,7 +90,7 @@ func (m *machine) run(args ...string) (string, int) {
 		env, args = append(env[:len(env):len(env)], args[0]), args[1:]
 	}
 	cmd := exec.Command("sh", append([]string{"-s", "--"}, args...)...)
-	cmd.Stdin, cmd.Env = strings.NewReader(Server), append(env[:len(env):len(env)], contract.EnvBin+"="+m.self)
+	cmd.Stdin, cmd.Env = strings.NewReader(m.script), append(env[:len(env):len(env)], contract.EnvBin+"="+m.self)
 	out, err := cmd.CombinedOutput()
 	if _, exited := err.(*exec.ExitError); err != nil && !exited {
 		m.t.Fatal(err)
@@ -100,7 +100,9 @@ func (m *machine) run(args ...string) (string, int) {
 
 // state is everything the script could have changed: each file under the
 // root with its mode and text, and each call that would change the system.
-func (m *machine) state() string {
+func (m *machine) state() string { return m.files() + m.read(m.fake, "log") }
+
+func (m *machine) files() string {
 	var b strings.Builder
 	filepath.WalkDir(m.root, func(path string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() {
@@ -110,7 +112,7 @@ func (m *machine) state() string {
 		}
 		return nil
 	})
-	return b.String() + m.read(m.fake, "log")
+	return b.String()
 }
 
 // ok runs a command that must end well.
@@ -147,6 +149,10 @@ func TestASecondRunChangesNothing(t *testing.T) {
 		{"add", "ana", "21000", "", "boss"},
 		{"add", "ben", "22000", "", "boss"},
 		{"phone", "ana", "8443", "21999", ""},
+		{"tunnel", "team"},
+		{"public", "ben", "22999", "ws2.example.com", "0a1b"},
+		{"public", "ben", "22999", "", "", "off"},
+		{"tunnel", "", "off"},
 	} {
 		m.ok(args...)
 		before := m.state()
@@ -345,6 +351,144 @@ func TestUpgrade(t *testing.T) {
 	m.ok("upgrade")
 	if log := m.read(m.fake, "log"); !strings.Contains(log, "apt-get install -y -q --only-upgrade whaleshark\n") {
 		t.Errorf("upgrade did not ask the package manager:\n%s", log)
+	}
+}
+
+// The Cloudflare way from nothing and back again: the connector at the
+// pinned version under a login of its own, a routing file that leads each
+// name to its login's door and nowhere else, no certificate of the account
+// left after any command, and a machine that is as it was once it is off.
+func TestTheTunnelAndBack(t *testing.T) {
+	m := newMachine(t)
+	const cf, id, tag = "etc/whaleshark/cloudflared", "0f0f-aaaa-bbbb", "0a1b2c3d"
+	m.ok("setup", "boss", "")
+	m.ok("add", "ana", "21000", "", "boss")
+	m.ok("add", "ben", "22000", "", "boss")
+	before := m.files()
+	clean := func(after string) {
+		t.Helper()
+		filepath.WalkDir(m.root, func(path string, d fs.DirEntry, _ error) error {
+			if d != nil && d.Name() == "cert.pem" {
+				t.Errorf("after %s the account's certificate is still on the machine: %s", after, path)
+			}
+			return nil
+		})
+	}
+	logged := func(calls ...string) {
+		t.Helper()
+		for _, call := range calls {
+			if log := m.read(m.fake, "log"); !strings.Contains(log, call) {
+				t.Errorf("the system was never asked for %q:\n%s", call, log)
+			}
+		}
+	}
+
+	// A copy no release gave its pins, a key that is not the pinned one, and
+	// a name before there is a tunnel: each changes nothing.
+	m.script = Server
+	if out := m.refused(1, "tunnel", "team"); !strings.Contains(out, "pins no version of Cloudflare's connector") {
+		t.Errorf("a copy without pins says\n%s", out)
+	}
+	m.script = testkit.Release(t, Server)
+	if out, code := m.run("FAKE_SUM="+strings.Repeat("0", 64), "tunnel", "team"); code != 1 || !strings.Contains(out, "not the one this version pins") || m.files() != before {
+		t.Errorf("another key for Cloudflare's packages ended with %d and something changed:\n%s", code, out)
+	}
+	m.refused(1, "public", "ana", "21999", "ws1.example.com", tag)
+	m.refused(1, "tunnel", "Not A Team")
+
+	out := m.ok("tunnel", "team")
+	clean("tunnel")
+	if said := strings.Index(out, "a program that is not ours"); said < 0 || said > strings.Index(out, "the-link-to-open") || !strings.Contains(out, "audience tag") {
+		t.Errorf("tunnel does not say first what it installs, show the link, and end with the clicks:\n%s", out)
+	}
+	logged("apt-get install -y -q --allow-change-held-packages cloudflared="+testkit.Connector, "apt-mark hold cloudflared",
+		"useradd -r -M -d /nonexistent -s /usr/sbin/nologin whaleshark-tunnel", "systemctl enable -q --now whaleshark-tunnel.service")
+	if info, err := os.Stat(filepath.Join(m.root, cf, "tunnel.json")); err != nil || info.Mode().Perm() != 0o400 {
+		t.Errorf("the tunnel's credential: %v %v", info, err)
+	}
+	unit := m.read(m.root, "etc/systemd/system/whaleshark-tunnel.service")
+	for _, line := range []string{"User=whaleshark-tunnel\n", " --no-autoupdate ", " --config /" + cf + "/config.yml run\n", "Restart=always\n"} {
+		if !strings.Contains(unit, line) {
+			t.Errorf("the connector's service entry lacks %q:\n%s", line, unit)
+		}
+	}
+	head := "tunnel: " + id + "\ncredentials-file: /" + cf + "/tunnel.json\ningress:\n"
+	rule := func(name string, door int, tag string) string {
+		return fmt.Sprintf("  - hostname: %s\n    service: http://%s:%d\n    originRequest:\n      access:\n        required: true\n        teamName: team\n        audTag: [%s]\n",
+			name, contract.Loopback, door, tag)
+	}
+	const last = "  - service: http_status:404\n"
+	if got := m.read(m.root, cf, "config.yml"); got != head+last {
+		t.Errorf("a tunnel with nobody routes\n%s", got)
+	}
+
+	m.ok("public", "ana", "21999", "ws1.example.com", tag)
+	clean("a person's name")
+	m.ok("public", "ben", "22999", "ws2.example.com", tag+"ff")
+	if got := m.read(m.root, cf, "config.yml"); got != head+rule("ws1.example.com", 21999, tag)+rule("ws2.example.com", 22999, tag+"ff")+last {
+		t.Errorf("the routing file for two people is\n%s", got)
+	}
+	logged("cloudflared route dns "+id+" ws1.example.com", "cloudflared route dns "+id+" ws2.example.com", "systemctl restart whaleshark-tunnel.service")
+	// The connector's login is the sixth of the pretended machine.
+	nft := m.read(m.root, "etc/whaleshark/ports.nft")
+	door, block := strings.Index(nft, "dport 21999 meta skuid 1005 accept"), strings.Index(nft, "dport 21000-21999 meta skuid != { 0, 1003 } reject")
+	if door < 0 || door > block || strings.Count(nft, "accept\n") != 2 {
+		t.Errorf("the connector is not let through to the two doors alone, before each block's refusal:\n%s", nft)
+	}
+	if out := m.ok("status"); !strings.Contains(out, "the tunnel's connector") {
+		t.Errorf("status with a tunnel says\n%s", out)
+	}
+
+	// A routing file Cloudflare's own check refuses never comes into place.
+	m.write(filepath.Join(m.fake, "invalid"), "", 0o644)
+	routes := m.read(m.root, cf, "config.yml")
+	if out, code := m.run("public", "ana", "21999", "ws9.example.com", tag); code != 1 || !strings.Contains(out, "refuses the routing file") || m.read(m.root, cf, "config.yml") != routes {
+		t.Errorf("a routing file the connector refuses ended with %d:\n%s", code, out)
+	}
+	clean("a refused routing file")
+	if err := os.Rename(filepath.Join(m.fake, "invalid"), filepath.Join(m.fake, "valid-again")); err != nil {
+		t.Fatal(err)
+	}
+	m.ok("public", "ana", "21999", "ws1.example.com", tag)
+	for _, bad := range [][]string{{"ana", "21999", "ws1", tag}, {"ana", "21999", "ws1.example.com", "not a tag"}, {"ana", "door", "ws1.example.com", tag},
+		{"ana", "21999", "ws1.example.com/x", tag}, {"Ana", "21999", "ws1.example.com", tag}} {
+		m.refused(1, append([]string{"public"}, bad...)...)
+	}
+
+	m.ok("public", "ana", "21999", "", "", "off")
+	if got := m.read(m.root, cf, "config.yml"); got != head+rule("ws2.example.com", 22999, tag+"ff")+last {
+		t.Errorf("with ana's name taken off the routing file is\n%s", got)
+	}
+	if nft := m.read(m.root, "etc/whaleshark/ports.nft"); strings.Contains(nft, "dport 21999 meta") || !strings.Contains(nft, "dport 22999 meta skuid 1005 accept") {
+		t.Errorf("with ana's name taken off the connector reaches\n%s", nft)
+	}
+
+	if out := m.ok("tunnel", "", "off"); !strings.Contains(out, "delete there yourself") {
+		t.Errorf("tunnel off does not say what is left at Cloudflare:\n%s", out)
+	}
+	clean("tunnel off")
+	logged("systemctl disable -q --now whaleshark-tunnel.service", "userdel whaleshark-tunnel", "apt-mark unhold cloudflared", "apt-get purge -y -q cloudflared")
+	if after := m.files(); after != before {
+		t.Errorf("tunnel off did not leave the machine as it was:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+}
+
+// A release that pins a newer connector moves it at the upgrade and starts
+// it again; one that pins the same leaves it running.
+func TestUpgradeMovesTheConnector(t *testing.T) {
+	m := newMachine(t)
+	m.ok("setup", "admin")
+	m.ok("tunnel", "team")
+	m.write(m.self, "the program, version two\n", 0o755)
+	m.ok("upgrade")
+	if log := m.read(m.fake, "log"); strings.Contains(log, "restart whaleshark-tunnel") || strings.Count(log, "cloudflared=") != 1 {
+		t.Errorf("an upgrade with the same connector asked the system for\n%s", log)
+	}
+	m.write(m.self, "the program, version three\n", 0o755)
+	m.script = strings.Replace(m.script, "'"+testkit.Connector+"'", "'2000.1.0'", 1)
+	m.ok("upgrade")
+	if log := m.read(m.fake, "log"); !strings.Contains(log, "cloudflared=2000.1.0\n") || !strings.Contains(log, "systemctl restart whaleshark-tunnel.service\n") {
+		t.Errorf("an upgrade with a newer connector asked the system for\n%s", log)
 	}
 }
 

@@ -41,14 +41,23 @@ const (
 	proveCmd  = "sudo whaleshark doctor --server"
 	addCmd    = "sudo whaleshark server add --user "
 	phoneCmd  = "sudo whaleshark server phone --user "
+	tunnelCmd = "sudo whaleshark server tunnel --team "
 	hardenCmd = "ssh <administrator>@<server> sudo whaleshark server harden"
 )
 
 // servePorts are the ports Tailscale's forwarding answers on: a person each.
 var servePorts = []int{443, 8443, 10000}
 
-// loginName is what a login of the system may be called here.
-var loginName = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
+// loginName is what a login of the system may be called here; the others
+// are the Cloudflare way's words: a team's name there, a person's public
+// name, the tag of an Access application and an email address.
+var (
+	loginName = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
+	teamName  = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+	hostName  = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)+$`)
+	audTag    = regexp.MustCompile(`^[0-9a-f]{8,}$`)
+	address   = regexp.MustCompile(`^[^\s@,"]+@[^\s@,"]+$`)
+)
 
 // record is server.toml as its one writer keeps it: the contract's file,
 // and the administrator login's name, for which the contract has no place.
@@ -101,7 +110,9 @@ func restartNeeded() string {
 // reads itself from standard input, finds this program's file in the
 // variable contract.EnvBin, and is given: setup <admin> <key file or "">;
 // harden <admin>; add <login> <first port> <key file or ""> <admin>;
-// phone <login> <port outside> <door> <"" or "off">; upgrade; status.
+// phone <login> <port outside> <door> <"" or "off">; tunnel <team> <"" or
+// "off">; on the Cloudflare way, in the place of phone, public <login>
+// <door> <name> <tag> <"" or "off">; upgrade; status.
 func serve(c *contract.Call) (any, error) {
 	p, verb := c.Kit.Platform, strings.Join(c.Args, " ")
 	no := func(code, next, format string, a ...any) (any, error) {
@@ -156,12 +167,21 @@ func serve(c *contract.Call) (any, error) {
 		free := slices.IndexFunc(servePorts, func(port int) bool {
 			return !slices.ContainsFunc(r.names(), func(n string) bool { return r.Login[n].Phone == port })
 		})
-		off := ""
+		off, door := "", strconv.Itoa(r.Door(user))
 		switch {
 		case !listed:
 			return no("no_login", addCmd+user, "%s is not a work login of this server.", user)
-		case r.Road == contract.RoadCloudflare || flag("name")+flag("aud")+flag("email") != "":
-			return no("not_built", "", "The Cloudflare way for a phone is %v.", contract.ErrNotBuilt)
+		case r.Road == contract.RoadCloudflare && c.Flags["off"] != nil:
+			person.Name, person.Aud, person.Email, args = "", "", nil, []string{"public", user, door, "", "", "off"}
+		case r.Road == contract.RoadCloudflare:
+			person.Name, person.Aud, person.Email = flag("name"), flag("aud"), strings.Split(strings.Join(c.Flags["email"], ","), ",")
+			if !hostName.MatchString(person.Name) || !audTag.MatchString(person.Aud) || slices.ContainsFunc(person.Email, func(a string) bool { return !address.MatchString(a) }) ||
+				slices.ContainsFunc(r.names(), func(n string) bool { return n != user && r.Login[n].Name == person.Name }) {
+				return no("bad_name", "", "On the Cloudflare way a person has a public name nobody else has, the tag of their own Access application and their email addresses: %s%s --name ws1.example.com --aud TAG --email ADDRESS[,ADDRESS].", phoneCmd, user)
+			}
+			args = []string{"public", user, door, person.Name, person.Aud, ""}
+		case flag("name")+flag("aud")+flag("email") != "":
+			return no("no_tunnel", tunnelCmd+"NAME", "A public name is the Cloudflare way, and this server has no tunnel.")
 		case c.Flags["off"] != nil:
 			off = "off"
 		case person.Phone == 0 && free < 0:
@@ -169,12 +189,34 @@ func serve(c *contract.Call) (any, error) {
 		case person.Phone == 0:
 			person.Phone = servePorts[free]
 		}
-		args = append(args, user, strconv.Itoa(person.Phone), strconv.Itoa(r.Door(user)), off)
+		if r.Road == contract.RoadCloudflare {
+			break
+		}
+		args = append(args, user, strconv.Itoa(person.Phone), door, off)
 		if r.Road = contract.RoadTailscale; off != "" {
 			person.Phone = 0
 		}
 	case "tunnel":
-		return no("not_built", "", "server tunnel is %v.", contract.ErrNotBuilt)
+		// One way in a server: the tunnel comes once no Tailscale door is left,
+		// and goes with every person's values for it.
+		switch team := cmp.Or(flag("team"), r.Team); {
+		case c.Flags["off"] != nil:
+			args = append(args, "", "off")
+			for _, n := range r.names() {
+				p := r.Login[n]
+				p.Name, p.Aud, p.Email = "", "", nil
+				r.Login[n] = p
+			}
+			if r.Team = ""; r.Road == contract.RoadCloudflare {
+				r.Road = ""
+			}
+		case r.Road == contract.RoadTailscale:
+			return no("road_taken", phoneCmd+"NAME --off", "Phones come in by Tailscale here, and a server has one way in: take each person's door off first.")
+		case !teamName.MatchString(team):
+			return no("bad_team", tunnelCmd+"NAME", "--team is your team's name at Cloudflare, the first part of <team>.cloudflareaccess.com: %q.", team)
+		default:
+			args, r.Road, r.Team = append(args, team, ""), contract.RoadCloudflare, team
+		}
 	}
 	self, _ := p.SelfPath()
 	// #nosec G204 -- the system's shell reading the script compiled into this program; every argument was checked above
@@ -192,7 +234,7 @@ func serve(c *contract.Call) (any, error) {
 	if !slices.ContainsFunc(r.names(), func(n string) bool { return r.Login[n].Phone != 0 }) && r.Road == contract.RoadTailscale {
 		r.Road = ""
 	}
-	if slices.Contains([]string{"setup", "add", "phone"}, verb) {
+	if slices.Contains([]string{"setup", "add", "phone", "tunnel"}, verb) {
 		if err := r.write(p); err != nil {
 			return no("server_file", "", "The server's file could not be written: %v.", err)
 		}

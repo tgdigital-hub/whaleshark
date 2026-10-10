@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakes stands in for every program of the system the server script calls.
@@ -29,8 +30,12 @@ id)
 	*) grep -q "^$1:" "$F/passwd" ;;
 	esac ;;
 useradd)
-	mkdir -p "$ROOT/people/$last"
+	case " $* " in *" -M "*) ;; *) mkdir -p "$ROOT/people/$last" ;; esac
 	echo "$last:$((1000 + $(wc -l <"$F/passwd"))):$ROOT/people/$last" >>"$F/passwd"
+	log "$@" ;;
+userdel)
+	grep -v "^$last:" "$F/passwd" >"$F/passwd.new"
+	mv "$F/passwd.new" "$F/passwd"
 	log "$@" ;;
 getent)
 	case $1 in
@@ -45,7 +50,48 @@ dpkg)
 	esac ;;
 apt-get)
 	log "$@"
-	[ "$1" = update ] || for a; do case $a in -* | install) ;; *) echo "$a" >>"$F/dpkg" ;; esac; done ;;
+	case $1 in
+	update) ;;
+	purge)
+		grep -vx "$last" "$F/dpkg" >"$F/dpkg.new"
+		mv "$F/dpkg.new" "$F/dpkg"
+		rm -f "$F/connector" ;;
+	*)
+		for a; do
+			case $a in
+			-* | install) ;;
+			cloudflared=*) echo cloudflared >>"$F/dpkg"; echo "${a#*=}" >"$F/connector" ;;
+			*) echo "$a" >>"$F/dpkg" ;;
+			esac
+		done ;;
+	esac ;;
+apt-mark)
+	case $1 in
+	showhold) cat "$F/held" 2>/dev/null ;;
+	hold) echo "$last" >"$F/held"; log "$@" ;;
+	*) : >"$F/held"; log "$@" ;;
+	esac ;;
+apt-cache) grep -h pkg.cloudflare.com "$ROOT/etc/apt/sources.list.d/cloudflared.list" 2>/dev/null ;;
+stat)
+	case $last in
+	*/tunnel.json) echo "whaleshark-tunnel 400" ;;
+	*) echo "root 644" ;;
+	esac ;;
+cloudflared)
+	case " $* " in
+	" --version ") [ ! -e "$F/connector" ] || echo "cloudflared version $(cat "$F/connector") (built for a test)" ;;
+	" tunnel login ")
+		mkdir -p "$HOME/.cloudflared"
+		echo "the account's certificate" >"$HOME/.cloudflared/cert.pem"
+		echo "https://login.example.invalid/the-link-to-open"
+		log "$@" ;;
+	*" create "*)
+		[ -s "$3" ] || exit 1
+		echo '{"AccountTag":"a","TunnelSecret":"s","TunnelID":"0f0f-aaaa-bbbb"}' >"$6"
+		log create "$last" ;;
+	*" route dns "*) [ -s "$3" ] || exit 1; log route dns "$6" "$7" ;;
+	*" ingress validate ") grep -q "service: http_status:404" "$3" && [ ! -e "$F/invalid" ] ;;
+	esac ;;
 systemctl)
 	case " $* " in
 	*" is-enabled "*) grep -qx "$3 $last" "$F/enabled" ;;
@@ -53,6 +99,16 @@ systemctl)
 	*" --user "*" is-active "*) echo active ;;
 	*" is-active "*) grep -qx "$last" "$F/started" ;;
 	*" start "*) echo "$last" >>"$F/started"; log "$@" ;;
+	*" enable -q --now "*) echo "$last $last" >>"$F/enabled"; echo "$last" >>"$F/started"; log "$@" ;;
+	*" disable "*)
+		for f in enabled started; do
+			grep -v "$last" "$F/$f" >"$F/$f.new"
+			mv "$F/$f.new" "$F/$f"
+		done
+		log "$@" ;;
+	*" show "*" User "*)
+		grep -e "^User=" -e "^ExecStart=" "$ROOT/etc/systemd/system/$2"
+		grep -qx "$2" "$F/started" && echo ActiveState=active ;;
 	*" show "*) echo 7 ;;
 	*) log "$@" ;;
 	esac ;;
@@ -109,6 +165,22 @@ func Pin(t testing.TB, script, name string) string {
 	return m[1] + m[2]
 }
 
+// Connector is the version of Cloudflare's connector a pretended release
+// pins: this month's, as its versions are a year, a month and a count.
+var Connector = time.Now().Format("2006.1") + ".0"
+
+// Release returns the script as a release carries it, with the connector's
+// version and the checksum of its packages' key filled in; the checksum is
+// the one the stand-in gives for every file.
+func Release(t testing.TB, script string) string {
+	released := strings.NewReplacer("\nCONNECTOR=''", "\nCONNECTOR='"+Connector+"'",
+		"\nCONNECTOR_KEY=''", "\nCONNECTOR_KEY='"+Pin(t, script, "NODE_X64")+"'").Replace(script)
+	if strings.Count(released, "\n") != strings.Count(script, "\n") || len(released) < len(script)+64 {
+		t.Fatal("the script has no empty lines for the connector's version and its key")
+	}
+	return released
+}
+
 // New makes a machine that is an Ubuntu with one login, "first", which a key
 // of the test's own lets in, and root at the keyboard, come in over SSH.
 func New(t testing.TB, script string) *Machine {
@@ -130,7 +202,8 @@ func New(t testing.TB, script string) *Machine {
 	}
 	write(filepath.Join(bin, "fake"), fakes, 0o755)
 	for _, name := range strings.Fields(`id useradd getent groupadd dpkg apt-get systemctl ufw sshd ps sudo curl gpg
-		sha256sum uname runuser loginctl tailscale pgrep chown visudo nft sysctl mount apparmor_parser tar npm playwright`) {
+		sha256sum uname runuser loginctl tailscale pgrep chown visudo nft sysctl mount apparmor_parser tar npm playwright
+		userdel apt-mark apt-cache stat cloudflared`) {
 		if err := os.Symlink("fake", filepath.Join(bin, name)); err != nil {
 			t.Fatal(err)
 		}

@@ -1,8 +1,14 @@
 package doctor
 
 import (
+	"bufio"
 	"cmp"
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,6 +42,37 @@ const shot = `const {chromium} = require('playwright'), ps = () => require('chil
   await p.goto('data:text/html,<h1>WhaleShark</h1>'); await p.screenshot({path: process.argv[1]});
   const off = ps().some(l => l.startsWith(process.env.PLAYWRIGHT_BROWSERS_PATH) && l.includes('--no-sandbox'));
   await b.close(); process.exit(off ? 3 : 0); })().catch(e => { console.error(String(e)); process.exit(1); });`
+
+// What the Cloudflare way has in fixed places, as the script writes them:
+// the connector's login, which names its service too, its folder, and the
+// port of this machine at which it says whether it is connected. pinned
+// finds the connector's version in the script of a release.
+const (
+	tunnelLogin = "whaleshark-tunnel"
+	tunnelDir   = "/etc/whaleshark/cloudflared/"
+	tunnelPort  = "20241"
+)
+
+var pinned = regexp.MustCompile(`(?m)^CONNECTOR='(.+)'$`)
+
+// get is one request that follows nowhere. host is the name asked for,
+// where it is not the address's own, and pass a pass of Cloudflare's.
+var get = func(url, host, pass string) (int, http.Header, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return 0, nil, err
+	}
+	if req.Host = host; pass != "" {
+		req.Header.Set(contract.HeaderAccess, pass)
+	}
+	web := http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	// #nosec G107 G704 -- this login's door, the connector on this machine, or the team and the name the administrator wrote into the server's file, those two only after a yes
+	res, err := web.Do(req)
+	if err != nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, res.Header, res.Body.Close()
+}
 
 // hold says a row that passes or fails: ok with the first text, else a
 // problem with the second and its fix.
@@ -207,6 +245,8 @@ func (e *exam) logins(r *record) {
 // login inside its own slice of the system: a listener of root's in its
 // block is reached by it and by no other login, and it opens a port in its
 // own block and in no other. Every login passing is what "proven" means.
+// On the Cloudflare way the connector's login reaches the door of a login
+// with a public name, and no other port of its block.
 func (e *exam) blocks(r *record) {
 	self, _ := e.k.Platform.SelfPath()
 	names, rules := r.names(), contract.RulesProven
@@ -221,12 +261,21 @@ func (e *exam) blocks(r *record) {
 		if err != nil {
 			found = append(found, err.Error())
 		}
-		for j, t := range []struct {
+		type try struct {
 			login, what string
 			port        int
 			open        bool
-		}{{other, "dial", mine, false}, {name, "dial", mine, true}, {name, "bind", theirs, false}, {name, "bind", mine, true}} {
-			if j == 2 && err == nil {
+		}
+		tries := []try{{other, "dial", mine, false}, {name, "dial", mine, true}, {name, "bind", theirs, false}, {name, "bind", mine, true}}
+		if r.Road == contract.RoadCloudflare && r.Login[name].Name != "" {
+			// The door answers for the length of the proof, unless the page is at it already.
+			if door, err := net.Listen("tcp", net.JoinHostPort(contract.Loopback, strconv.Itoa(mine+1))); err == nil {
+				defer door.Close()
+			}
+			tries = append([]try{{tunnelLogin, "dial", mine, false}, {tunnelLogin, "dial", mine + 1, true}}, tries...)
+		}
+		for _, t := range tries {
+			if t.what == "bind" && err == nil {
 				l.Close()
 			}
 			uid, _ := ask("id", "-u", t.login)
@@ -354,7 +403,8 @@ func (e *exam) page() {
 }
 
 // road is the way in for a phone: Tailscale's forwarding to each login's
-// door, and for a login itself what stands behind its door.
+// door or Cloudflare's tunnel, and for a login itself what stands behind
+// its door.
 func (e *exam) road(r *record, names []string) {
 	switch {
 	case len(names) == 0:
@@ -362,10 +412,27 @@ func (e *exam) road(r *record, names []string) {
 	case r.Road == "":
 		e.say(note, phoneCmd+names[0], "no way in for a phone is set up on this server")
 		return
-	case r.Road != contract.RoadTailscale:
-		e.say(note, "", "phones come in by %s: the checks of that way are %v", r.Road, contract.ErrNotBuilt)
+	case r.Road == contract.RoadCloudflare:
+		e.tunnel(r, names)
+	default:
+		e.forwarding(r, names)
+	}
+	if phones, _ := contract.ReadPhones(e.k.Platform.Peek, e.dirs.State); isRoot() || !phones.On {
 		return
 	}
+	door := net.JoinHostPort(contract.Loopback, strconv.Itoa(r.Door(names[0])))
+	if conn, err := net.DialTimeout("tcp", door, time.Second); err != nil {
+		e.say(problem, "whaleshark dash start", "phone access is on and nothing listens at your door %s", door)
+	} else if conn.Close(); r.Road == contract.RoadCloudflare {
+		e.pass(r, names[0], door)
+	} else if r.Rules != contract.RulesProven {
+		e.say(note, proveCmd, "your door %s is open, and the port rules are not proven: pairing and the session are the only wall between another login and your page", door)
+	} else {
+		e.say(ok, "", "your door %s is open, and only you and the system reach it", door)
+	}
+}
+
+func (e *exam) forwarding(r *record, names []string) {
 	out, err := ask("tailscale", "serve", "status")
 	for _, name := range names {
 		door, port := net.JoinHostPort(contract.Loopback, strconv.Itoa(r.Door(name))), r.Login[name].Phone
@@ -379,15 +446,146 @@ func (e *exam) road(r *record, names []string) {
 				fmt.Sprintf("Tailscale forwards port %d to the door of %s, %s", port, name, door), fmt.Sprintf("Tailscale does not forward port %d to the door of %s, %s", port, name, door))
 		}
 	}
-	if phones, _ := contract.ReadPhones(e.k.Platform.Peek, e.dirs.State); isRoot() || !phones.On {
+}
+
+// tunnel is the proof of the Cloudflare way: root's rows are the connector,
+// its credential and that no certificate of the account is left; everybody's
+// are the routing file and whether the tunnel is connected.
+func (e *exam) tunnel(r *record, names []string) {
+	fix := tunnelCmd + r.Team
+	if isRoot() {
+		version, _ := ask("cloudflared", "--version")
+		held, _ := ask("apt-mark", "showhold", "cloudflared")
+		from, _ := ask("apt-cache", "policy", "cloudflared")
+		unit, _ := ask("systemctl", "show", tunnelLogin+".service", "-p", "User", "-p", "ActiveState", "-p", "ExecStart")
+		var wrong []string
+		miss := func(good bool, what string) {
+			if !good {
+				wrong = append(wrong, what)
+			}
+		}
+		pin := pinned.FindStringSubmatch(script)
+		miss(held == "cloudflared" && strings.Contains(from, "pkg.cloudflare.com"), "it is not held at one version from Cloudflare's own package source")
+		miss(pin == nil || strings.Contains(version, "version "+pin[1]+" "), "it is not the version this release pins")
+		miss(strings.Contains(unit, "User="+tunnelLogin) && strings.Contains(unit, "ActiveState=active"), "it does not run as its own login "+tunnelLogin)
+		miss(strings.Contains(unit, "--no-autoupdate"), "its own updater is not switched off")
+		e.hold(len(wrong) == 0, fix, "Cloudflare's connector is held at its version, runs as "+tunnelLogin+" and never updates itself: "+version, "Cloudflare's connector: "+strings.Join(wrong, "; "))
+		// Its version is the year and the month it was made in.
+		var year, month int
+		_, made, _ := strings.Cut(version, "version ")
+		if fmt.Sscanf(made, "%d.%d", &year, &month); year > 0 && e.c.Now.After(time.Date(year, time.Month(month+9), 1, 0, 0, 0, 0, time.UTC)) {
+			e.say(note, "sudo whaleshark server upgrade", "Cloudflare's connector is older than nine months, and Cloudflare supports one for a year: a newer WhaleShark pins a newer one")
+		}
+		owner, _ := ask("stat", "-c", "%U %a", sysRoot+tunnelDir+"tunnel.json")
+		e.hold(owner == tunnelLogin+" 400", fix, "the tunnel's credential is readable by the connector's login alone", "the tunnel's credential must be readable by "+tunnelLogin+" alone; it is: "+owner)
+		left, _ := ask("find", sysRoot+"/", "(", "-path", sysRoot+"/proc", "-o", "-path", sysRoot+"/sys", "-o", "-path", sysRoot+"/dev", "-o", "-path", sysRoot+"/run", ")", "-prune",
+			"-o", "-name", "cert.pem", "-path", "*cloudflare*", "-print")
+		e.hold(left == "", "", "no certificate of the Cloudflare account is on this machine",
+			"a certificate of the Cloudflare account lies on this machine, and whoever reads it makes tunnels and changes the account's names. Delete it: "+left)
+	}
+	e.routing(r, names, fix)
+	switch status, _, err := get("http://"+net.JoinHostPort(contract.Loopback, tunnelPort)+"/ready", "", ""); {
+	case err != nil:
+		e.say(note, "", "whether the tunnel is connected cannot be told: the connector does not answer on this machine (%v)", err)
+	case status != http.StatusOK:
+		e.say(problem, "sudo systemctl restart "+tunnelLogin, "the connector says the tunnel is not connected to Cloudflare (%d)", status)
+	default:
+		e.say(ok, "", "the connector says the tunnel is connected to Cloudflare")
+	}
+}
+
+// routing holds the routing file to the server's file: root's and valid,
+// every rule a person's name that leads to that login's door behind the
+// connector's own check of Cloudflare's pass for that person's tag, and a
+// last rule that refuses all else.
+func (e *exam) routing(r *record, names []string, fix string) {
+	path, all := sysRoot+tunnelDir+"config.yml", r.names()
+	owner, _ := ask("stat", "-c", "%U %a", path)
+	_, invalid := ask("cloudflared", "tunnel", "--config", path, "ingress", "validate")
+	text, _ := os.ReadFile(path)
+	_, rules, _ := strings.Cut(string(text), "\ningress:\n")
+	list := strings.Split("\n"+strings.TrimRight(rules, "\n"), "\n  - ")[1:]
+	var wrong []string
+	if owner != "root 644" {
+		wrong = append(wrong, "it is not root's alone to write ("+owner+")")
+	}
+	if invalid != nil {
+		wrong = append(wrong, "Cloudflare's own check refuses it")
+	}
+	if n := len(list) - 1; n < 0 || list[n] != "service: http_status:404" {
+		wrong = append(wrong, "its last rule does not refuse everything else")
+	} else {
+		list = list[:n]
+	}
+	ruled := map[string]bool{}
+	for _, rule := range list {
+		field := func(key string) string {
+			_, value, _ := strings.Cut(rule, key+": ")
+			value, _, _ = strings.Cut(value, "\n")
+			return value
+		}
+		host := field("hostname")
+		i := slices.IndexFunc(all, func(n string) bool { return host != "" && r.Login[n].Name == host })
+		switch {
+		case i < 0:
+			wrong = append(wrong, "a rule for "+cmp.Or(host, "every name")+", which is nobody's")
+		case field("service") != "http://"+net.JoinHostPort(contract.Loopback, strconv.Itoa(r.Door(all[i]))):
+			wrong = append(wrong, host+" leads to "+field("service")+" and not to the door of "+all[i])
+		case field("required") != "true" || field("teamName") != r.Team || field("audTag") != "["+r.Login[all[i]].Aud+"]":
+			wrong = append(wrong, host+" lacks the connector's check of Cloudflare's pass for its own tag")
+		default:
+			ruled[all[i]] = true
+		}
+	}
+	for _, name := range names {
+		if r.Login[name].Name == "" {
+			e.say(note, phoneCmd+name, "no public name is set up for %s", name)
+		} else if !ruled[name] {
+			wrong = append(wrong, "no rule of it leads "+r.Login[name].Name+" to the door of "+name)
+		}
+	}
+	e.hold(len(wrong) == 0, fix, "the tunnel's routing file is root's and valid: each name leads to its login's door behind the connector's check, and all else is refused",
+		"the tunnel's routing file "+path+": "+strings.Join(wrong, "; "))
+}
+
+// pass tries the door as somebody without Cloudflare's pass would: with
+// none, with one signed by a key made here, with such a one for another tag
+// and with one that has run out. Then, once the person has said yes to a
+// call out, it asks Cloudflare for the team's keys and for the public name
+// as a stranger, who must end at Cloudflare's login.
+func (e *exam) pass(r *record, me, door string) {
+	a, known := r.Access(me)
+	key, _ := rsa.GenerateKey(rand.Reader, 2048) // it fails for no size but one too small
+	forged := func(tag string, until time.Time) string {
+		b64, from := base64.RawURLEncoding.EncodeToString, until.Add(-time.Hour).Unix()
+		claims, _ := json.Marshal(map[string]any{"iss": a.Issuer(), "aud": []string{tag}, "email": strings.Join(a.Email, " "), "sub": "doctor", "type": "app", "iat": from, "nbf": from, "exp": until.Unix()})
+		text := b64([]byte(`{"alg":"RS256","kid":"doctor","typ":"JWT"}`)) + "." + b64(claims)
+		sum := sha256.Sum256([]byte(text))
+		signed, _ := rsa.SignPKCS1v15(nil, key, crypto.SHA256, sum[:])
+		return text + "." + b64(signed)
+	}
+	var let []string
+	for _, try := range [][2]string{{"no pass", ""}, {"a pass signed with a key made here", forged(a.Aud, e.c.Now.Add(time.Hour))},
+		{"such a pass for another tag", forged("0", e.c.Now.Add(time.Hour))}, {"such a pass that has run out", forged(a.Aud, e.c.Now.Add(-time.Hour))}} {
+		if status, head, err := get("http://"+door+"/", a.Name, try[1]); err == nil && (status < 400 || head.Get("Set-Cookie") != "") {
+			let = append(let, try[0])
+		}
+	}
+	e.hold(len(let) == 0, "whaleshark dash phone off", "your door "+door+" refuses a request with no pass of Cloudflare's, with a forged one, with one for another tag and with one run out",
+		"your door "+door+" did not refuse "+strings.Join(let, ", ")+": close it until it does")
+	answer := ""
+	if known && !e.c.JSON && e.c.Stdin != nil {
+		fmt.Fprintf(e.c.Out, "Ask Cloudflare for the keys of the team %s, and for https://%s as a stranger would? That is two requests out. [y/N] ", a.Team, a.Name)
+		answer, _ = bufio.NewReader(e.c.Stdin).ReadString('\n')
+	}
+	if answer = strings.ToLower(strings.TrimSpace(answer)); answer != "y" && answer != "yes" {
+		e.say(note, "", "Cloudflare was not asked for its keys, nor your public name as a stranger would ask it: both call out, so doctor asks first, at a terminal")
 		return
 	}
-	door := net.JoinHostPort(contract.Loopback, strconv.Itoa(r.Door(names[0])))
-	if conn, err := net.DialTimeout("tcp", door, time.Second); err != nil {
-		e.say(problem, "whaleshark dash start", "phone access is on and nothing listens at your door %s", door)
-	} else if conn.Close(); r.Rules != contract.RulesProven {
-		e.say(note, proveCmd, "your door %s is open, and the port rules are not proven: pairing and the session are the only wall between another login and your page", door)
-	} else {
-		e.say(ok, "", "your door %s is open, and only you and the system reach it", door)
-	}
+	status, _, err := get(a.Issuer()+"/cdn-cgi/access/certs", "", "")
+	e.hold(err == nil && status == http.StatusOK, "", "Cloudflare's keys for the team "+a.Team+" can be fetched",
+		fmt.Sprintf("Cloudflare's keys for the team %s cannot be fetched (%d, %v): the page refuses every phone until they can", a.Team, status, err))
+	status, head, err := get("https://"+a.Name+"/", "", "")
+	e.hold(err == nil && status/100 == 3 && strings.HasPrefix(head.Get("Location"), a.Issuer()+"/"), "whaleshark dash phone off", "asked without a login, https://"+a.Name+" ends at Cloudflare's login and never at the page",
+		fmt.Sprintf("asked without a login, https://%s did not end at Cloudflare's login (%d, %v): close the door until its Access application is in order", a.Name, status, err))
 }
