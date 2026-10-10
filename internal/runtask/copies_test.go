@@ -309,3 +309,28 @@ func TestAClosedRunIsClearedFromItsOwnTab(t *testing.T) {
 	play(t, h.p.Command(scenario.Unbound, "run", "takeover", "--run", "r3"), 0, "bound to this tab")
 	play(t, h.p.Command(scenario.Unbound, "task", "add", "A", "the A part", "--name", "part A", "--brief", "b.md", "--check", "none"), 0, "ready")
 }
+
+// A run that is abandoned and removed: a branch that holds nothing goes with
+// it; one that holds accepted work stays and is named, and the next run
+// takes a number whose branch is free instead of being refused over it.
+func TestAnAbandonedRunDoesNotBlockTheNext(t *testing.T) {
+	h := open(t, map[string]string{"A.1": work("A")})
+	h.orch(0, "run", "close")("Run r1 is closed")
+	if out := h.orch(0, "run", "rm", "r1")("Run r1 is removed"); strings.Contains(out, "Kept") || h.git("branch", "--list", "whaleshark/r1") != "" {
+		t.Fatalf("a run that collected nothing left its branch:\n%s", out)
+	}
+	testkit.Commit(t, h.p.Root, "main moves", map[string]string{"moved.txt": "moved\n"})
+	h.orch(0, "run", "new", "the same again")("Run r1 is open")
+
+	h.add(map[string]string{"A": "test -f a.txt"}, "A")
+	h.reported("A")
+	h.orch(0, "accept", "A")("A is done, checked")
+	h.orch(0, "close", "--settled")()
+	h.orch(0, "run", "close", "--abandon")("Run r1 is closed")
+	h.orch(0, "run", "rm", "r1")("Run r1 is removed", "Kept, it holds accepted work that was not landed: whaleshark/r1")
+	testkit.Commit(t, h.p.Root, "main moves again", map[string]string{"moved.txt": "again\n"})
+	h.orch(0, "run", "new", "the same once more")("Run r2 is open")
+	if h.git("log", "--format=%s", "-1", "whaleshark/r1") != "A: the A part" || h.git("rev-parse", "whaleshark/r2") != h.git("rev-parse", "main") {
+		t.Fatal("the kept branch was moved, or the new run does not begin at main")
+	}
+}

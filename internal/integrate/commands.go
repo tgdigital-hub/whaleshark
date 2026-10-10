@@ -125,6 +125,9 @@ func (g integrator) land(c *contract.Call) (any, error) {
 		if err == nil {
 			err = g.place(c.Root, s, dir, tip)
 		}
+		// The copy is for this check alone (8i): it goes when the landing
+		// ends, however it ends, and git's list of worktrees forgets it.
+		defer g.clear(c.Root, s)
 		if err != nil {
 			return nil, err
 		}

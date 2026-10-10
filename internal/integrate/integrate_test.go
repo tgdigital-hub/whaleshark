@@ -481,13 +481,24 @@ func TestDiffAndDrop(t *testing.T) {
 	all, err := r.k.Integrator.PrepareAll(r.root, r.state(), []string{"A"})
 	must(t, err)
 	r.change(func(s *contract.State) { s.Run.ClosedAt = contract.Now() })
-	must(t, r.k.Integrator.Drop(r.root, r.state()))
-	if has(all[0].Dir, "") || strings.Contains(r.git(r.root, "worktree", "list"), all[0].Dir) || r.branch() == "" {
-		t.Fatal("dropping a run that was not landed keeps its branch and removes its copy")
+	kept, err := r.k.Integrator.Drop(r.root, r.state())
+	if err != nil || kept != "whaleshark/r1" || has(all[0].Dir, "") || strings.Contains(r.git(r.root, "worktree", "list"), all[0].Dir) || r.branch() == "" {
+		t.Fatalf("dropping a run that was not landed keeps its branch, says so and removes its copy: %q, %v", kept, err)
 	}
 	r.change(func(s *contract.State) { s.Run.Integration.Landed = s.Run.Integration.Tip })
-	must(t, r.k.Integrator.Drop(r.root, r.state()))
-	if out := r.git(r.root, "branch", "--list", "whaleshark/r1"); out != "" {
-		t.Fatalf("the landed branch is still there: %q", out)
+	kept, err = r.k.Integrator.Drop(r.root, r.state())
+	if out := r.git(r.root, "branch", "--list", "whaleshark/r1"); out != "" || kept != "" || err != nil {
+		t.Fatalf("the landed branch is still there: %q, %q, %v", out, kept, err)
+	}
+}
+
+// A run that collected nothing leaves no branch: it stands where the run
+// began and holds no work, and the next run of that number would be refused
+// over it once the base has moved.
+func TestDropOfARunThatCollectedNothing(t *testing.T) {
+	r := open(t, map[string]string{"a.txt": "one\n"})
+	r.change(func(s *contract.State) { s.Run.ClosedAt = contract.Now() })
+	if kept, err := r.k.Integrator.Drop(r.root, r.state()); err != nil || kept != "" || r.git(r.root, "branch", "--list", "whaleshark/r1") != "" {
+		t.Fatalf("the branch of a run that collected nothing: kept %q, %v", kept, err)
 	}
 }
