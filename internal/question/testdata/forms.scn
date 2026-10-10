@@ -1,0 +1,68 @@
+# Each of the four forms answered wrongly and rightly (6.6, 8n), and who may
+# answer what.
+fixture evening-2114
+
+# A question takes any text that says something.
+human: answer q9 "   "                       -> expect exit 2 "is empty"
+human: answer q9 "800 and 1600 wide"         -> expect "q9 answered"
+
+# A choice with no options stored is Yes and No, or Other with a line.
+human: answer q7 maybe                       -> expect exit 2 "not an answer a choice takes"
+human: answer q7 "other:"                    -> expect exit 2
+human: answer q7 Yes                         -> expect "q7 answered"
+
+# A choice with options takes one of them, in any letter case.
+orch: need choice "Keep the old API?" --options keep,drop --task T10 -> expect n5
+human: answer n5 yes                         -> expect exit 2
+human: answer n5 DROP
+orch: need choice "Ship on Friday?"          -> expect n6
+human: answer n6 "other: ask me on Monday"
+
+# A sign-off is approved, or sent back with a reason.
+human: answer n4 yes                         -> expect exit 2 "not an answer a signoff takes"
+human: answer n4 "send back:"                -> expect exit 2
+human: answer n4 "send back: no test reads the sheet"
+orch: need signoff "The plan has nine tasks. Go ahead?" -> expect n7
+human: answer n7 approve
+
+# A to-do is done, or cannot be done, with the reason.
+orch: need todo "Sign in to the mail service" --urgent -> expect n8
+human: answer n8 approve                     -> expect exit 2 "not an answer a todo takes"
+human: answer n8 "cannot:"                   -> expect exit 2
+human: answer n8 done
+orch: need todo "Renew the name of the site" -> expect n9
+human: answer n9 "cannot: the card is not mine"
+
+# What is not a form, and what phase 2 brings.
+orch: need poll "Which day?"                 -> expect exit 2 "no form of an item"
+orch: need question                          -> expect exit 2
+orch: need signoff "Go?" --options a,b       -> expect exit 2 "for a choice"
+orch: need todo "Wait for me" --task T10 --holds -> expect exit 1 "phase 2"
+orch: need question "Which logo?" --wait     -> expect exit 1 "phase 2"
+orch: need question "Which logo?" --task T99 -> expect exit 4
+
+# An item for the person is the person's to answer; the lead agent passes on
+# what it was told, and says so. Its own questions it answers itself.
+orch: need question "Which of the two logos?" -> expect n10
+orch: answer n10 "the blue one"              -> expect exit 5 "--relayed"
+orch: answer n10 "the blue one" --relayed    -> expect "n10 answered"
+orch: answer q10 "the shop's own address"    -> expect "q10 answered"
+as-worker T1.1: answer q10 mine              -> expect exit 5 "not a worker's command"
+as-unbound: answer n10 mine                  -> expect exit 5
+as-worker T1.1: need todo "Help me"          -> expect exit 5
+orch: answer q99 yes                         -> expect exit 4
+orch: answer q10                             -> expect exit 2
+orch: answer q10 a b                         -> expect exit 2
+
+# Withdrawing an item, and what a withdrawn one still takes.
+orch: need question "Which font?"            -> expect n11
+orch: need close n11                         -> expect "withdrawn"
+human: answer n11 "the round one"            -> expect exit 5 "withdrawn"
+orch: need close q10                         -> expect exit 5 "worker's question"
+orch: need close n99                         -> expect exit 4
+orch: escalate n11                           -> expect exit 4
+orch: escalate                               -> expect exit 2
+
+assert: q9 answer "800 and 1600 wide" state answered; q7 answer yes; n5 answer drop task T10; n6 answer "other: ask me on Monday"
+assert: n4 answer "send back: no test reads the sheet"; n7 answer approve; n8 answer done urgent true; n9 answer "cannot: the card is not mine"
+assert: n10 answer "the blue one" kind need for human from lead; q10 answer "the shop's own address"; n11 state closed

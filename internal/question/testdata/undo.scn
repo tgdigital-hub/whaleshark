@@ -1,0 +1,28 @@
+# An answer undone before it was used and after (8n rules 1 and 2). A button
+# on the page settles for four seconds; the clock stands still in between.
+fixture evening-2114
+
+human: page: answer q7 no                    -> expect "q7 answered" "taken back for 4s"
+as-worker T2.1: ask --resume q7 --timeout 0  -> expect exit 75 "still open"
+human: answer q7 --undo                      -> expect "open again"
+human: answer q7 --undo                      -> expect exit 5 "no answer to take back"
+as-worker T2.1: ask --resume q7 --timeout 0  -> expect exit 75 "whaleshark ask --resume q7"
+
+human: page: answer q7 yes
+clock +3s
+as-worker T2.1: ask --resume q7 --timeout 0  -> expect exit 75
+clock +1s
+as-worker T2.1: ask --resume q7              -> expect yes
+
+# It was handed to the worker: from here on it is final.
+human: answer q7 --undo                      -> expect exit 5 "Already acted on; tell the lead agent."
+human: page: answer q7 no                    -> expect exit 5
+human: page: answer q7 yes                   -> expect "has that answer already"
+as-worker T2.1: ask --resume q7              -> expect yes
+
+# Only the person takes an answer back.
+human: page: answer n4 approve
+orch: answer n4 --undo                       -> expect exit 5 "the person's to give"
+human: page: answer n4 --undo                -> expect "open again"
+
+assert: q7 state used answer yes; attempts T2.1 working; n4 state open
