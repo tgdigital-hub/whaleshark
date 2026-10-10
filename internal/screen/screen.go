@@ -2,6 +2,7 @@ package screen
 
 import (
 	"slices"
+	"time"
 	"unicode/utf8"
 
 	"github.com/rivo/uniseg"
@@ -46,25 +47,40 @@ type Screen struct {
 	prev     int    // the cell of the character printed last while a mark can still join it, else -1
 	part     []byte // the start of a character whose end has not arrived
 	title    string
+
+	modes  Modes
+	keys   []int // the extended keyboard levels a program left behind it
+	reply  []byte
+	events []Event
+	frame  contract.Picture // what the screen showed when the hold began
+	since  time.Time        // when it began; zero while nothing is held
+	now    func() time.Time
+	back   [][]byte // the scroll-back, one packed line each, from first on
+	first  int
+	packed int // the bytes of all of them
+	keep   int // how many lines are kept
+
+	// Fg and Bg are the colours a program is told when it asks for the
+	// terminal's own, as 0xRRGGBB. Whoever knows the person's terminal sets them.
+	Fg, Bg uint32
 }
 
-// New returns a blank screen of w columns and h rows.
+// New returns a blank screen of w columns and h rows that keeps 5,000
+// lines of scroll-back.
 func New(w, h int) *Screen {
-	w, h = min(max(w, 1), maxSide), min(max(h, 1), maxSide)
-	s := &Screen{w: w, h: h, bot: h - 1, wrap: true, shown: true, prev: -1, tabs: make([]bool, w)}
-	for i := range s.grids {
-		s.grids[i] = contract.NewPicture(w, h).Cells
-	}
-	s.cells = s.grids[0]
-	for x := 8; x < w; x += 8 {
-		s.tabs[x] = true
-	}
+	s := &Screen{now: time.Now, keep: 5000, Fg: 0xe5e5e5}
+	s.Resize(w, h)
+	s.reset(false)
 	return s
 }
 
-// Picture is what the screen shows now. Its cells are the screen's own:
-// they change with the next Write.
+// Picture is what the screen shows now, or what it showed when the program
+// began a frame it has not finished. Its cells are the screen's own: they
+// change with the next Write.
 func (s *Screen) Picture() *contract.Picture {
+	if s.Held() {
+		return &s.frame
+	}
 	s.settle()
 	return &contract.Picture{W: s.w, H: s.h, Cells: s.cells, CurX: s.x, CurY: s.y, CurShown: s.shown}
 }
@@ -263,16 +279,32 @@ func (s *Screen) deleteCells(n int) {
 	s.blank(s.cells[end-n : end])
 }
 
-// scroll moves the rows top to bot up by n, or down by -n; what leaves is
-// lost. The whole screen moving up a row is what a pane does all day, so
-// it moves no cell: the top of the screen becomes the next row of cells,
-// and the row that left is the new bottom.
+// scroll moves the rows top to bot up by n, or down by -n. What leaves the
+// top of the first screen goes to the scroll-back. The whole screen moving
+// up a row is what a pane does all day, so it moves no cell: the top of the
+// screen becomes the next row of cells, and the row that left is the new
+// bottom.
 func (s *Screen) scroll(top, bot, n int) {
 	if n == 1 && top == 0 && bot == s.h-1 {
-		s.blank(s.cells[s.base*s.w : (s.base+1)*s.w])
+		row := s.cells[s.base*s.w : (s.base+1)*s.w]
+		if s.alt == 0 {
+			s.push(row)
+		}
+		s.blank(row)
 		s.base = (s.base + 1) % s.h
 		return
 	}
+	if s.settle(); top == 0 && s.alt == 0 {
+		for y := range min(n, bot+1) {
+			s.push(s.cells[y*s.w : (y+1)*s.w])
+		}
+	}
+	s.roll(top, bot, n)
+}
+
+// roll is scroll with nothing kept: lines taken out or put in by the
+// program are no history.
+func (s *Screen) roll(top, bot, n int) {
 	s.settle()
 	a, b := top*s.w, (bot+1)*s.w
 	k := min(max(n, -n), bot-top+1) * s.w
@@ -343,6 +375,8 @@ func (s *Screen) control(b byte) {
 		s.index()
 	case '\r':
 		s.to(0, s.y)
+	case '\a':
+		s.event(Bell, "")
 	case 0x0e, 0x0f:
 		s.shift = int(0x0f - b)
 	}

@@ -59,7 +59,8 @@ cursor 24,21 hidden
 23:34-34 fg=#969696
 23:36-41 fg=#969696
 == synth-fullscreen-80x24 after 148 of 296 ==
-cursor 0,16 hidden
+cursor 2,21 hidden
+|                                                                                |
 |❯ long was a the was it                                                         |
 |                                                                                |
 |⏺ what the a follow in shadow in long course the number bars counts down shark  |
@@ -77,18 +78,16 @@ cursor 0,16 hidden
 |⏺ nobody the in the whale 한국어 today to shadow fish whale needs along         |
 |                                                                                |
 |❯ slow on                                                                       |
-|❯ slow on                                                                       |
 |                                                                                |
 |✻ Drifting…                                                                     |
 |────────────────────────────────────────────────────────────────────────────────|
 |❯                                                                               |
 |────────────────────────────────────────────────────────────────────────────────|
 |  ▸▸ plain mode on · esc for help · ◐ steady                                    |
-0:0-22 fg=#ffffff bg=#32373c
-2:0-0 fg=#ffffff
-12:0-9 fg=#ffffff bg=#32373c
-14:0-0 fg=#ffffff
-16:0-8 fg=#ffffff bg=#32373c
+1:0-22 fg=#ffffff bg=#32373c
+3:0-0 fg=#ffffff
+13:0-9 fg=#ffffff bg=#32373c
+15:0-0 fg=#ffffff
 17:0-8 fg=#ffffff bg=#32373c
 19:0-6 fg=#40a0d0
 19:7-7 fg=#8ccdeb
