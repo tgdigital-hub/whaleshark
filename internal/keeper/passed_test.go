@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/screen"
 )
 
 // Nothing a program prints is passed on. A window is sent only what the
@@ -19,6 +20,7 @@ func TestNothingAProgramPrintsReachesAWindow(t *testing.T) {
 	o := r.attach(100, 30)
 	var mu sync.Mutex
 	var raw []byte
+	seen := screen.New(100, 30) // what the person's terminal shows of it
 	go func() {
 		for {
 			kind, body, err := contract.ReadFrame(o.conn)
@@ -28,6 +30,7 @@ func TestNothingAProgramPrintsReachesAWindow(t *testing.T) {
 			if kind == contract.FrameBytes {
 				mu.Lock()
 				raw = append(raw, body...)
+				seen.Write(body)
 				mu.Unlock()
 			}
 		}
@@ -37,27 +40,43 @@ func TestNothingAProgramPrintsReachesAWindow(t *testing.T) {
 		defer mu.Unlock()
 		return string(raw)
 	}
-	r.until("the first frame", func() bool { return strings.Contains(sent(), "pane=p1") })
+	shows := func(text string) func() bool {
+		// A frame holds only the cells that changed, so a text is looked for
+		// on the terminal's screen and not in the bytes: a letter of it may
+		// stand there already.
+		return func() bool {
+			mu.Lock()
+			defer mu.Unlock()
+			return strings.Contains(seen.Picture().Text(), text)
+		}
+	}
+	r.until("the first frame", shows("pane=p1"))
 	const e = "\x1b"
-	hostile := e + "]0;PLANTED title\a" + e + "]2;PLANTED title" + e + "\\" + e + "[21t" + e + "[20t" + // a title, and the title asked back
+	asks := e + "]0;PLANTED title\a" + e + "]2;PLANTED title" + e + "\\" + e + "[21t" + e + "[20t" + // a title, and the title asked back
 		e + "]52;c;UExBTlRFRA==\a" + e + "]52;c;?\a" + // the clipboard written and read
 		e + "P$q m" + e + "\\" + e + "P+q544e" + e + "\\" + "\x05" + e + "]50;?\a" + // questions answered with text
 		e + "[6n" + e + "[c" + e + "[>c" + e + "[>q" + e + "]10;?\a" + // questions answered with numbers
 		e + "]8;;http://PLANTED.example/\alink" + e + "]8;;\a" + e + "]9;PLANTED notice\a" + e + "]777;notify;PLANTED;x\a" +
 		e + "]1337;File=name=UExBTlRFRA==;inline=1:UExBTlRFRA==\a" +
-		e + "[?1049h" + e + "[?1000h" + e + "[?2004h" + e + "[>4;2m" + e + "[>1u" + e + "[?1049l" +
-		e + "[" + strings.Repeat("1;", 5000) + "m" + e + "]2;" + strings.Repeat("T", 70<<10) + "\a" + // past the reader's limits
+		e + "[?1049h" + e + "[?1000h" + e + "[?2004h" + e + "[>4;2m" + e + "[>1u" + e + "[?1049l"
+	hostile := e + "[" + strings.Repeat("1;", 5000) + "m" + e + "]2;" + strings.Repeat("T", 70<<10) + "\a" + // past the reader's limits
 		e + "Pq" + strings.Repeat("#0;2;0;0;0", 500) + e + "\\" + e + "P" + strings.Repeat("D", 70<<10) + "\x18" + // a picture; a string never ended
-		"\u009b31m\u009d0;PLANTED\u009c‮turned⁦" + "\x9b31m\x9d0;PLANTED\x9c" + // the one-byte forms, and the turning marks
+		"\u009b31m\u009d0;PLANTED\u009c\u202eturned\u2066" + "\x9b31m\x9d0;PLANTED\x9c" + // the one-byte forms, and the turning marks
 		e + "[999;999H" + e + "[2J" + e + "c"
 	f := r.program("p1")
+	// The questions first, until their answers are read back: the rig's
+	// program prints what it is typed, and that must not fall into the
+	// middle of a string that follows.
+	f.print(asks)
+	r.until("the answers", func() bool { return strings.Contains(f.got(), "\x1b[") })
+	r.settle()
 	for hostile += "\r\nthe-end-of-it\r\n"; hostile != ""; {
 		// In pieces: the rig's program hands on one read's worth of each print.
 		n := min(len(hostile), 16<<10)
 		f.print(hostile[:n])
 		hostile = hostile[n:]
 	}
-	r.until("the last line", func() bool { return strings.Contains(sent(), "the-end-of-it") })
+	r.until("the last line", shows("the-end-of-it"))
 	got := sent()
 	if !utf8.ValidString(got) {
 		t.Error("the window was sent bytes that are no text")
@@ -74,7 +93,7 @@ func TestNothingAProgramPrintsReachesAWindow(t *testing.T) {
 			break
 		}
 	}
-	for _, bad := range []string{"PLANTED", "\a", "\x05", "\u009b", "\u009d", "‮", "⁦"} {
+	for _, bad := range []string{"PLANTED", "\a", "\x05", "\u009b", "\u009d", "\u202e", "\u2066"} {
 		if strings.Contains(got, bad) {
 			t.Errorf("the window was sent %q", bad)
 		}

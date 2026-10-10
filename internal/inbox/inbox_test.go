@@ -312,6 +312,12 @@ func TestAnAnswerSettlesByTheClock(t *testing.T) {
 	}
 }
 
+// said is where a wait writes that it is still there: each line is handed
+// to the test as it is written.
+type said chan string
+
+func (c said) Write(b []byte) (int, error) { c <- string(b); return len(b), nil }
+
 func TestKeepaliveAndTimeout(t *testing.T) {
 	w := evening(t, nil)
 	rules.Plug(w.p.Kit)
@@ -323,11 +329,51 @@ func TestKeepaliveAndTimeout(t *testing.T) {
 		Caller: contract.Caller{Kind: contract.Orchestrator, Pane: w.p.Lead}, Flags: map[string][]string{"timeout": {"1"}}}
 	began := time.Now()
 	got, err := wait(c)
-	if d, ok := got.(delivery); err != nil || !ok || d.ID != "" || time.Since(began) < time.Second {
-		t.Fatalf("%+v, %v, after %v", got, err, time.Since(began))
+	took := time.Since(began)
+	if d, ok := got.(delivery); err != nil || !ok || d.ID != "" || took < time.Second {
+		t.Fatalf("%+v, %v, after %v", got, err, took)
 	}
-	if n := strings.Count(errOut.String(), "whaleshark wait: still waiting after "); n < 1 || n > 10 {
-		t.Fatalf("%d keepalive lines in a second at ten a second:\n%s", n, &errOut)
+	// How many lines a wait of one second says is not asked: its first look
+	// and its first sweep may take all of that second on a busy machine, and
+	// then its time is out before it has blocked once.
+	if n := strings.Count(errOut.String(), "whaleshark wait: still waiting after "); n > int(took/keepalive) {
+		t.Fatalf("%d keepalive lines in %v at ten a second:\n%s", n, took, &errOut)
+	}
+
+	// A wait that blocks says so again and again, until it ends.
+	heard, ended := make(said, 1), make(chan error, 1)
+	c.Err, c.Flags = heard, nil
+	go func() {
+		_, err := wait(c)
+		ended <- err
+	}()
+	late := time.After(patience)
+	for n := 0; n < 3; {
+		select {
+		case line := <-heard:
+			if n++; !strings.HasPrefix(line, "whaleshark wait: still waiting after ") {
+				t.Fatalf("the wait said %q", line)
+			}
+		case err := <-ended:
+			t.Fatalf("the wait ended after %d keepalive lines: %v", n, err)
+		case <-late:
+			t.Fatalf("%d keepalive lines in a minute at ten a second", n)
+		}
+	}
+	w.change(func(s *contract.State, now time.Time) error {
+		return rule.Takeover(s, contract.Binding{Pane: w.p.Own, Workspace: "w1"}, now)
+	})
+	for {
+		select {
+		case <-heard:
+		case err := <-ended:
+			if r, ok := err.(*contract.Refusal); !ok || r.Code != "replaced" {
+				t.Fatalf("the replaced wait: %v", err)
+			}
+			return
+		case <-late:
+			t.Fatal("the replaced wait did not end")
+		}
 	}
 }
 

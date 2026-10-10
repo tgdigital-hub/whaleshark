@@ -47,7 +47,11 @@ func TestEverythingPrintedIsReadThenTheEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := bytes.Count(out, []byte("-7\r\n")); n != 20000 || !bytes.HasSuffix(out, []byte("line-19999-7\r\n")) {
+	// The system puts the carriage return before each line's end, and macOS
+	// puts it a second time when its queue was full between the two bytes:
+	// the lines are counted without them.
+	out = bytes.ReplaceAll(out, []byte("\r"), nil)
+	if n := bytes.Count(out, []byte("-7\n")); n != 20000 || !bytes.HasSuffix(out, []byte("line-19999-7\n")) {
 		t.Fatalf("%d lines of 20000, ending %q", n, out[max(len(out)-30, 0):])
 	}
 	if code, err := p.Wait(); code != 3 || err != nil {
