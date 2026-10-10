@@ -4,5 +4,6 @@ package input
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
-// Plug binds this package's part into the kit. Nothing is built yet.
+// Plug binds this package's part into the kit: nothing, because the keeper
+// calls it directly and it needs nothing of the kit.
 func Plug(*contract.Kit) {}
