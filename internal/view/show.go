@@ -64,7 +64,7 @@ func show(c *contract.Call) (any, error) {
 // newest first, or the one try that was named, each with the moments its
 // record holds. dir is the run's folder.
 func taskView(v *contract.View, s *contract.State, t *contract.Task, only, dir string) *contract.TaskView {
-	tv := &contract.TaskView{Card: *cardOf(v, t.ID), Run: s.Run.ID, Check: cli.Plain(t.Check), Owns: t.Owns}
+	tv := &contract.TaskView{Card: *cardOf(v, t.ID), Run: s.Run.ID, Check: cli.Plain(t.Check), Owns: t.Owns, Decisions: t.Decisions}
 	if t.Brief != "" {
 		tv.Brief = path.Join(dir, filepath.ToSlash(t.Brief))
 	}
@@ -153,6 +153,9 @@ func taskText(w io.Writer, tv *contract.TaskView, now time.Time, o Options) {
 		if f[1] != "" {
 			p.line(" "+pad(f[0], 10), f[1], "")
 		}
+	}
+	for _, d := range tv.Decisions {
+		p.line(" "+pad("Decided", 10), clean(d.Question+" "+d.Answer), "")
 	}
 	if len(tv.Items) > 0 {
 		rows := make([]row, len(tv.Items))
