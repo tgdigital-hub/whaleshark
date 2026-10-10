@@ -366,3 +366,23 @@ func TestKeysReloadTheRunningServerForTheRealFile(t *testing.T) {
 		t.Errorf("calls %v, want %v", *calls, want)
 	}
 }
+
+// A tab opened a moment ago may still be starting its shell: herdr says the
+// pane is busy, and the start is asked again; a pane that stays busy is an error.
+func TestAgentStartWaitsForAFreshTabsShell(t *testing.T) {
+	busyWait = time.Millisecond
+	n := 0
+	a, calls := stub(t, func(_, _ []string) (string, string, int) {
+		if n++; n < 3 {
+			return "", `{"error":{"code":"agent_pane_busy","message":"agent target pane w1:p2 is not an available shell"}}`, 1
+		}
+		return `{"id":"x","result":{}}`, "", 0
+	})
+	if err := a.AgentStart("h3fa1-r3-t3-1", "claude", "w1:p2", nil, time.Second); err != nil || len(*calls) != 3 {
+		t.Fatalf("a start into a fresh tab: %v after %d calls", err, len(*calls))
+	}
+	n = -100
+	if err := a.AgentStart("h3fa1-r3-t3-1", "claude", "w1:p2", nil, time.Second); err == nil || len(*calls) != 3+busyTries+1 {
+		t.Fatalf("a pane that stays busy: %v after %d calls", err, len(*calls))
+	}
+}

@@ -186,10 +186,22 @@ func ms(d time.Duration) string { return strconv.FormatInt(d.Milliseconds(), 10)
 
 // AgentStart returns when the agent is ready for its prompt. herdr takes a
 // timeout above three seconds and of at most five minutes.
+// AgentStart asks again for a few seconds while herdr says the pane is busy:
+// a tab opened a moment ago may still be starting its shell (seen for real).
 func (a *Adapter) AgentStart(name, kind, pane string, args []string, timeout time.Duration) error {
 	argv := append([]string{"agent", "start", name, "--kind", kind, "--pane", pane, "--timeout", ms(timeout), "--"}, args...)
-	return a.call(context.Background(), timeout+wait, nil, argv...)
+	for tries := 0; ; tries++ {
+		err := a.call(context.Background(), timeout+wait, nil, argv...)
+		var busy *Error
+		if tries == busyTries || !errors.As(err, &busy) || busy.Code != "agent_pane_busy" {
+			return err
+		}
+		time.Sleep(busyWait)
+	}
 }
+
+// How often and how far apart AgentStart asks again; a test shortens the wait.
+var busyTries, busyWait = 10, 500 * time.Millisecond
 
 // Prompt returns when the agent has started on the text, not when its turn ends.
 func (a *Adapter) Prompt(name, text string, timeout time.Duration) error {
