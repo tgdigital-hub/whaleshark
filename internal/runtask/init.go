@@ -132,6 +132,10 @@ func (i *setting) project() error {
 	case shared:
 		return refuse(contract.ExitEnv, "shared_folder", "Another login can write to "+c.Root+": it belongs to somebody else, or anyone may write it, or its group may and has another member.")
 	}
+	if came := cli.Brought(c.Root); len(came) > 0 {
+		return refuse(contract.ExitEnv, "brought_record", fmt.Sprintf("git tracks %d files under %s here, the first %s. That folder is your login's own record and no part of a repository: what comes along in it is somebody else's word about runs, checks and what init wrote. Take it out of git (git rm -r --cached %[2]s), delete what you did not make, and run init again.",
+			len(came), contract.ProjectDir, cli.Plain(came[0])))
+	}
 	ours := k.Store.Dir(c.Root, "")
 	err := os.MkdirAll(ours, 0o700)
 	if err == nil {

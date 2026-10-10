@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/guide"
 )
@@ -93,6 +94,9 @@ func (e *exam) code() {
 	}
 	if _, err := e.git("check-ignore", "-q", contract.ProjectDir); err != nil {
 		e.say(problem, initCmd, "git does not leave %s alone", contract.ProjectDir)
+	}
+	if came := cli.Brought(e.c.Root); len(came) > 0 {
+		e.say(problem, "git rm -r --cached "+contract.ProjectDir, "git tracks %s under %s, which is your login's own record and no part of a repository: what comes along in it is somebody else's word", count(len(came), "file"), contract.ProjectDir)
 	}
 }
 

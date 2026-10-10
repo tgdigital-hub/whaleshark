@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"golang.org/x/term"
 
@@ -52,6 +54,24 @@ func rootOf(c *contract.Call) (string, error) {
 	return cwd, err
 }
 
+// Brought lists what git tracks in the project's folder of ours. That folder
+// is the login's own record and no part of a repository: files of it that
+// come along with one are somebody else's word about runs, the commands
+// that check them and what init wrote.
+func Brought(root string) []string {
+	// #nosec G204 -- always the program git, with a list of arguments that holds nothing a person typed
+	out, _ := exec.Command("git", "-C", root, "ls-files", "-z", "--", contract.ProjectDir).Output()
+	return strings.FieldsFunc(string(out), func(r rune) bool { return r == 0 })
+}
+
+// setUp reports whether init was run in this folder by this login.
+func setUp(c *contract.Call, root string) bool {
+	p := c.Kit.Platform
+	dirs, _ := p.Dirs()
+	roots, _ := contract.ReadProjects(p.Peek, dirs.State)
+	return slices.ContainsFunc(roots, func(r string) bool { return p.PathKey(r) == p.PathKey(root) })
+}
+
 // locate works out the project, the run and the caller, the same way for
 // every command, reading the record and nothing else. sub is the form of the
 // command, which decides who may be told about a record that cannot be read.
@@ -81,6 +101,10 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	runs, err := store.Runs(root)
 	if err != nil {
 		problem = unusable(err)
+	}
+	if _, err := os.Stat(store.Dir(root, "")); err == nil && !setUp(c, root) && len(Brought(root)) > 0 {
+		problem = &contract.Refusal{Exit: contract.ExitEnv, Code: "brought_record", Next: []string{"git rm -r --cached " + contract.ProjectDir},
+			Message: "This repository brings a " + contract.ProjectDir + " folder along, and you never ran init here: its runs, checks and settings are somebody else's word and are not used. Take it out of git, delete what you did not make, then run whaleshark init."}
 	}
 	var leads []string // the open runs that record this pane as their lead agent's
 	its := ""          // the open run with a live attempt in this pane
