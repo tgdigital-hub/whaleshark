@@ -147,6 +147,11 @@ func (b *builder) seat(t *contract.Task) *seat {
 	if p := a.Progress; p != nil {
 		c.Progress, c.Said, c.News = p.Pct, p.At, cli.Plain(p.Note)
 	}
+	// A worker that has reported done has got there, whatever its last note
+	// said: its bar is full, and not left at the figure of that note.
+	if r := a.Report; r != nil && r.Outcome == contract.ReportDone {
+		c.Progress = 100
+	}
 	if f, ok := b.in.Ctx[a.Place.Pane]; ok && f.Known {
 		c.Ctx, c.CtxKnown = f.Pct, true
 	}

@@ -141,17 +141,29 @@ func away(v *contract.View, s *contract.State, events []contract.Event, limits c
 	}
 	c.Finished = line(parts, ", ")
 
+	// The run keeps the findings of its last scan only, and a clash that was
+	// sorted is in none: what clashed in the time is read from the events.
 	parts = nil
-	for _, f := range s.Run.Findings {
-		if len(f.Tasks) != 2 || len(f.Files) == 0 || s.Tasks[f.Tasks[0]] == nil || s.Tasks[f.Tasks[1]] == nil {
+	clashes, still := slices.Clone(s.Run.Findings), len(s.Run.Findings)
+	for _, e := range events {
+		if e.Kind == "overlap" && in(e.At) {
+			clashes = append(clashes, contract.Finding{Tasks: words(e.Data["tasks"]), Files: words(e.Data["files"])})
+		}
+	}
+	told := map[string]bool{}
+	for i, f := range clashes {
+		if len(f.Tasks) != 2 || len(f.Files) == 0 || s.Tasks[f.Tasks[0]] == nil || s.Tasks[f.Tasks[1]] == nil || told[fmt.Sprint(f.Tasks, f.Files[0])] {
 			continue
 		}
+		told[fmt.Sprint(f.Tasks, f.Files[0])] = true
 		x, y := s.Tasks[f.Tasks[0]], s.Tasks[f.Tasks[1]]
 		both := name(x.ID) + " and " + name(y.ID) + " both change"
 		switch sorted := x.Status == contract.TaskDone && y.Status == contract.TaskDone; {
 		case sorted && !in(x.SettledAt) && !in(y.SettledAt):
 		case sorted:
 			parts = append(parts, both+"d "+clean(f.Files[0])+"; sorted, both accepted")
+		case i >= still:
+			parts = append(parts, both+"d "+clean(f.Files[0])+"; no clash is left, not both accepted yet")
 		default:
 			parts = append(parts, both+" "+clean(f.Files[0])+"; not sorted yet")
 		}
@@ -266,4 +278,18 @@ func catchText(w io.Writer, c *contract.Catchup, width int) {
 	}
 	fmt.Fprintf(p.out, " %-22s%-4dStopped  %d   Failed  %d\n", "Still building", c.StillBuilding, c.Stopped, c.Failed)
 	io.WriteString(w, p.out.String())
+}
+
+// words is a list of words of an event's data, as it was raised or as it
+// was read back from the record.
+func words(v any) (out []string) {
+	switch list := v.(type) {
+	case []string:
+		return list
+	case []any:
+		for _, w := range list {
+			out = append(out, fmt.Sprint(w))
+		}
+	}
+	return out
 }
