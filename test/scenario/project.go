@@ -23,9 +23,10 @@ import (
 	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
 )
 
-// tools is the folder Main built the three programs into, and module the
-// folder of the whole tree.
-var tools, module string
+// tools is the folder Main built the three programs into, module the
+// folder of the whole tree, and serverFile where the program Main built
+// looks for a server's file.
+var tools, module, serverFile string
 
 // Main is the TestMain of a package that runs scenarios. It builds the real
 // program and the fake agent once, puts their folder first on the PATH, so
@@ -40,8 +41,14 @@ func Main(m *testing.M) {
 		defer os.RemoveAll(dir)
 		out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").Output()
 		if module = strings.TrimSpace(string(out)); err == nil {
-			build := exec.Command("go", "build", "-o", dir+string(filepath.Separator),
-				"./cmd/whaleshark", "./test/fakeagent")
+			// The program of the tests looks for a server's file in the tests'
+			// own folder, where none lies until a scenario plays a server, and
+			// for a Cloudflare team's keys on this machine, at the port the
+			// team is named by.
+			at := "github.com/tgdigital-hub/whaleshark/internal/contract."
+			serverFile = filepath.Join(dir, "server.toml")
+			build := exec.Command("go", "build", "-ldflags", "-X '"+at+"ServerFile="+serverFile+"' -X '"+at+"AccessAt=http://"+contract.Loopback+":%s'",
+				"-o", dir+string(filepath.Separator), "./cmd/whaleshark", "./test/fakeagent")
 			build.Dir, build.Stderr = module, os.Stderr
 			err = build.Run()
 		}
@@ -114,6 +121,16 @@ type Project struct {
 	plugs sync.Once
 }
 
+// Server makes this machine a server for the rest of the test, for the
+// program the scenarios run: lines is the server's file after its version,
+// with {me} in the place of the login's name.
+func (p *Project) Server(lines ...string) {
+	p.t.Helper()
+	text := fmt.Sprintf("version = %d\n%s\n", contract.FileVersion, strings.Join(lines, "\n"))
+	p.must(os.WriteFile(serverFile, []byte(strings.ReplaceAll(text, "{me}", contract.Me())), 0o600))
+	p.t.Cleanup(func() { os.Remove(serverFile) })
+}
+
 // Plug puts a package's parts into the project's kit, once, as the program
 // does at its start. A scenario's panes each run in a goroutine of their own
 // and all read the kit: one that plugged it again as it opened would write
@@ -146,10 +163,20 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 		t.Fatal(err)
 	}
 	for name, dir := range map[string]string{"HOME": "", "USERPROFILE": "", "XDG_CONFIG_HOME": "config",
-		"XDG_STATE_HOME": "state", "XDG_CACHE_HOME": "cache", "APPDATA": "roaming", "LOCALAPPDATA": "local"} {
+		"XDG_CACHE_HOME": "cache", "APPDATA": "roaming"} {
 		t.Setenv(name, filepath.Join(base, "home", dir))
 	}
-	p := &Project{Root: filepath.Join(base, "project"), Kit: contract.NewKit(), Lead: "w1:p1", Own: "w1:p0",
+	// A socket's path is short, so its folder is not under the test's own;
+	// nor is the login's state folder, where the page's socket lies.
+	dir, err := os.MkdirTemp("", "ws")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Setenv("XDG_STATE_HOME", filepath.Join(dir, "state"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(dir, "local"))
+	// The project lies in the home folder, as a person's does and as a server asks.
+	p := &Project{Root: filepath.Join(base, "home", "project"), Kit: contract.NewKit(), Lead: "w1:p1", Own: "w1:p0",
 		t: t, on: on, clock: filepath.Join(base, "clock"), now: time.Now()}
 	platform.Plug(p.Kit)
 	store.Plug(p.Kit)
@@ -158,10 +185,6 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 	if on == Keeper && p.Kit.Platform.System() == "windows" {
 		t.Skip("the keeper's terminals on Windows are proven on a real one, later")
 	}
-	// A socket's path is short, so its folder is not under the test's own.
-	dir, err := os.MkdirTemp("", "ws")
-	p.must(err)
-	t.Cleanup(func() { os.RemoveAll(dir) })
 	socket := filepath.Join(dir, "s")
 	if p.env = []string{contract.EnvSocket + "=" + socket}; on == Keeper && f == nil && len(scripts) == 0 {
 		p.keeper(socket, dir)

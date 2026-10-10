@@ -29,3 +29,16 @@ func TestABrowserCheck(t *testing.T) {
 		}
 	}
 }
+
+// The agent cap of a server's file (8j), on the program the scenarios build,
+// which looks for that file in the tests' own folder: each started worker
+// has a port of the login's block.
+func TestTheCapOfAServersFile(t *testing.T) {
+	p := scenario.Run(t, "8j-server-cap.scn", nil)
+	s, _ := p.Record()
+	for _, id := range []string{"B.1", "C.1"} {
+		if a := s.Attempts[id]; a.Temp == "" {
+			t.Errorf("%s has no temp folder of its own, as an attempt on a server has: %+v", id, a)
+		}
+	}
+}

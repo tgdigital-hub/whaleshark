@@ -37,6 +37,8 @@ assert: T1 status done; attempts T1.1 accepted; no event lost
 
 **A real repository.** `git` makes the project folder a git repository, with what the scenario has written so far committed on `main`. From then on a task gets a copy of the code of its own, as in any project with git, and a fake agent's `edit <file>` and `commit` work in that copy; `merge <branch>` brings a branch into it and, where the two clash, keeps the lines of both, as a worker does with a sync brief. Without the line the project has no git and every task works in the one folder.
 
+**A server.** `server agents = 2 | [login.{me}] | ports = 27000` makes the machine a server for the rest of the scenario: the line is the server's file after its version, one line of the file between the bars, with `{me}` in the place of the login's name. The program `Main` builds looks for that file in the tests' own folder and nowhere else, so no scenario reads a real server's file, and it looks for a Cloudflare team's keys on this machine at the port the team is named by, so a test can publish keys of its own. `p.Server(lines...)` is the same from Go. The project lies inside the pretended home, as a server asks.
+
 **A browser check.** `shot <name>` saves a small picture of that name into the attempt's evidence folder, as a worker's own browser tool would. A task added with `--browser-check` takes no report of done without one.
 
 **A loaded machine.** `slow-paste <seconds>` as a script's first step makes the fake agent, on the real keeper, read its first prompt key by key: a paste is taken in and shown only that long after it came, and an Enter that comes sooner is dropped, which is what a real agent does when the machine is busy. On the double, where nothing is typed, the step does nothing.

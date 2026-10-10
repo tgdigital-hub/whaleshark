@@ -184,7 +184,11 @@ type Access struct {
 }
 
 // Issuer is the address a token of this team names and the keys are under.
-func (a Access) Issuer() string { return "https://" + a.Team + ".cloudflareaccess.com" }
+// AccessAt is a variable for the reason ServerFile is one: a test's own
+// program can be built with another, and nothing else ever sets it.
+var AccessAt = "https://%s.cloudflareaccess.com"
+
+func (a Access) Issuer() string { return fmt.Sprintf(AccessAt, a.Team) }
 
 // Access returns a login's values on the Cloudflare road. ok is false when
 // the road is another or any value is missing: the door then answers nothing.

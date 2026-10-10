@@ -172,6 +172,8 @@ func (r *runner) step(kind, rest string) {
 		name, body, _ := strings.Cut(rest, ":")
 		body = strings.ReplaceAll(strings.TrimSpace(body), " | ", "\n") + "\n"
 		r.p.must(os.WriteFile(filepath.Join(r.p.Root, name), []byte(body), 0o600))
+	case "server":
+		r.p.Server(strings.Split(rest, " | ")...)
 	case "git":
 		// The repository's own settings name who commits: the program and the
 		// fake agents run git with nobody's settings but these.

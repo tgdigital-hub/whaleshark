@@ -1,0 +1,21 @@
+# 8j: a server whose file lets this login run two agents. Three tasks are
+# ready: two start, each on ports of the login's own block, and the third
+# waits for a place whoever asks for it. When one is stopped the third starts.
+server agents = 9 | [login.{me}] | ports = 27000 | agents = 2
+agent A.1: write-result | hang
+agent B.1: write-result | hang
+agent C.1: write-result | hang
+
+file brief.md: Target: one file | Change: write yours | Constraints: none | Ownership: your own file | Acceptance: it is there
+orch: init
+orch: run new "three pages on a shared server"      -> expect r1
+task A "Write page one" --name "page one" --check "test -f brief.md" --brief brief.md
+task B "Write page two" --name "page two" --check "test -f brief.md" --brief brief.md
+task C "Write page three" --name "page three" --check "test -f brief.md" --brief brief.md
+orch: start --ready                                 -> expect "(A.1)" "(B.1)" "1 more ready task waits for a free place: this server lets this login run 2 agents."
+orch: start C                                       -> expect exit 5 "as many agents live as this server lets it run"
+human: start C                                      -> expect exit 5 "as many agents live as this server lets it run"
+orch: stop A
+orch: start C                                       -> expect "(C.1)"
+
+assert: C status running; attempts A.1 stopped, B.1 working, C.1 working; no event lost; no event twice
