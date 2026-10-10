@@ -429,3 +429,27 @@ func TestSelfPath(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// A line with a quoted word reaches the system's shell as it was written:
+// this test program, named by its quoted path, is run by it. A hook program
+// of the person's is started by such a line.
+func TestShellTakesAQuotedLine(t *testing.T) {
+	s := New(runtime.GOOS)
+	self, err := s.SelfPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dialect := Posix
+	if runtime.GOOS == onWindows {
+		dialect = Cmd
+	}
+	for _, argv := range [][]string{{self, "-test.run=^$"}, {self, "-test.run=^$", "a word", `"quoted"`}} {
+		line := s.Quote(dialect, argv)
+		if !strings.Contains(line, `"`) && dialect == Cmd {
+			t.Fatalf("the line has no quote to test with: %s", line)
+		}
+		if out, err := s.Shell(line).CombinedOutput(); err != nil || !strings.Contains(string(out), "PASS") {
+			t.Errorf("%s: %v\n%s", line, err, out)
+		}
+	}
+}
