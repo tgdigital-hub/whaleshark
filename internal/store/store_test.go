@@ -68,7 +68,14 @@ func writer(root string, n int) {
 // shows no mode to check.
 const private = runtime.GOOS != "windows"
 
+// plugging keeps the tests that make a store in each of several goroutines
+// to one at a time here. Plugging is a program's first step, taken once
+// before anything runs beside it, and the platform's sets what all share.
+var plugging sync.Mutex
+
 func real() *Store {
+	plugging.Lock()
+	defer plugging.Unlock()
 	k := contract.NewKit()
 	platform.Plug(k)
 	Plug(k)
