@@ -80,7 +80,10 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
 - `stuck`: nothing can run, because a task waits on one that failed or was cancelled. Edit, reset
   or cancel.
 - `paused`: the person pressed Stop all. Start nothing and change nothing until `resumed`. You
-  may still read, and talk with the person.
+  may still read, and talk with the person. `still_running` names a worker that works on through
+  the pause; it stops at its next whaleshark command, and `whaleshark stop T3` ends it now.
+- `land_failed`: the check of the collected work failed when the person landed it. Read the
+  log it names, and plan the task that mends it.
 
 ## Several results at once
     whaleshark accept T1 T2 T3
