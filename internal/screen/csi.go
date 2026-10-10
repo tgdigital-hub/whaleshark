@@ -1,7 +1,10 @@
 package screen
 
 import (
+	"encoding/base64"
+	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -14,6 +17,10 @@ func (s *Screen) escape(b byte) {
 	case s.mid == '(' || s.mid == ')':
 		s.lines[s.mid-'('] = b == '0'
 	case s.mid != 0:
+	case b == 'c':
+		s.reset(true)
+	case b == '=' || b == '>':
+		s.modes.Keypad = b == '='
 	case b == '7':
 		s.saved[s.alt] = s.cursor
 	case b == '8':
@@ -41,12 +48,8 @@ func (s *Screen) escape(b byte) {
 func (s *Screen) sequence(b byte) {
 	prev := s.prev
 	s.prev = -1
-	if s.prefix == '?' && s.mid == 0 && (b == 'h' || b == 'l') {
-		for _, n := range s.args[:s.n] {
-			s.mode(n, b == 'h')
-		}
-	}
 	if s.prefix != 0 || s.mid != 0 {
+		s.private(b)
 		return
 	}
 	if strings.IndexByte("@JKLMPSTX", b) >= 0 {
@@ -98,7 +101,7 @@ func (s *Screen) sequence(b byte) {
 			if b == 'L' {
 				n = -n
 			}
-			s.scroll(s.y, s.bot, n)
+			s.roll(s.y, s.bot, n)
 			s.x = 0
 		}
 	case '@':
@@ -135,6 +138,19 @@ func (s *Screen) sequence(b byte) {
 		}
 	case 'm':
 		s.sgr()
+	case 'c':
+		if s.arg(0, 0) == 0 {
+			s.answer("\x1b[?62;22c")
+		}
+	case 'n':
+		if y := s.y; n == 6 {
+			if s.origin {
+				y -= s.top
+			}
+			s.answer("\x1b[%d;%dR", y+1, s.x+1)
+		} else if n == 5 {
+			s.answer("\x1b[0n")
+		}
 	case 'r':
 		if top, bot := n-1, min(s.arg(1, s.h), s.h)-1; top < bot {
 			s.top, s.bot = top, bot
@@ -147,16 +163,52 @@ func (s *Screen) sequence(b byte) {
 	}
 }
 
+// flag is where the private mode n is kept, for a mode that is one switch
+// and nothing more.
+func (s *Screen) flag(n int) *bool {
+	switch n {
+	case 1:
+		return &s.modes.CursorKeys
+	case 6:
+		return &s.origin
+	case 7:
+		return &s.wrap
+	case 25:
+		return &s.shown
+	case 1004:
+		return &s.modes.Focus
+	case 1006:
+		return &s.modes.MouseSGR
+	case 1007:
+		return &s.modes.WheelKeys
+	case 2004:
+		return &s.modes.Paste
+	}
+	return nil
+}
+
 // mode switches one of the DEC private modes on or off.
 func (s *Screen) mode(n int, on bool) {
+	if p := s.flag(n); p != nil {
+		*p = on
+	}
 	switch n {
 	case 6:
-		s.origin = on
 		s.place(0, 0)
 	case 7:
-		s.wrap, s.hold = on, s.hold && on
-	case 25:
-		s.shown = on
+		s.hold = s.hold && on
+	case 1000, 1002, 1003: // switching any of the three off switches the mouse off, as in xterm
+		if s.modes.Mouse = 0; on {
+			s.modes.Mouse = n
+		}
+	case 2026:
+		if on && !s.Held() {
+			s.settle()
+			s.frame = contract.Picture{W: s.w, H: s.h, Cells: append(s.frame.Cells[:0], s.cells...), CurX: s.x, CurY: s.y, CurShown: s.shown}
+			s.since = s.now()
+		} else if !on {
+			s.since = time.Time{}
+		}
 	case 47:
 		s.show(on)
 	case 1047:
@@ -286,18 +338,46 @@ func (s *Screen) colour(i int) (c contract.Colour, next int, ok bool) {
 	return c, next, ok
 }
 
-// command obeys a finished operating system command. 0, 1 and 2 set the
-// title; every other one is read and dropped.
-func (s *Screen) command() {
+// command obeys a finished operating system command, which ended with
+// end. 0, 1 and 2 set the title; a question about a colour is answered; 52
+// is a copy to the clipboard, handed on as an event, and a question about
+// the clipboard is never answered. Every other one is read and dropped.
+func (s *Screen) command(end string) {
 	num, text, _ := strings.Cut(string(s.str), ";")
-	if s.bad || num != "0" && num != "1" && num != "2" {
+	if s.bad {
 		return
 	}
-	left := 100
-	s.title = strings.Map(func(r rune) rune {
-		if left--; left < 0 || !unicode.IsPrint(r) {
-			return -1
+	switch num {
+	case "0", "1", "2":
+		left := 100
+		s.title = strings.Map(func(r rune) rune {
+			if left--; left < 0 || !unicode.IsPrint(r) {
+				return -1
+			}
+			return r
+		}, strings.ToValidUTF8(text, ""))
+	case "10", "11":
+		if c := s.Fg; text == "?" {
+			if num == "11" {
+				c = s.Bg
+			}
+			s.answer("\x1b]%s;%s%s", num, rgb(c), end)
 		}
-		return r
-	}, strings.ToValidUTF8(text, ""))
+	case "4":
+		for f := strings.Split(text, ";"); len(f) >= 2; f = f[2:] {
+			if n, err := strconv.Atoi(f[0]); err == nil && n >= 0 && n < 256 && f[1] == "?" {
+				s.answer("\x1b]4;%d;%s%s", n, rgb(palette(n)), end)
+			}
+		}
+	case "52":
+		_, data, _ := strings.Cut(text, ";")
+		if t, err := base64.StdEncoding.DecodeString(data); err == nil && len(t) > 0 {
+			s.event(Copy, strings.Map(func(r rune) rune {
+				if unicode.IsControl(r) && r != '\n' && r != '\t' {
+					return -1
+				}
+				return r
+			}, strings.ToValidUTF8(string(t), "")))
+		}
+	}
 }

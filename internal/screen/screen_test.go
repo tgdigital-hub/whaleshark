@@ -1,11 +1,15 @@
 package screen
 
 import (
+	"bytes"
 	"flag"
 	"math/rand/v2"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -93,7 +97,7 @@ func TestKindsNotRecorded(t *testing.T) {
 	for in, want := range map[string]string{
 		"\x1b]1;one\x07":                              "one",
 		"\x1b]2;two\x1b\\":                            "two",
-		"\x1b]0;a‮b\u0085c\x07":                       "abc",
+		"\x1b]0;a\u202eb\u0085c\x07":                  "abc",
 		"\x1b]2;" + strings.Repeat("é", 300) + "\x07": strings.Repeat("é", 100),
 		"\x1b]2;kept\x07\x1b]2;" + strings.Repeat("x", maxStr+1) + "\x07": "kept",
 		"\x1b]2;kept\x07\x1b]2;dropped\x18\x07":                           "kept",
@@ -294,28 +298,74 @@ func check(t testing.TB, s *Screen) {
 	if utf8.RuneCountInString(s.title) > 100 || cap(s.str) > 2*maxStr || len(s.part) > 3 {
 		t.Fatalf("held: a title of %d, a string of %d, %d bytes of a character", len(s.title), cap(s.str), len(s.part))
 	}
+	for _, c := range []cursor{s.cursor, s.saved[0], s.saved[1]} {
+		if c.x < 0 || c.x >= s.w || c.y < 0 || c.y >= s.h {
+			t.Fatalf("a cursor at %d,%d on a screen of %d by %d", c.x, c.y, s.w, s.h)
+		}
+	}
+	bytes := 0
+	for _, line := range s.back[s.first:] {
+		bytes += len(line)
+	}
+	if s.Lines() > s.keep || bytes != s.packed || bytes > maxBack || len(s.tabs) != s.w {
+		t.Fatalf("held: %d lines of scroll-back where %d are kept, %d bytes counted as %d, %d tab stops", s.Lines(), s.keep, bytes, s.packed, len(s.tabs))
+	}
+	if len(s.reply) > maxStr+100 || len(s.events) > maxEvents || len(s.keys) > maxKeys || !fixed.Match(s.reply) {
+		t.Fatalf("held: %d events, %d keyboard levels, and the answers %q", len(s.events), len(s.keys), s.reply)
+	}
+	if p := s.Picture(); len(p.Cells) != s.w*s.h || p.CurX >= s.w || p.CurY >= s.h {
+		t.Fatalf("a picture of %d cells, cursor %d,%d, on a screen of %d by %d", len(p.Cells), p.CurX, p.CurY, s.w, s.h)
+	}
 }
 
-// same fails unless the input gives one picture however it is cut.
-func same(t testing.TB, w, h int, in []byte) {
+// fixed is every answer the reader may give, and nothing else: numbers,
+// and the engine's own name.
+var fixed = regexp.MustCompile(`^(\x1b\[\?62;22c|\x1b\[>1;10;0c|\x1b\[0n|\x1b\[\d+;\d+R|\x1b\[\?\d+;[012]\$y|\x1b\[\?[01]u|\x1bP>\|whaleshark 0\x1b\\|\x1b\](10|11|4;\d+);rgb:[0-9a-f]{4}/[0-9a-f]{4}/[0-9a-f]{4}(\x07|\x1b\\))*$`)
+
+// same fails unless the input gives one picture, one scroll-back and the
+// same answers and events however it is cut. Half way through, the screen
+// is given the size w2 by h2.
+func same(t testing.TB, w, h, w2, h2 int, in []byte) {
 	t.Helper()
 	whole, bytewise := New(w, h), New(w, h)
-	whole.Write(in)
+	whole.Write(in[:len(in)/2])
+	whole.Resize(w2, h2)
+	whole.Write(in[len(in)/2:])
 	for i := range in {
+		if i == len(in)/2 {
+			bytewise.Resize(w2, h2)
+		}
 		bytewise.Write(in[i : i+1])
+	}
+	if len(in) == 0 {
+		bytewise.Resize(w2, h2)
 	}
 	check(t, whole)
 	check(t, bytewise)
 	if a, b := corpus.Render(whole.Picture()), corpus.Render(bytewise.Picture()); a != b || whole.title != bytewise.title {
 		t.Fatalf("%q read whole shows\n%s\nand read byte by byte\n%s", in, a, b)
 	}
+	if !slices.EqualFunc(whole.back[whole.first:], bytewise.back[bytewise.first:], bytes.Equal) {
+		t.Fatalf("%q read whole and byte by byte leaves two scroll-backs", in)
+	}
+	if string(whole.reply) != string(bytewise.reply) || !slices.Equal(whole.events, bytewise.events) || whole.Modes() != bytewise.Modes() {
+		t.Fatalf("%q read whole answers %q, and byte by byte %q; events %v and %v", in, whole.reply, bytewise.reply, whole.events, bytewise.events)
+	}
+	for i := range whole.Lines() {
+		row := whole.Line(i)
+		for x, c := range row {
+			if len(row) > maxSide || c.Text == "" && (x == 0 || row[x-1].Text == "") || strings.ContainsFunc(c.Text, unicode.IsControl) {
+				t.Fatalf("line %d of the scroll-back unpacks to %+v", i, row)
+			}
+		}
+	}
 }
 
 func FuzzScreen(f *testing.F) {
-	f.Add(uint8(80), uint8(24), []byte("a\x1b[1;31mb\x1b[2;3H日本\x1b[?1049h\x1b]0;t\x07\x1b[2;5r\x1bM\x1b[4h"))
-	f.Add(uint8(3), uint8(2), []byte("👨‍👩‍👧é\x1b[@\x1b[P\x1b[3b\x1b(0qq\x0e"))
-	f.Fuzz(func(t *testing.T, w, h uint8, in []byte) {
-		same(t, int(w), int(h), in)
+	f.Add(uint8(80), uint8(24), uint8(40), uint8(10), []byte("a\x1b[1;31mb\x1b[2;3H日本\x1b[?1049h\x1b]0;t\x07\x1b[2;5r\x1bM\x1b[4h"))
+	f.Add(uint8(3), uint8(2), uint8(9), uint8(1), []byte("👨\u200d👩\u200d👧é\x1b[@\x1b[P\x1b[3b\x1b(0qq\x0e\r\n\n\n\x1b[c\x1b[6n\x1b[?2026h\x1b]52;c;aGk=\x07\x1bc"))
+	f.Fuzz(func(t *testing.T, w, h, w2, h2 uint8, in []byte) {
+		same(t, int(w), int(h), int(w2), int(h2), in)
 	})
 }
 
@@ -325,7 +375,8 @@ var random = flag.Duration("random", 2*time.Second, "how long TestRandom feeds t
 func TestRandom(t *testing.T) {
 	rnd := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 7))
 	pieces := []string{"\x1b[", "\x1b]", "\x1bP", "\x1b_", "\x1b", "\x07", "\x1b\\", "\x18", ";", ":", "?", ">", "$", " ", "m", "H", "r",
-		"h", "l", "\r", "\n", "\b", "\t", "\x0e", "\x0f", "日", "🙂", "́", "‍", "️", "🇩", "\xe2", "\x9b", "1049", "38", "2", "5", "4", "6", "7", "0"}
+		"h", "l", "\r", "\n", "\b", "\t", "\x0e", "\x0f", "日", "🙂", "́", "\u200d", "️", "🇩", "\xe2", "\x9b", "1049", "38", "2", "5", "4", "6", "7", "0",
+		"2026", "1007", "c", "n", "u", "q", "p", "!", "<", "=", "S", "T", "L", "M", "\x1bc", "]52;c;aGk=", "]4;1;?", "]11;?", "\n\n\n"}
 	var in []byte
 	n, long := 0, New(40, 12) // one screen takes everything, so that every state meets every input
 	for start := time.Now(); time.Since(start) < *random; n++ {
@@ -342,9 +393,13 @@ func TestRandom(t *testing.T) {
 				in = utf8.AppendRune(in, rune(rnd.IntN(100000)))
 			}
 		}
-		same(t, 1+rnd.IntN(40), 1+rnd.IntN(12), in)
-		long.Write(in)
+		same(t, 1+rnd.IntN(40), 1+rnd.IntN(12), 1+rnd.IntN(40), 1+rnd.IntN(12), in)
+		if long.Write(in); rnd.IntN(8) == 0 {
+			long.Resize(1+rnd.IntN(60), 1+rnd.IntN(20))
+		}
 		check(t, long)
+		long.Reply()
+		long.Events()
 	}
 	t.Logf("%d random inputs", n)
 }
