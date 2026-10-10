@@ -17,8 +17,12 @@ import (
 // What a server set up by `whaleshark server` has in fixed places: its file,
 // the shared browser and the Node that runs it, and the two service entries
 // of each work login. The browser's place goes into every tab as EnvBrowsers.
+//
+// ServerFile is a variable so that a test can name a file of its own;
+// nothing in the program sets it, and no variable of the environment does.
+var ServerFile = "/etc/whaleshark/server.toml"
+
 const (
-	ServerFile     = "/etc/whaleshark/server.toml"
 	ServerBrowsers = "/opt/whaleshark/browsers"
 	ServerNode     = "/opt/whaleshark/node"
 	UnitKeeper     = "whaleshark-keeper.service"
