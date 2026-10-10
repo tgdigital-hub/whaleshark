@@ -123,11 +123,14 @@ type Project struct {
 
 // Server makes this machine a server for the rest of the test, for the
 // program the scenarios run: lines is the server's file after its version,
-// with {me} in the place of the login's name.
+// with {me} in the place of the login's name. The name goes in as a quoted
+// key, as the program's own writer puts it: a bare one would end at the
+// backslash of a Windows login (machine\name) and at a dot in any system's.
 func (p *Project) Server(lines ...string) {
 	p.t.Helper()
 	text := fmt.Sprintf("version = %d\n%s\n", contract.FileVersion, strings.Join(lines, "\n"))
-	p.must(os.WriteFile(serverFile, []byte(strings.ReplaceAll(text, "{me}", contract.Me())), 0o600))
+	me := `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(contract.Me()) + `"`
+	p.must(os.WriteFile(serverFile, []byte(strings.ReplaceAll(text, "{me}", me)), 0o600))
 	p.t.Cleanup(func() { os.Remove(serverFile) })
 }
 
