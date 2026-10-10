@@ -47,6 +47,19 @@ func whose(getenv func(string) string, system string) string {
 	return system
 }
 
+// reach is how this window gets to the keeper, by which the keeper knows
+// whose clipboard it sits at: through connect, which says the system; over
+// an ssh typed by hand; or on the keeper's own computer.
+func reach(getenv func(string) string) string {
+	switch {
+	case getenv(contract.EnvSystem) != "":
+		return contract.ReachConnect
+	case getenv("SSH_CONNECTION") != "" || getenv("SSH_TTY") != "":
+		return contract.ReachSSH
+	}
+	return contract.ReachLocal
+}
+
 // link is the connection to the keeper. Two goroutines write frames to it.
 type link struct {
 	net.Conn
@@ -179,7 +192,8 @@ func open(c *contract.Call) (any, error) {
 		os.Exit(128 + int(s.(syscall.Signal)))
 	}()
 
-	attach := contract.WireCall{ID: 2, Op: contract.OpAttach, W: float64(w), H: float64(h), System: whose(os.Getenv, c.Kit.Platform.System())}
+	attach := contract.WireCall{ID: 2, Op: contract.OpAttach, W: float64(w), H: float64(h), System: whose(os.Getenv, c.Kit.Platform.System()),
+		Reach: reach(os.Getenv)}
 	for _, name := range attachEnv {
 		if v, ok := os.LookupEnv(name); ok {
 			attach.Env = append(attach.Env, name+"="+v)

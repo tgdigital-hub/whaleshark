@@ -416,13 +416,14 @@ func TestNoTerminal(t *testing.T) {
 }
 
 func TestWhoseKeysApply(t *testing.T) {
-	for _, c := range []struct{ said, ssh, tty, want string }{
-		{"", "", "", "here"}, {"", "a b c d", "", ""}, {"", "", "/dev/pts/4", ""},
-		{"darwin", "a b c d", "/dev/pts/4", "darwin"}, {"windows", "", "", "windows"},
+	for _, c := range []struct{ said, ssh, tty, want, how string }{
+		{"", "", "", "here", contract.ReachLocal}, {"", "a b c d", "", "", contract.ReachSSH}, {"", "", "/dev/pts/4", "", contract.ReachSSH},
+		{"darwin", "a b c d", "/dev/pts/4", "darwin", contract.ReachConnect}, {"windows", "", "", "windows", contract.ReachConnect},
 	} {
 		env := map[string]string{contract.EnvSystem: c.said, "SSH_CONNECTION": c.ssh, "SSH_TTY": c.tty}
-		if got := whose(func(k string) string { return env[k] }, "here"); got != c.want {
-			t.Errorf("%+v: %q, want %q", c, got, c.want)
+		get := func(k string) string { return env[k] }
+		if got, how := whose(get, "here"), reach(get); got != c.want || how != c.how {
+			t.Errorf("%+v: %q reached by %q", c, got, how)
 		}
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -172,6 +173,8 @@ func gate(c *contract.Call, stateDir string, kind contract.Gate) {
 			fmt.Fprintf(c.Out, refusal, "--human is the person's to give, not an agent's. Run the command without it.")
 		case starts && strings.TrimSuffix(filepath.Base(w), ".exe") == "herdr":
 			fmt.Fprintf(c.Out, refusal, "herdr is not a worker's to run: the tabs are the tool's. Use your whaleshark commands.")
+		case starts && strings.TrimSuffix(filepath.Base(w), ".exe") == "whaleshark" && slices.Contains([]string{"open", "engine"}, append(words, "")[i+1]):
+			fmt.Fprintf(c.Out, refusal, "The window and the keeper are the person's to run, not a worker's.")
 		default:
 			continue
 		}
