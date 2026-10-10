@@ -1,5 +1,5 @@
 # The four packages of the second wave on one another: the real status and
-# the real panes read the fixture through the real store and the fake herdr.
+# the real panes read the fixture through the real store and the engine's double.
 fixture evening-2114
 
 orch: status                     -> expect "FOR YOU" "T7" "search box"

@@ -148,16 +148,15 @@ func SetPaused(files Files, stateDir string, p *Pause) error {
 	return os.WriteFile(path, []byte(line), 0o600)
 }
 
-// The variables a worker's tab is created with, herdr's own pane variable,
+// The variables a worker's tab is created with, the two the keeper sets,
 // and the variable that names a file holding the time for a scripted test.
-// EnvPane and EnvActivePane are herdr's names and go with it; the keeper
-// sets EnvTermPane and EnvTermActivePane, and PaneOf reads whichever is there.
+// EnvPane is in every pane's program and holds the pane's id.
 //
 // EnvFrom is where a pane or the page's server says its child command comes
 // from: WherePane, WherePage or WherePhone. The page's server starts its
 // children without EnvPane and EnvAttempt, and the page's mark counts only
-// then. EnvActivePane is what herdr hands the command of a shortcut, which
-// has no pane of its own. EnvNotices set to NoticesOff makes a watcher lose
+// then. EnvActivePane is what the keeper hands the command of a shortcut,
+// which has no pane of its own, and a pane drawn over a tab. EnvNotices set to NoticesOff makes a watcher lose
 // its file notices, so a test can see it find that out.
 //
 // EnvOwnTab marks a tab opened for one long command of a button, and holds
@@ -165,7 +164,7 @@ func SetPaused(files Files, stateDir string, p *Pause) error {
 // the person sits at, for the window's keys.
 const (
 	EnvFrom       = "WHALESHARK_FROM"
-	EnvActivePane = "HERDR_ACTIVE_PANE_ID"
+	EnvActivePane = "WHALESHARK_ACTIVE_PANE"
 	EnvNotices    = "WHALESHARK_NOTICES"
 	NoticesOff    = "off"
 	EnvOwnTab     = "WHALESHARK_OWN_TAB"
@@ -204,7 +203,7 @@ const (
 	EnvDepth    = "WHALESHARK_DEPTH"
 	EnvBin      = "WHALESHARK_BIN"
 	EnvEvidence = "WHALESHARK_EVIDENCE"
-	EnvPane     = "HERDR_PANE_ID"
+	EnvPane     = "WHALESHARK_PANE"
 	EnvClock    = "WHALESHARK_CLOCK"
 )
 
@@ -291,11 +290,7 @@ type UIFile struct {
 	Versioned
 	FleetPane   string `json:"fleet_pane,omitempty"`
 	ActionsPane string `json:"actions_pane,omitempty"`
-	// The terminal of each pane as it was opened: a pane id alone can come
-	// back as somebody else's pane once herdr has been started afresh.
-	FleetTerminal   string `json:"fleet_terminal,omitempty"`
-	ActionsTerminal string `json:"actions_terminal,omitempty"`
-	// FleetWidth is the fleet's width in cells, frame included, as last seen.
+	// FleetWidth is the fleet's width in cells as last seen.
 	FleetWidth int               `json:"fleet_width,omitempty"`
 	Folded     bool              `json:"folded,omitempty"`
 	DND        bool              `json:"dnd,omitempty"`
@@ -314,8 +309,8 @@ type CtxFile struct {
 	At    time.Time `json:"at"`
 }
 
-// CtxPath is the file of one pane's context figure. A pane id of herdr's
-// holds a colon, which a Windows file name cannot: the file has "+" in its
+// CtxPath is the file of one pane's context figure. A pane id may
+// hold a colon, which a Windows file name cannot: the file has "+" in its
 // place, which no pane id holds.
 func CtxPath(stateDir, pane string) string {
 	return filepath.Join(stateDir, "ctx", strings.ReplaceAll(pane, ":", "+")+".json")

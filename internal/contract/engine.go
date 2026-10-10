@@ -42,22 +42,13 @@ type Pty interface {
 // NoPty is the kit's Pty until the pty package plugs its own in.
 func NoPty(PtySpec) (Pty, error) { return nil, ErrNotBuilt }
 
-// The pane variables the keeper sets where herdr sets EnvPane and
-// EnvActivePane, and the variable that moves the keeper's socket.
-const (
-	EnvTermPane       = "WHALESHARK_PANE"
-	EnvTermActivePane = "WHALESHARK_ACTIVE_PANE"
-	EnvSocket         = "WHALESHARK_SOCKET"
-)
+// EnvSocket moves the keeper's socket.
+const EnvSocket = "WHALESHARK_SOCKET"
 
 // PaneOf is the pane a command was started in and, for the command of a
-// shortcut, the pane that had the keys: the keeper's variables first, then
-// herdr's. Every caller rule reads through it, on either backend.
+// shortcut, the pane that had the keys. Every caller rule reads through it.
 func PaneOf(getenv func(string) string) (pane, active string) {
-	if pane, active = getenv(EnvTermPane), getenv(EnvTermActivePane); pane == "" && active == "" {
-		pane, active = getenv(EnvPane), getenv(EnvActivePane)
-	}
-	return pane, active
+	return getenv(EnvPane), getenv(EnvActivePane)
 }
 
 // SocketPath is the keeper's socket file: where EnvSocket says, which is how

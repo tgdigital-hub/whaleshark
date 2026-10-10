@@ -125,7 +125,7 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	// Who is the human: a worker never; the page's mark only on a child that
 	// has no pane, which is how the page's server starts them; --human from a
 	// pane the record does not know as an agent's, or from the command of a
-	// herdr shortcut, which has no pane of its own and herdr's mark instead;
+	// shortcut, which has no pane of its own and the keeper's mark instead;
 	// and a person at a plain terminal. Nothing else, so a variable an agent
 	// inherited or a flag it added where it has no pane gains it nothing.
 	human, from := c.Flags["human"] != nil, os.Getenv(contract.EnvFrom)
@@ -151,7 +151,7 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	c.Caller = who
 	if human && who.Kind != contract.Human {
 		if pane == "" {
-			return refuse("not_human", "--human counts only in a tab of your own, at a terminal or from a herdr shortcut.")
+			return refuse("not_human", "--human counts only in a tab of your own, at a terminal or from a shortcut.")
 		}
 		return refuse("not_human", "--human is not for an agent's tab.")
 	}

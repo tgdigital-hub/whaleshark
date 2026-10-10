@@ -184,7 +184,7 @@ func TestAttemptChanges(t *testing.T) {
 		{"reject, agent gone", func(s *contract.State) error { return r.Reject(s, "T1", "tests missing", contract.Gone, later) },
 			map[contract.AttemptState]string{"reported": "stopped", "checking": "!checking", "=": "!not_in_review"},
 			map[contract.AttemptState]contract.TaskStatus{"reported": "ready"}},
-		{"reject, herdr cannot say", func(s *contract.State) error { return r.Reject(s, "T1", "why", contract.Unverifiable, later) },
+		{"reject, the terminals cannot say", func(s *contract.State) error { return r.Reject(s, "T1", "why", contract.Unverifiable, later) },
 			map[contract.AttemptState]string{"reported": "!unverifiable", "checking": "!checking", "=": "!not_in_review"}, nil},
 		{"stop", func(s *contract.State) error { return r.Stop(s, "T1", false, later) },
 			map[contract.AttemptState]string{"starting": "stopped", "working": "stopped", "asked": "stopped", "reported": "stopped", "checking": "!checking", "=": "!no_live_attempt"},

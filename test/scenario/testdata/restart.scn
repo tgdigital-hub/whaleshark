@@ -1,5 +1,5 @@
-# What a restart of herdr and the end of the lead agent's session do to the
-# fake's picture, and to how a worker's command is run afterwards.
+# What a restart of the keeper and the end of the lead agent's session do to the
+# terminals' picture, and to how a worker's command is run afterwards.
 fixture evening-2114
 
 pane fleet: 60x20

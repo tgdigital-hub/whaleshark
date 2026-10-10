@@ -199,12 +199,12 @@ func toLead(c *contract.Call, out *sent, pane string, unread int, now, quiet boo
 	}
 }
 
-func idle(status string) bool { return status == contract.StatusIdle || status == contract.StatusDone }
+func idle(status string) bool { return status == contract.StatusIdle }
 
 // idleAt asks the terminals whether the agent in a pane is idle now.
 func idleAt(k *contract.Kit, pane string) bool {
 	snap, err := k.Terms.Snapshot(context.Background())
-	return err == nil && slices.ContainsFunc(snap.Panes, func(p contract.Pane) bool { return p.ID == pane && idle(p.Status) })
+	return err == nil && slices.ContainsFunc(snap.Panes, func(p contract.Pane) bool { return p.ID == pane && p.Agent != "" && idle(p.Status) })
 }
 
 // point types one fixed line into a pane and says how it went.

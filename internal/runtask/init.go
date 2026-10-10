@@ -21,7 +21,6 @@ import (
 const (
 	installedFile = "installed.json"
 	excludeLine   = ".whaleshark/"
-	testedHerdr   = "0.9.1"
 
 	kindHook, kindBlock, kindKeys = "hook", "block", "keys"
 )
@@ -156,15 +155,17 @@ func (i *setting) project() error {
 		return err
 	}
 
-	version, err := k.Terms.Version()
-	reachable := err == nil
+	// The engine is this same program: nothing else has to be installed,
+	// and `open` starts the keeper when none runs.
+	version, down := k.Terms.Version()
+	reachable := down == nil
 	switch {
 	case !reachable:
-		i.Problems = append(i.Problems, "herdr is not reachable: start it and run init again")
-	case version != testedHerdr:
-		i.say("herdr %s: reachable, but not the version this was tested with (%s)", version, testedHerdr)
+		i.say("the engine is not running: `whaleshark open` starts it and shows your tabs")
+	case version != cli.Version:
+		i.say("the engine is running as version %s, and this is %s: `whaleshark engine stop`, then `whaleshark open`, starts this one", version, cli.Version)
 	default:
-		i.say("herdr %s: reachable and tested", version)
+		i.say("the engine is running")
 	}
 	if line, err := git(c.Root, "--version"); err != nil {
 		i.Problems = append(i.Problems, "git is missing")
@@ -298,7 +299,7 @@ func (i *setting) keys(person, reachable bool) error {
 		return err
 	}
 	entries, labels := shortcuts(bin)
-	i.say("The %d shortcuts that work from any tab, each after herdr's prefix key:", len(entries))
+	i.say("The %d shortcuts that work from any tab, each after the command key (Ctrl+Space unless you changed it):", len(entries))
 	for n, e := range entries {
 		i.say("  %-8s %s", e.Key, labels[n])
 	}
@@ -306,8 +307,8 @@ func (i *setting) keys(person, reachable bool) error {
 	case !person:
 		i.say("They are written when the person runs `whaleshark init --keys` in a terminal of their own and says yes.")
 	case !reachable:
-		i.say("They are not written while herdr cannot be reached.")
-	case !strings.EqualFold(i.ask("Write them into your herdr settings? (yes/no) "), "yes"):
+		i.say("They are not written while the engine is not running: run `whaleshark open` first.")
+	case !strings.EqualFold(i.ask("Write them into your WhaleShark settings? (yes/no) "), "yes"):
 		i.say("Nothing was written.")
 	default:
 		if err = i.c.Kit.Terms.SetKeys(entries); err == nil {

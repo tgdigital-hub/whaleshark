@@ -4,7 +4,7 @@
 fixture evening-2114
 agent T1.1: progress 85 "nearly there" | write-result | report-with-token not-the-token | report done "ok"
 
-orch: version                    -> expect whaleshark herdr
+orch: version                    -> expect whaleshark engine
 human: version
 human: page: help guide          -> expect "the guide that matches"
 as-unbound: pause                -> expect exit 5 "the person's to run"

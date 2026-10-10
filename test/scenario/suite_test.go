@@ -14,10 +14,9 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/view"
 )
 
-// Every scenario of the tree is played on herdr's stand-in, on the engine's
-// double and on the real keeper, and what each run came to is held against
-// the first: the backend changes nothing a flow can see. What the keeper
-// cannot play yet is skipped by name.
+// Every scenario of the tree is played on the engine's double and on the
+// real keeper, and what the run on the keeper came to is held against the
+// double's: the two change nothing a flow can see.
 func TestEveryScenarioOnEveryBackend(t *testing.T) {
 	bin, err := exec.LookPath("whaleshark")
 	if err != nil {
@@ -41,7 +40,7 @@ func TestEveryScenarioOnEveryBackend(t *testing.T) {
 		name, _ := filepath.Rel(module, file)
 		t.Run(filepath.ToSlash(name), func(t *testing.T) {
 			logs := map[Backend][]string{}
-			for _, on := range []Backend{Herdr, Double, Keeper} {
+			for _, on := range []Backend{Double, Keeper} {
 				t.Run(string(on), func(t *testing.T) {
 					// The two scenarios of the runner itself draw a pane of
 					// this package; every other opens the real ones, or none.
@@ -59,9 +58,9 @@ func TestEveryScenarioOnEveryBackend(t *testing.T) {
 					logs[on] = RunOn(t, on, file, pane).Log
 					t.Log("\n" + strings.Join(logs[on], "\n"))
 				})
-				if on != Herdr && logs[on] != nil && !slices.Equal(logs[on], logs[Herdr]) {
-					t.Errorf("the run on the %s came to something else than on herdr's stand-in:\n%s\n\non herdr's stand-in:\n%s",
-						on, strings.Join(logs[on], "\n"), strings.Join(logs[Herdr], "\n"))
+				if on != Double && logs[on] != nil && !slices.Equal(logs[on], logs[Double]) {
+					t.Errorf("the run on the %s came to something else than on the double:\n%s\n\non the double:\n%s",
+						on, strings.Join(logs[on], "\n"), strings.Join(logs[Double], "\n"))
 				}
 			}
 		})

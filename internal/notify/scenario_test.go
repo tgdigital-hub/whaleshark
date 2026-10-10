@@ -16,8 +16,8 @@ import (
 
 func TestMain(m *testing.M) { scenario.Main(m) }
 
-// evening is the fixture's project with a nudger over the fake herdr, whose
-// pop-up is switched on unless a test says otherwise.
+// evening is the fixture's project with a nudger over the engine's double,
+// with a window attached unless a test says otherwise.
 type evening struct {
 	*scenario.Project
 	t     *testing.T
@@ -52,13 +52,7 @@ func prepare(t *testing.T, change func(*testkit.Fixture), unshown ...string) *ev
 	if e.dirs, err = e.Kit.Platform.Dirs(); err != nil {
 		t.Fatal(err)
 	}
-	e.popup("herdr")
 	return e
-}
-
-// popup writes herdr's own pop-up setting.
-func (e *evening) popup(delivery string) {
-	e.write(e.Herdr.Settings, "[ui.toast]\ndelivery = \""+delivery+"\"\n")
 }
 
 func (e *evening) write(path, text string) {
@@ -81,12 +75,12 @@ func (e *evening) pass(later time.Duration) {
 	}
 }
 
-// popups are the notifications herdr was asked for: title, body and sound.
+// popups are the pop-ups the terminals were asked for: title, body and sound.
 func (e *evening) popups() [][3]string {
 	var out [][3]string
-	for _, c := range e.Herdr.Calls() {
-		if len(c) == 7 && c[0] == "notification" {
-			out = append(out, [3]string{c[2], c[4], c[6]})
+	for _, c := range e.Double.Calls() {
+		if c.Op == contract.OpNotify {
+			out = append(out, [3]string{c.Title, c.Text, map[bool]string{true: "sound", false: "silent"}[c.Sound]})
 		}
 	}
 	return out
@@ -137,7 +131,7 @@ func TestItemBeforeNudge(t *testing.T) {
 	if !slices.Equal(spy.before, []bool{true}) {
 		t.Fatalf("the item was in the record before its nudge: %v, want one true", spy.before)
 	}
-	want := [3]string{"sign-up page — needs you", "Must the old sign-up link keep working?", "request"}
+	want := [3]string{"sign-up page — needs you", "Must the old sign-up link keep working?", "sound"}
 	if got := e.popups(); len(got) != 1 || got[0] != want {
 		t.Fatalf("pop-ups %q, want %q", got, want)
 	}
@@ -150,23 +144,21 @@ func TestItemBeforeNudge(t *testing.T) {
 
 func TestNextChannel(t *testing.T) {
 	for _, c := range []struct {
-		name, delivery string
-		attached, on   bool
-		popups, after  int
+		name          string
+		attached, on  bool
+		popups, after int
 	}{
-		{"off and herdr answers shown", "off", true, true, 1, 1},
-		{"on and attached", "herdr", true, true, 1, 0},
-		{"on and no screen", "herdr", false, true, 1, 1},
-		{"our own switch off", "herdr", true, false, 0, 1},
+		{"on and a window attached", true, true, 1, 0},
+		{"on and no window", false, true, 1, 1},
+		{"our own switch off", true, false, 0, 1},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			e := prepare(t, nil, "q7")
-			e.popup(c.delivery)
-			if e.Herdr.Attached = c.attached; !c.on {
+			if e.Double.Attached = c.attached; !c.on {
 				e.write(filepath.Join(e.dirs.Config, "config.toml"), "[nudge]\npopup = false\n")
 			}
-			if reason, _, err := e.Herdr.Notify("a", "b", false); c.attached && (err != nil || reason != contract.NotifyShown) {
-				t.Fatalf("the fake herdr answered %q, %v; the scenario needs %q", reason, err, contract.NotifyShown)
+			if reason, _, err := e.Double.Notify("a", "b", false); err != nil || (reason == contract.NotifyShown) != c.attached {
+				t.Fatalf("the double answered %q, %v", reason, err)
 			}
 			e.pass(0)
 			if got := len(e.popups()) - 1; got != c.popups || len(e.after) != c.after {
@@ -197,7 +189,7 @@ func TestThirtySeconds(t *testing.T) {
 
 func TestFocusedTab(t *testing.T) {
 	e := prepare(t, nil, "q7", "q9")
-	e.Herdr.Push(testkit.PushFocused, "w1:p3")
+	e.Double.Push(testkit.PushFocused, "w1:p3")
 	e.pass(0)
 	e.want("photo upload — needs you")
 	if !e.shown("q7") {
@@ -216,11 +208,11 @@ func TestDoNotDisturb(t *testing.T) {
 		t.Fatal("an item held back was stamped as shown")
 	}
 	for _, urgent := range []bool{false, true} {
-		if err := e.n.Nudge(contract.Nudge{Title: "herdr is not reachable", Urgent: urgent}); err != nil {
+		if err := e.n.Nudge(contract.Nudge{Title: "the engine is not running", Urgent: urgent}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	e.want("price list — needs you", "herdr is not reachable")
+	e.want("price list — needs you", "the engine is not running")
 
 	// The end time passes while nothing runs; the next pass applies it. By
 	// then a worker's question has waited for the lead agent long enough to
@@ -229,7 +221,7 @@ func TestDoNotDisturb(t *testing.T) {
 	if ui := e.ui(); ui.DND || !ui.DNDUntil.IsZero() || ui.FleetPane == "" {
 		t.Fatalf("ui.json after the end time: %+v", ui)
 	}
-	if got := e.popups(); len(got) != 3 || got[2] != [3]string{"3 things waited while you were not to be disturbed", "order emails, sign-up page, photo upload", "request"} {
+	if got := e.popups(); len(got) != 3 || got[2] != [3]string{"3 things waited while you were not to be disturbed", "order emails, sign-up page, photo upload", "sound"} {
 		t.Fatalf("pop-ups %q", got)
 	}
 	if !e.shown("q7") || !e.shown("q9") || !e.shown("q10") {
@@ -259,9 +251,9 @@ func TestSound(t *testing.T) {
 		mute         bool
 		config, want string
 	}{
-		"as it comes":      {false, "", "request"},
-		"mute":             {true, "", "none"},
-		"sound switch off": {false, "[nudge]\nsound = false\n", "none"},
+		"as it comes":      {false, "", "sound"},
+		"mute":             {true, "", "silent"},
+		"sound switch off": {false, "[nudge]\nsound = false\n", "silent"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			e := prepare(t, func(f *testkit.Fixture) { f.UI.Mute = c.mute }, "q7")

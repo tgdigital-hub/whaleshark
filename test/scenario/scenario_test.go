@@ -20,8 +20,7 @@ func TestMain(m *testing.M) { Main(m) }
 
 // tabs is a pane for this test only: one row for each pane of the
 // terminals' picture, the clock, and on the last line what was last done to
-// it. Done reads idle: the two are one state to the tool, and only herdr
-// tells them apart. A pane with no agent reads unknown: the keeper knows a
+// it. A pane with no agent reads unknown: the keeper knows a
 // shell at its prompt from one at work, which is no agent's state. While the
 // terminals are being started again there is no picture, and nothing is drawn.
 func tabs(p *Project, name string, t *term.Term) {
@@ -33,9 +32,7 @@ func tabs(p *Project, name string, t *term.Term) {
 			picture = &contract.Snapshot{}
 		}
 		for y, pane := range picture.Panes {
-			if pane.Status == contract.StatusDone {
-				pane.Status = contract.StatusIdle
-			} else if pane.Agent == "" {
+			if pane.Agent == "" {
 				pane.Status = contract.StatusUnknown
 			}
 			t.Put(0, y, t.W, pane.Label+" · "+pane.Status, term.Style{})
@@ -73,7 +70,7 @@ func TestSelf(t *testing.T) {
 	}
 	var shown string
 	for range 500 {
-		if shown, _ = p.Herdr.Screen(pane); strings.Contains(shown, "report done ok") {
+		if shown, _ = p.Double.Screen(pane); strings.Contains(shown, "report done ok") {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -89,15 +86,22 @@ func TestSelf(t *testing.T) {
 		t.Errorf("the result file (%v) or the wrong token (%q) is not beside the prompt", err, token)
 	}
 
-	// The commands reached the fake herdr through the stand-in on the PATH.
-	if !slices.ContainsFunc(p.Herdr.Calls(), func(call []string) bool { return slices.Equal(call, []string{"status", "--json"}) }) {
-		t.Error("version did not ask the fake herdr for its version")
+	// The commands reached the double through its socket, as they reach the keeper.
+	if !slices.ContainsFunc(p.Double.Calls(), func(c contract.WireCall) bool { return c.Op == contract.OpVersion }) {
+		t.Error("version did not ask the terminals for their version")
 	}
 
-	// Nothing was typed as a key, and the tab of T1.1 was opened without the focus.
-	for _, call := range p.Herdr.Calls() {
-		if slices.Contains(call, "send-keys") || slices.Contains(call, "--focus") {
-			t.Errorf("herdr was called with %v", call)
+	// Nothing but a prompt or a fixed pointer was typed, and the tab of T1.1
+	// was opened without the keys: only the line of the scenario moved them.
+	for _, c := range p.Double.Calls() {
+		if c.Text != "" && c.Op != contract.OpPrompt && c.Op != contract.OpPoint || c.Op == contract.OpTabFocus || c.Op == contract.OpPaneFocus {
+			t.Errorf("the terminals were called with %+v", c)
+		}
+	}
+	snap, _ := p.Double.Snapshot(context.Background())
+	for _, q := range snap.Panes {
+		if q.Focused != (q.ID == p.Lead) {
+			t.Errorf("the keys are in %s", q.ID)
 		}
 	}
 }
@@ -109,21 +113,21 @@ func TestJoin(t *testing.T) {
 		view.Plug(p.Kit)
 		panes.Run(name, tm, p.Kit, p.Root, "")
 	})
-	// The click on a card went to that card's tab, and nothing else was asked of herdr.
-	went := func(call []string) bool { return slices.Equal(call, []string{"tab", "focus", "w1:t4"}) }
+	// The click on a card went to that card's tab.
+	went := func(c contract.WireCall) bool { return c.Op == contract.OpTabFocus && c.Tab == "w1:t4" }
 	for range 500 {
-		if slices.ContainsFunc(p.Herdr.Calls(), went) {
+		if slices.ContainsFunc(p.Double.Calls(), went) {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Errorf("the click on the card of T3 did not go to its tab: %v", p.Herdr.Calls())
+	t.Errorf("the click on the card of T3 did not go to its tab: %+v", p.Double.Calls())
 }
 
-// After a restart of herdr a worker's tab holds its pane and none of our variables.
+// After a restart of the keeper a worker's tab holds its pane and its variables.
 func TestRestart(t *testing.T) {
 	p := Run(t, filepath.Join("testdata", "restart.scn"), tabs)
-	if env := p.Command("T2.1", "version").Env; !slices.Contains(env, contract.EnvPane+"=w1:p3") || has(env, contract.EnvAttempt) {
+	if env := p.Command("T2.1", "version").Env; !slices.Contains(env, contract.EnvPane+"=w1:p3") || !has(env, contract.EnvAttempt) {
 		t.Errorf("a worker's command is run with %v", env)
 	}
 }

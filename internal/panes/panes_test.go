@@ -19,7 +19,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/term/termtest"
 	"github.com/tgdigital-hub/whaleshark/internal/theme"
-	"github.com/tgdigital-hub/whaleshark/test/fakeherdr"
+	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
 )
 
 // reader is the record of the fixture, read as the panes read it.
@@ -58,13 +58,13 @@ func system(home string, env map[string]string) *platform.System {
 }
 
 // world is one pane on a pretended terminal, drawing the view model of the
-// evening fixture, with a fake herdr holding the fixture's picture and real
+// evening fixture, with the engine's double holding the fixture's picture and real
 // file notices on a folder of its own.
 type world struct {
 	t        *testing.T
 	s        *termtest.Screen
 	p        *pane
-	herdr    *fakeherdr.Fake
+	double   *fakeengine.Fake
 	fx       *testkit.Fixture
 	sys      *platform.System
 	file     string // the run's state.json
@@ -74,12 +74,12 @@ type world struct {
 	reads    atomic.Int32 // how often the pane has read the record
 	fails    atomic.Bool  // the record cannot be read
 	in       contract.ViewInput
-	next     int // the children and the calls to herdr a test has looked at
+	next     int // the children and the calls to the terminals a test has looked at
 	nextCall int
 
 	mu   sync.Mutex
 	view contract.View
-	seen *contract.Snapshot // herdr's picture as the builder was last handed it
+	seen *contract.Snapshot // the terminals' picture as the builder was last handed it
 }
 
 func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
@@ -102,11 +102,9 @@ func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepa
 	wd.file = filepath.Join(home, "r3", "state.json")
 	os.MkdirAll(filepath.Dir(wd.file), 0o700)
 	wd.touch()
-	if wd.herdr, err = fakeherdr.New(k); err != nil {
-		t.Fatal(err)
-	}
-	wd.herdr.Load(fx.Terms)
-	k.Terms = wd.herdr
+	wd.double = fakeengine.New()
+	wd.double.Load(fx.Terms)
+	k.Terms = wd.double
 
 	wd.p = newPane(kind, wd.s.Term, k, home, "", func() time.Time { return fx.Now.Add(time.Duration(wd.clock.Load())) })
 	wd.p.plainMarks, wd.p.me = false, ""
@@ -127,7 +125,7 @@ func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepa
 	t.Cleanup(func() {
 		wd.s.Close()
 		<-done
-		wd.herdr.Close()
+		wd.double.Close()
 	})
 	wd.shows("live · ")
 	return wd
@@ -227,10 +225,10 @@ func (p *pane) find(t *testing.T, text string) (x, y int) {
 	return x, y
 }
 
-// wentTo reports whether herdr was asked to bring that tab to the front.
+// wentTo reports whether the terminals were asked to bring that tab to the front.
 func (wd *world) wentTo(tab string) bool {
 	for end := time.Now().Add(2 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
-		if slices.ContainsFunc(wd.herdr.Calls(), func(c []string) bool { return strings.Join(c, " ") == "tab focus "+tab }) {
+		if slices.ContainsFunc(wd.double.Calls(), func(c contract.WireCall) bool { return c.Op == contract.OpTabFocus && c.Tab == tab }) {
 			return true
 		}
 	}
@@ -348,11 +346,11 @@ func TestTheFleetGoesToATab(t *testing.T) {
 	wd.shows("▌▲ photo upload")
 	wd.s.Key("enter")
 	if !wd.wentTo("w1:t7") {
-		t.Fatalf("enter on photo upload did not go to its tab: %v", wd.herdr.Calls())
+		t.Fatalf("enter on photo upload did not go to its tab: %+v", wd.double.Calls())
 	}
 	wd.s.ClickText("login page")
 	if !wd.wentTo("w1:t2") {
-		t.Fatalf("a click on login page did not go to its tab: %v", wd.herdr.Calls())
+		t.Fatalf("a click on login page did not go to its tab: %+v", wd.double.Calls())
 	}
 	wd.shows("▌◐ login page")
 
@@ -374,20 +372,20 @@ func TestTheFourFormsAndTheStrip(t *testing.T) {
 	}
 
 	// The pane that has the keys says so, and its title is lit.
-	if got := wd.last(); !strings.HasPrefix(got, " ctrl+b a to answer · / all actions · ? keys") || !strings.Contains(got, "live · ") {
+	if got := wd.last(); !strings.HasPrefix(got, " ctrl+space a to answer · / all actions · ? keys") || !strings.Contains(got, "live · ") {
 		t.Errorf("without the keys the last line is %q", got)
 	}
 	wd.s.Type("\x1b[I")
 	wd.shows("KEYS GO HERE · j k choose · y n o answer", "› ▲ sign-up page")
 	wd.s.Type("\x1b[O")
-	wd.shows("ctrl+b a to answer")
+	wd.shows("ctrl+space a to answer")
 	// A click presses the button it is on, of the item it is in.
 	wd.click("[ Approve ]")
 	wd.ran(`answer n4 --file "approve" --human`)
 	wd.shows("› ● price list")
 	wd.click("[ Go there ]")
 	if !wd.wentTo("w1:t8") {
-		t.Fatalf("Go there did not go to the tab: %v", wd.herdr.Calls())
+		t.Fatalf("Go there did not go to the tab: %+v", wd.double.Calls())
 	}
 	wd.click("[ Mute ]")
 	wd.ran("set mute on --human")
@@ -451,9 +449,9 @@ func TestFoldAndUnfold(t *testing.T) {
 	if got := wd.s.Row(0); !strings.HasPrefix(got, " ACTIONS  3 waiting · 2 hold work up") {
 		t.Errorf("the folded strip is %q", got)
 	}
-	// Folded, the strip fills what herdr leaves it: two rows at the least.
+	// Folded, the strip fills what it is left: two rows at the least.
 	wd.resize(104, 2)
-	wd.shows("ctrl+b a to answer")
+	wd.shows("ctrl+space a to answer")
 	if rows := wd.screen(); strings.Contains(rows, "sign-up page") || !strings.Contains(wd.s.Row(0), "[ Stop all ]") || !strings.Contains(wd.last(), "live · ") {
 		t.Errorf("two rows of a folded pane show:\n%s", rows)
 	}
@@ -535,11 +533,11 @@ func TestALostLineIsSaidWithinFiveSeconds(t *testing.T) {
 	for _, kind := range []string{fleet, actions} {
 		t.Run(kind, func(t *testing.T) {
 			wd := start(t, kind, 100, 30, nil)
-			wd.herdr.Drop(testkit.PushClosed, "w1:p2")
+			wd.double.Drop(testkit.PushClosed, "w1:p2")
 			at := time.Now()
-			for !strings.Contains(wd.last(), "herdr: checking every 5 s") {
+			for !strings.Contains(wd.last(), "terminals: checking every 5 s") {
 				if time.Since(at) > 5*time.Second+time.Second/2 {
-					t.Fatalf("five seconds after herdr dropped a line the last line is %q", wd.last())
+					t.Fatalf("five seconds after a line was dropped the last line is %q", wd.last())
 				}
 				time.Sleep(5 * time.Millisecond)
 			}
@@ -557,7 +555,7 @@ func TestAnotherFolderOrSessionCountsNoLostLine(t *testing.T) {
 	moved := *wd.fx.Terms
 	moved.Panes = slices.Clone(moved.Panes)
 	login(&moved).Cwd, login(&moved).Session = "/work/shop/site", "s-other"
-	wd.herdr.Load(&moved)
+	wd.double.Load(&moved)
 	took := func() bool {
 		wd.mu.Lock()
 		defer wd.mu.Unlock()
@@ -568,7 +566,7 @@ func TestAnotherFolderOrSessionCountsNoLostLine(t *testing.T) {
 			t.Fatal("the pane never took the new folder and session over")
 		}
 	}
-	if wd.within(time.Second, "herdr: checking") {
+	if wd.within(time.Second, "terminals: checking") {
 		t.Fatalf("a folder and a session alone were counted as a lost line: %q", wd.last())
 	}
 }
@@ -593,19 +591,19 @@ func TestTheComparisonLooksTwiceAtAStatus(t *testing.T) {
 	p.picture = with(func(*contract.Pane) {})
 
 	p.compare(with(func(q *contract.Pane) { q.Cwd, q.Session = "/work/shop/site", "s-other" }), 1)
-	if p.lost != 0 || login(p.picture).Cwd != "/work/shop/site" || login(p.picture).Session != "s-other" || !p.herdrOK.Equal(fx.Now) {
+	if p.lost != 0 || login(p.picture).Cwd != "/work/shop/site" || login(p.picture).Session != "s-other" || !p.termsOK.Equal(fx.Now) {
 		t.Fatalf("a folder and a session: lost %d, picture %+v", p.lost, login(p.picture))
 	}
-	p.herdrOK = time.Time{}
+	p.termsOK = time.Time{}
 	idle := with(func(q *contract.Pane) { q.Status = contract.StatusIdle })
 	p.compare(idle, 1)
-	if p.lost != 0 || login(p.picture).Status != contract.StatusWorking || !p.herdrOK.IsZero() {
-		t.Fatalf("a status at the first look: lost %d, picture %+v, checked %v", p.lost, login(p.picture), p.herdrOK)
+	if p.lost != 0 || login(p.picture).Status != contract.StatusWorking || !p.termsOK.IsZero() {
+		t.Fatalf("a status at the first look: lost %d, picture %+v, checked %v", p.lost, login(p.picture), p.termsOK)
 	}
 	// The line came in the half second between the two looks: nothing was lost.
 	login(p.picture).Status = contract.StatusIdle
 	p.compare(idle, 2)
-	if p.lost != 0 || p.herdrOK.IsZero() {
+	if p.lost != 0 || p.termsOK.IsZero() {
 		t.Fatalf("a status line that was only late was counted: lost %d", p.lost)
 	}
 	p.compare(with(func(q *contract.Pane) { q.Status = contract.StatusBlocked }), 2)
@@ -620,7 +618,7 @@ func TestTheComparisonLooksTwiceAtAStatus(t *testing.T) {
 
 func TestTheAgeGrowsAndThenSaysStale(t *testing.T) {
 	wd := start(t, fleet, 44, 46, nil)
-	wd.herdr.Close()
+	wd.double.Close()
 	wd.clock.Store(int64(7 * time.Second))
 	wd.shows("live · checked 7s ago")
 	wd.clock.Store(int64(11 * time.Second))

@@ -313,11 +313,11 @@ func (s *stand) serve(conn net.Conn) {
 	}
 }
 
-// env is what the pane's program needs to reach this stand-in: the socket,
-// the pane's id as the keeper sets it, and no pane of anyone else's.
+// env is what the pane's program needs to reach this stand-in: the socket
+// and the pane's id as the keeper sets it.
 func (s *stand) env(role string) []string {
-	return []string{roleEnv + "=" + role, contract.EnvSocket + "=" + s.sock, contract.EnvTermPane + "=p7",
-		contract.EnvPane + "=", logEnv + "=" + filepath.Join(filepath.Dir(s.sock), "hooks.log")}
+	return []string{roleEnv + "=" + role, contract.EnvSocket + "=" + s.sock, contract.EnvPane + "=p7",
+		logEnv + "=" + filepath.Join(filepath.Dir(s.sock), "hooks.log")}
 }
 
 // watch follows the program in a pane as an agent of a kind.

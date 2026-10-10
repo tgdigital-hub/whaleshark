@@ -97,17 +97,19 @@ func TestFrameAndErrors(t *testing.T) {
 	}
 }
 
-// The keeper's pane variables come before herdr's, and a picture gives a
-// space for a cell nothing was written to.
+// A caller's pane is read from the keeper's two variables and from no
+// other, and a picture gives a space for a cell nothing was written to.
 func TestPaneOfSettingsAndPicture(t *testing.T) {
-	env := map[string]string{EnvPane: "w1:p1", EnvActivePane: "w1:p2"}
+	env := map[string]string{"WHALESHARK_PANE": "p7", "WHALESHARK_ACTIVE_PANE": "p2", "PANE_ID": "x1"}
 	get := func(k string) string { return env[k] }
-	if pane, active := PaneOf(get); pane != "w1:p1" || active != "w1:p2" {
-		t.Errorf("herdr's variables gave %q %q", pane, active)
-	}
-	env[EnvTermPane] = "p7"
-	if pane, active := PaneOf(get); pane != "p7" || active != "" {
+	if pane, active := PaneOf(get); pane != "p7" || active != "p2" {
 		t.Errorf("the keeper's variables gave %q %q", pane, active)
+	}
+	if delete(env, "WHALESHARK_PANE"); EnvPane != "WHALESHARK_PANE" || EnvActivePane != "WHALESHARK_ACTIVE_PANE" {
+		t.Errorf("the variables are named %s and %s", EnvPane, EnvActivePane)
+	}
+	if pane, active := PaneOf(get); pane != "" || active != "p2" {
+		t.Errorf("with no pane of its own: %q %q", pane, active)
 	}
 	missing := func(string) ([]byte, error) { return nil, os.ErrNotExist }
 	if s, err := ReadSettings(missing, Dirs{}); err != nil || s.Keys.Command != "ctrl+space" || s.Scrollback.Keep != 2000 {

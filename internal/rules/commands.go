@@ -1,5 +1,5 @@
 // Package rules is every legal change to a run, as pure functions on the
-// record: no file, no herdr, and no clock but the one passed in.
+// record: no file, no terminals, and no clock but the one passed in.
 package rules
 
 import (

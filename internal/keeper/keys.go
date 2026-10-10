@@ -76,7 +76,7 @@ func (k *Keeper) input(w *window) {
 			case a.Kind == input.Run && len(a.Argv) > 0:
 				// #nosec G204 -- the person's own shortcut, from their own settings file
 				cmd := exec.Command(a.Argv[0], a.Argv[1:]...)
-				cmd.Env = append(os.Environ(), contract.EnvTermActivePane+"="+a.Pane)
+				cmd.Env = append(os.Environ(), contract.EnvActivePane+"="+a.Pane)
 				if cmd.Start() == nil {
 					go cmd.Wait()
 				}

@@ -135,7 +135,7 @@ func newRig(t *testing.T) *rig {
 		}
 		f := &program{spec: s, out: make(chan []byte, 4096), ended: make(chan struct{})}
 		f.print(fmt.Sprintf("%s in %q at %dx%d pane=%s colour=%s outer=%q\r\n", strings.Join(s.Argv, " "), s.Dir, s.Cols, s.Rows,
-			value(s.Env, contract.EnvTermPane), value(s.Env, "COLOUR"), value(s.Env, "TERM_PROGRAM")))
+			value(s.Env, contract.EnvPane), value(s.Env, "COLOUR"), value(s.Env, "TERM_PROGRAM")))
 		return f, nil
 	}
 	k, err := open(r.kit)

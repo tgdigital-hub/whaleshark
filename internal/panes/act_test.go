@@ -119,19 +119,19 @@ func (wd *world) ran(prefix string) string {
 	return ""
 }
 
-// asked waits for a call to herdr the test has not yet seen that holds the words.
+// asked waits for a call to the terminals the test has not yet seen that holds the words.
 func (wd *world) asked(words string) {
 	wd.t.Helper()
 	for end := time.Now().Add(4 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
-		calls := wd.herdr.Calls()
+		calls := wd.double.Calls()
 		for i := wd.nextCall; i < len(calls); i++ {
-			if strings.Contains(strings.Join(calls[i], " "), words) {
+			if strings.Contains(said(calls[i]), words) {
 				wd.nextCall = i + 1
 				return
 			}
 		}
 	}
-	wd.t.Fatalf("herdr was never asked for %q:\n%v", words, wd.herdr.Calls())
+	wd.t.Fatalf("the terminals were never asked for %q:\n%+v", words, wd.double.Calls())
 }
 
 // keyGap is the time a test leaves before a key that is a command. It is
@@ -175,11 +175,11 @@ func (wd *world) over(name string) {
 	}
 }
 
-// ours opens two panes beside the lead agent's in the fake herdr, writes
+// ours opens two panes beside the lead agent's in the double, writes
 // them down in ui.json as `ui` does, and makes the pane under test one of them.
 func ours(wd *world) {
-	fl, _ := wd.herdr.Split("w1:p1", contract.Right, 0.7)
-	ac, _ := wd.herdr.Split("w1:p1", contract.Down, 0.75)
+	fl, _ := wd.double.Split("w1:p1", contract.Right, 0.7)
+	ac, _ := wd.double.Split("w1:p1", contract.Down, 0.75)
 	dirs, _ := wd.sys.Dirs()
 	ui := contract.UIFile{Versioned: contract.Versioned{Version: contract.FileVersion}, FleetPane: fl.ID, ActionsPane: ac.ID, LastHere: wd.fx.Now}
 	if err := contract.WriteVersioned(wd.sys, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, ui); err != nil {
@@ -189,9 +189,9 @@ func ours(wd *world) {
 }
 
 // outcome is what a row of the action table must lead to: the words typed
-// where it asks for some, then a child, a call to herdr or a list on the screen.
+// where it asks for some, then a child, a call to the terminals or a list on the screen.
 type outcome struct {
-	typed, child, herdr, shows string
+	typed, child, terms, shows string
 	twice                      bool
 }
 
@@ -200,8 +200,8 @@ type outcome struct {
 var outcomes = map[string]outcome{
 	"answer":         {typed: "in the morning", child: `answer q7 --file "in the morning" --human`},
 	"undo":           {child: "answer q7 --undo --human"},
-	"carry-on":       {herdr: "w1:p1 whaleshark: questions for the human"},
-	"ask-lead":       {herdr: "w1:p1 whaleshark: a question is waiting"},
+	"carry-on":       {terms: "point w1:p1 whaleshark: questions for the human"},
+	"ask-lead":       {terms: "point w1:p1 whaleshark: a question is waiting"},
 	"note-lead":      {typed: "look at the prices", child: `tell lead --file "look at the prices" --human`},
 	"accept":         {child: "accept T2 --human"},
 	"accept-by-hand": {typed: "read the diff", child: `accept T2 --by-hand --file "read the diff" --human`},
@@ -219,12 +219,12 @@ var outcomes = map[string]outcome{
 	"set":            {typed: "nudge.sound off", child: "set nudge.sound off --human"},
 	"catchup":        {child: "catchup --json --human", shows: "WHILE YOU WERE AWAY  1h 04m"},
 	"team":           {typed: "site review", child: "team run site review --human"},
-	"go":             {herdr: "tab focus w1:t3"},
+	"go":             {terms: "tab-focus w1:t3"},
 	"fleet":          {child: "ui fleet --human"},
 	"actions":        {child: "ui actions --human"},
 	"to-actions":     {child: "ui actions focus --human"},
-	"narrower":       {herdr: "--direction right --amount 0.02", child: "set fleet.width 120 --human"},
-	"wider":          {herdr: "--direction left --amount 0.02", child: "set fleet.width 120 --human"},
+	"narrower":       {terms: " right 0.02", child: "set fleet.width 120 --human"},
+	"wider":          {terms: " left 0.02", child: "set fleet.width 120 --human"},
 	"menu":           {shows: "every action"},
 	"fold":           {child: "set folded on --human"},
 	"show":           {shows: " answered: 0"},
@@ -248,8 +248,8 @@ func (wd *world) reached(a contract.Action, how string, again func()) {
 		wd.s.Type(o.typed)
 		wd.s.Key("enter")
 	}
-	if o.herdr != "" {
-		wd.asked(o.herdr)
+	if o.terms != "" {
+		wd.asked(o.terms)
 	}
 	if o.child != "" {
 		if line := wd.ran(o.child); !strings.Contains(line, "--human") || strings.Contains(line, "not marked") {
@@ -331,10 +331,10 @@ func TestEveryKeyOfTheActionTable(t *testing.T) {
 func TestTheButtonsOfTheFleet(t *testing.T) {
 	wd := startWith(t, fleet, 60, 46, nil, ours)
 	wd.click("[<]")
-	wd.asked("--direction right --amount 0.02")
+	wd.asked(" right 0.02")
 	wd.ran("set fleet.width 120 --human")
 	wd.click("[>]")
-	wd.asked("--direction left --amount 0.02")
+	wd.asked(" left 0.02")
 	wd.click("[x]")
 	wd.ran("ui fleet --human")
 	wd.click("[show]")
@@ -375,12 +375,12 @@ func TestTheButtonsOfTheActionPane(t *testing.T) {
 		}
 		ac.ran(child)
 	}
-	// Folding asked herdr to take the pane down to the least it leaves one,
+	// Folding asked the terminals to take the pane down to the least it is left,
 	// and what a command refuses is said where the click was made.
-	ac.asked("--direction down --amount 0.5")
+	ac.asked(" down 0.5")
 	ac.shows("[^]")
 	ac.click("[^]")
-	ac.asked("--direction up --amount 0.15")
+	ac.asked(" up 0.15")
 	os.WriteFile(filepath.Join(ac.home, "refuse"), []byte("The run is paused.\nNext: whaleshark resume --human\n"), 0o600)
 	ac.click("[ No ]")
 	ac.shows("The run is paused. · Next: whaleshark resume --human")
@@ -830,8 +830,8 @@ func TestSet(t *testing.T) {
 }
 
 // The keys go from one of ours to the other and back to the conversation
-// through herdr's "neighbour in a direction"; an action pane on top is the
-// conversation's place changed with it; a pane of ours can open the other.
+// through the pane beside one in a direction; an action pane on top is
+// split off upward; a pane of ours can open the other.
 func TestTheKeysGoBetweenThePanes(t *testing.T) {
 	d := newDesk(t)
 	o, err := d.ui(d.me)
@@ -850,11 +850,11 @@ func TestTheKeysGoBetweenThePanes(t *testing.T) {
 	}
 	// From the fleet, the action pane is closed and opened again beside the conversation.
 	d.did()
-	if _, err := d.ui(o.Fleet, actions, "off"); err != nil || !strings.Contains(d.did(), "pane close "+o.Actions) {
+	if _, err := d.ui(o.Fleet, actions, "off"); err != nil || !strings.Contains(d.did(), "pane-close "+o.Actions) {
 		t.Errorf("ui actions off from the fleet: %v", err)
 	}
 	on, err := d.ui(o.Fleet, actions)
-	if got := d.did(); err != nil || on.Actions == "" || !strings.Contains(got, "pane split "+d.me+" --direction down --ratio 0.75") {
+	if got := d.did(); err != nil || on.Actions == "" || !strings.Contains(got, "split "+d.me+" down 0.75") {
 		t.Errorf("ui actions from the fleet: %+v, %v\n%s", on, err, got)
 	}
 	c.Args = []string{actions, "off"}
@@ -862,14 +862,14 @@ func TestTheKeysGoBetweenThePanes(t *testing.T) {
 	if _, err := ui(&contract.Call{Kit: d.k, Command: contract.Find("ui"), Args: []string{actions, "focus"}, Out: io.Discard}); err == nil {
 		t.Error("ui actions focus with the action pane closed did not say so")
 	}
-	// On top: the split is made with the small share and then swapped.
+	// On top: the pane is split off upward, in one call.
 	set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: []string{actions, "top"}, Out: io.Discard})
 	d.did()
 	top, err := d.ui(d.me, actions, "on")
-	if got := d.did(); err != nil || !strings.Contains(got, "--direction down --ratio 0.25") || !strings.Contains(got, "pane swap --source-pane "+d.me+" --target-pane "+top.Actions) {
+	if got := d.did(); err != nil || !strings.Contains(got, "split "+d.me+" up 0.75") || strings.Contains(got, contract.OpSwap) {
 		t.Errorf("ui actions on, on top: %v\n%s", err, got)
 	}
-	if err := shrink(d.k.Terms, top.Actions, true, true); err != nil || !strings.Contains(d.did(), "--direction up --amount 0.5") {
+	if err := shrink(d.k.Terms, top.Actions, true, true); err != nil || !strings.Contains(d.did(), " up 0.5") {
 		t.Errorf("folding a pane on top: %v", err)
 	}
 	// Asked from the action pane, the fleet opens beside the conversation,
@@ -877,10 +877,10 @@ func TestTheKeysGoBetweenThePanes(t *testing.T) {
 	d.ui(top.Actions, fleet, "off")
 	d.did()
 	back, err := d.ui(top.Actions, fleet, "on")
-	if got := d.did(); err != nil || back.Actions != top.Actions || strings.Contains(got, "pane close") || !strings.Contains(got, "pane split "+d.me+" --direction right") {
+	if got := d.did(); err != nil || back.Actions != top.Actions || strings.Contains(got, "pane-close") || !strings.Contains(got, "split "+d.me+" right") {
 		t.Errorf("ui fleet on from the action pane: %+v, %v\n%s", back, err, got)
 	}
-	if snap, _ := d.herdr.Snapshot(context.Background()); len(snap.Panes) != 3 {
+	if snap, _ := d.double.Snapshot(context.Background()); len(snap.Panes) != 3 {
 		t.Errorf("panes: %+v", snap.Panes)
 	}
 }

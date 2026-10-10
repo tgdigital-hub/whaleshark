@@ -137,7 +137,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 }
 
 func resting(p *contract.Pane) bool {
-	return p != nil && p.Agent != "" && (p.Status == contract.StatusIdle || p.Status == contract.StatusDone)
+	return p != nil && p.Agent != "" && p.Status == contract.StatusIdle
 }
 
 // apply runs the rows of the sweep table over a record and lists the
@@ -168,8 +168,13 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 		}
 	}
 	var lead *contract.Pane
-	if o := s.Run.Orchestrator; o != nil {
-		lead = l.panes[o.Pane]
+	if o := s.Run.Orchestrator; o != nil && l.panes[o.Pane] != nil {
+		// In front is its tab, whichever pane of the tab has the keys.
+		in := *l.panes[o.Pane]
+		for _, p := range l.panes {
+			in.Focused = in.Focused || p.Focused && p.Tab == in.Tab
+		}
+		lead = &in
 	}
 	if l.rules.LeadSeen(s, lead, l.waiting, l.now) {
 		changed = true

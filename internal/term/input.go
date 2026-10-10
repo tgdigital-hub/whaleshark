@@ -283,7 +283,7 @@ func numbers(s, sep string) []int {
 }
 
 // mouse reads an "SGR" mouse report. Nothing of ours is on the right
-// button, which herdr keeps for its own menu, so its reports are dropped.
+// button, so its reports are dropped.
 func mouse(args string, up bool) Event {
 	v := numbers(args, ";")
 	if len(v) != 3 {

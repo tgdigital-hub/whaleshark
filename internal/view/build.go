@@ -55,7 +55,7 @@ type builder struct {
 	seats map[string]*seat
 }
 
-// Build makes the one view model from a run, herdr's picture and the small
+// Build makes the one view model from a run, the terminals' picture and the small
 // files beside them. It reads nothing and keeps nothing.
 func Build(in contract.ViewInput) *contract.View {
 	all := in.All
@@ -126,7 +126,7 @@ func Build(in contract.ViewInput) *contract.View {
 	return v
 }
 
-// seat gives a task its card from what the record says and what herdr sees.
+// seat gives a task its card from what the record says and what the terminals show.
 func (b *builder) seat(t *contract.Task) *seat {
 	c := &contract.Card{Task: t.ID, Name: cli.Plain(t.Name), Look: contract.LookQueued, Since: t.CreatedAt}
 	st := &seat{card: c, task: t}
@@ -151,7 +151,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 	if f, ok := b.in.Ctx[a.Place.Pane]; ok && f.Known {
 		c.Ctx, c.CtxKnown = f.Pct, true
 	}
-	// What herdr shows now: its picture, or without one what the sweep last saw.
+	// What the terminals show now: its picture, or without one what the sweep last saw.
 	status, open := a.Seen.Status, a.Place.Tab != ""
 	if b.panes != nil {
 		p := b.panes[a.Place.Pane]
@@ -172,7 +172,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 		c.Look, c.Word = contract.LookBuilding, contract.WordStarting
 	case contract.AttemptWorking:
 		c.Look = contract.LookBuilding
-		if status == "" || status == contract.StatusIdle || status == contract.StatusDone {
+		if status == "" || status == contract.StatusIdle {
 			c.Look, c.Since = contract.LookIdle, first(a.Seen.GoneSince, a.Seen.LastWorking, a.StateSince)
 		}
 	case contract.AttemptAsked:
@@ -212,7 +212,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 	case status == contract.StatusBlocked:
 		c.Look, c.Since, c.News = contract.LookAtPrompt, first(a.Seen.BlockedSince, a.StateSince), newsPrompt
 	case b.s.Run.Paused != nil && c.Look != contract.LookToCheck && c.Look != contract.LookCheckFailed:
-		// "Paused" is two facts: the run is paused and herdr shows the agent at rest.
+		// "Paused" is two facts: the run is paused and the terminals show the agent at rest.
 		c.Look, c.Since = contract.LookPaused, b.s.Run.Paused.At
 		if status == contract.StatusWorking {
 			c.Word = contract.WordFinishing
@@ -504,9 +504,9 @@ func (b *builder) around(v *contract.View) {
 		}
 	}
 	if in.Terms == nil {
-		v.Fresh.Notes = append(v.Fresh.Notes, "herdr not reachable")
+		v.Fresh.Notes = append(v.Fresh.Notes, "the engine is not running")
 		if in.Now.Sub(run.Terms.SeenAt) >= time.Minute {
-			v.Alerts = append(v.Alerts, "herdr cannot be reached")
+			v.Alerts = append(v.Alerts, "the engine is not running: `whaleshark open` starts it")
 		}
 	}
 	// One note about the sweep, never two: that none has run yet says all

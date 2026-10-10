@@ -172,7 +172,7 @@ type world struct {
 var (
 	taskIDs  = []string{"T1", "T2", "T3", "T4", "T5", "t1", "T9"}
 	titles   = []string{"login page", "sign-up page", "Login Page", "search box", "a title of more than three words", "help pages", "site map", "lead", "price list", "admin page", "order emails"}
-	statuses = []string{contract.StatusWorking, contract.StatusWorking, contract.StatusIdle, contract.StatusDone, contract.StatusBlocked, contract.StatusUnknown, ""}
+	statuses = []string{contract.StatusWorking, contract.StatusWorking, contract.StatusIdle, contract.StatusBlocked, contract.StatusUnknown, ""}
 	answers  = []string{"yes", "no", "approve", "done", "send back: no", "cannot: no", "other: later", "main", ""}
 	origins  = []contract.Origin{human, human, orch, {Caller: contract.Orchestrator, Where: contract.WhereRelayed}, {Caller: contract.Worker}}
 )

@@ -1,6 +1,6 @@
 // Package testkit is the contract of the tests: the fixture format, the
-// grammar of a scenario file, and how the fake herdr starts a fake agent and
-// pushes events. It is test code; nothing the program ships imports it.
+// grammar of a scenario file, and how the engine's double starts a fake agent and
+// tells a change. It is test code; nothing the program ships imports it.
 package testkit
 
 import (
@@ -17,7 +17,7 @@ const FixtureVersion = 1
 // Fixture is one prepared moment: everything the view model is built from,
 // and the view model each kind of caller must then be shown. The fixture
 // builder writes State as the run's state.json, Ctx as the context files and
-// UI as ui.json, and hands Terms to the fake herdr as its picture.
+// UI as ui.json, and hands Terms to the terminals as their picture.
 type Fixture struct {
 	Version   int                         `json:"version"`
 	Name      string                      `json:"name"`
@@ -72,9 +72,9 @@ var Lines = map[string]string{
 	"clock":             `clock +<duration>                  move the injected clock`,
 	"kill-wait":         `kill-wait                          kill the running wait`,
 	"kill-orchestrator": `kill-orchestrator                  end the orchestrator's session`,
-	"restart-terminals": `restart-terminals                  the fake herdr restarts as the real one does`,
-	"term-event":        `term-event <kind> <task>           the fake herdr changes its picture and pushes the line`,
-	"term-drop":         `term-drop <kind> <task>            the fake herdr changes its picture and pushes nothing`,
+	"restart-terminals": `restart-terminals                  the terminals restart as the real keeper does`,
+	"term-event":        `term-event <kind> <task>           the terminals' picture changes, and the change is told`,
+	"term-drop":         `term-drop <kind> <task>            the same, told to nobody where a stand-in can`,
 	"notices":           `notices on|off                     file changes arrive with or without a notice`,
 	"pane":              `pane fleet|actions: <cols>x<rows>  start a pane on a pretended terminal`,
 	"click":             `click <text>                       click the first cell of that text in the pane`,
@@ -98,26 +98,22 @@ var AgentSteps = map[string]string{
 	"sleep":             `sleep <seconds>`,
 	"die":               `die                    exit without reporting`,
 	"hang":              `hang                   stay idle`,
-	"block":             `block                  the fake herdr shows the pane at a prompt`,
+	"block":             `block                  the pane's agent is at a prompt`,
 	"edit":              `edit <file>`,
 	"commit":            `commit`,
 }
 
-// How the fake herdr and the fake agent find each other. The scenario runner
-// holds the fake herdr in its own process. A program named herdr on the PATH
-// stands in for the real one: it sends its arguments, as one line of JSON, to
-// the socket file EnvFake names and prints the answer. On "agent start" the
-// fake herdr starts the program EnvAgent names with the environment the tab
-// was created with, and that program plays the script registered for the
-// attempt in its WHALESHARK_ATTEMPT. The event stream is served on the socket
-// file EnvEvents names, in herdr's own lines.
+// How the engine's double and the fake agent find each other. The scenario
+// runner holds the double in its own process and serves it on a socket
+// file, which every program it starts reaches as it reaches the keeper. On
+// an agent's start the double starts the program EnvAgent names with the
+// variables the tab was created with, and that program plays the script
+// registered for the attempt in its WHALESHARK_ATTEMPT.
 const (
-	EnvFake = "FAKEHERDR_SOCKET"
 	// EnvCorpus names a second folder of recordings for the replay tests of
 	// the engine, beside test/corpus: recordings that are not published.
 	EnvCorpus = "WHALESHARK_CORPUS_EXTRA"
-	EnvEvents = "FAKEHERDR_EVENTS"
-	EnvAgent  = "FAKEHERDR_AGENT"
+	EnvAgent  = "FAKEAGENT_PROGRAM"
 	// EnvScripts names the folder of the fake agents' scripts, one file an
 	// attempt, for the real keeper: it starts an agent by its kind's name and
 	// knows nothing of scripts, so the fake agent finds its own there. Set,
@@ -126,19 +122,6 @@ const (
 	EnvScripts = "FAKEAGENT_SCRIPTS"
 )
 
-// FakeCall is what the stand-in program sends; FakeAnswer is what it gets back.
-type FakeCall struct {
-	Args []string `json:"args"`
-	Env  []string `json:"env"`
-	Cwd  string   `json:"cwd"`
-}
-
-type FakeAnswer struct {
-	Stdout string `json:"stdout"`
-	Stderr string `json:"stderr"`
-	Exit   int    `json:"exit"`
-}
-
 // What Push and Drop take besides a state: the agent left its pane, the
 // pane was closed, the pane got the focus.
 const (
@@ -146,24 +129,3 @@ const (
 	PushClosed  = "closed"
 	PushFocused = "focused"
 )
-
-// FakeHerdr is the fake as the scenario runner drives it in its own process.
-type FakeHerdr interface {
-	contract.Terminals
-	// Script registers what the fake agent of an attempt plays.
-	Script(attempt, script string)
-	// Push changes the picture of a pane and pushes the line; Drop changes
-	// the picture and pushes nothing. kind is one of herdr's five states
-	// (the contract's Status constants), PushGone, PushClosed or PushFocused.
-	Push(kind, pane string)
-	Drop(kind, pane string)
-	// Lose drops the next pushed line silently.
-	Lose()
-	// Restart does what the real herdr does: the same pane and tab ids, new
-	// terminal ids, none of our variables in any tab, an empty shell where a
-	// pane program ran, and every event connection closed.
-	Restart()
-	// Calls is every call made so far, in order, as the arguments of the
-	// real herdr command line: the proof that no key was sent.
-	Calls() [][]string
-}

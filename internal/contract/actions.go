@@ -5,7 +5,7 @@ package contract
 // {id}, {task}, {file}, {name}, {key} and {value} filled in from the view
 // model and a private temp file; empty means only the screen changes. How is
 // one of the How constants. Key is the single key in our panes and Prefix the
-// key after herdr's prefix that works from anywhere.
+// key after the command key that works from anywhere.
 type Action struct {
 	ID, Label   string
 	Run         []string
@@ -18,7 +18,7 @@ const (
 	HowChild  = "child"  // started by the pane or the page, which waits for it
 	HowTab    = "tab"    // a child too, which moves itself into a tab of its own: it can take minutes
 	HowPoint  = "point"  // a fixed pointer typed into the lead agent's tab
-	HowResize = "resize" // herdr's own resize, then set fleet.width
+	HowResize = "resize" // the terminals' own resize, then set fleet.width
 	HowScreen = "screen" // nothing is run
 )
 

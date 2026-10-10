@@ -177,7 +177,7 @@ func TestAPaneOverTheTab(t *testing.T) {
 	}
 	w.types("j" + cmd + "t")
 	r.got("p2", "j"+cmd+"t")
-	if env := r.program("p2").spec.Env; value(env, contract.EnvTermActivePane) != "p1" {
+	if env := r.program("p2").spec.Env; value(env, contract.EnvActivePane) != "p1" {
 		t.Errorf("the program over the tab is not told the pane with the keys: %q", env)
 	}
 	w.click(x+2, y+2)

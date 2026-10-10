@@ -32,7 +32,7 @@ const (
 
 // notPassed are the variables of the keeper's own start that say something
 // about a terminal or a pane it was started in, which is no pane of its own.
-var notPassed = []string{"TERM_PROGRAM", "TERM_PROGRAM_VERSION", "NO_COLOR", "COLUMNS", "LINES", contract.EnvTermActivePane}
+var notPassed = []string{"TERM_PROGRAM", "TERM_PROGRAM_VERSION", "NO_COLOR", "COLUMNS", "LINES", contract.EnvActivePane}
 
 // pane is one pane. rec, argv and tty change under the keeper's lock; tty,
 // scr, the size and the person's view also under mu, which is all the
@@ -96,10 +96,10 @@ func (k *Keeper) shell(s contract.Settings) []string {
 // started with, the tab's own variables over that, and the keeper's three
 // last. Nothing of a window is in it.
 func (k *Keeper) env(p *pane) []string {
-	set := append(slices.Clone(k.tabs[p.rec.Tab]), "TERM=xterm-256color", "COLORTERM=truecolor", contract.EnvTermPane+"="+p.rec.ID)
+	set := append(slices.Clone(k.tabs[p.rec.Tab]), "TERM=xterm-256color", "COLORTERM=truecolor", contract.EnvPane+"="+p.rec.ID)
 	if p == k.over {
 		// A program drawn over the tab acts on the pane the person was in.
-		set = append(set, contract.EnvTermActivePane+"="+k.focus)
+		set = append(set, contract.EnvActivePane+"="+k.focus)
 	}
 	name := func(v string) string { n, _, _ := strings.Cut(v, "="); return n }
 	var env []string

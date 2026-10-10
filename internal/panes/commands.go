@@ -1,5 +1,5 @@
 // Package panes draws the fleet pane and the action pane. A pane keeps
-// nothing and changes nothing: it reads the record, herdr's picture and a few
+// nothing and changes nothing: it reads the record, the terminals' picture and a few
 // small files, has one view model built from them, and draws that. What a
 // click or a key changes, a child command changes: the program itself,
 // started with one row of the action table.

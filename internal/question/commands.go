@@ -95,7 +95,7 @@ func pointLead(c *contract.Call, s *contract.State, p contract.Pointer, arg stri
 		return false
 	}
 	resting := func(pane contract.Pane) bool {
-		return pane.ID == o.Pane && (pane.Status == contract.StatusIdle || pane.Status == contract.StatusDone)
+		return pane.ID == o.Pane && pane.Agent != "" && pane.Status == contract.StatusIdle
 	}
 	return slices.ContainsFunc(picture.Panes, resting) && k.Terms.Point(o.Pane, p, arg) == nil
 }

@@ -22,9 +22,9 @@ func mouseAt(b Button, a Action, x, y int) Event {
 	return Event{Kind: Mouse, Button: b, Action: a, X: x, Y: y}
 }
 
-// recorded is what a pane program received through herdr 0.9.1 when these
+// recorded is what a pane program received in a pane when these
 // things were done to it, byte for byte, and the events they must become;
-// with them, the right button and two reports that herdr does not pass on.
+// with them, the right button and two reports that are not passed on.
 var recorded = []struct {
 	bytes string
 	want  []Event

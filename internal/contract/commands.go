@@ -15,9 +15,9 @@ const (
 	Human        CallerKind = "human"
 )
 
-// Caller is who is calling: the kind, the herdr pane if any, the attempt for
+// Caller is who is calling: the kind, the pane if any, the attempt for
 // a worker, and for a human where the command says it came from. A worker is
-// known by EnvAttempt in its tab or, in a tab herdr has restored, by EnvPane
+// known by EnvAttempt in its tab or, in a tab that lost its variables, by EnvPane
 // being the pane recorded as a live attempt's place.
 type Caller struct {
 	Kind    CallerKind
@@ -155,7 +155,7 @@ var Commands = []Command{
 		Usage: "help [command] [--json]", Help: "this list, or one command in full",
 		Example: "whaleshark help start"},
 	{Name: "version", Section: "setup", Phase: 1, Who: all, Exits: []int{0},
-		Usage: "version", Help: "version, build, and the herdr version seen",
+		Usage: "version", Help: "version, build, and the engine's version seen",
 		Example: "whaleshark version"},
 	{Name: "dash", Section: "setup", Phase: 3, Who: H | U, Exits: []int{0, 3},
 		Usage:   "dash start|stop [--forget]|url|status / dash phone on|off|list|forget <phone>",
@@ -170,7 +170,7 @@ var Commands = []Command{
 	{Name: "server", Section: "setup", Phase: 3, Who: H | U, Exits: []int{0, 1, 3},
 		Usage:   "server setup|harden|add|phone|tunnel|upgrade|status",
 		Help:    "for the administrator, with sudo, on the server: set it up, add people, upgrade",
-		Flags:   flags("admin=NAME", "admin-key=FILE", "user=NAME", "key=FILE", "off", "name=NAME", "aud=TAG", "email=LIST", "team=NAME", "herdr"),
+		Flags:   flags("admin=NAME", "admin-key=FILE", "user=NAME", "key=FILE", "off", "name=NAME", "aud=TAG", "email=LIST", "team=NAME"),
 		Example: "sudo whaleshark server add --user ana --key ana.pub"},
 	{Name: "ui", Section: "setup", Phase: 1, Who: H | O | U, Exits: []int{0, 3},
 		Usage:   "ui [close] / ui fleet|actions [on|off] / ui menu / ui run <pane>",

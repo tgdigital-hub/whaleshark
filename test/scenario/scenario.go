@@ -63,14 +63,11 @@ type runner struct {
 // to look at beyond the file's own expectations.
 func Run(t testing.TB, path string, pane Pane) *Project {
 	t.Helper()
-	return RunOn(t, Herdr, path, pane)
+	return RunOn(t, Double, path, pane)
 }
 
-// RunOn is Run with another backend behind the terminals. On the double a
-// scenario means what it means on herdr's stand-in, but that a restart
-// keeps each tab's variables, as the keeper's will. The real keeper has no
-// agents yet and takes no change but through its own calls: a scenario with
-// a fixture, a fake agent or a line that changes the terminals is skipped on it.
+// RunOn is Run with the backend named: the double, which a scenario runs on
+// when nothing is said, or the real keeper.
 func RunOn(t testing.TB, on Backend, path string, pane Pane) *Project {
 	t.Helper()
 	file, err := os.ReadFile(path)
@@ -198,7 +195,6 @@ func (r *runner) step(kind, rest string) {
 		r.p.drive.Push(testkit.PushGone, r.p.Lead)
 	case "restart-terminals":
 		r.p.drive.Restart()
-		r.p.restarted = r.p.on == Herdr
 	case "term-event", "term-drop":
 		w := words(rest)
 		if len(w) != 2 || !slices.Contains(pushes, w[0]) {
@@ -255,7 +251,7 @@ func (r *runner) step(kind, rest string) {
 }
 
 // pushes is what a term-event or term-drop line may name.
-var pushes = []string{contract.StatusWorking, contract.StatusIdle, contract.StatusDone, contract.StatusBlocked,
+var pushes = []string{contract.StatusWorking, contract.StatusIdle, contract.StatusBlocked,
 	contract.StatusUnknown, testkit.PushGone, testkit.PushClosed, testkit.PushFocused}
 
 // words splits a line at spaces; what stands between two double or two

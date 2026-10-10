@@ -383,7 +383,7 @@ func TestInbox(t *testing.T) {
 	}
 }
 
-// 8e, row by row: what one sweep does with what herdr shows for a pane.
+// 8e, row by row: what one sweep does with what the terminals show for a pane.
 func TestSeen(t *testing.T) {
 	kinds := func(s *contract.State) (out []string) {
 		for _, e := range s.Inbox.Events {
@@ -435,7 +435,7 @@ func TestSeen(t *testing.T) {
 		{"idle while asked is waiting as told", "asked", nil,
 			[]step{{time.Minute, pane("idle"), true}, {time.Hour, pane("idle"), false}}, nil, "asked", contract.Live},
 		{"idle after its report is no news", "reported", nil,
-			[]step{{time.Minute, pane("done"), true}, {time.Hour, pane("done"), false}}, nil, "reported", contract.Live},
+			[]step{{time.Minute, pane("idle"), true}, {time.Hour, pane("idle"), false}}, nil, "reported", contract.Live},
 		{"unknown is unverifiable and nothing else", "working", nil,
 			[]step{{time.Minute, pane("unknown"), true}, {time.Hour, pane("unknown"), false}}, nil, "working", contract.Unverifiable},
 		{"a shell prompt, seen again 30 s later, is an exit", "working", nil,
@@ -451,11 +451,11 @@ func TestSeen(t *testing.T) {
 		{"gone after its report changes no state", "reported", nil,
 			[]step{{time.Minute, gone, true}, {2 * time.Minute, gone, true}, {3 * time.Minute, gone, false}}, nil, "reported", contract.Gone},
 		{"starting with its start lock held is left alone", "starting", nil, []step{{time.Hour, gone, false}}, nil, "starting", contract.Unverifiable},
-		{"herdr restarted: nobody is declared gone for 120 s", "working", nil,
+		{"the keeper restarted: nobody is declared gone for 120 s", "working", nil,
 			[]step{{time.Minute, restarted, true}, {time.Minute + 5*time.Second, bare, false}, {time.Minute + 119*time.Second, bare, false},
 				{3 * time.Minute, bare, true}, {3*time.Minute + 29*time.Second, bare, false}},
 			nil, "working", contract.Unverifiable},
-		{"herdr restarted and the agent came back", "working", nil,
+		{"the keeper restarted and the agent came back", "working", nil,
 			[]step{{time.Minute, restarted, true}, {time.Minute + 5*time.Second, restarted, true}, {2 * time.Minute, restarted, false}},
 			nil, "working", contract.Live},
 		{"paused: no quiet, stale or overtime", "working",
@@ -533,7 +533,7 @@ func TestSeen(t *testing.T) {
 			t.Error("the item outlived its attempt")
 		}
 	})
-	t.Run("herdr's new terminal id and the agent's session are recorded", func(t *testing.T) {
+	t.Run("the new terminal id and the agent's session are recorded", func(t *testing.T) {
 		s := in(t, contract.AttemptWorking)
 		p := pane("working")
 		p.Terminal, p.Session = "term2", "session-9"
@@ -572,8 +572,15 @@ func TestSeen(t *testing.T) {
 
 // 8e, the two rows about the lead agent's own pane.
 func TestLeadSeen(t *testing.T) {
+	// looked is the lead agent at rest with its tab in front; idle alone is
+	// at rest with the person elsewhere.
+	const looked = "looked"
 	lead := func(status string) *contract.Pane {
-		return &contract.Pane{ID: "w1:p1", Agent: "claude", Status: status}
+		p := &contract.Pane{ID: "w1:p1", Agent: "claude", Status: status}
+		if status == looked {
+			p.Status, p.Focused = contract.StatusIdle, true
+		}
+		return p
 	}
 	item := func(s *contract.State, cause string) *contract.Question {
 		for _, q := range s.Questions {
@@ -595,18 +602,18 @@ func TestLeadSeen(t *testing.T) {
 		changed bool
 		unread  bool
 	}{
-		{0, contract.StatusWorking, true, false, false},
-		{time.Minute, contract.StatusDone, true, true, false},
-		{time.Minute + 59*time.Second, contract.StatusDone, true, false, false},
-		{2 * time.Minute, contract.StatusDone, true, true, true},
-		{3 * time.Minute, contract.StatusDone, true, false, true},
-		{4 * time.Minute, contract.StatusIdle, true, true, false},
-		{5 * time.Minute, contract.StatusIdle, true, false, false},
-		{6 * time.Minute, contract.StatusDone, true, true, false},
+		{0, contract.StatusWorking, true, true, false},
+		{time.Minute, contract.StatusIdle, true, true, false},
+		{time.Minute + 59*time.Second, contract.StatusIdle, true, false, false},
+		{2 * time.Minute, contract.StatusIdle, true, true, true},
+		{3 * time.Minute, contract.StatusIdle, true, false, true},
+		{4 * time.Minute, looked, true, true, false},
+		{5 * time.Minute, looked, true, false, false},
+		{6 * time.Minute, contract.StatusIdle, true, false, false}, // at rest, and nothing said since the look
 		{6*time.Minute + 30*time.Second, contract.StatusWorking, true, true, false},
-		{7 * time.Minute, contract.StatusDone, true, true, false},
-		{7*time.Minute + 59*time.Second, contract.StatusDone, true, false, false},
-		{8 * time.Minute, contract.StatusDone, true, true, true},
+		{7 * time.Minute, contract.StatusIdle, true, true, false},
+		{7*time.Minute + 59*time.Second, contract.StatusIdle, true, false, false},
+		{8 * time.Minute, contract.StatusIdle, true, true, true},
 	}
 	for i, st := range steps {
 		if got := r.LeadSeen(s, lead(st.status), st.waiting, after(st.at)); got != st.changed || shown(s, contract.CauseLeadUnread) != st.unread {
@@ -618,35 +625,36 @@ func TestLeadSeen(t *testing.T) {
 		t.Errorf("one item is kept for the cause: %+v", q)
 	}
 	must(t, r.Answer(s, q.ID, "done", human, 0, after(9*time.Minute)))
-	if r.LeadSeen(s, lead(contract.StatusDone), true, after(10*time.Minute)) {
+	if r.LeadSeen(s, lead(contract.StatusIdle), true, after(10*time.Minute)) {
 		t.Error("an item the person has dealt with was raised again in the same episode")
 	}
-	r.LeadSeen(s, lead(contract.StatusIdle), true, after(11*time.Minute))
-	r.LeadSeen(s, lead(contract.StatusDone), true, after(12*time.Minute))
-	r.LeadSeen(s, lead(contract.StatusDone), true, after(13*time.Minute))
+	r.LeadSeen(s, lead(looked), true, after(11*time.Minute))
+	r.LeadSeen(s, lead(contract.StatusWorking), true, after(11*time.Minute+30*time.Second))
+	r.LeadSeen(s, lead(contract.StatusIdle), true, after(12*time.Minute))
+	r.LeadSeen(s, lead(contract.StatusIdle), true, after(13*time.Minute))
 	if q.Answer != "" || len(q.Earlier) != 1 || q.Earlier[0].Answer != "done" {
 		t.Errorf("the next episode starts clean and keeps what the person did: %+v", q)
 	}
 
 	// Not listening: events unread, no wait, the lead agent idle, for 60 s.
 	s = newRun()
-	if r.LeadSeen(s, lead(contract.StatusIdle), false, t0) {
+	if r.LeadSeen(s, lead(looked), false, t0) {
 		t.Error("nothing to listen for")
 	}
 	r.Raise(s, contract.Event{Kind: "done"}, t0)
-	if r.LeadSeen(s, lead(contract.StatusWorking), false, t0) || r.LeadSeen(s, lead(contract.StatusIdle), true, t0) {
-		t.Error("a lead agent that is working, or waiting, is listening")
+	if r.LeadSeen(s, lead(contract.StatusBlocked), false, t0) || r.LeadSeen(s, lead(looked), true, t0) {
+		t.Error("a lead agent that is at a prompt, or waiting, is listening")
 	}
-	r.LeadSeen(s, lead(contract.StatusIdle), false, after(time.Second))
-	r.LeadSeen(s, lead(contract.StatusIdle), false, after(30*time.Second))
+	r.LeadSeen(s, lead(looked), false, after(time.Second))
+	r.LeadSeen(s, lead(looked), false, after(30*time.Second))
 	if shown(s, contract.CauseLeadSilent) {
 		t.Error("raised before 60 s")
 	}
-	r.LeadSeen(s, lead(contract.StatusIdle), false, after(61*time.Second))
+	r.LeadSeen(s, lead(looked), false, after(61*time.Second))
 	if !shown(s, contract.CauseLeadSilent) || item(s, contract.CauseLeadSilent).Text != textSilent || len(s.Inbox.Events) != 1 {
 		t.Errorf("not raised: %+v", item(s, contract.CauseLeadSilent))
 	}
-	if !r.LeadSeen(s, lead(contract.StatusIdle), true, after(2*time.Minute)) || shown(s, contract.CauseLeadSilent) {
+	if !r.LeadSeen(s, lead(looked), true, after(2*time.Minute)) || shown(s, contract.CauseLeadSilent) {
 		t.Error("it stays when a wait starts")
 	}
 	if r.LeadSeen(s, nil, false, after(3*time.Minute)) {

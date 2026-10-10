@@ -18,6 +18,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/rules"
 	"github.com/tgdigital-hub/whaleshark/internal/store"
+	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
@@ -117,7 +118,7 @@ func edit(t *testing.T, p *scenario.Project, fn func(*contract.State) error) {
 }
 
 func screen(p *scenario.Project, pane string) string {
-	text, _ := p.Herdr.Screen(pane)
+	text, _ := p.Double.Screen(pane)
 	return text
 }
 
@@ -219,9 +220,9 @@ func TestEightB(t *testing.T) {
 	must(t, p, 5, scenario.Human, "answer q7 --undo", "Already acted on")
 
 	// Nothing but the fixed pointers was ever typed, and no key was sent.
-	for _, call := range p.Herdr.Calls() {
-		if slices.Contains(call, "send-keys") || len(call) > 3 && call[1] == "prompt" && !strings.Contains(call[3], "Run: whaleshark") {
-			t.Errorf("herdr was called with %v", call)
+	for _, c := range p.Double.Calls() {
+		if c.Op == contract.OpPrompt || c.Op == contract.OpRun || c.Op == contract.OpPoint && !strings.Contains(fakeengine.Typed(c), "Run: whaleshark") {
+			t.Errorf("the terminals were called with %+v", c)
 		}
 	}
 }
@@ -347,9 +348,9 @@ func TestPaused(t *testing.T) {
 	if !waiting(p, "q10") || s.Questions["q10"].State != contract.QuestionAnswered || s.Questions["q9"].State != contract.QuestionAnswered {
 		t.Fatalf("during the pause: q10 %s, q9 %s, the ask waiting: %v", s.Questions["q10"].State, s.Questions["q9"].State, waiting(p, "q10"))
 	}
-	for _, call := range p.Herdr.Calls() {
-		if slices.Contains(call, "prompt") {
-			t.Errorf("a pointer was typed during the pause: %v", call)
+	for _, c := range p.Double.Calls() {
+		if fakeengine.Typed(c) != "" {
+			t.Errorf("a pointer was typed during the pause: %+v", c)
 		}
 	}
 	must(t, p, 0, scenario.Human, "answer q9 --undo")
@@ -378,13 +379,13 @@ func TestLeadIsPointedAt(t *testing.T) {
 		t.Fatalf("a pointer was typed while a wait was running:\n%s", screen(p, p.Lead))
 	}
 	must(t, p, 0, scenario.Human, "answer n4 --undo")
-	p.Herdr.Drop(contract.StatusWorking, p.Lead)
+	p.Double.Drop(contract.StatusWorking, p.Lead)
 	must(t, p, 0, scenario.Human, "answer n4 approve")
 	if typed() != 0 {
 		t.Fatalf("a pointer was typed into a working lead agent's tab:\n%s", screen(p, p.Lead))
 	}
 	must(t, p, 0, scenario.Human, "answer n4 --undo")
-	p.Herdr.Drop(contract.StatusDone, p.Lead)
+	p.Double.Drop(contract.StatusIdle, p.Lead)
 	must(t, p, 0, scenario.Human, "answer n4 approve")
 	if !strings.Contains(screen(p, p.Lead), string(contract.PointAnswer)) {
 		t.Fatalf("the lead agent was not pointed at the answer:\n%s", screen(p, p.Lead))
@@ -392,7 +393,7 @@ func TestLeadIsPointedAt(t *testing.T) {
 
 	// q10 was the lead agent's to answer, and the person did: a human event
 	// that says so, without the answer.
-	p.Herdr.Drop(contract.StatusIdle, p.Lead)
+	p.Double.Drop(contract.StatusIdle, p.Lead)
 	must(t, p, 0, scenario.Human, "answer q10 the-shop-address")
 	s, _ := p.Record()
 	if e := s.Inbox.Events; len(e) != 1 || e[0].Kind != "human" || e[0].Data["id"] != "q10" || e[0].Data["where"] != contract.WhereTyped || strings.Contains(e[0].Text, "shop") {
@@ -470,7 +471,7 @@ func TestAskReadsOnlyWhatChanged(t *testing.T) {
 		plug(k)
 	}
 	counted := &counting{Store: k.Store}
-	k.Store, k.Terms = counted, p.Herdr
+	k.Store, k.Terms = counted, p.Double
 	t.Setenv(contract.EnvRoot, p.Root)
 	t.Setenv(contract.EnvRun, "r3")
 	t.Setenv(contract.EnvAttempt, "T11.1")

@@ -13,7 +13,7 @@ It says whose tab this is and what is open. Then:
 - You are the lead agent in another tab than before, and a command is refused as `not_bound`:
   `whaleshark run takeover`.
 - Another tab is the lead agent's: you are a visitor. Read, and change nothing.
-Open the two panes the person watches with `whaleshark ui`. Run it again after herdr restarts.
+Open the two panes the person watches with `whaleshark ui`. After a restart they come back by themselves.
 
 ## Plan
 One task is one piece of work for one worker. Write its brief as a file with these five headings:
@@ -82,7 +82,7 @@ away. Every row prints the command to run next.
 
 ## Never
 - Never add `--human` to any command: it is the person's alone.
-- Never run `herdr` commands, and never type into another tab.
+- Never start the window or the keeper (whaleshark's open and engine commands), and never type into another tab.
 - Never call work finished that `accept` has not checked.
 - Never ask in this chat what belongs in the action pane.
 

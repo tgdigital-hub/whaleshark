@@ -51,7 +51,7 @@ func newLogin(t *testing.T) *login {
 	for _, name := range []string{"XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "APPDATA", "LOCALAPPDATA"} {
 		t.Setenv(name, filepath.Join(home, name))
 	}
-	for _, name := range []string{contract.EnvPane, contract.EnvActivePane, contract.EnvTermPane, contract.EnvTermActivePane,
+	for _, name := range []string{contract.EnvPane, contract.EnvActivePane,
 		contract.EnvAttempt, contract.EnvRun, contract.EnvFrom, contract.EnvClock, "CLAUDE_CONFIG_DIR", helperEnv} {
 		t.Setenv(name, "")
 	}
@@ -97,7 +97,7 @@ func (l *login) ctx(pane string) (f contract.CtxFile) {
 	return f
 }
 
-// recorded is a message Claude Code handed its status line in a herdr pane,
+// recorded is a message Claude Code handed its status line in a pane,
 // with invented names in place of the paths and ids, the project's folder
 // put in, and the figure of the context window (5 when it was recorded).
 func recorded(t *testing.T, project, used string) string {
@@ -146,8 +146,8 @@ func TestStatuslineWritesTheFigure(t *testing.T) {
 		t.Errorf("a broken message gave %+v, not unknown", f)
 	}
 
-	// The keeper's variable counts before herdr's.
-	t.Setenv(contract.EnvTermPane, "p7")
+	// A pane id of the keeper's own shape.
+	t.Setenv(contract.EnvPane, "p7")
 	l.hook(recorded(t, l.root, "9"), "statusline")
 	if f := l.ctx("p7"); f.Pct != 9 || !f.Known {
 		t.Errorf("in a pane of the keeper's the file holds %+v", f)
@@ -276,7 +276,7 @@ func TestGateIsAWorkersAlone(t *testing.T) {
 	l.pause()
 	silent := func(why string) {
 		t.Helper()
-		if out := l.hook(step("herdr tab close w1:t1 --human"), "gate"); out != "" {
+		if out := l.hook(step("whaleshark open --human"), "gate"); out != "" {
 			t.Errorf("%s: the gate said %q", why, out)
 		}
 	}
@@ -295,18 +295,16 @@ func TestGateTurnsDownCommandLines(t *testing.T) {
 	t.Setenv(contract.EnvPane, "w1:p2")
 	t.Setenv(contract.EnvAttempt, "T3.1")
 	for command, word := range map[string]string{
-		"herdr tab close w1:t1":                  "herdr",
-		"cd src && /usr/local/bin/herdr pane ls": "herdr",
-		"sleep 1; herdr agent list":              "herdr",
-		"whaleshark open":                        "The window",
-		"cd x && bin/whaleshark engine stop":     "The window",
-		"whaleshark status":                      "",
-		"whaleshark answer q7 yes --human":       "--human",
-		"whaleshark pause --human=1":             "--human",
-		"go test ./...":                          "",
-		"echo herdr is a word":                   "",
-		"ls --human-readable":                    "",
-		"":                                       "",
+		"whaleshark open":                    "The window",
+		"cd x && bin/whaleshark engine stop": "The window",
+		"whaleshark status":                  "",
+		"whaleshark answer q7 yes --human":   "--human",
+		"whaleshark pause --human=1":         "--human",
+		"go test ./...":                      "",
+		"echo whaleshark open is two words":  "",
+		"sleep 1; whaleshark engine status":  "The window",
+		"ls --human-readable":                "",
+		"":                                   "",
 	} {
 		out := l.hook(step(command), "gate")
 		if word == "" {
@@ -526,11 +524,11 @@ func TestRealAgentIsStoppedByTheGate(t *testing.T) {
 	if os.Getenv("WHALESHARK_REAL_AGENT") == "" {
 		t.Skip("set WHALESHARK_REAL_AGENT=1 to start one small Claude Code agent")
 	}
-	env := []string{contract.EnvTermPane + "=p9", contract.EnvAttempt + "=T1.1"}
+	env := []string{contract.EnvPane + "=p9", contract.EnvAttempt + "=T1.1"}
 	for _, v := range os.Environ() {
 		// The agent's own sign-in stays; nothing of the terminals or of an
 		// agent this test may itself be running in is handed on.
-		if !strings.HasPrefix(v, "HERDR_") && !strings.HasPrefix(v, "CLAUDE") && !strings.HasPrefix(v, "WHALESHARK_") {
+		if !strings.HasPrefix(v, "CLAUDE") && !strings.HasPrefix(v, "WHALESHARK_") {
 			env = append(env, v)
 		}
 	}
@@ -595,7 +593,7 @@ func TestStateTellsTheTerminals(t *testing.T) {
 			t.Errorf("outside a pane, hook %v printed %q and called %v", args, out, terms.calls)
 		}
 	}
-	t.Setenv(contract.EnvTermPane, "p4")
+	t.Setenv(contract.EnvPane, "p4")
 	l.hook(msg, "state")
 	l.hook("not a message", "state", "SessionEnd")
 	if out := l.hook(msg, "state", "Stop"); out != "" {
