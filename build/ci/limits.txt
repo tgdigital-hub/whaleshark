@@ -8,7 +8,11 @@
 # contract: 460 more for the engine: the picture, a pane's terminal, the
 # socket's frame and messages, the settings. 240 of them were planned in the
 # keeper, the adapter and the restore, which are smaller by as much.
-lines 2860 contract internal/contract cmd/whaleshark
+# 440 more at the start of phase 2, built at 3,200: the port slots and the
+# trust record with their one writer each, six calls on the three interfaces
+# of the code's own copies, the plan and the messages of the view model. The
+# 100 left are for the contracts of phase 3. screen pays, see there.
+lines 3300 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -16,7 +20,9 @@ lines 2860 contract internal/contract cmd/whaleshark
 # from the window and from accept, which are smaller by as much; the
 # worker commands' line pays.
 lines 1170 platform internal/platform
-lines 900 cli internal/cli
+# cli: 40 more at the start of phase 2. Recording what the person does left
+# it four lines short of full, with three phases still to pass through it.
+lines 940 cli internal/cli
 lines 1600 rules internal/rules
 lines 500 store internal/store
 lines 350 guide internal/guide
@@ -24,26 +30,44 @@ lines 350 guide internal/guide
 # two records and exact removal was built at 1,036 with nothing left to cut
 # that the command set does not promise; inbox, built at a third of its
 # line, pays.
-lines 1050 runtask internal/runtask
-lines 1150 launch internal/launch
+# 200 more at the start of phase 2: trust is built (60), and accepting
+# several at once, a run's branch and removing a run are still to come.
+lines 1250 runtask internal/runtask
+# launch: 100 more at the start of phase 2, for a worktree at every start and
+# for the further kinds of agent; it stood at 999 with both still to come.
+lines 1250 launch internal/launch
 lines 165 worker internal/worker
-lines 850 inbox internal/inbox
-lines 1800 view internal/view
-lines 700 question internal/question
+# inbox, question and notify give 150, 80 and 60: each was built at about
+# half its line in phase 1 and keeps twice what its phase 2 package is
+# sized at.
+lines 700 inbox internal/inbox
+# view: 300 more at the start of phase 2. The plan, the messages and the
+# other runs of a login are three screens that 186 lines could not hold;
+# status --brief, which nobody asked for, left the command table instead of
+# being built.
+lines 2100 view internal/view
+lines 620 question internal/question
 lines 380 mail internal/mail
-lines 480 notify internal/notify
+lines 420 notify internal/notify
 lines 1100 gitwt internal/gitwt
 lines 900 integrate internal/integrate
 lines 800 overlap internal/overlap
-lines 1010 doctor internal/doctor
+# doctor: its 30 of the engine's share (the keeper's rows, the paste line),
+# planned since the engine decision and kept out of this file until phase 2.
+lines 1040 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
-# 131, pays. The pass that adds the further schemes and lists has no room
-# in this line and needs its own decision.
-lines 2300 panes internal/panes
+# 131, pays. 250 more at the start of phase 2 for its second pass (the held
+# list, a team run from the pane, what a card offers, the settings as rows
+# of the action list). Two things left that pass to make it fit: a settings
+# screen of its own, and the usage-limit line, which waits for the owner's
+# word and would then be paid from the look rounds.
+lines 2550 panes internal/panes
 lines 120 theme internal/theme
-lines 400 hook internal/hook
+# hook: 60 more at the start of phase 2, for the settings of a second kind
+# of agent; it stood at 383.
+lines 460 hook internal/hook
 lines 250 team internal/team
 lines 1910 dash internal/dash
 lines 350 push internal/push
@@ -55,11 +79,16 @@ lines 1180 install install
 # The engine's eleven folders. A reserve of 1,200 lines for the screen
 # reader is in no line: it is spent by raising screen's, with the recording
 # that shows the need.
-lines 2650 screen internal/screen
+# screen, watch and layout give 700, 200 and 200 at the start of phase 2.
+# Each is built whole and far under its line (1,366, 446 and 763), and keeps
+# room for the look round; the screen reader's reserve is untouched. They
+# pay for contract, cli, runtask, launch, view, panes and hook, with inbox,
+# question and notify: 1,390 lines moved, none added.
+lines 1950 screen internal/screen
 lines 1820 keeper internal/keeper
-lines 1100 layout internal/layout
+lines 900 layout internal/layout
 lines 850 pty internal/pty
-lines 850 watch internal/watch
+lines 650 watch internal/watch
 lines 750 input internal/input
 lines 460 restore internal/restore
 lines 450 window internal/window
@@ -73,8 +102,8 @@ skip _test.go testdata testkit
 
 # All of the above together, with no tenth. The cap was 28,000 until the
 # project decided to build its own terminal engine and depend on no other
-# program. The folders above are planned at 37,415; with the look rounds,
-# the screen reader's reserve and what three later folders get for the
+# program. The folders above are planned at 37,445; with the look rounds,
+# the screen reader's reserve and what two later folders get for the
 # engine, 39,095 are planned.
 total 40000
 
