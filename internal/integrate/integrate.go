@@ -143,7 +143,7 @@ func (g integrator) Prepare(root string, s *contract.State, task string) (contra
 	if waiting != "" {
 		return contract.Checked{}, refuse(contract.ExitRefused, "uncommitted", fmt.Sprintf(
 			"%s has %d files that are not committed, or not known to git. Its worker commits or removes them first.", task, strings.Count(waiting, "\n")+1),
-			"whaleshark tell "+task+` "commit your work, or remove what does not belong to it"`)
+			"whaleshark reject "+task+` "commit your work, or remove what does not belong to it"`)
 	}
 	head, err := at(dir, "HEAD")
 	c := contract.Checked{Dir: dir, OID: head, Tip: tip}

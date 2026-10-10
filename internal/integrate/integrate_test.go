@@ -291,8 +291,15 @@ func TestWorkNotCommittedIsRefused(t *testing.T) {
 	r := open(t, map[string]string{"a.txt": "one\n"})
 	dir := r.task("A", map[string]string{"a.txt": "two\n"})
 	write(t, filepath.Join(dir, "left.txt"), "not committed\n")
-	if _, err := r.accept("A", nil); code(err) != "uncommitted" {
+	_, err := r.accept("A", nil)
+	if code(err) != "uncommitted" {
 		t.Fatalf("a file git does not know: %v", err)
+	}
+	// Only work that has reported is accepted, and a worker that has reported
+	// is not shown a tell: the next step is the one that reaches it.
+	var said *contract.Refusal
+	if errors.As(err, &said); len(said.Next) != 1 || !strings.HasPrefix(said.Next[0], "whaleshark reject A ") {
+		t.Fatalf("the next step is %q", said.Next)
 	}
 }
 

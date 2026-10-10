@@ -131,13 +131,23 @@ type synced struct {
 	Brief   string             `json:"brief"`
 	Seq     int                `json:"seq,omitempty"`
 	Text    string             `json:"text,omitempty"`
+	// Back says the worker had reported and its result was sent back with the
+	// brief; Pointer, whether the line that says so was typed in its tab.
+	Back    bool   `json:"sent_back,omitempty"`
+	Pointer string `json:"pointer,omitempty"`
 }
+
+// sentBack is why a result goes back to a worker that had reported.
+const sentBack = "it has to be brought up to date with the collected work first. The sync brief, your next message, says how."
 
 // sync sends a task's worker the brief for bringing its copy up to date with
 // the collected work: how far behind it is, and what would clash and how.
 // The brief is kept under the run's msg folder for a later attempt's prompt;
-// with no agent alive it is printed instead of sent. The worker does the
-// merging, in its own folder: the tool never does.
+// with no agent alive it is printed instead of sent. A worker that has
+// reported would never report again by itself, so its result is sent back
+// with the brief, as reject does, and the line that says a message waits is
+// typed in its tab. The worker does the merging, in its own folder: the tool
+// never does.
 func (o scanner) sync(c *contract.Call) (any, error) {
 	if len(c.Args) != 1 {
 		return nil, refuse(contract.ExitUsage, "usage", "Usage: whaleshark "+c.Command.Usage, "whaleshark help sync")
@@ -181,6 +191,8 @@ func (o scanner) sync(c *contract.Call) (any, error) {
 	}
 	text := k.SyncText(contract.SyncBrief{Task: t.ID, Base: out.Base, Behind: out.Behind, Clashes: out.Clashes})
 	path := filepath.Join(k.Store.Dir(c.Root, c.Run), filepath.FromSlash(out.Brief))
+	var attempt, pane string
+	var unread []int
 	err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
 		err := k.Rules.Allowed(s, c.Caller, c.Command.Name, "")
 		if err == nil {
@@ -192,20 +204,58 @@ func (o scanner) sync(c *contract.Call) (any, error) {
 		if err != nil {
 			return err
 		}
+		var a *contract.Attempt
+		if ids := s.Tasks[t.ID].Attempts; len(ids) > 0 {
+			a = s.Attempts[ids[len(ids)-1]]
+		}
+		if a != nil && a.State == contract.AttemptReported {
+			if err := k.Rules.Reject(s, t.ID, sentBack, a.Seen.Liveness, c.Now); err != nil {
+				return err
+			}
+			out.Back = a.State == contract.AttemptWorking
+		}
 		line, _, _ := strings.Cut(text, "\n")
 		var gone *contract.Refusal
 		if out.Seq, err = k.Rules.Tell(s, t.ID, line, path, c.Now); errors.As(err, &gone) && gone.Code == "no_live_attempt" {
 			out.Text, err = text, nil
+		}
+		if out.Back && err == nil {
+			attempt, pane = a.ID, a.Place.Pane
+			for _, m := range a.Mail {
+				if m.ReadAt.IsZero() && m.NudgedAt.IsZero() {
+					unread = append(unread, m.Seq)
+				}
+			}
 		}
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
+	kinds := "kinds"
+	if len(out.Clashes) == 1 {
+		kinds = "kind"
+	}
 	if out.Text == "" {
-		fmt.Fprintf(c.Out, "Sent to %s as message %d: %d commits behind %s, %d kinds of clash. The brief: %s\n", t.ID, out.Seq, out.Behind, out.Base, len(out.Clashes), path)
+		fmt.Fprintf(c.Out, "Sent to %s as message %d: %d commits behind %s, %d %s of clash. The brief: %s\n", t.ID, out.Seq, out.Behind, out.Base, len(out.Clashes), kinds, path)
 	} else {
-		fmt.Fprintf(c.Out, "%s\nNo agent is alive in %s, so nothing was sent. The brief is kept for its next start: %s\n", strings.TrimRight(cli.Plain(text), "\n"), t.ID, path)
+		fmt.Fprintf(c.Out, "%s\nNo agent is alive in %s, so nothing was sent. The brief is kept for its next start: %s\nNext: whaleshark start %s --retry\n", strings.TrimRight(cli.Plain(text), "\n"), t.ID, path, t.ID)
+	}
+	if out.Back {
+		// Typed at once where the agent rests; else the sweep types it.
+		out.Pointer = "left to the next sweep, which types it once the agent is idle"
+		snap, err := k.Terms.Snapshot(context.Background())
+		resting := err == nil && slices.ContainsFunc(snap.Panes, func(p contract.Pane) bool { return p.ID == pane && p.Agent != "" && p.Status == contract.StatusIdle })
+		if resting && k.Terms.Point(pane, contract.PointMail, "") == nil {
+			out.Pointer = "typed"
+			k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
+				for _, seq := range unread {
+					k.Rules.Pointed(s, attempt, seq, c.Now)
+				}
+				return nil
+			})
+		}
+		fmt.Fprintf(c.Out, "%s had reported, so its result was sent back with the brief: %s works on and reports again. Pointer %s.\n", t.ID, attempt, out.Pointer)
 	}
 	if out.Times > 1 {
 		fmt.Fprintf(c.Out, "%s has been sent to sync %d times: accept it next, before any task that touches its files.\n", t.ID, out.Times)

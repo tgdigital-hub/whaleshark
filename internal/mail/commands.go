@@ -164,7 +164,8 @@ func toWorker(c *contract.Call, out *sent, a *contract.Attempt, now, quiet bool)
 		out.Pointer, out.Why = skipped, "--quiet"
 		return stamp()
 	case a.State == contract.AttemptReported || a.State == contract.AttemptChecking:
-		out.Pointer, out.Why = skipped, "it has reported and reads this if its result is sent back"
+		// The way that sends it back is named, or the message is a dead end.
+		out.Pointer, out.Why = skipped, "it has reported and reads this once its result is sent back: whaleshark reject "+out.Task+` "<why>"`
 	case a.State == contract.AttemptStarting:
 		out.Pointer, out.Why = deferred, "until it has started"
 	case !now && !idle(a.Seen.Status):

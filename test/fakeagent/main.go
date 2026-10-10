@@ -81,11 +81,12 @@ func main() {
 		tell(started)
 	}
 	lines := bufio.NewScanner(os.Stdin)
-	if state := option("--state"); real && state != "" {
+	if state, resumed := option("--state"), option("--resume") != ""; real && (state != "" || resumed) {
 		// An agent of a prepared picture is in its state until it is told
 		// something, which sets it to work as it does a real one; one that
-		// was resumed is at its prompt.
-		if option("--resume") == "" {
+		// was resumed is at its prompt, and plays no script a second time:
+		// its conversation is behind it.
+		if !resumed {
 			time.Sleep(300 * time.Millisecond) // whoever started it is told it is ready first
 			tell(state)
 		}
@@ -106,9 +107,14 @@ func main() {
 	if real {
 		tell(contract.StatusWorking)
 	}
+	told := make(chan string, 64)
 	go func() {
 		for lines.Scan() {
 			fmt.Println("fakeagent: told:", lines.Text())
+			select {
+			case told <- lines.Text():
+			default:
+			}
 		}
 	}()
 	// The prompt is "Read and follow <path>"; the result file and the token lie beside that file.
@@ -153,6 +159,16 @@ func main() {
 			time.Sleep(time.Duration(seconds * float64(time.Second)))
 		case "die":
 			os.Exit(0)
+		case "rest":
+			// At its prompt until a line is typed there, as an agent that has
+			// ended its turn; then at work again.
+			if real {
+				tell(contract.StatusIdle)
+			}
+			<-told
+			if real {
+				tell(contract.StatusWorking)
+			}
 		case "hang":
 			tell(contract.StatusIdle)
 			forever()
