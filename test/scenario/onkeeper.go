@@ -47,7 +47,9 @@ func (p *Project) keeper(socket, dir string) (stop func()) {
 			p.t.Fatalf("scenario: the keeper did not start: %v\n%s", err, &said)
 		}
 	}
+	p.swap.Lock()
 	p.Kit.Terms = client
+	p.swap.Unlock()
 	return stop
 }
 

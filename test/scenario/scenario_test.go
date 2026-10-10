@@ -27,7 +27,7 @@ func tabs(p *Project, name string, t *term.Term) {
 	said, typed := name+", notices "+os.Getenv(contract.EnvNotices), ""
 	for {
 		t.Clear()
-		picture, _ := p.Kit.Terms.Snapshot(context.Background())
+		picture, _ := p.Terms().Snapshot(context.Background())
 		if picture == nil {
 			picture = &contract.Snapshot{}
 		}

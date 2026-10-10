@@ -100,6 +100,9 @@ type Project struct {
 	// with how it ended and, once Run has played its last line, the record.
 	Log []string
 
+	// swap guards the kit's terminals for a pane program of a test that
+	// reads them in a goroutine of its own while the keeper is started again.
+	swap  sync.RWMutex
 	on    Backend
 	drive driver   // nil on a Keeper with no picture and no agents
 	env   []string // what a program needs to reach the terminals
@@ -342,4 +345,12 @@ func (p *Project) Command(who string, args ...string) *exec.Cmd {
 		cmd.Env = append(append(cmd.Env, p.Env(a.Place.Pane)...), p.tab(s.Run.ID, a)...)
 	}
 	return cmd
+}
+
+// Terms is the terminals as they are now: after a restart of the real
+// keeper they are a new connection.
+func (p *Project) Terms() contract.Terminals {
+	p.swap.RLock()
+	defer p.swap.RUnlock()
+	return p.Kit.Terms
 }
