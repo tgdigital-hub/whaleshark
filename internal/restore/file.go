@@ -170,7 +170,8 @@ func number(id string) int {
 // Saver writes the layout file for a running keeper, one write at a time:
 // at once when the layout changed, and a few seconds after output. Only
 // then, and at the stop, are panes' lines written, each pane's when its
-// program has printed since they last were.
+// program has printed since they last were. A write that failed is made
+// again a few seconds later.
 type Saver struct {
 	files  contract.Files
 	dirs   contract.Dirs
@@ -246,6 +247,11 @@ func (s *Saver) run() {
 		}
 		err := s.save(lines)
 		last = time.Now()
+		if err != nil {
+			// Nothing may change again for hours: what was not written is
+			// tried again in a few seconds, not at the next change.
+			s.flowed.Store(true)
+		}
 		s.mu.Lock()
 		s.err = err
 		s.mu.Unlock()
