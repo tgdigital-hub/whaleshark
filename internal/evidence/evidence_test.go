@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -84,7 +85,9 @@ func TestListIsOldestFirstWithSizeTimeAndKind(t *testing.T) {
 	save(t, dir, "b.png", png, 7)
 	save(t, dir, "a.png", png, 7)
 	save(t, dir, ".hidden.png", png, 0)
-	save(t, dir, "two\nlines.png", png, 0)
+	if runtime.GOOS != "windows" { // Windows lets no file's name hold a line break
+		save(t, dir, "two\nlines.png", png, 0)
+	}
 	if err := os.Mkdir(filepath.Join(dir, "trace"), 0o700); err != nil {
 		t.Fatal(err)
 	}

@@ -389,6 +389,10 @@ func paneRows(s *termtest.Screen, re string) (rows []shown) {
 // puts a building agent's figure in its place, which the page and the pane
 // show beside the bar.
 func TestPagePaneAndPlainTextShowTheSameRows(t *testing.T) {
+	// The marks themselves are compared, so the pane is told to draw them:
+	// left alone it asks the locale, and a machine that names none gets the
+	// plain ones, which the page never draws.
+	t.Setenv("WHALESHARK_MARKS", "full")
 	for _, name := range fixtures {
 		f := load(t, name)
 		p := scenario.Prepare(t, f, nil)
