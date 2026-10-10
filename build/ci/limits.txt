@@ -33,8 +33,10 @@ lines 3850 contract internal/contract cmd/whaleshark
 # line run by the system's shell and the end of all it started came here
 # from the window and from accept, which are smaller by as much; the
 # worker commands' line pays. 10 more at the start of phase 3: the fixes for
-# Windows left it three lines over; pty pays.
-lines 1180 platform internal/platform
+# Windows left it three lines over; pty pays. 20 more at the integration of
+# phase 3: a change found ahead of its notice is told once, which the hosted
+# Windows run needed, left it eight over; window pays.
+lines 1200 platform internal/platform
 # cli: 40 more at the start of phase 2. Recording what the person does left
 # it four lines short of full, with three phases still to pass through it.
 # 30 more at the start of phase 3: the program typed alone sets a project up
@@ -195,8 +197,9 @@ lines 600 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore
-# window gives 60 at the wiring of phase 3: built whole at 271.
-lines 350 window internal/window
+# window gives 60 at the wiring of phase 3 and 20 at its integration, to
+# platform: built whole at 271.
+lines 330 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
 # overlay gives 60 at the start of phase 3: built whole at 140; and 20 at
