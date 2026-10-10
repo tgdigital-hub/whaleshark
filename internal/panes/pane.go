@@ -332,7 +332,7 @@ func (p *pane) load() {
 		p.run, err = r.Current(p.root)
 	}
 	if p.watch == nil && err == nil {
-		paths := []string{filepath.Join(dirs.State, "ctx"), filepath.Join(dirs.State, "ui.json"),
+		paths := []string{filepath.Join(dirs.State, "ctx"), filepath.Join(dirs.State, contract.UIFileName),
 			filepath.Join(dirs.State, "paused"), filepath.Join(dirs.Config, contract.ConfigFile)}
 		if p.run != "" {
 			paths = append(paths, filepath.Join(r.Dir(p.root, p.run), contract.StateFile))
@@ -349,7 +349,7 @@ func (p *pane) load() {
 	// A file that cannot be read at this moment, as one being replaced on
 	// Windows, leaves what the pane had; the next look reads it.
 	var ui contract.UIFile
-	if contract.ReadVersioned(p.k.Platform.Peek, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &ui) == nil {
+	if contract.ReadVersioned(p.k.Platform.Peek, filepath.Join(dirs.State, contract.UIFileName), contract.FileVersion, &ui) == nil {
 		p.ui = ui
 	}
 	if p.figures = nil; p.state != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -249,7 +248,7 @@ func wakeUp(c *contract.Call, t target, seen *contract.State) (wake []woken, lea
 		if q.Kind != contract.KindAsk || q.State != contract.QuestionAnswered {
 			continue
 		}
-		lock := filepath.Join(k.Store.Dir(t.root, t.run), "questions", id+".lock")
+		lock := contract.AskLock(k.Store.Dir(t.root, t.run), id)
 		// A lock that cannot even be tried is held by no ask either.
 		unlock, free, err := k.Platform.TryLock(lock)
 		if free {

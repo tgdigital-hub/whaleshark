@@ -277,7 +277,7 @@ func (l *launcher) bring(task string) outcome {
 		return fail(refuse(contract.ExitRefused, "name_too_long", "The agent of %s would be named %s, which is longer than %d characters.", id, agent.Name, maxAgentName))
 	}
 	run := k.Store.Dir(c.Root, c.Run)
-	dir := filepath.Join(run, "attempts", id)
+	dir := contract.AttemptDir(run, id)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fail(err)
 	}

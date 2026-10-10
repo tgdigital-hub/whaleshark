@@ -33,7 +33,7 @@ func usage(c *contract.Call) error {
 
 // file names one of the attempt's own files.
 func file(c *contract.Call, name string) string {
-	return filepath.Join(c.Kit.Store.Dir(c.Root, c.Run), "attempts", c.Caller.Attempt, name)
+	return filepath.Join(contract.AttemptDir(c.Kit.Store.Dir(c.Root, c.Run), c.Caller.Attempt), name)
 }
 
 // tokenHash is the record's form of the token in the attempt's own file.

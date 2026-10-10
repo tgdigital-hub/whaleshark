@@ -113,7 +113,7 @@ func accept(c *contract.Call) (any, error) {
 				out.Beside++
 			}
 		}
-		out.How, out.Log = contract.AcceptCheck, filepath.Join(dir, "attempts", attempt, "check.log")
+		out.How, out.Log = contract.AcceptCheck, filepath.Join(contract.AttemptDir(dir, attempt), "check.log")
 		if result, err = check(c, t.Check, where, out.Log); err != nil {
 			return back(err)
 		}
