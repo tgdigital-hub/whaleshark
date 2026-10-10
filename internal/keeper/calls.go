@@ -130,7 +130,10 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		if c.Op == contract.OpAgentStart {
 			p.argv, p.rec.Agent, p.rec.Name = append([]string{c.Kind}, c.Argv...), c.Kind, c.Name
 		}
-		if len(p.argv) == 0 || p.argv[0] == "" {
+		if q := k.named(c.Name); q != nil && q != p {
+			// A prompt finds its agent by name: two of one name would share it.
+			err = fmt.Errorf("an agent named %q is in pane %s already", c.Name, q.rec.ID)
+		} else if len(p.argv) == 0 || p.argv[0] == "" {
 			err = errors.New("no program to run")
 		} else {
 			err = k.start(p)

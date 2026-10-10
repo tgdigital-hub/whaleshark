@@ -171,15 +171,16 @@ func TestAPaneOverTheTab(t *testing.T) {
 	if reply := c.call(contract.WireCall{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ui", "run", "list"}, W: 80, H: 10, From: "p1"}); reply.Err != "" {
 		t.Fatalf("overlay: %+v", reply)
 	}
-	w.shows("┌")
-	w.shows("at 80x10 pane=p2")
+	x, y := w.shows("┌")
+	if spec := r.program("p2").spec; spec.Cols != 80 || spec.Rows != 10 {
+		t.Errorf("the program over the tab was started at %d by %d", spec.Cols, spec.Rows)
+	}
 	w.types("j" + cmd + "t")
 	r.got("p2", "j"+cmd+"t")
 	if env := r.program("p2").spec.Env; value(env, contract.EnvTermActivePane) != "p1" {
 		t.Errorf("the program over the tab is not told the pane with the keys: %q", env)
 	}
-	x, y := w.shows("at 80x10 pane=p2")
-	w.click(x, y)
+	w.click(x+2, y+2)
 	r.program("p2").Close()
 	r.until("the pane over the tab to go", func() bool { return r.locked(func() bool { return r.k.over == nil && len(r.k.panes) == 1 }) })
 	w.types("back")

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -95,8 +97,11 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	k.wins = append(k.wins, w)
 	k.use(w)
 	if len(k.lay.Tabs) == 0 {
-		// A window on nothing is no use to anybody: it gets a first tab.
-		k.do(contract.WireCall{Op: contract.OpTabCreate})
+		// A window on nothing is no use to anybody: it gets a first tab,
+		// in the folder the keeper was started in, which is written down:
+		// a keeper started again by the system is started somewhere else.
+		wd, _ := os.Getwd()
+		k.do(contract.WireCall{Op: contract.OpTabCreate, Cwd: wd})
 	}
 	k.mu.Unlock()
 	go w.draw(k)
@@ -203,7 +208,7 @@ func (k *Keeper) compose(w *window) {
 		}
 	}
 	if o := k.over; o != nil {
-		paint(o, overlay.Box(g.Grid, w.look, overlay.Place(w.w, w.h, k.overW, k.overH), strings.Join(o.argv, " ")), true)
+		paint(o, overlay.Box(g.Grid, w.look, overlay.Place(w.w, w.h, k.overW, k.overH), filepath.Base(o.argv[0])+" "+strings.Join(o.argv[1:], " ")), true)
 	}
 	k.pop.Draw(g.Grid, w.look, time.Now())
 	words := map[bool]string{true: " keys "}[w.in.Armed] // between the command key and the key after it
