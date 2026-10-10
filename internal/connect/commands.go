@@ -21,6 +21,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -44,8 +45,12 @@ var (
 )
 
 // keep is on every connection: no agent handed over, so the server never has
-// this computer's keys, and a line every 15 seconds, three unanswered end it.
-var keep = []string{"-a", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "-o", "ConnectTimeout=10"}
+// this computer's keys, nor its screen (-x), whatever the person's own ssh
+// settings say; and a line every 15 seconds, three unanswered end it.
+// codeLetters are what a sign-in code is made of.
+const codeLetters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-"
+
+var keep = []string{"-a", "-x", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "-o", "ConnectTimeout=10"}
 
 func refuse(exit int, code, message string, next ...string) *contract.Refusal {
 	return &contract.Refusal{Exit: exit, Code: code, Message: message, Next: next}
@@ -175,11 +180,22 @@ func (l *link) up(ctx context.Context) error {
 	out, err := url.Output()
 	var d contract.DashURL
 	e := contract.Envelope{Result: &d, Error: &contract.Refusal{Message: fmt.Sprint(err)}}
+	bad, said := json.Unmarshal(out, &e), "its answer is none"
+	// The server's words go into this terminal and its code into a link for
+	// the browser: one harmless line of the first, and of the second only
+	// what a code is made of.
+	odd := func(r rune) bool { return unicode.In(r, unicode.Cc, unicode.Cf) }
+	if e.Error != nil {
+		said = strings.Join(strings.FieldsFunc(e.Error.Message, func(r rune) bool { return odd(r) || unicode.IsSpace(r) }), " ")
+	}
+	if strings.Trim(d.Code, codeLetters) != "" || strings.ContainsFunc(d.Socket, odd) {
+		d.Socket, said = "", "its answer holds what no sign-in code and no path does"
+	}
 	// 255 is ssh's own word for "no connection".
-	if bad := json.Unmarshal(out, &e); url.ProcessState.ExitCode() == 255 {
+	if url.ProcessState.ExitCode() == 255 {
 		return lost
 	} else if bad != nil || !e.OK || d.Socket == "" {
-		return refuse(contract.ExitEnv, "no_page", "The server did not say where its page is: "+e.Error.Message, "ssh "+l.target+" whaleshark dash url")
+		return refuse(contract.ExitEnv, "no_page", "The server did not say where its page is: "+said, "ssh "+l.target+" whaleshark dash url")
 	}
 	if l.mux(ctx, []string{"-O", "forward", "-L", l.local + ":" + d.Socket}).Run() != nil {
 		return lost

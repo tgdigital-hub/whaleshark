@@ -158,15 +158,18 @@ lines 350 push internal/push
 # connect and install: 30 and 20 of the engine's share (the clipboard lift,
 # the keeper's service entry), planned since the engine decision and put
 # into this file now that their packages start.
-lines 480 connect internal/connect
+# connect: 20 more after the third security review. A server's answer is
+# held to a code and a path before it reaches the terminal or the browser;
+# it stood one line short of full. dashweb pays.
+lines 500 connect internal/connect
 # evidence gives 40 at the join of phase 3's first wave: built whole at 193.
 lines 210 evidence internal/evidence
 # dashweb gives 120 at the join of phase 3's first wave: the screens, the
 # phone's layout and the refusal are built, at 937; what the phone's and the
 # tunnel's passes still add is a few lines of script. It gives 60 more at
-# the wiring of phase 3, with both passes in: it stands at 955. It gives 20
-# more after the third security review, to doctor.
-lines 1080 dashweb internal/dashweb
+# the wiring of phase 3, with both passes in: it stands at 955. It gives 40
+# more after the third security review, to doctor and to connect.
+lines 1060 dashweb internal/dashweb
 # install gives 110 after the real runs of phase 2, 60 to doctor and 50 to
 # overlap: it stands at 945.
 lines 1090 install install
