@@ -65,10 +65,10 @@ lines 310 guide internal/guide
 # 20 more after the real runs of phase 2: a run's number passes over a
 # branch a removed run left with work on it, run rm names that branch, and
 # init asks nobody where nobody is; it stood at 1,346. guide pays.
-# 25 more at the wiring of phase 3: accept reads a browser check's pictures
+# 30 more at the wiring of phase 3: accept reads a browser check's pictures
 # again, and init on a server keeps a project inside the login's home; it
 # stood at 1,371. dashweb and window pay.
-lines 1400 runtask internal/runtask
+lines 1405 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -180,7 +180,7 @@ lines 1090 install install
 # At the join of phase 3's first wave dashweb, gitwt, integrate, inbox,
 # evidence and overlay give 120, 100, 70, 50, 40 and 20: 400 lines moved to
 # doctor, contract and launch, none added.
-# At the wiring of phase 3 dashweb and window give 60 and 55: 115 lines
+# At the wiring of phase 3 dashweb and window give 60 each: 120 lines
 # moved to contract, runtask, launch and view, none added.
 lines 1490 screen internal/screen
 lines 1820 keeper internal/keeper
@@ -195,8 +195,8 @@ lines 600 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore
-# window gives 55 at the wiring of phase 3: built whole at 271.
-lines 355 window internal/window
+# window gives 60 at the wiring of phase 3: built whole at 271.
+lines 350 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
 # overlay gives 60 at the start of phase 3: built whole at 140; and 20 at

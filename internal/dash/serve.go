@@ -275,7 +275,8 @@ func (s *server) own(w http.ResponseWriter, r *http.Request, word string, now ti
 	if word == "door" {
 		s.doors()
 	} else if decides {
-		decided, _ = s.decide("pair"+r.URL.Query().Get("id"), word, now)
+		ok, err := s.decide("pair"+r.URL.Query().Get("id"), word, now)
+		decided = ok && err == nil // a phone whose record could not be written is not paired
 	}
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)

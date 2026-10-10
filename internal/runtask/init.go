@@ -147,8 +147,14 @@ func (i *setting) project() error {
 	// On a server a project lies in the login's own home, the one place no
 	// other login of the machine reads (8j); a file that cannot be used is a
 	// server this program knows nothing about, and sets nothing up.
+	real := func(path string) string { // a home reached through a link is the same home
+		if to, err := filepath.EvalSymlinks(path); err == nil {
+			return to
+		}
+		return path
+	}
 	home, _ := os.UserHomeDir()
-	rel, lost := filepath.Rel(home, c.Root)
+	rel, lost := filepath.Rel(real(home), real(c.Root))
 	switch srv, err := contract.ReadServer(k.Platform.Peek); {
 	case err != nil:
 		return refuse(contract.ExitEnv, "server_file", "Nothing is set up on a server whose file cannot be used: "+err.Error()+".")

@@ -595,6 +595,12 @@ func TestInitOnAServer(t *testing.T) {
 	if out, exit := init(filepath.Dir(p.Root)); exit != 0 {
 		t.Errorf("on a server, a project inside the home: exit %d\n%s", exit, out)
 	}
+	// A home reached through a link is the same home.
+	if linked := filepath.Join(t.TempDir(), "home"); os.Symlink(filepath.Dir(p.Root), linked) == nil {
+		if out, exit := init(linked); exit != 0 {
+			t.Errorf("on a server, a project inside a home that is a link: exit %d\n%s", exit, out)
+		}
+	}
 	if out, exit := init(p.Root + "-more"); exit != contract.ExitEnv {
 		t.Errorf("a home whose name only begins as the project's does: exit %d\n%s", exit, out)
 	}
