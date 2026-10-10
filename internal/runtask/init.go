@@ -144,6 +144,17 @@ func (i *setting) project() error {
 	case shared:
 		return refuse(contract.ExitEnv, "shared_folder", "Another login can write to "+c.Root+": it belongs to somebody else, or anyone may write it, or its group may and has another member.")
 	}
+	// On a server a project lies in the login's own home, the one place no
+	// other login of the machine reads (8j); a file that cannot be used is a
+	// server this program knows nothing about, and sets nothing up.
+	home, _ := os.UserHomeDir()
+	rel, lost := filepath.Rel(home, c.Root)
+	switch srv, err := contract.ReadServer(k.Platform.Peek); {
+	case err != nil:
+		return refuse(contract.ExitEnv, "server_file", "Nothing is set up on a server whose file cannot be used: "+err.Error()+".")
+	case srv != nil && (home == "" || lost != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))):
+		return refuse(contract.ExitEnv, "outside_home", "On a server a project lies inside its login's own home folder, "+home+", and "+c.Root+" does not. Move it there, or clone it there.")
+	}
 	if came := cli.Brought(c.Root); len(came) > 0 {
 		return refuse(contract.ExitEnv, "brought_record", fmt.Sprintf("git tracks %d files under %s here, the first %s. That folder is your login's own record and no part of a repository: what comes along in it is somebody else's word about runs, checks and what init wrote. Take it out of git (git rm -r --cached %[2]s), delete what you did not make, and run init again.",
 			len(came), contract.ProjectDir, cli.Plain(came[0])))

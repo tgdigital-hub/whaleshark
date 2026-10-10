@@ -13,9 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/guide"
+	"github.com/tgdigital-hub/whaleshark/internal/rules"
+	"github.com/tgdigital-hub/whaleshark/internal/runtask"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
@@ -551,4 +554,52 @@ func TestAcceptOfABrowserCheck(t *testing.T) {
 	}
 	write(t, filepath.Join(evidence, "home.png"), "\x89PNG\r\n\x1a\n and the rest of a picture")
 	accept(0, "T7 is done, checked")
+}
+
+// On a server init sets a project up only inside the login's own home, and
+// nothing at all where the server's file cannot be used; on a person's own
+// machine, which has no such file, the folder may lie anywhere.
+func TestInitOnAServer(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	rules.Plug(p.Kit)
+	cli.Plug(p.Kit)
+	runtask.Plug(p.Kit)
+	file := contract.ServerFile
+	t.Cleanup(func() { contract.ServerFile = file })
+	contract.ServerFile = filepath.Join(t.TempDir(), "server.toml")
+	for _, kv := range os.Environ() {
+		if name, _, _ := strings.Cut(kv, "="); strings.HasPrefix(name, "WHALESHARK_") && name != contract.EnvClock {
+			t.Setenv(name, "")
+		}
+	}
+	for _, kv := range p.Env(p.Own) {
+		name, value, _ := strings.Cut(kv, "=")
+		t.Setenv(name, value)
+	}
+	t.Chdir(p.Root)
+	init := func(home string) (string, int) {
+		t.Setenv("HOME", home)
+		t.Setenv("USERPROFILE", home)
+		var out strings.Builder
+		exit := p.Kit.Main(p.Kit, []string{"init", "--adopt", "--human"}, strings.NewReader(""), &out, &out)
+		return out.String(), exit
+	}
+	elsewhere := t.TempDir()
+	if out, exit := init(elsewhere); exit != 0 {
+		t.Fatalf("with no server's file, a project outside the home: exit %d\n%s", exit, out)
+	}
+	write(t, contract.ServerFile, "version = 1\n[login.kai]\nports = 21000\n")
+	if out, exit := init(elsewhere); exit != contract.ExitEnv || !strings.Contains(out, "inside its login's own home folder, "+elsewhere) {
+		t.Errorf("on a server, a project outside the home: exit %d\n%s", exit, out)
+	}
+	if out, exit := init(filepath.Dir(p.Root)); exit != 0 {
+		t.Errorf("on a server, a project inside the home: exit %d\n%s", exit, out)
+	}
+	if out, exit := init(p.Root + "-more"); exit != contract.ExitEnv {
+		t.Errorf("a home whose name only begins as the project's does: exit %d\n%s", exit, out)
+	}
+	write(t, contract.ServerFile, "version = 99\n")
+	if out, exit := init(filepath.Dir(p.Root)); exit != contract.ExitEnv || !strings.Contains(out, "whose file cannot be used") {
+		t.Errorf("a server's file from a newer program: exit %d\n%s", exit, out)
+	}
 }
