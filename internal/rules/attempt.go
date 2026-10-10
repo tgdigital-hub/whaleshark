@@ -282,7 +282,7 @@ func (r Rules) Reject(s *contract.State, task, why string, agent contract.Livene
 		back(t, false, now)
 		t.Decisions = append(t.Decisions, contract.Decision{Question: "Why was the last result sent back?", Answer: why, At: now})
 	default:
-		return next(refused("unverifiable", "herdr cannot say whether the agent of %s is still there.", t.ID), "whaleshark show "+t.ID+" --screen")
+		return next(refused("unverifiable", "The terminals cannot say whether the agent of %s is still there.", t.ID), "whaleshark show "+t.ID+" --screen")
 	}
 	return nil
 }

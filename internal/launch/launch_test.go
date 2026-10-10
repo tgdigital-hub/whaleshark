@@ -16,6 +16,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/rules"
+	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
@@ -42,16 +43,20 @@ func evening(t *testing.T, n int, edit func(*testkit.Fixture)) *scenario.Project
 	return scenario.Prepare(t, f, nil)
 }
 
-// between stands between a command and the fake terminals: it refuses one
-// kind of call, such as "agent start", with a code, or holds one kind until
-// the test lets it go, and passes everything else on.
+// between stands between a command and the engine's double: it refuses one
+// kind of call with an error's name, or holds one kind until the test lets
+// it go, and passes everything else on.
 type between struct {
 	p                  *scenario.Project
-	addr               string
+	addr, to           string
 	hold, refuse, with string
 	held               chan struct{} // one for every call that is being held
 	let                chan bool     // true passes a held call on, false refuses it
 }
+
+// gone, as what a call is refused with, is a keeper that ends the
+// connection and answers nothing.
+const gone = "gone"
 
 func stand(t *testing.T, p *scenario.Project, hold, refuse, with string) *between {
 	t.Helper()
@@ -64,6 +69,11 @@ func stand(t *testing.T, p *scenario.Project, hold, refuse, with string) *betwee
 		t.Fatal(err)
 	}
 	b := &between{p: p, addr: l.Addr().String(), hold: hold, refuse: refuse, with: with, held: make(chan struct{}, 64), let: make(chan bool)}
+	for _, kv := range p.Env("") {
+		if to, ok := strings.CutPrefix(kv, contract.EnvSocket+"="); ok {
+			b.to = to
+		}
+	}
 	t.Cleanup(func() {
 		l.Close()
 		close(b.let)
@@ -83,31 +93,48 @@ func stand(t *testing.T, p *scenario.Project, hold, refuse, with string) *betwee
 
 func (b *between) serve(conn net.Conn) {
 	defer conn.Close()
-	var call testkit.FakeCall
-	if json.NewDecoder(conn).Decode(&call) != nil {
+	double, err := net.Dial("unix", b.to)
+	if err != nil {
 		return
 	}
-	name := strings.Join(call.Args[:min(2, len(call.Args))], " ")
-	code := ""
-	if name == b.refuse {
-		code = b.with
-	}
-	if name == b.hold {
-		b.held <- struct{}{}
-		if !<-b.let {
-			code = "pane_not_found"
+	defer double.Close()
+	for {
+		kind, body, err := contract.ReadFrame(conn)
+		var c contract.WireCall
+		if err != nil || json.Unmarshal(body, &c) != nil {
+			return
+		}
+		name := ""
+		if c.Op == b.refuse {
+			name = b.with
+		}
+		if c.Op == b.hold {
+			b.held <- struct{}{}
+			if !<-b.let {
+				name = contract.ErrNoPane.Error()
+			}
+		}
+		switch {
+		case name == gone:
+			return
+		case name != "":
+			body, _ = json.Marshal(contract.WireReply{ID: c.ID, Err: name, Message: "said by the test"})
+		case contract.WriteFrame(double, kind, body) != nil:
+			return
+		default:
+			if _, body, err = contract.ReadFrame(double); err != nil {
+				return
+			}
+		}
+		if contract.WriteFrame(conn, contract.FrameReply, body) != nil {
+			return
 		}
 	}
-	answer := testkit.FakeAnswer{Stderr: fmt.Sprintf(`{"id":"t","error":{"code":%q,"message":"said by the test"}}`, code) + "\n", Exit: 1}
-	if code == "" {
-		answer = b.p.Herdr.Handle(call)
-	}
-	json.NewEncoder(conn).Encode(answer)
 }
 
 func (b *between) command(who string, args ...string) *exec.Cmd {
 	cmd := b.p.Command(who, args...)
-	cmd.Env = append(cmd.Env, testkit.EnvFake+"="+b.addr)
+	cmd.Env = append(cmd.Env, contract.EnvSocket+"="+b.addr)
 	return cmd
 }
 
@@ -136,10 +163,10 @@ func must(t *testing.T, cmd *exec.Cmd, exit int, words ...string) string {
 	return out
 }
 
-// calls is every call the fake terminals got that begins with these two words.
-func calls(p *scenario.Project, first, second string) (out [][]string) {
-	for _, c := range p.Herdr.Calls() {
-		if len(c) > 1 && c[0] == first && c[1] == second {
+// calls is every call of one kind the double got.
+func calls(p *scenario.Project, op string) (out []contract.WireCall) {
+	for _, c := range p.Double.Calls() {
+		if c.Op == op {
 			out = append(out, c)
 		}
 	}
@@ -158,7 +185,7 @@ func attempt(t *testing.T, p *scenario.Project, id string, state contract.Attemp
 
 func tabOpen(t *testing.T, p *scenario.Project, tab string) bool {
 	t.Helper()
-	snap, err := p.Herdr.Snapshot(t.Context())
+	snap, err := p.Double.Snapshot(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,32 +231,30 @@ func TestCleanStart(t *testing.T) {
 		t.Error("start.lock is still held")
 	}
 
-	var tab []string
-	for _, c := range calls(p, "tab", "create") {
-		if slices.Contains(c, "ready 1") {
+	var tab contract.WireCall
+	for _, c := range calls(p, contract.OpTabCreate) {
+		if c.Label == "ready 1" {
 			tab = c
 		}
 	}
 	var names []string
-	for i, w := range tab {
-		if w == "--env" {
-			name, _, _ := strings.Cut(tab[i+1], "=")
-			names = append(names, name)
-		}
+	for _, kv := range tab.Env {
+		name, _, _ := strings.Cut(kv, "=")
+		names = append(names, name)
 	}
 	want := []string{contract.EnvRoot, contract.EnvRun, contract.EnvTask, contract.EnvAttempt, contract.EnvDepth, contract.EnvBin}
-	if !slices.Equal(names, want) || !slices.Contains(tab, "--no-focus") {
-		t.Errorf("the tab was made with %v, expected exactly the variables %v", tab, want)
+	if !slices.Equal(names, want) {
+		t.Errorf("the tab was made with %+v, expected exactly the variables %v", tab, want)
 	}
-	if !slices.ContainsFunc(calls(p, "agent", "start"), func(c []string) bool {
-		return c[2] == a.Agent.Name && slices.Contains(c, a.Place.Pane) && slices.Contains(c, "180000")
+	if !slices.ContainsFunc(calls(p, contract.OpAgentStart), func(c contract.WireCall) bool {
+		return c.Name == a.Agent.Name && c.Pane == a.Place.Pane && c.Millis == 180000
 	}) {
-		t.Errorf("no agent start for %s in %s: %v", a.Agent.Name, a.Place.Pane, calls(p, "agent", "start"))
+		t.Errorf("no agent start for %s in %s: %+v", a.Agent.Name, a.Place.Pane, calls(p, contract.OpAgentStart))
 	}
-	if !slices.ContainsFunc(calls(p, "agent", "prompt"), func(c []string) bool {
-		return c[2] == a.Agent.Name && c[3] == "Read and follow "+filepath.Join(dir, "attempts", "R1.1", "prompt.md")
+	if !slices.ContainsFunc(calls(p, contract.OpPrompt), func(c contract.WireCall) bool {
+		return c.Name == a.Agent.Name && c.Text == "Read and follow "+filepath.Join(dir, "attempts", "R1.1", "prompt.md")
 	}) {
-		t.Errorf("no first prompt for %s: %v", a.Agent.Name, calls(p, "agent", "prompt"))
+		t.Errorf("no first prompt for %s: %+v", a.Agent.Name, calls(p, contract.OpPrompt))
 	}
 
 	must(t, p.Command(scenario.Orch, "start", "R1"), 5, "R1 is running")
@@ -253,12 +278,12 @@ func TestTerminalsFailingAtEachStage(t *testing.T) {
 		exit             int
 		tab, item        bool
 	}{
-		{"tab create", "internal", "start_failed", 1, false, false},
-		{"agent start", "internal", "start_failed", 1, true, false},
-		{"agent start", "agent_not_ready", "at_prompt", 1, true, true},
-		{"agent prompt", "agent_prompt_stalled", "prompt_stalled", 1, true, false},
-		{"agent prompt", "agent_blocked", "at_prompt", 1, true, true},
-		{"agent start", "server_not_running", "unreachable", 3, true, false},
+		{contract.OpTabCreate, "failed", "start_failed", 1, false, false},
+		{contract.OpAgentStart, "failed", "start_failed", 1, true, false},
+		{contract.OpAgentStart, contract.ErrAgentNotReady.Error(), "at_prompt", 1, true, true},
+		{contract.OpPrompt, contract.ErrPromptStalled.Error(), "prompt_stalled", 1, true, false},
+		{contract.OpPrompt, contract.ErrAgentBlocked.Error(), "at_prompt", 1, true, true},
+		{contract.OpAgentStart, gone, "unreachable", 3, true, false},
 	} {
 		t.Run(tc.call+" "+tc.with, func(t *testing.T) {
 			p := evening(t, 1, nil)
@@ -281,7 +306,7 @@ func TestTerminalsFailingAtEachStage(t *testing.T) {
 			if got := e.Error.Data.Created[0].Tab; (got != "") != tc.tab || got != a.Place.Tab || tc.tab && !tabOpen(t, p, got) {
 				t.Errorf("created says the tab %q, the record %q: a failed start leaves its tab open and says so", got, a.Place.Tab)
 			}
-			if n := len(calls(p, "agent", "prompt")); n > 0 {
+			if n := len(calls(p, contract.OpPrompt)); n > 0 {
 				t.Errorf("%d prompts were typed", n)
 			}
 			item := ""
@@ -326,7 +351,7 @@ func (b *between) begin(t *testing.T, n int, cmd *exec.Cmd) (out *strings.Builde
 
 func TestStopDuringAStart(t *testing.T) {
 	p := evening(t, 1, nil)
-	b := stand(t, p, "agent start", "", "")
+	b := stand(t, p, contract.OpAgentStart, "", "")
 	cmd := b.command(scenario.Orch, "start", "R1")
 	out := b.begin(t, 1, cmd)
 	a := attempt(t, p, "R1.1", contract.AttemptStarting)
@@ -340,28 +365,28 @@ func TestStopDuringAStart(t *testing.T) {
 		t.Fatalf("the overtaken start: exit %d, expected 5\n%s", exit, out)
 	}
 	attempt(t, p, "R1.1", contract.AttemptStopped)
-	if tabOpen(t, p, a.Place.Tab) || len(calls(p, "agent", "prompt")) > 0 {
+	if tabOpen(t, p, a.Place.Tab) || len(calls(p, contract.OpPrompt)) > 0 {
 		t.Error("the tab is still open, or a prompt was typed after the stop")
 	}
 }
 
 func TestStopKeepingTheTabDuringAStart(t *testing.T) {
 	p := evening(t, 1, nil)
-	b := stand(t, p, "agent start", "", "")
+	b := stand(t, p, contract.OpAgentStart, "", "")
 	cmd := b.command(scenario.Orch, "start", "R1")
 	b.begin(t, 1, cmd)
 	tab := attempt(t, p, "R1.1", contract.AttemptStarting).Place.Tab
 	must(t, p.Command(scenario.Orch, "stop", "R1", "--keep-tab"), 0, "its tab: kept")
 	b.let <- true
 	cmd.Wait()
-	if exit := cmd.ProcessState.ExitCode(); exit != 5 || tabOpen(t, p, tab) || len(calls(p, "agent", "prompt")) > 0 {
+	if exit := cmd.ProcessState.ExitCode(); exit != 5 || tabOpen(t, p, tab) || len(calls(p, contract.OpPrompt)) > 0 {
 		t.Errorf("exit %d: the start should give up with 5, close the tab it opened and type nothing", exit)
 	}
 }
 
 func TestAStartKilledHalfway(t *testing.T) {
 	p := evening(t, 1, nil)
-	b := stand(t, p, "agent start", "", "")
+	b := stand(t, p, contract.OpAgentStart, "", "")
 	cmd := b.command(scenario.Orch, "start", "R1")
 	b.begin(t, 1, cmd)
 	cmd.Process.Kill()
@@ -390,11 +415,11 @@ func TestAStartKilledHalfway(t *testing.T) {
 	if retried.RetryOf != "R1.1" || retried.Place.Tab == a.Place.Tab || retried.Agent.Model != "fast-1" {
 		t.Errorf("the retry: %+v", retried)
 	}
-	if !slices.ContainsFunc(calls(p, "agent", "start"), func(c []string) bool {
-		// After the "--" come the settings of the hooks and then the model.
-		return c[2] == retried.Agent.Name && slices.Contains(c, "--") && slices.Equal(c[len(c)-2:], []string{"--model", "fast-1"})
+	if !slices.ContainsFunc(calls(p, contract.OpAgentStart), func(c contract.WireCall) bool {
+		// The agent's own arguments: the settings of the hooks and then the model.
+		return c.Name == retried.Agent.Name && len(c.Argv) > 1 && slices.Equal(c.Argv[len(c.Argv)-2:], []string{"--model", "fast-1"})
 	}) {
-		t.Errorf("the model is not on the agent's own line: %v", calls(p, "agent", "start"))
+		t.Errorf("the model is not on the agent's own line: %+v", calls(p, contract.OpAgentStart))
 	}
 	if prompt, _ := os.ReadFile(filepath.Join(dir, "attempts", "R1.2", "prompt.md")); !strings.Contains(string(prompt), "R1.1 ended as start_failed") {
 		t.Errorf("the retry's prompt says nothing of the attempt before it:\n%s", prompt)
@@ -418,18 +443,18 @@ func TestRetryRefusedWhileTheOldPaneHoldsAnAgent(t *testing.T) {
 
 func TestStopAllDuringAStartOfTwenty(t *testing.T) {
 	p := evening(t, 20, nil)
-	b := stand(t, p, "agent start", "", "")
+	b := stand(t, p, contract.OpAgentStart, "", "")
 	cmd := b.command(scenario.Orch, "start", "--ready", "--json")
 	out := b.begin(t, 20, cmd)
-	before := len(p.Herdr.Calls())
+	before := len(p.Double.Calls())
 	must(t, p.Command(scenario.Unbound, "pause"), 5, "the person's")
 	must(t, p.Command(scenario.Orch, "pause"), 5)
 	paused := must(t, p.Command(scenario.Human, "pause", "--everywhere"), 0, "Paused. 11 agents stop at their next step", "still running: checkout form")
 	if strings.Contains(paused, "ready") {
 		t.Errorf("an attempt that is only starting has no agent to be still running:\n%s", paused)
 	}
-	if n := len(p.Herdr.Calls()); n != before {
-		t.Errorf("pause reached for the terminals: %v", p.Herdr.Calls()[before:])
+	if n := len(p.Double.Calls()); n != before {
+		t.Errorf("pause reached for the terminals: %+v", p.Double.Calls()[before:])
 	}
 	for range 20 {
 		b.let <- true
@@ -453,9 +478,9 @@ func TestStopAllDuringAStartOfTwenty(t *testing.T) {
 	}
 
 	// Nothing was typed into any agent, and what changes the run is refused.
-	for _, c := range p.Herdr.Calls()[before:] {
-		if c[0] != "agent" || c[1] != "start" {
-			t.Errorf("after Stop all the terminals were asked: %v", c)
+	for _, c := range p.Double.Calls()[before:] {
+		if c.Op != contract.OpAgentStart {
+			t.Errorf("after Stop all the terminals were asked: %+v", c)
 		}
 	}
 	must(t, p.Command(scenario.Orch, "start", "R1", "--retry"), 5, "paused")
@@ -485,8 +510,8 @@ func TestResumeSkipsAnAgentAtAPrompt(t *testing.T) {
 		t.Fatal(err)
 	}
 	must(t, p.Command(scenario.Human, "resume"), 5, "resume --everywhere --human")
-	p.Herdr.Push(contract.StatusBlocked, "w1:p4") // the pane of T3, search box
-	before := len(p.Herdr.Calls())
+	p.Double.Push(contract.StatusBlocked, "w1:p4") // the pane of T3, search box
+	before := len(p.Double.Calls())
 	must(t, p.Command(scenario.Orch, "resume"), 5)
 	began := time.Now()
 	must(t, p.Command(scenario.Human, "resume", "--everywhere"), 0, "9 agents were told", "at a prompt, not resumed: search box")
@@ -501,11 +526,11 @@ func TestResumeSkipsAnAgentAtAPrompt(t *testing.T) {
 	}
 
 	told := map[string]string{}
-	for _, c := range p.Herdr.Calls()[before:] {
-		if c[0] == "agent" && c[1] == "prompt" {
-			told[c[2]] = c[3]
-		} else if c[0] != "api" {
-			t.Errorf("resume asked the terminals: %v", c)
+	for _, c := range p.Double.Calls()[before:] {
+		if line := fakeengine.Typed(c); line != "" {
+			told[c.Pane] = line
+		} else if c.Op != contract.OpSnapshot {
+			t.Errorf("resume asked the terminals: %+v", c)
 		}
 	}
 	s, _ := p.Record()
@@ -536,21 +561,21 @@ func TestAButtonsStartRunsInATabOfItsOwn(t *testing.T) {
 	if s, _ := p.Record(); s.Tasks["R1"].Status != contract.TaskReady {
 		t.Error("the button's own child started the task")
 	}
-	made := calls(p, "tab", "create")
-	typed := calls(p, "pane", "run")
-	if len(made) != 1 || !slices.Contains(made[0], "start ready 1") || len(typed) != 1 {
-		t.Fatalf("the tab %v and the line typed into it %v", made, typed)
+	made := calls(p, contract.OpTabCreate)
+	ran := calls(p, contract.OpRun)
+	if len(made) != 1 || made[0].Label != "start ready 1" || len(ran) != 1 {
+		t.Fatalf("the tab %+v and the program started in it %+v", made, ran)
 	}
-	// The line is written for the system's own shell, which on Windows
-	// puts every word between single quotes.
-	line := strings.ReplaceAll(typed[0][3], "'", "")
-	if !strings.Contains(line, " start R1 --human --root ") || !strings.HasSuffix(line, " --run r3") {
-		t.Fatalf("the line typed into the tab: %s", typed[0][3])
+	// The program is started from a list of arguments: nothing is quoted
+	// for any shell.
+	line := strings.Join(ran[0].Argv[1:], " ")
+	if !strings.HasPrefix(line, "start R1 --human --root ") || !strings.HasSuffix(line, " --run r3") {
+		t.Fatalf("the program started in the tab: %q", ran[0].Argv)
 	}
 
 	// The same line, run in such a tab, is still the button's and is not
 	// moved again; it closes the tab when it ends well.
-	pane, err := p.Herdr.TabCreate(p.Root, "start ready 2", nil)
+	pane, err := p.Double.TabCreate(p.Root, "start ready 2", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -560,6 +585,32 @@ func TestAButtonsStartRunsInATabOfItsOwn(t *testing.T) {
 	attempt(t, p, "R2.1", contract.AttemptWorking)
 	if tabOpen(t, p, pane.Tab) {
 		t.Error("the tab of a command that ended well is still open")
+	}
+
+	// One that fails stays, with what it printed, until the person presses
+	// Enter: its tab ends with its program.
+	failing := p.Command(scenario.Human, "start", "R2")
+	failing.Env = append(failing.Env, contract.EnvPane+"="+pane.ID, contract.EnvOwnTab+"="+contract.WherePane)
+	keys, err := failing.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var said strings.Builder
+	failing.Stdout, failing.Stderr = &said, &said
+	if err := failing.Start(); err != nil {
+		t.Fatal(err)
+	}
+	ended := make(chan struct{})
+	go func() { failing.Wait(); close(ended) }()
+	select {
+	case <-ended:
+		t.Fatalf("a failed command in a tab of its own ended without waiting:\n%s", &said)
+	case <-time.After(time.Second):
+	}
+	keys.Write([]byte("\n"))
+	<-ended
+	if failing.ProcessState.ExitCode() != 5 || !strings.Contains(said.String(), "R2 is running") || !strings.Contains(said.String(), "press Enter") {
+		t.Errorf("the failed command: exit %d\n%s", failing.ProcessState.ExitCode(), &said)
 	}
 }
 

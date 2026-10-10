@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 // "once", else a shell. It says how it was started, prints sixty lines and
 // then one every few moments, and ends when its terminal does.
 func program() {
-	pane, args := os.Getenv(contract.EnvTermPane), os.Args[1:]
+	pane, args := os.Getenv(contract.EnvPane), os.Args[1:]
 	// Printing into a terminal that has ended must not end the program
 	// before it has said that it saw the end.
 	signal.Ignore(syscall.SIGPIPE)
@@ -256,7 +256,7 @@ func (k *keeper) start(p *held, run, old []string, back bool) error {
 		run = []string{k.self}
 	}
 	env := append(os.Environ(), k.tabs[p.rec.Tab]...)
-	env = append(env, envRole+"=program", contract.EnvTermPane+"="+p.rec.ID)
+	env = append(env, envRole+"=program", contract.EnvPane+"="+p.rec.ID)
 	tty, err := k.kit.Pty(contract.PtySpec{Argv: run, Dir: p.rec.Cwd, Env: env, Cols: w, Rows: h})
 	if err != nil {
 		return err

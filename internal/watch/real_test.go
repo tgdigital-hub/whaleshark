@@ -42,7 +42,7 @@ func real(t *testing.T, s *stand, dir string) (*pane, *Watcher) {
 	for _, v := range os.Environ() {
 		// The agent's own sign-in stays; nothing of the terminals or of an
 		// agent this test may itself be running in is handed on.
-		if !strings.HasPrefix(v, "HERDR_") && !strings.HasPrefix(v, "CLAUDE") && !strings.HasPrefix(v, "WHALESHARK_") {
+		if !strings.HasPrefix(v, "CLAUDE") && !strings.HasPrefix(v, "WHALESHARK_") {
 			env = append(env, v)
 		}
 	}

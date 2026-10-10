@@ -15,7 +15,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/evidence"
 	"github.com/tgdigital-hub/whaleshark/internal/gitwt"
 	"github.com/tgdigital-hub/whaleshark/internal/guide"
-	"github.com/tgdigital-hub/whaleshark/internal/herdr"
 	"github.com/tgdigital-hub/whaleshark/internal/hook"
 	"github.com/tgdigital-hub/whaleshark/internal/inbox"
 	"github.com/tgdigital-hub/whaleshark/internal/input"
@@ -50,7 +49,7 @@ import (
 // plugs is every package, lowest first: a package may use from the kit what
 // an earlier one put there.
 var plugs = []func(*contract.Kit){
-	platform.Plug, rules.Plug, store.Plug, herdr.Plug, theme.Plug, term.Plug,
+	platform.Plug, rules.Plug, store.Plug, theme.Plug, term.Plug,
 	pty.Plug, screen.Plug, layout.Plug, watch.Plug, input.Plug, pick.Plug, overlay.Plug,
 	restore.Plug, keeper.Plug, engine.Plug, window.Plug,
 	guide.Plug, hook.Plug, notify.Plug, evidence.Plug, gitwt.Plug, integrate.Plug,

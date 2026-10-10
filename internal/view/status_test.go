@@ -14,7 +14,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 )
 
-// The stand-ins of a test: a record that is only read, herdr's picture, a
+// The stand-ins of a test: a record that is only read, the terminals' picture, a
 // sweep that is counted, and a login folder of the test's own.
 type record struct {
 	contract.NoStore
@@ -176,8 +176,8 @@ func TestStatusFlags(t *testing.T) {
 }
 
 // With no run there is nothing to sweep or to read, and the text says how to
-// start one. With herdr away the record is still shown, and the age line
-// counts from when herdr was last seen.
+// start one. With the keeper away the record is still shown, and the age line
+// counts from when the terminals were last seen.
 func TestStatusWithout(t *testing.T) {
 	f := evening(t)
 	for _, run := range []string{"", "r9"} {
@@ -194,8 +194,8 @@ func TestStatusWithout(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := out.String()
-	if !strings.HasPrefix(got, "herdr cannot be reached\n") || !strings.HasSuffix(got, "STALE since 21:14 · herdr not reachable\n") || !strings.Contains(got, " ◌ T12 ") {
-		t.Errorf("without herdr status prints\n%s", got)
+	if !strings.HasPrefix(got, "the engine is not running: `whaleshark open` starts it\n") || !strings.HasSuffix(got, "STALE since 21:14 · the engine is not running\n") || !strings.Contains(got, " ◌ T12 ") {
+		t.Errorf("without the keeper status prints\n%s", got)
 	}
 
 	// A context file from a newer program counts as absent.

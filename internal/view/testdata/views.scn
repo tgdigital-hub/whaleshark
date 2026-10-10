@@ -1,5 +1,5 @@
 # show, jump and catchup as the real program runs them: through the real
-# front, the real store and rules, and the stand-in for herdr.
+# front, the real store and rules, and the engine's double.
 fixture evening-2114
 
 orch: show T7                       -> expect "check failed" 'whaleshark reject T7 "<why>"' "briefs/T7.md"

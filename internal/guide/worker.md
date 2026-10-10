@@ -5,7 +5,7 @@ sees only what you send with the four commands below. Your prompt file names you
 folder, your brief and your result file, and gives these commands with their full path; your
 ids are already set in this tab.
 
-- Never run `herdr` commands, and never add `--human` to anything.
+- Never start the window or the keeper (whaleshark's open and engine commands), and never add `--human` to anything.
 - Never ask your question in this chat: nobody reads it. Use `ask`.
 - Change files only in the folder, and only the files, your prompt names.
 

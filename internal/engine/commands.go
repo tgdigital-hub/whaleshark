@@ -12,15 +12,9 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Plug puts the keeper behind the kit where the surroundings name it: in a
-// pane of the keeper's, in the command of a shortcut of its, and where a
-// socket is named, as a test does. Anywhere
-// else herdr stays behind the kit until the swap, which takes the condition out.
-func Plug(k *contract.Kit) {
-	if os.Getenv(contract.EnvSocket)+os.Getenv(contract.EnvTermPane)+os.Getenv(contract.EnvTermActivePane) != "" {
-		k.Terms = New(k)
-	}
-}
+// Plug puts the keeper behind the kit: every command reaches the terminals
+// through its socket, and through nothing else.
+func Plug(k *contract.Kit) { k.Terms = New(k) }
 
 // patience is how long the keeper is given to answer, beyond the time a
 // call itself allows an agent.
@@ -102,7 +96,7 @@ func (c *Client) Call(ctx context.Context, call contract.WireCall) (contract.Wir
 	defer conn.Close()
 	defer stop()
 	if call.From == "" {
-		call.From = os.Getenv(contract.EnvTermPane)
+		call.From = os.Getenv(contract.EnvPane)
 	}
 	r, err := ask(conn, call)
 	if ctx.Err() != nil {

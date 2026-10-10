@@ -15,6 +15,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/rules"
+	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
@@ -25,8 +26,8 @@ var rule = rules.Rules{}
 // patience is how long another process is given, on a machine that is busy.
 const patience = time.Minute
 
-// world is the evening of the fixture as a project on disk, with the fake
-// herdr beside it and the real program for every command.
+// world is the evening of the fixture as a project on disk, with the engine's
+// double beside it and the real program for every command.
 type world struct {
 	*testing.T
 	p   *scenario.Project
@@ -164,8 +165,8 @@ func item(s *contract.State, cause string) *contract.Question {
 
 // typed counts how often a line was typed into a pane.
 func (w *world) typed(pane, text string) (n int) {
-	for _, call := range w.p.Herdr.Calls() {
-		if slices.Equal(call, []string{"agent", "prompt", pane, text}) {
+	for _, c := range w.p.Double.Calls() {
+		if c.Pane == pane && fakeengine.Typed(c) == text {
 			n++
 		}
 	}
@@ -333,7 +334,7 @@ func TestKeepaliveAndTimeout(t *testing.T) {
 func TestAPaneGoneForFiveSecondsIsNotExited(t *testing.T) {
 	w := evening(t, nil)
 	pane := w.pane("T1.1")
-	w.p.Herdr.Drop(testkit.PushGone, pane)
+	w.p.Double.Drop(testkit.PushGone, pane)
 	w.sweep()
 	if a := w.state().Attempts["T1.1"]; a.Seen.GoneSince.IsZero() || a.State != contract.AttemptWorking {
 		t.Fatalf("first sighting: %+v", a.Seen)
@@ -342,7 +343,7 @@ func TestAPaneGoneForFiveSecondsIsNotExited(t *testing.T) {
 	if a := w.state().Attempts["T1.1"]; a.State != contract.AttemptWorking || a.Seen.Liveness == contract.Gone {
 		t.Fatalf("gone for 5 s: %s, %+v", a.State, a.Seen)
 	}
-	w.p.Herdr.Handle(testkit.FakeCall{Args: []string{"pane", "report-agent", pane, "--agent", "claude", "--state", contract.StatusWorking}})
+	w.p.Double.Hook("UserPromptSubmit", pane, "", "") // an agent is in the pane again, and at work
 	w.after(5 * time.Second)
 	if a := w.state().Attempts["T1.1"]; a.State != contract.AttemptWorking || !a.Seen.GoneSince.IsZero() || a.Seen.Liveness != contract.Live {
 		t.Fatalf("seen again: %s, %+v", a.State, a.Seen)
@@ -353,8 +354,8 @@ func TestAPaneGoneForFiveSecondsIsNotExited(t *testing.T) {
 
 	// Gone at 0 s and still gone at 30 s is an exit, whether the agent left
 	// its pane or the pane is not in the picture at all.
-	w.p.Herdr.Drop(testkit.PushGone, pane)
-	w.p.Herdr.Drop(testkit.PushClosed, w.pane("T3.1"))
+	w.p.Double.Drop(testkit.PushGone, pane)
+	w.p.Double.Drop(testkit.PushClosed, w.pane("T3.1"))
 	w.after(5 * time.Second)
 	w.after(29 * time.Second)
 	if s := w.state(); s.Attempts["T1.1"].State != contract.AttemptWorking || s.Attempts["T3.1"].State != contract.AttemptWorking {
@@ -375,10 +376,10 @@ func TestAPaneGoneForFiveSecondsIsNotExited(t *testing.T) {
 
 func TestTheTerminalsDownChangesNothing(t *testing.T) {
 	w := evening(t, nil)
-	w.p.Herdr.Drop(testkit.PushGone, w.pane("T1.1"))
+	w.p.Double.Drop(testkit.PushGone, w.pane("T1.1"))
 	w.sweep()
 	record := w.file(contract.StateFile)
-	w.p.Herdr.Close()
+	w.p.Double.Close()
 	for _, d := range []time.Duration{5 * time.Second, time.Minute, 10 * time.Minute} {
 		w.p.Clock(d)
 		if out, errOut, exit := w.run(scenario.Orch, "status", "--sweep", "--quiet"); exit != contract.ExitEnv || !strings.Contains(errOut, "changed nothing") {
@@ -426,8 +427,8 @@ func TestTwentyWorkingAgentsCauseNoWrite(t *testing.T) {
 	if s := w.after(5 * time.Second); !s.Ran || s.Changed {
 		t.Fatalf("a sweep of twenty working agents: %+v", s)
 	}
-	for _, call := range w.p.Herdr.Calls() {
-		if slices.Equal(call, []string{"api", "snapshot"}) {
+	for _, c := range w.p.Double.Calls() {
+		if c.Op == contract.OpSnapshot {
 			snapshots++
 		}
 	}
@@ -441,8 +442,10 @@ func TestTwentyWorkingAgentsCauseNoWrite(t *testing.T) {
 func TestTheLeadAgentUnread(t *testing.T) {
 	w := evening(t, nil)
 	w.waiting() // a lead agent that follows the rules: its wait runs in the background
-	w.p.Herdr.Push(testkit.PushFocused, w.pane("T1.1"))
-	w.p.Herdr.Push(contract.StatusDone, w.p.Lead)
+	w.p.Double.Push(testkit.PushFocused, w.pane("T1.1"))
+	w.p.Double.Push(contract.StatusWorking, w.p.Lead)
+	w.after(5 * time.Second)
+	w.p.Double.Push(contract.StatusIdle, w.p.Lead)
 	w.after(5 * time.Second)
 	if s := w.state(); s.Run.Lead.DoneSince.IsZero() || item(s, contract.CauseLeadUnread) != nil {
 		t.Fatalf("done and unfocused, first seen: %+v", s.Run.Lead)
@@ -457,9 +460,8 @@ func TestTheLeadAgentUnread(t *testing.T) {
 	if item(w.state(), contract.CauseLeadSilent) != nil {
 		t.Fatal("a lead agent with a wait running was called not listening")
 	}
-	// The person looks at the tab, which is what turns done into idle.
-	w.p.Herdr.Push(testkit.PushFocused, w.p.Lead)
-	w.p.Herdr.Push(contract.StatusIdle, w.p.Lead)
+	// The person looks at the tab.
+	w.p.Double.Push(testkit.PushFocused, w.p.Lead)
 	w.after(5 * time.Second)
 	if s := w.state(); item(s, contract.CauseLeadUnread).State != contract.QuestionClosed || !s.Run.Lead.DoneSince.IsZero() {
 		t.Fatalf("after the focus: %+v", item(s, contract.CauseLeadUnread))
@@ -489,7 +491,7 @@ func TestTheLeadAgentNotListening(t *testing.T) {
 func TestAtAPromptQuietAndThePointerToTheLead(t *testing.T) {
 	w := evening(t, nil)
 	pane, pointer := w.pane("T1.1"), "whaleshark: 1 events waiting. Run: whaleshark wait"
-	w.p.Herdr.Drop(contract.StatusBlocked, pane)
+	w.p.Double.Drop(contract.StatusBlocked, pane)
 	if s := w.sweep(); !s.Ran || !s.Changed {
 		t.Fatalf("%+v", s)
 	}
@@ -500,16 +502,16 @@ func TestAtAPromptQuietAndThePointerToTheLead(t *testing.T) {
 	}
 	// Nobody waits and the lead agent rests: it is told in one line, once.
 	if w.typed(w.p.Lead, pointer) != 1 || w.typed(pane, pointer) != 0 {
-		t.Fatalf("the pointer to the lead agent: %v", w.p.Herdr.Calls())
+		t.Fatalf("the pointer to the lead agent: %v", w.p.Double.Calls())
 	}
-	w.p.Herdr.Drop(contract.StatusIdle, w.p.Lead)
-	w.p.Herdr.Drop(contract.StatusWorking, pane)
+	w.p.Double.Drop(contract.StatusIdle, w.p.Lead)
+	w.p.Double.Drop(contract.StatusWorking, pane)
 	if w.after(5 * time.Second); item(w.state(), contract.CausePrompt).State != contract.QuestionClosed {
 		t.Fatal("the item stayed when the prompt was gone")
 	}
 
 	// Idle with no report for 120 s is quiet, once, and nothing is stopped.
-	w.p.Herdr.Drop(contract.StatusIdle, pane)
+	w.p.Double.Drop(contract.StatusIdle, pane)
 	w.after(5 * time.Second)
 	w.after(119 * time.Second)
 	if a := w.state().Attempts["T1.1"]; a.Seen.QuietFlagged {
@@ -528,7 +530,7 @@ func TestAtAPromptQuietAndThePointerToTheLead(t *testing.T) {
 
 func TestStillRunningAfterAPause(t *testing.T) {
 	w := evening(t, nil)
-	w.p.Herdr.Drop(contract.StatusIdle, w.pane("T3.1"))
+	w.p.Double.Drop(contract.StatusIdle, w.pane("T3.1"))
 	w.change(func(s *contract.State, now time.Time) error { return rule.Pause(s, "human", now) })
 	w.sweep()
 	w.after(119 * time.Second)
@@ -545,9 +547,9 @@ func TestStillRunningAfterAPause(t *testing.T) {
 	if got := kinds(s.Inbox.Events, "T3.1"); got != nil {
 		t.Fatalf("idle under a pause: %v", got)
 	}
-	for _, call := range w.p.Herdr.Calls() {
-		if call[0] == "agent" {
-			t.Fatalf("something was typed while the run was paused: %v", call)
+	for _, c := range w.p.Double.Calls() {
+		if fakeengine.Typed(c) != "" {
+			t.Fatalf("something was typed while the run was paused: %+v", c)
 		}
 	}
 }
@@ -588,7 +590,7 @@ func TestTheDeferredPointerToUnreadMail(t *testing.T) {
 		t.Fatal("the pointer was typed at an agent that is working")
 	}
 	// Idle, but paused: never. Resumed: once, and the record says so.
-	w.p.Herdr.Drop(contract.StatusIdle, pane)
+	w.p.Double.Drop(contract.StatusIdle, pane)
 	w.change(func(s *contract.State, now time.Time) error { return rule.Pause(s, "human", now) })
 	if w.after(5 * time.Second); w.typed(pane, pointer) != 0 {
 		t.Fatal("the pointer was typed while the run was paused")
@@ -597,15 +599,15 @@ func TestTheDeferredPointerToUnreadMail(t *testing.T) {
 	if s := w.after(5 * time.Second); w.typed(pane, pointer) != 1 || !s.Changed || w.state().Attempts["T1.1"].Mail[0].NudgedAt.IsZero() {
 		t.Fatalf("the deferred pointer: typed %d times, %+v", w.typed(pane, pointer), s)
 	}
-	w.p.Herdr.Drop(contract.StatusIdle, pane)
+	w.p.Double.Drop(contract.StatusIdle, pane)
 	if w.after(5 * time.Second); w.typed(pane, pointer) != 1 {
 		t.Fatal("the pointer was typed twice for one message")
 	}
 	// An agent at a prompt is never typed at; the pointer waits for it.
 	w.change(tell)
-	w.p.Herdr.Drop(contract.StatusBlocked, pane)
+	w.p.Double.Drop(contract.StatusBlocked, pane)
 	w.after(5 * time.Second)
-	w.p.Herdr.Drop(contract.StatusIdle, pane)
+	w.p.Double.Drop(contract.StatusIdle, pane)
 	if w.typed(pane, pointer) != 1 || w.after(5*time.Second).Changed == false || w.typed(pane, pointer) != 2 {
 		t.Fatalf("after the prompt the pointer was typed %d times", w.typed(pane, pointer))
 	}
@@ -614,13 +616,13 @@ func TestTheDeferredPointerToUnreadMail(t *testing.T) {
 func TestTheStampKeepsSweepsApart(t *testing.T) {
 	w := evening(t, nil)
 	first := w.sweep()
-	w.p.Herdr.Drop(testkit.PushGone, w.pane("T1.1"))
+	w.p.Double.Drop(testkit.PushGone, w.pane("T1.1"))
 	w.p.Clock(4 * time.Second)
-	record, calls := w.file(contract.StateFile), len(w.p.Herdr.Calls())
-	if second := w.sweep(); !second.Ran || second.Changed || !second.At.Equal(first.At) || len(w.p.Herdr.Calls()) != calls || !bytes.Equal(record, w.file(contract.StateFile)) {
+	record, calls := w.file(contract.StateFile), len(w.p.Double.Calls())
+	if second := w.sweep(); !second.Ran || second.Changed || !second.At.Equal(first.At) || len(w.p.Double.Calls()) != calls || !bytes.Equal(record, w.file(contract.StateFile)) {
 		t.Fatalf("a second sweep within five seconds: %+v after %+v", second, first)
 	}
-	if third := w.after(time.Second); !third.Changed || !third.At.Equal(first.At.Add(5*time.Second)) || len(w.p.Herdr.Calls()) != calls+1 {
+	if third := w.after(time.Second); !third.Changed || !third.At.Equal(first.At.Add(5*time.Second)) || len(w.p.Double.Calls()) != calls+1 {
 		t.Fatalf("a sweep five seconds later: %+v", third)
 	}
 	// It is printed as it is, and a closed run is left alone.
@@ -631,7 +633,7 @@ func TestTheStampKeepsSweepsApart(t *testing.T) {
 	}
 	w.change(func(s *contract.State, now time.Time) error { s.Run.ClosedAt = now; return nil })
 	record = w.file(contract.StateFile)
-	w.p.Herdr.Drop(testkit.PushGone, w.pane("T3.1"))
+	w.p.Double.Drop(testkit.PushGone, w.pane("T3.1"))
 	if s := w.after(time.Minute); s.Changed || !bytes.Equal(record, w.file(contract.StateFile)) {
 		t.Fatalf("a sweep of a closed run: %+v", s)
 	}

@@ -118,7 +118,7 @@ func (p *pane) sweep() {
 }
 
 // present notes that the person is here: a key or a click in this pane, or
-// herdr saying a pane has the keys. It is written at most once a minute.
+// the keeper saying a pane has the keys. It is written at most once a minute.
 func (p *pane) present() {
 	if now := p.now(); now.Sub(p.here) >= hereEvery && now.Sub(p.ui.LastHere) >= hereEvery {
 		p.here = now

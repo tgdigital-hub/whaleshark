@@ -63,7 +63,7 @@ type Fake struct {
 	nTab, nPane, nTerm int
 	seq                uint64
 	readers            map[chan contract.TermEvent]bool
-	quiet              bool // a change is being made that is told to nobody
+	quiet, closed      bool // a change is being made that is told to nobody; Close was called
 	scripts            map[string]string
 	calls              []contract.WireCall
 }
@@ -72,6 +72,11 @@ type Fake struct {
 func New() *Fake {
 	f := &Fake{Build: "double", Width: 120, instance: 1, env: map[string][]string{}, readers: map[chan contract.TermEvent]bool{}, scripts: map[string]string{}}
 	f.Client = &engine.Client{Dial: func(context.Context) (net.Conn, error) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.closed {
+			return nil, errors.New("the double is closed")
+		}
 		near, far := net.Pipe()
 		go f.serve(far)
 		return near, nil
@@ -97,10 +102,12 @@ func (f *Fake) Listen(path string) (err error) {
 	return nil
 }
 
-// Close stops the listener, every reader of events and every fake agent.
+// Close stops the listener, every reader of events and every fake agent:
+// from then on the double is a keeper that is not running.
 func (f *Fake) Close() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.closed = true
 	if f.listener != nil {
 		f.listener.Close()
 	}
@@ -327,11 +334,11 @@ func (f *Fake) launch(p *pane, args []string) {
 	var env []string
 	for _, kv := range os.Environ() {
 		name, _, _ := strings.Cut(kv, "=")
-		if !strings.HasPrefix(kv, "WHALESHARK_") && !strings.HasPrefix(kv, "HERDR_") || name == contract.EnvClock || name == contract.EnvNotices {
+		if !strings.HasPrefix(kv, "WHALESHARK_") || name == contract.EnvClock || name == contract.EnvNotices {
 			env = append(env, kv)
 		}
 	}
-	env = append(append(env, f.env[p.rec.Tab]...), contract.EnvTermPane+"="+p.rec.ID)
+	env = append(append(env, f.env[p.rec.Tab]...), contract.EnvPane+"="+p.rec.ID)
 	if f.listener != nil {
 		env = append(env, contract.EnvSocket+"="+f.listener.Addr().String())
 	}
@@ -419,6 +426,20 @@ func (f *Fake) serve(conn net.Conn) {
 			return
 		}
 	}
+}
+
+// Typed is the line a call types at an agent: a prompt's text or a fixed
+// pointer with its argument, and nothing for any other call.
+func Typed(c contract.WireCall) string {
+	switch {
+	case c.Op == contract.OpPrompt:
+		return c.Text
+	case c.Op != contract.OpPoint:
+		return ""
+	case strings.Contains(string(c.Pointer), "%"):
+		return fmt.Sprintf(string(c.Pointer), c.Text)
+	}
+	return string(c.Pointer)
 }
 
 // do answers one call as the keeper does.
@@ -523,6 +544,9 @@ func (f *Fake) onPane(c contract.WireCall, p *pane) (r contract.WireReply, err e
 		}
 		fmt.Fprintf(p.screen, "%% %s\n", strings.Join(c.Argv, " "))
 		p.rec.Terminal = f.terminal()
+		// The keeper's own mark of a pane program of ours.
+		p.rec.Agent, p.rec.Name, p.rec.Session = "", "", ""
+		p.rec.Ours = len(c.Argv) > 3 && c.Argv[1] == "ui" && c.Argv[2] == "run"
 		f.emit(contract.EvState, p.rec)
 	case contract.OpHook:
 		if state := hooks[c.Kind]; state == testkit.PushGone {
@@ -542,12 +566,7 @@ func (f *Fake) onPane(c contract.WireCall, p *pane) (r contract.WireReply, err e
 		f.emit(contract.EvState, p.rec)
 		f.launch(p, c.Argv)
 	case contract.OpPrompt, contract.OpPoint:
-		text := c.Text
-		if c.Op == contract.OpPoint && strings.Contains(string(c.Pointer), "%") {
-			text = fmt.Sprintf(string(c.Pointer), c.Text)
-		} else if c.Op == contract.OpPoint {
-			text = string(c.Pointer)
-		}
+		text := Typed(c)
 		switch {
 		case p.rec.Agent == "":
 			return r, contract.ErrNoPane

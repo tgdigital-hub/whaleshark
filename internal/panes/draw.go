@@ -490,7 +490,7 @@ func (p *pane) drawActions(now time.Time) {
 	t.Put(max(w-aw-1, 0), h-1, w, age, ageSt)
 	defer func() {
 		p.hintLine(h-1, w-aw-3, "j k choose · y n o answer · u undo · x fold · / all actions · ? keys",
-			"ctrl+b a to answer · / all actions · ? keys")
+			cmp.Or(p.command, "ctrl+space")+" a to answer · / all actions · ? keys")
 	}()
 
 	y, room, end := 1, h-2, h-1

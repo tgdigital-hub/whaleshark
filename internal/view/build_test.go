@@ -125,7 +125,7 @@ func TestLateQuestion(t *testing.T) {
 	}
 }
 
-// Paused is two facts: the run is paused and herdr shows the agent at rest.
+// Paused is two facts: the run is paused and the terminals show the agent at rest.
 // One still at work is finishing a step, or still running where nothing
 // holds it; what needs the person or waits to be checked keeps its own word.
 func TestPaused(t *testing.T) {
@@ -170,7 +170,7 @@ func TestPale(t *testing.T) {
 	}
 }
 
-// Without herdr's picture the cards come from the record and from what the
+// Without the terminals' picture the cards come from the record and from what the
 // sweep last saw, and the text says so.
 func TestNoTerminals(t *testing.T) {
 	f := evening(t)
@@ -180,10 +180,10 @@ func TestNoTerminals(t *testing.T) {
 	v := Build(in)
 	c, _ := card(t, v, "T12")
 	same(t, "card", []any{c.Look, c.Tab}, []any{contract.LookIdle, "w1:t13"})
-	same(t, "notes and alerts", []any{v.Fresh.Notes, v.Alerts}, []any{[]string{"herdr not reachable", "no sweep yet"}, []string{"herdr cannot be reached"}})
+	same(t, "notes and alerts", []any{v.Fresh.Notes, v.Alerts}, []any{[]string{"the engine is not running", "no sweep yet"}, []string{"the engine is not running: `whaleshark open` starts it"}})
 	// Once a sweep has run, the one note about it is that nobody sweeps now.
 	in.Swept.Ran = true
-	same(t, "notes after a sweep", Build(in).Fresh.Notes, []string{"herdr not reachable", "nobody is sweeping"})
+	same(t, "notes after a sweep", Build(in).Fresh.Notes, []string{"the engine is not running", "nobody is sweeping"})
 
 	// A pane with no agent in it, or no pane at all, is silence: idle, never failed.
 	f = evening(t)

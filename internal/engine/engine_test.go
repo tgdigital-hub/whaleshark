@@ -200,13 +200,13 @@ func TestAKeeperThatCannotBeTalkedTo(t *testing.T) {
 }
 
 // The socket is where the surroundings say, and Plug puts the keeper behind
-// the kit only where they name it.
+// the kit wherever a command is run.
 func TestTheSocketOfTheSurroundings(t *testing.T) {
 	home := t.TempDir()
 	for _, name := range []string{"HOME", "USERPROFILE", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "APPDATA", "LOCALAPPDATA"} {
 		t.Setenv(name, filepath.Join(home, name))
 	}
-	t.Setenv(contract.EnvTermPane, "")
+	t.Setenv(contract.EnvPane, "")
 	dir, err := os.MkdirTemp("", "ws") // a socket's path is short
 	if err != nil {
 		t.Fatal(err)
@@ -231,13 +231,13 @@ func TestTheSocketOfTheSurroundings(t *testing.T) {
 		t.Errorf("a hook from a pane that is not there: %+v, %v", r, err)
 	}
 
+	// With nothing naming the keeper it is still the keeper, at its own
+	// place in the login's state folder, and there none is running.
 	t.Setenv(contract.EnvSocket, "")
 	k = contract.NewKit()
-	if engine.Plug(k); k.Terms != (contract.NoTerminals{}) {
-		t.Errorf("with nothing naming the keeper, the kit holds %T", k.Terms)
-	}
-	t.Setenv(contract.EnvTermPane, "p4")
-	if engine.Plug(k); k.Terms == (contract.NoTerminals{}) {
-		t.Error("in a pane of the keeper's, the kit does not hold the keeper")
+	platform.Plug(k)
+	engine.Plug(k)
+	if _, err := k.Terms.Version(); !errors.Is(err, contract.ErrEngineUnreachable) || err.Error() != "the engine is not running" {
+		t.Errorf("with nothing naming the keeper: %v", err)
 	}
 }

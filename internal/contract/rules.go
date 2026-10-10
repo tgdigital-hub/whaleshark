@@ -3,7 +3,7 @@ package contract
 import "time"
 
 // Rules is every legal change to a run, as pure functions on the record:
-// no file, no herdr, no clock. Each either changes s and returns nil, or
+// no file, no terminals, no clock. Each either changes s and returns nil, or
 // changes nothing and returns a *Refusal, so a function handed to
 // Store.Change returns that error and nothing is written. Report is the one
 // that can refuse and still have something to save, and says so in its own

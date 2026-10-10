@@ -9,7 +9,7 @@ import (
 )
 
 // valid passes through the one validator (18.4) everything in a record that
-// becomes part of a path, a name in herdr or a word on a command line, and
+// becomes part of a path, a name in the keeper or a word on a command line, and
 // holds every entry to the id it is filed under. Free text is data and is
 // not looked at. Paths are checked for their form alone: whether one still
 // lies inside the project is asked where it is used.

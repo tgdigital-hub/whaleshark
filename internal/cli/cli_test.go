@@ -285,7 +285,7 @@ func TestCallers(t *testing.T) {
 		{"the lead agent addressing another run", lead, "start T3 --run r1", "", "not_bound", contract.Caller{}, ""},
 		{"--human from a pane of the person's", other, "pause --human", contract.Human, "", contract.Caller{Pane: "w9:p9", Where: contract.WhereTyped}, "r3"},
 		{"--human from the pane of a closed run", two, "pause --human", contract.Human, "", contract.Caller{Pane: "w1:p20", Where: contract.WhereTyped}, "r3"},
-		{"--human from a herdr shortcut, whichever pane is in front", scene{key: "w1:p2"}, "pause --human", contract.Human, "", contract.Caller{Where: contract.WhereTyped}, "r3"},
+		{"--human from a shortcut of the keeper, whichever pane is in front", scene{key: "w1:p2"}, "pause --human", contract.Human, "", contract.Caller{Where: contract.WhereTyped}, "r3"},
 		{"a shortcut's mark alone makes nobody the human", scene{key: "w1:p2"}, "pause", "", "human_only", contract.Caller{}, ""},
 		{"--human with no pane, no terminal and no shortcut", nobody, "pause --human", "", "not_human", contract.Caller{}, ""},
 		{"--human from a shortcut with a worker's variable", scene{attempt: "T1.1", key: "w1:p2"}, "accept T1 --human", "", "not_human", contract.Caller{}, ""},

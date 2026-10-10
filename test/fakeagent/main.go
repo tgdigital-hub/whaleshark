@@ -1,5 +1,6 @@
-// Command fakeagent is the agent of a scripted test. The fake herdr, or the
-// engine's double, starts it in a pane with the script as its first argument. It prints its
+// Command fakeagent is the agent of a scripted test. The engine's double
+// starts it in a pane with the script as its first argument, and the real
+// keeper under an agent kind's name. It prints its
 // environment, waits like a real agent for its first prompt, which names the
 // prompt file, and then plays the steps, each a real whaleshark command.
 // What it prints is the pane's screen.
@@ -9,9 +10,7 @@ import (
 	"bufio"
 	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,29 +36,16 @@ func option(name string) string {
 	return ""
 }
 
-// tell reports this agent's state as a real agent's hook does: to the fake
-// herdr in herdr's words, and to the keeper, where a socket is named, by
-// the event of the agent that means the state, with its session.
+// tell reports this agent's state as a real agent's hook does: to the
+// keeper, by the event of the agent that means the state, with its session.
 func tell(state string) {
-	if os.Getenv(contract.EnvSocket) != "" {
-		k := contract.NewKit()
-		platform.Plug(k)
-		pane, _ := contract.PaneOf(os.Getenv)
-		event := map[string]string{started: "SessionStart", contract.StatusWorking: "UserPromptSubmit", contract.StatusIdle: "Stop",
-			contract.StatusDone: "Stop", contract.StatusBlocked: "PermissionRequest"}[state]
-		session := cmp.Or(option("--resume"), option("--session"), "session-of-"+pane)
-		engine.New(k).Call(context.Background(), contract.WireCall{Op: contract.OpHook, Kind: event, Pane: pane, Session: session})
-		return
-	}
-	conn, err := net.Dial("unix", os.Getenv(testkit.EnvFake))
-	if err != nil {
-		return
-	}
-	defer conn.Close()
-	args := []string{"pane", "report-agent", os.Getenv(contract.EnvPane), "--source", "fakeagent", "--agent", "claude", "--state", state}
-	if json.NewEncoder(conn).Encode(testkit.FakeCall{Args: args}) == nil {
-		json.NewDecoder(conn).Decode(new(testkit.FakeAnswer))
-	}
+	k := contract.NewKit()
+	platform.Plug(k)
+	pane, _ := contract.PaneOf(os.Getenv)
+	event := map[string]string{started: "SessionStart", contract.StatusWorking: "UserPromptSubmit", contract.StatusIdle: "Stop",
+		contract.StatusBlocked: "PermissionRequest"}[state]
+	session := cmp.Or(option("--resume"), option("--session"), "session-of-"+pane)
+	engine.New(k).Call(context.Background(), contract.WireCall{Op: contract.OpHook, Kind: event, Pane: pane, Session: session})
 }
 
 // words splits a step on spaces, keeping what is inside double quotes together.

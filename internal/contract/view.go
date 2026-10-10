@@ -138,7 +138,7 @@ type View struct {
 	Run       string     `json:"run"`
 	Objective string     `json:"objective"`
 	// Alerts are the lines on top of every screen, such as the lead agent
-	// not listening or herdr not being reachable.
+	// not listening or the engine not running.
 	Alerts []string `json:"alerts,omitempty"`
 	Counts Counts   `json:"counts"`
 	// Items is what waits for the person, what holds work up first, then
@@ -282,7 +282,7 @@ type Strip struct {
 type Fresh struct {
 	Checked time.Time `json:"checked"`
 	// Notes are what the screen says about its sources: "slow updates",
-	// "herdr: checking every 5 s", "herdr not reachable", and of the sweep
+	// "terminals: checking every 5 s", "the engine is not running", and of the sweep
 	// either "no sweep yet" or "nobody is sweeping".
 	Notes []string `json:"notes,omitempty"`
 }

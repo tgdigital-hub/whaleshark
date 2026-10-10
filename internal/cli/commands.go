@@ -156,7 +156,8 @@ func help(c *contract.Call) (any, error) {
 	return r, nil
 }
 
-// version prints the version, the build and the herdr version seen.
+// version prints the version, the build and the version of the keeper that
+// is running, which is another one until the keeper is started again.
 func version(c *contract.Call) (any, error) {
 	if len(c.Args) > 0 {
 		return nil, usage(c.Command, "version takes no argument.")
@@ -164,7 +165,7 @@ func version(c *contract.Call) (any, error) {
 	v := struct {
 		Version string `json:"version"`
 		Build   string `json:"build"`
-		Herdr   string `json:"herdr"`
+		Engine  string `json:"engine"`
 	}{Version: Version, Build: "unknown"}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		v.Build = info.GoVersion
@@ -174,10 +175,10 @@ func version(c *contract.Call) (any, error) {
 			}
 		}
 	}
-	seen := "not seen"
+	seen := "not running"
 	if h, err := c.Kit.Terms.Version(); err == nil {
-		v.Herdr, seen = h, h
+		v.Engine, seen = h, h
 	}
-	fmt.Fprintf(c.Out, "whaleshark %s (%s)\nherdr %s\n", v.Version, v.Build, Plain(seen))
+	fmt.Fprintf(c.Out, "whaleshark %s (%s)\nengine %s\n", v.Version, v.Build, Plain(seen))
 	return v, nil
 }

@@ -2,17 +2,23 @@
 
 WhaleShark (`whaleshark`) will be a small command-line tool for running a team of coding agents: you talk to one lead agent, it hands tasks to worker agents in their own terminal tabs, and the tool keeps the record of who is doing what, who is stuck and what is waiting to be checked.
 
-The aim is Orca's way of orchestrating many agents, with herdr's lightness: one program file, no desktop app, and nothing else to install.
+The aim is Orca's way of orchestrating many agents in something light: one program file, no desktop app, and nothing else to install.
 
 ## Status
 
-**Early: the foundation and the first layer. Nothing that runs an agent works yet.** This repository holds the shared contracts the rest is built on (the shapes of the files, the view model, the interfaces between the packages, the table of all 42 commands) and the first packages on top of them: the command line itself, the rules for every change to a run, the layer over the operating system, the adapter to herdr, the guides, the terminal layer, the build gate, the store, the view of a run and the first form of the two panes. `whaleshark help` lists every command and marks those not built yet.
+**Early, and not released.** What is built: the command line with its 42 commands in one table, the record of a run and the rules for every change to it, the terminal engine, starting workers in tabs and waiting for what they report, questions and answers, the two panes a person watches (the fleet and the action pane), Stop all and Resume, the nudge, and the gate that holds the tree to its limits. It has been run from end to end with real Claude Code agents on macOS, in scripted tries; nobody has yet used it for real work, and it has not been tried in a real terminal window by a person.
+
+What is not built: a copy of the code for each worker and bringing the work together, the page in the browser and on a phone, running on a server, the installer. `whaleshark help` lists every command and marks those not built yet.
 
 ## The terminal engine
 
-WhaleShark is getting its own terminal engine, so that it needs nothing else installed. The engine is the part that keeps the agents' terminals alive in the background, draws the tabs and the panes, and reads what each program prints. **It is not built yet.**
+WhaleShark has its own terminal engine and needs no other program installed. The engine is the part that keeps the agents' terminals alive in the background, draws the tabs and the panes, reads what each program prints, and knows whether an agent is working, waiting for you or idle. It is in this repository, written for WhaleShark from the published standards for terminals, and every command of the tool runs on it.
 
-The current code uses herdr, a separate program that you would install yourself, only as scaffolding while that engine is built. It calls herdr and contains none of its code. When the engine is in, herdr is taken out completely, and nothing is released before that.
+- `whaleshark open` shows your tabs and panes in the terminal you are in. It starts the background program, called the keeper, when none is running. Closing the window stops nothing: the agents carry on, and the next `whaleshark open` shows them again.
+- If the keeper stops or the machine restarts, the next start brings back the same tabs and panes, and resumes the conversation of each Claude Code agent the tool started.
+- Text you select with the mouse is copied when you let go of the button. Paste is your terminal's own key.
+
+What is true of it today, plainly: it has been run on macOS only, by its tests and through a scripted terminal with a real Claude Code agent. Nobody has yet worked a day in it in a real terminal window, so expect rough edges. It builds for Linux and Windows, and nothing of it has been tried there yet. Claude Code is the one agent whose state it knows exactly; any other program in a pane is shown as busy or quiet.
 
 The price is size: the limit on everything shipped moved from 28,000 lines to 40,000 to make room for the engine.
 
@@ -29,10 +35,10 @@ go test ./...
 
 - `cmd/whaleshark/`: the entry point. It hands one kit to every package and runs the command.
 - `internal/contract/`: everything that is shared. Only a contracts change edits it.
-- `internal/contract/testkit/`: the contracts of the tests: the fixture format and one fixture, the grammar of a scenario file, and how the fake herdr and the fake agents work together.
+- `internal/contract/testkit/`: the contracts of the tests: the fixture format and one fixture, the grammar of a scenario file, and how the engine's test double and the fake agents work together.
 - every other folder under `internal/`: one package each. A package that is not written yet is a `commands.go` with an empty `Plug`.
 - `build/ci/`: the gate, described below.
-- `test/`: a stand-in for herdr, a scripted agent and the runner of scripted scenarios, for tests that need neither the real herdr nor a real agent.
+- `test/`: a stand-in for the engine, a scripted agent and the runner of scripted scenarios, which plays every scenario on the stand-in and on the real engine; the recordings the screen reader is tested with.
 
 ## Checks
 
@@ -69,4 +75,4 @@ MIT; see `LICENSE`.
 
 WhaleShark borrows ideas from [Orca](https://github.com/stablyai/orca) (MIT licence, copyright Lovecast Inc.): a run, its tasks and their attempts as separate things, an inbox that replays until it is acknowledged, a question that blocks and survives a timeout, and never taking silence for failure. No code or text was taken from Orca or from any other project: every line here was written for WhaleShark.
 
-The current code calls herdr, a separate program, as scaffolding until WhaleShark's own engine replaces it (see "The terminal engine" above). WhaleShark contains none of herdr's code.
+The first builds of WhaleShark ran on herdr, a separate terminal program, while this engine was being written, and the wish for a tool this light came from using it; none of its code is used here, and it is not needed to run WhaleShark.

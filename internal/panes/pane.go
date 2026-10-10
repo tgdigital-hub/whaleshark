@@ -21,7 +21,7 @@ const (
 	second = time.Second
 	// Every compareEvery seconds the picture the events built is held against
 	// a snapshot. A status that differs is looked at again after secondLook,
-	// because herdr's status lines come late; a lost line is said for sayLost.
+	// because a status can come late; a lost line is said for sayLost.
 	compareEvery = 5
 	secondLook   = time.Second / 2
 	sayLost      = time.Minute
@@ -64,8 +64,9 @@ type pane struct {
 	watch   contract.Watcher
 	filesOK time.Time
 
-	picture *contract.Snapshot // herdr as the events built it; nil while it cannot be reached
-	herdrOK time.Time
+	command string             // the key that starts a shortcut of the engine's, as the person set it
+	picture *contract.Snapshot // the terminals as the events built it; nil while it cannot be reached
+	termsOK time.Time
 	lost    int
 	lostAt  time.Time
 
@@ -135,7 +136,7 @@ func newPane(kind string, t *term.Term, k *contract.Kit, root, run string, now f
 }
 
 // loop is the loop: draw, then wait for a key or a click, a changed file, a
-// line from herdr or the next second. It reports true when the pane is to
+// line from the terminals or the next second. It reports true when the pane is to
 // start itself again from a new program file.
 func (p *pane) loop() bool {
 	ctx, stop := context.WithCancel(context.Background())
@@ -196,7 +197,7 @@ func (p *pane) loop() bool {
 			}
 			p.load()
 		case m := <-p.heard:
-			p.herdr(m)
+			p.terms(m)
 		case <-tick.C:
 			p.tick(n)
 			n++
@@ -249,8 +250,8 @@ func (p *pane) snapshot(look int) {
 	})
 }
 
-// herdr takes one piece of news into the picture.
-func (p *pane) herdr(m news) {
+// terms takes one piece of news into the picture.
+func (p *pane) terms(m news) {
 	p.stale, p.dirty = true, true
 	switch {
 	case m.do != nil:
@@ -269,15 +270,14 @@ func (p *pane) herdr(m news) {
 			p.present()
 		}
 	case m.look == 0:
-		p.picture, p.herdrOK = m.snap, p.now()
+		p.picture, p.termsOK = m.snap, p.now()
 	case p.picture != nil:
 		p.compare(m.snap, m.look)
 	}
 }
 
-// compare holds the picture against a snapshot. herdr sends no line for a
-// pane's folder or an agent's session, so those are taken over without a
-// word. A status alone gets a second look half a second later. Anything else,
+// compare holds the picture against a snapshot. A pane's folder and an
+// agent's session are taken over without a word. A status alone gets a second look half a second later. Anything else,
 // and a status that still differs then, is a lost line: the snapshot is
 // drawn at once and the age line says so for a minute.
 func (p *pane) compare(snap *contract.Snapshot, look int) {
@@ -294,16 +294,16 @@ func (p *pane) compare(snap *contract.Snapshot, look int) {
 	})
 	switch now := p.now(); {
 	case same && !status:
-		p.picture, p.herdrOK = snap, now
+		p.picture, p.termsOK = snap, now
 	case same && look == 1:
 		time.AfterFunc(secondLook, func() { p.snapshot(2) })
 	default:
-		p.picture, p.herdrOK, p.lost, p.lostAt = snap, now, p.lost+1, now
+		p.picture, p.termsOK, p.lost, p.lostAt = snap, now, p.lost+1, now
 	}
 }
 
 // tick is the slow clock: the ages are drawn again, the files' side is
-// checked, and every fifth second herdr is asked for a snapshot.
+// checked, and every fifth second the keeper is asked for a snapshot.
 func (p *pane) tick(n int) {
 	p.stale, p.dirty = true, true
 	if p.watch == nil || p.run == "" {
@@ -356,6 +356,9 @@ func (p *pane) load() {
 		p.figures = contract.ReadCtx(p.k.Platform.Peek, dirs.State, p.state)
 	}
 	p.limits, _ = contract.ReadProjectFile(p.root)
+	// The engine's command key, for the hint that names it.
+	keys, _ := contract.ReadSettings(p.k.Platform.Peek, dirs)
+	p.command = keys.Keys.Command
 	cfg := person(p.k, dirs)
 	if p.above = cfg.UI.Actions == "top"; cfg.UI.Theme != p.chosen {
 		p.chosen, p.scheme = cfg.UI.Theme, theme.Get(cfg.UI.Theme)
@@ -376,8 +379,8 @@ func (p *pane) build() {
 	order := p.ids()
 	was := slices.Index(order, p.sel)
 	checked := p.filesOK
-	if p.herdrOK.Before(checked) {
-		checked = p.herdrOK
+	if p.termsOK.Before(checked) {
+		checked = p.termsOK
 	}
 	// What only this pane knows about its two sources goes on the age line.
 	var notes []string
@@ -385,7 +388,7 @@ func (p *pane) build() {
 		notes = append(notes, "slow updates")
 	}
 	if !p.lostAt.IsZero() && now.Sub(p.lostAt) < sayLost {
-		notes = append(notes, "herdr: checking every 5 s")
+		notes = append(notes, "terminals: checking every 5 s")
 	}
 	switch {
 	case p.state != nil:

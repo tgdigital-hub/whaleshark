@@ -1050,7 +1050,7 @@
      "opened_by_us": true
     },
     "seen": {
-     "status": "done",
+     "status": "idle",
      "at": "2026-10-08T21:14:00Z",
      "liveness": "live",
      "last_working": "2026-10-08T21:12:00Z"
@@ -1097,7 +1097,7 @@
      "opened_by_us": true
     },
     "seen": {
-     "status": "done",
+     "status": "idle",
      "at": "2026-10-08T21:14:00Z",
      "liveness": "live",
      "last_working": "2026-10-08T21:10:00Z"
@@ -1322,7 +1322,7 @@
     "agent": "claude",
     "name": "h3fa1-r3-t7-1",
     "session": "s-t7",
-    "status": "done"
+    "status": "idle"
    },
    {
     "pane": "w1:p9",
@@ -1334,7 +1334,7 @@
     "agent": "claude",
     "name": "h3fa1-r3-t8-1",
     "session": "s-t8",
-    "status": "done"
+    "status": "idle"
    },
    {
     "pane": "w1:p10",

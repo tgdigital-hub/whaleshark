@@ -14,7 +14,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// snapshotWait is how long status waits for herdr's picture before it shows
+// snapshotWait is how long status waits for the terminals' picture before it shows
 // the record without one.
 const snapshotWait = 2 * time.Second
 
@@ -90,7 +90,7 @@ func usage(message string) *contract.Refusal {
 	return &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: message}
 }
 
-// input gathers what the view is built from besides the run: herdr's
+// input gathers what the view is built from besides the run: the terminals'
 // picture, each agent's context figure, the person's screen file and the
 // project's limits. Whatever cannot be had is left out, and the view says so.
 // snap is the picture a sweep has just taken; with none, one is asked for.

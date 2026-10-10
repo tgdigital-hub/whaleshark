@@ -27,7 +27,7 @@ const (
 	FullColour
 )
 
-// ModeOf reads the mode from the environment. herdr sets COLORTERM to
+// ModeOf reads the mode from the environment. The keeper sets COLORTERM to
 // truecolor in every pane; NO_COLOR is how a person says they want none.
 func ModeOf(env func(string) string) Mode {
 	switch t, c := env("TERM"), env("COLORTERM"); {

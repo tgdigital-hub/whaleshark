@@ -42,15 +42,17 @@ type Run struct {
 	Findings     []Finding    `json:"findings,omitempty"`
 }
 
-// LeadSeen is since when the lead agent's own pane has shown "done" with
-// nobody looking, and since when it has rested without waiting while events
-// were unread. Each raises its item for the person a minute later.
+// LeadSeen is since when the lead agent has rested after work with nobody
+// looking, and since when it has rested without waiting while events were
+// unread. Each raises its item for the person a minute later. Unseen says
+// that it has worked since it was last in front while it rested.
 type LeadSeen struct {
+	Unseen      bool      `json:"unseen,omitempty"`
 	DoneSince   time.Time `json:"done_since,omitzero"`
 	SilentSince time.Time `json:"silent_since,omitzero"`
 }
 
-// Binding names the herdr pane that drives a run.
+// Binding names the pane that drives a run.
 type Binding struct {
 	Pane      string    `json:"pane"`
 	Workspace string    `json:"workspace"`
@@ -200,8 +202,8 @@ type Attempt struct {
 	EndedAt    time.Time    `json:"ended_at,omitzero"`
 }
 
-// Agent is the program in the attempt's pane. Name is its herdr name and
-// Session its own conversation id as herdr reports it.
+// Agent is the program in the attempt's pane. Name is what the keeper knows it by and
+// Session its own conversation id as the keeper reports it.
 type Agent struct {
 	Kind    string `json:"kind"`
 	Name    string `json:"name"`
@@ -209,7 +211,7 @@ type Agent struct {
 	Session string `json:"session,omitempty"`
 }
 
-// Place is where the attempt runs. Tab and Pane survive a restart of herdr;
+// Place is where the attempt runs. Tab and Pane survive a restart of the keeper;
 // Terminal changes at every restart.
 type Place struct {
 	Tab        string `json:"tab"`
@@ -228,7 +230,7 @@ const (
 	Gone         Liveness = "exited"
 )
 
-// AgentSeen is the agent state as herdr last showed it: a cache, never the truth.
+// AgentSeen is the agent state as the terminals last showed it: a cache, never the truth.
 type AgentSeen struct {
 	Status       string    `json:"status"`
 	At           time.Time `json:"at,omitzero"`

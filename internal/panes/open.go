@@ -20,9 +20,9 @@ const (
 	talkShare  = 0.75
 	tightBelow = 90
 	noneBelow  = 60
-	// herdr moves a dividing line by a share of its split: step at one key,
-	// and at most the half in one call, which takes a pane down to the tenth
-	// that is the least herdr leaves one.
+	// A dividing line is moved by a share of its split: step at one key, and
+	// at most the half in one call, which takes a pane down to the tenth
+	// that is the least it is left.
 	step  = 0.02
 	most  = 0.5
 	least = 0.1
@@ -37,7 +37,7 @@ func widen(t contract.Terminals, pane string, wider bool) (int, error) {
 	return w, err
 }
 
-// shrink takes the action pane down to the least herdr leaves a pane, or
+// shrink takes the action pane down to the least a pane is left, or
 // gives it back the share it opens with. Its dividing line lies towards the
 // conversation: above a pane at the bottom, below one at the top.
 func shrink(t contract.Terminals, pane string, top, folded bool) error {
@@ -49,7 +49,7 @@ func shrink(t contract.Terminals, pane string, top, folded bool) error {
 }
 
 // fit brings an open fleet to a width of n cells, asked from the pane beside
-// it: herdr moves the line between the two by a share of both together.
+// it: the line between the two moves by a share of both together.
 func fit(t contract.Terminals, me, pane string, n int) error {
 	if pane == "" || me == "" || me == pane {
 		return nil
@@ -62,9 +62,9 @@ func fit(t contract.Terminals, me, pane string, n int) error {
 	return t.Resize(pane, map[bool]string{true: contract.Left, false: contract.Right}[n > w], min(math.Abs(float64(n-w))/float64(w+mine), most))
 }
 
-// talk finds the conversation's pane from ours. herdr knows only "the
-// neighbour of a pane in a direction", so one of ours is asked for the pane
-// on its far side, which takes the keys: the conversation is where they land.
+// talk finds the conversation's pane from ours: one of ours is asked for the
+// pane on its far side, which takes the keys, and the conversation is where
+// they land.
 func talk(t contract.Terminals, ui contract.UIFile) (string, error) {
 	for _, way := range [][2]string{{ui.ActionsPane, contract.Up}, {ui.ActionsPane, contract.Down}, {ui.FleetPane, contract.Left}} {
 		if way[0] == "" {
@@ -108,8 +108,8 @@ func cannot(format string, a ...any) *contract.Refusal {
 
 // place opens and closes our two panes beside the pane the command was run
 // in, and in no other tab. want says, for one of ours and whether it is open,
-// whether it shall be. A pane counts as ours only while it is the terminal
-// that was opened for it; nothing else is ever closed.
+// whether it shall be. A pane counts as ours only while the keeper marks it
+// as a pane program of ours; nothing else is ever closed.
 func place(c *contract.Call, want func(kind string, open bool) bool) (any, error) {
 	k, me := c.Kit, c.Caller.Pane
 	if me == "" {
@@ -132,16 +132,16 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 		return nil, cannot("This pane (%s) is not one the terminal engine knows.", me)
 	}
 	ours := []struct {
-		kind       string
-		pane, term *string
-		open       bool
-	}{{fleet, &ui.FleetPane, &ui.FleetTerminal, false}, {actions, &ui.ActionsPane, &ui.ActionsTerminal, false}}
+		kind string
+		pane *string
+		open bool
+	}{{fleet, &ui.FleetPane, false}, {actions, &ui.ActionsPane, false}}
 	for i := range ours {
 		o := &ours[i]
 		p, there := panes[*o.pane]
-		switch o.open = there && *o.pane != "" && p.Terminal == *o.term; {
+		switch o.open = there && *o.pane != "" && p.Ours; {
 		case !o.open:
-			*o.pane, *o.term = "", ""
+			*o.pane = ""
 		case p.Tab != panes[me].Tab:
 			return nil, cannot("The panes are open in another tab (%s): run `whaleshark ui close` there first.", p.Label)
 		case o.kind == fleet:
@@ -172,30 +172,32 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 	}
 	// The fleet keeps the full height only when it is split off before the
 	// action pane, so an action pane that is in its way is opened again:
-	// unless it is the one that asks, which herdr would end with this command.
+	// unless it is the one that asks, which would end with this command.
 	again := wantFleet && !fl.open && ac.open && asker != actions
 	if ac.open && (!wantActions || again) {
 		if err := k.Terms.PaneClose(*ac.pane); err != nil {
 			return nil, err
 		}
-		*ac.pane, *ac.term, ac.open = "", "", false
+		*ac.pane, ac.open = "", false
 	}
 	if fl.open && !wantFleet {
 		if err := k.Terms.PaneClose(*fl.pane); err != nil {
 			return nil, err
 		}
-		*fl.pane, *fl.term, fl.open = "", "", false
+		*fl.pane, fl.open = "", false
 	}
 	self, err := k.Platform.SelfPath()
 	if err != nil {
 		self = "whaleshark"
 	}
-	split := func(kind, direction string, keep float64, pane, term *string) error {
+	split := func(kind, direction string, keep float64, pane *string) error {
 		p, err := k.Terms.Split(me, direction, keep)
 		if err == nil {
-			*pane, *term = p.ID, p.Terminal
-			// exec, so that the pane closes with its program.
-			err = k.Terms.Run(p.ID, []string{"exec", self, "ui", "run", kind, "--root", c.Root})
+			// The keeper starts the program in the shell's place, marks the
+			// pane as ours, closes it with its program and brings it back
+			// after a restart.
+			*pane = p.ID
+			err = k.Terms.Run(p.ID, []string{self, "ui", "run", kind, "--root", c.Root})
 		}
 		return err
 	}
@@ -209,16 +211,11 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 		if w > 0 && w < tightBelow {
 			share = min(share, 1.0/3)
 		}
-		err = split(fleet, "right", math.Round(1000*(1-min(max(share, 0.1), 0.9)))/1000, fl.pane, fl.term)
+		err = split(fleet, "right", math.Round(1000*(1-min(max(share, 0.1), 0.9)))/1000, fl.pane)
 	}
-	if top := person(k, dirs).UI.Actions == "top"; err == nil && wantActions && !ac.open && top {
-		// herdr splits downward only: the new pane takes the conversation's
-		// share, and the two then change places, the conversation keeping the keys.
-		if err = split(actions, "down", 1-talkShare, ac.pane, ac.term); err == nil {
-			err = k.Terms.Swap(me, *ac.pane)
-		}
-	} else if err == nil && wantActions && !ac.open {
-		err = split(actions, "down", talkShare, ac.pane, ac.term)
+	if err == nil && wantActions && !ac.open {
+		side := map[bool]string{true: contract.Up, false: contract.Down}[person(k, dirs).UI.Actions == "top"]
+		err = split(actions, side, talkShare, ac.pane)
 	}
 	// What was opened is written down even when a later step failed.
 	if fmt.Sprint(ui) != fmt.Sprint(was) {

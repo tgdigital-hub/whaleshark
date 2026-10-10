@@ -4,7 +4,7 @@ $ whaleshark     # as the person
   guide     the guide that matches this version  (not built yet)
   trust     show what the project's settings would run or reach, and approve it  (not built yet)
   help      this list, or one command in full
-  version   version, build, and the herdr version seen
+  version   version, build, and the engine's version seen
   dash      the page's server for this login, and its door for phones  (not built yet)
   connect   from your own computer: keep one connection to the server for the page and the terminals  (not built yet)
   server    for the administrator, with sudo, on the server: set it up, add people, upgrade  (not built yet)

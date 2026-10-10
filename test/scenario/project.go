@@ -1,7 +1,7 @@
 // Package scenario runs the scripted tests of the whole tool: a made-up
-// project on disk, the fake herdr beside it, fake agents in its tabs, and
-// the real program started as each kind of caller. In herdr's place may
-// stand the engine: its double, or the real keeper. README.md is the guide.
+// project on disk, the terminals beside it, fake agents in its tabs, and
+// the real program started as each kind of caller. The terminals are the
+// engine's double or the real keeper. README.md is the guide.
 package scenario
 
 import (
@@ -20,7 +20,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/store"
 	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
-	"github.com/tgdigital-hub/whaleshark/test/fakeherdr"
 )
 
 // tools is the folder Main built the three programs into, and module the
@@ -28,9 +27,8 @@ import (
 var tools, module string
 
 // Main is the TestMain of a package that runs scenarios. It builds the real
-// program, the stand-in for herdr and the fake agent once, puts their folder
-// first on the PATH, so that nothing a test starts can reach a real herdr,
-// and names the fake agent for the fake herdr.
+// program and the fake agent once, puts their folder first on the PATH, so
+// that no test starts a real agent, and names the fake agent for the double.
 func Main(m *testing.M) {
 	os.Exit(func() int {
 		dir, err := os.MkdirTemp("", "scenario")
@@ -42,7 +40,7 @@ func Main(m *testing.M) {
 		out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}").Output()
 		if module = strings.TrimSpace(string(out)); err == nil {
 			build := exec.Command("go", "build", "-o", dir+string(filepath.Separator),
-				"./cmd/whaleshark", "./test/fakeherdr/herdr", "./test/fakeagent")
+				"./cmd/whaleshark", "./test/fakeagent")
 			build.Dir, build.Stderr = module, os.Stderr
 			err = build.Run()
 		}
@@ -77,7 +75,6 @@ const (
 type Backend string
 
 const (
-	Herdr  Backend = "herdr"  // the stand-in for herdr
 	Double Backend = "double" // the engine's double, reached as the keeper is
 	Keeper Backend = "keeper" // the real keeper, started for the test with a socket of its own
 )
@@ -95,7 +92,6 @@ type driver interface {
 type Project struct {
 	Root   string
 	Kit    *contract.Kit    // the platform is real, the terminals are the backend's
-	Herdr  *fakeherdr.Fake  // on Herdr only
 	Double *fakeengine.Fake // on Double only
 	Lead   string           // the lead agent's pane
 	Own    string           // a pane of the person's own, which no run records
@@ -103,29 +99,28 @@ type Project struct {
 	// with how it ended and, once Run has played its last line, the record.
 	Log []string
 
-	on        Backend
-	drive     driver   // nil on a Keeper with no picture and no agents
-	env       []string // what a program needs to reach the terminals
-	t         testing.TB
-	bin       string
-	clock     string
-	now       time.Time
-	seq       int  // the last event number the fixture came with
-	restarted bool // herdr was restarted: no tab holds a variable of ours
+	on    Backend
+	drive driver   // nil on a Keeper with no picture and no agents
+	env   []string // what a program needs to reach the terminals
+	t     testing.TB
+	bin   string
+	clock string
+	now   time.Time
+	seq   int // the last event number the fixture came with
 }
 
 // Prepare makes a project. With a fixture it creates the run through the
 // store and points at it, plants a token for every live attempt, writes
-// ui.json and the context files, and gives the fake herdr the fixture's
+// ui.json and the context files, and gives the double the fixture's
 // picture with the two panes ui.json names. scripts is what the fake agents play, by
 // attempt; one for an attempt the fixture shows in a tab is started there at
 // once, the way start will, in a tab of its own that the record then names.
 func Prepare(t testing.TB, f *testkit.Fixture, scripts map[string]string) *Project {
 	t.Helper()
-	return PrepareOn(t, Herdr, f, scripts)
+	return PrepareOn(t, Double, f, scripts)
 }
 
-// PrepareOn is Prepare with another backend behind the terminals. The real
+// PrepareOn is Prepare with the backend named. The real
 // keeper is handed a picture as it hands one to itself: in its layout file,
 // read at its start, with the agents started in their panes by its own call.
 func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]string) *Project {
@@ -150,34 +145,27 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 	if on == Keeper && p.Kit.Platform.System() == "windows" {
 		t.Skip("the keeper's terminals on Windows are proven on a real one, later")
 	}
-	if on == Herdr {
-		p.Herdr, err = fakeherdr.New(p.Kit)
+	// A socket's path is short, so its folder is not under the test's own.
+	dir, err := os.MkdirTemp("", "ws")
+	p.must(err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	socket := filepath.Join(dir, "s")
+	if p.env = []string{contract.EnvSocket + "=" + socket}; on == Keeper && f == nil && len(scripts) == 0 {
+		p.keeper(socket, dir)
+		lead, err := p.Kit.Terms.TabCreate(p.Root, "Lead", nil)
 		p.must(err)
-		t.Cleanup(p.Herdr.Close)
-		p.Kit.Terms, p.drive, p.env = p.Herdr, p.Herdr, p.Herdr.Env()
+		own, err := p.Kit.Terms.TabCreate(p.Root, "you", nil)
+		p.must(err)
+		p.Lead, p.Own = lead.ID, own.ID
+	} else if on == Keeper {
+		p.drive = &onKeeper{p: p, socket: socket, dir: dir}
 	} else {
-		// A socket's path is short, so its folder is not under the test's own.
-		dir, err := os.MkdirTemp("", "ws")
-		p.must(err)
-		t.Cleanup(func() { os.RemoveAll(dir) })
-		socket := filepath.Join(dir, "s")
-		if p.env = []string{contract.EnvSocket + "=" + socket}; on == Keeper && f == nil && len(scripts) == 0 {
-			p.keeper(socket, dir)
-			lead, err := p.Kit.Terms.TabCreate(p.Root, "Lead", nil)
-			p.must(err)
-			own, err := p.Kit.Terms.TabCreate(p.Root, "you", nil)
-			p.must(err)
-			p.Lead, p.Own = lead.ID, own.ID
-		} else if on == Keeper {
-			p.drive = &onKeeper{p: p, socket: socket, dir: dir}
-		} else {
-			// One version on both stand-ins, so that a scenario's words hold on both.
-			p.Double = fakeengine.New()
-			p.Double.Build = fakeherdr.Version
-			t.Cleanup(p.Double.Close)
-			p.must(p.Double.Listen(socket))
-			p.Kit.Terms, p.drive = p.Double, p.Double
-		}
+		// The double answers the version the keeper would, and has a window.
+		p.Double = fakeengine.New()
+		p.Double.Build, p.Double.Attached = contract.Version, true
+		t.Cleanup(p.Double.Close)
+		p.must(p.Double.Listen(socket))
+		p.Kit.Terms, p.drive = p.Double, p.Double
 	}
 	for id, script := range scripts {
 		p.drive.Script(id, script)
@@ -259,8 +247,7 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 func (p *Project) surroundings() (env []string) {
 	for _, kv := range os.Environ() {
 		name, _, _ := strings.Cut(kv, "=")
-		ours := strings.HasPrefix(name, "WHALESHARK_") || strings.HasPrefix(name, "HERDR_")
-		if !ours || name == contract.EnvClock || name == contract.EnvNotices {
+		if !strings.HasPrefix(name, "WHALESHARK_") || name == contract.EnvClock || name == contract.EnvNotices {
 			env = append(env, kv)
 		}
 	}
@@ -270,11 +257,7 @@ func (p *Project) surroundings() (env []string) {
 // Env is what a program started in a pane has in its environment to reach
 // the terminals and to be known by its pane.
 func (p *Project) Env(pane string) []string {
-	name := contract.EnvPane
-	if p.on != Herdr {
-		name = contract.EnvTermPane
-	}
-	return append(slices.Clone(p.env), name+"="+pane)
+	return append(slices.Clone(p.env), contract.EnvPane+"="+pane)
 }
 
 func (p *Project) must(err error) {
@@ -285,7 +268,7 @@ func (p *Project) must(err error) {
 }
 
 // tab is what a worker's tab holds, as start gives it. The clock and the
-// notices switch are not among it: an agent has them from herdr's own
+// notices switch are not among it: an agent has them from the keeper's own
 // surroundings, which here are the test's.
 func (p *Project) tab(run string, a *contract.Attempt) []string {
 	return []string{contract.EnvRoot + "=" + p.Root, contract.EnvRun + "=" + run, contract.EnvTask + "=" + a.Task,
@@ -334,9 +317,7 @@ func (p *Project) Command(who string, args ...string) *exec.Cmd {
 		if a == nil {
 			p.t.Fatalf("scenario: the record has no attempt %s", who)
 		}
-		if cmd.Env = append(cmd.Env, p.Env(a.Place.Pane)...); !p.restarted {
-			cmd.Env = append(cmd.Env, p.tab(s.Run.ID, a)...)
-		}
+		cmd.Env = append(append(cmd.Env, p.Env(a.Place.Pane)...), p.tab(s.Run.ID, a)...)
 	}
 	return cmd
 }

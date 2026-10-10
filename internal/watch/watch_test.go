@@ -241,6 +241,27 @@ func TestAShell(t *testing.T) {
 	if got, want := p.wasTyped(), pasted("hello"); got != want {
 		t.Errorf("typed %q, want %q", got, want)
 	}
+
+	// An agent typed for in the shell's first instant, before the pane has
+	// once been quiet, is the agent all the same and not the pane's own program.
+	// (Where /bin/sh hands over to another shell at its start, as on a Mac,
+	// the pane's own program is not the one in front, and zsh is asked.)
+	shell := []string{"/bin/sh"}
+	if _, err := os.Stat("/bin/zsh"); err == nil {
+		shell = []string{"/bin/zsh", "-f"}
+	}
+	fast := listen(t)
+	q := open(t, fast.env("agent"), shell...)
+	fast.watch(t, q, "")
+	time.Sleep(300 * time.Millisecond)
+	q.press(agent + " screen\r")
+	for end := time.Now().Add(wait); ; time.Sleep(10 * time.Millisecond) {
+		if st := fast.reach(t, idle, wait); st.Agent == "claude" {
+			break
+		} else if time.Now().After(end) {
+			t.Fatalf("the agent started at once in a new shell was not seen: %+v", st)
+		}
+	}
 }
 
 // still is a pane that shows what a test puts there.

@@ -9,7 +9,7 @@ import (
 
 const (
 	goneAfter     = 30 * time.Second  // between the two sightings that prove an exit
-	recovery      = 120 * time.Second // after herdr restarted, nobody is declared gone
+	recovery      = 120 * time.Second // after the keeper restarted, nobody is declared gone
 	stillAfter    = 2 * time.Minute   // working this long into a pause is "still running"
 	leadAfter     = 60 * time.Second  // before a lead agent counts as unread or not listening
 	together      = 2 * time.Minute   // most workers going idle within this is one event
@@ -98,7 +98,7 @@ func (r Rules) Seen(s *contract.State, id string, pane *contract.Pane, startLock
 				raise(s, "blocked", t, a, "waiting at a prompt in its tab", nil, now)
 				item(s, contract.CausePrompt, t, a, textPrompt, false, now)
 			}
-		case contract.StatusIdle, contract.StatusDone:
+		case contract.StatusIdle:
 			if was == contract.StatusWorking {
 				h.LastWorking = now
 			}
@@ -144,7 +144,7 @@ func stoppedTogether(s *contract.State, now time.Time) {
 			continue
 		}
 		working++
-		if st := a.Seen.Status; (st == contract.StatusIdle || st == contract.StatusDone) && now.Sub(a.Seen.LastWorking) <= together {
+		if st := a.Seen.Status; st == contract.StatusIdle && now.Sub(a.Seen.LastWorking) <= together {
 			idle++
 		}
 	}
@@ -184,17 +184,19 @@ func withdraw(s *contract.State, cause, attempt string) bool {
 // LeadSeen raises and withdraws the two items about the lead agent's own
 // pane. Each waits a minute first, counted from the moment kept on the run.
 func (Rules) LeadSeen(s *contract.State, pane *contract.Pane, waiting bool, now time.Time) bool {
-	status := ""
 	if open(s) != nil {
 		return false
 	}
+	l := &s.Run.Lead
+	resting, was := pane != nil && pane.Status == contract.StatusIdle, l.Unseen
 	if pane != nil {
-		status = pane.Status
+		// It has said something unread when it came to rest after work and
+		// has not been in front since.
+		l.Unseen = pane.Status == contract.StatusWorking || l.Unseen && !(resting && pane.Focused)
 	}
-	resting, l := status == contract.StatusIdle || status == contract.StatusDone, &s.Run.Lead
-	unread := leadItem(s, &l.DoneSince, contract.CauseLeadUnread, textUnread, status == contract.StatusDone, now)
+	unread := leadItem(s, &l.DoneSince, contract.CauseLeadUnread, textUnread, resting && l.Unseen, now)
 	silent := leadItem(s, &l.SilentSince, contract.CauseLeadSilent, textSilent, resting && !waiting && len(s.Inbox.Events) > 0, now)
-	return unread || silent
+	return unread || silent || l.Unseen != was
 }
 
 // leadItem keeps one record for its cause and opens it again for each new

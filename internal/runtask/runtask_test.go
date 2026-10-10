@@ -233,6 +233,20 @@ func TestEditResetAndAccept(t *testing.T) {
 	play(t, p.Command(scenario.Human, "run", "use", "r3"), 0, "Run r3 is where your commands go now")
 }
 
+// The engine is this same program, so a keeper that is not running is no
+// fault of the set-up: init says how it is started, and writes no shortcut
+// until it runs.
+func TestInitWithNoKeeperRunning(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	p.Double.Close()
+	cmd := p.Command(scenario.Human, "init", "--keys")
+	cmd.Stdin = strings.NewReader("\n")
+	out := play(t, cmd, 0, "the engine is not running: `whaleshark open` starts it", "They are not written while the engine is not running")
+	if strings.Contains(out, "The shortcuts are written") {
+		t.Errorf("init wrote shortcuts with no keeper to take them:\n%s", out)
+	}
+}
+
 func TestInitInTwoProjects(t *testing.T) {
 	p := scenario.Prepare(t, nil, nil)
 	home, _ := os.UserHomeDir()
@@ -257,10 +271,19 @@ func TestInitInTwoProjects(t *testing.T) {
 			return play(t, cmd, exit, words...)
 		}
 	}
-	rules, settings := filepath.Join(home, ".claude", "CLAUDE.md"), filepath.Join(home, "config", "herdr", "config.toml")
-	const mine, theirs = "# My own rules\nBe brief.\n", "[ui]\naccent = \"blue\"\n"
+	rules := filepath.Join(home, ".claude", "CLAUDE.md")
+	const mine = "# My own rules\nBe brief.\n"
 	write(t, rules, mine)
-	write(t, settings, theirs)
+	// keys is every time the keeper was handed the shortcuts for its
+	// settings file, which is its own to write: how many each time.
+	keys := func() (n []int) {
+		for _, c := range p.Double.Calls() {
+			if c.Op == contract.OpSetKeys {
+				n = append(n, len(c.Keys))
+			}
+		}
+		return n
+	}
 	login := filepath.Join(dirs.State, "installed.json")
 	uses := func(path string) map[string]int {
 		var in contract.Installed
@@ -280,9 +303,9 @@ func TestInitInTwoProjects(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(p.Root, ".whaleshark")); err == nil {
 		t.Fatal("--print-block set the project up")
 	}
-	in(p.Root, scenario.Orch, "", 0, "init", "--agent", "claude,pi")("readable by you only", "herdr 0.9.1", "the lock works", "git version", rules, guide.FirstMessage)
+	in(p.Root, scenario.Orch, "", 0, "init", "--agent", "claude,pi")("readable by you only", "the engine is running", "the lock works", "git version", rules, guide.FirstMessage)
 	in(p.Root, scenario.Orch, "yes\n", 0, "init", "--keys")("shift+a", "Stop all", "says yes")
-	if read(t, settings) != theirs {
+	if len(keys()) != 0 {
 		t.Fatal("the shortcuts were written on an agent's word")
 	}
 	in(p.Root, scenario.Human, "\nyes\n", 0, "init", "--keys")("Which agent tools", "The shortcuts are written")
@@ -292,8 +315,8 @@ func TestInitInTwoProjects(t *testing.T) {
 	if got := uses(login); got["block"] != 2 || got["keys"] != 2 {
 		t.Fatalf("the login's record counts %v, expected two uses of each", got)
 	}
-	if !strings.Contains(read(t, rules), guide.Block) || strings.Count(read(t, settings), "[[keys.command]]") != 7 {
-		t.Fatalf("after init: %q\n%q", read(t, rules), read(t, settings))
+	if !strings.Contains(read(t, rules), guide.Block) || !slices.Equal(keys(), []int{7, 7}) {
+		t.Fatalf("after init: %q\n%v", read(t, rules), keys())
 	}
 	in(second, scenario.Orch, "", 0, "init")()
 	if got := read(t, exclude); got != "*.log\n.whaleshark/\n" {
@@ -314,7 +337,7 @@ func TestInitInTwoProjects(t *testing.T) {
 	if got := uses(login); got["block"] != 1 || got["keys"] != 1 {
 		t.Fatalf("after one removal the login's record counts %v", got)
 	}
-	if !strings.Contains(read(t, rules), guide.Block) || strings.Count(read(t, settings), "[[keys.command]]") != 7 ||
+	if !strings.Contains(read(t, rules), guide.Block) || !slices.Equal(keys(), []int{7, 7}) ||
 		read(t, filepath.Join(second, ".whaleshark", "installed.json")) != other {
 		t.Fatal("removing one project took something from the other")
 	}
@@ -326,8 +349,8 @@ func TestInitInTwoProjects(t *testing.T) {
 		t.Fatalf("a second removal counted again: %v", got)
 	}
 	in(second, scenario.Human, "", 0, "init", "--remove")("the rules block is out", "the shortcuts are out")
-	if read(t, rules) != mine || read(t, settings) != theirs {
-		t.Fatalf("not byte for byte as before:\n%q\n%q", read(t, rules), read(t, settings))
+	if read(t, rules) != mine || !slices.Equal(keys(), []int{7, 7, 0}) {
+		t.Fatalf("not as before:\n%q\n%v", read(t, rules), keys())
 	}
 	if _, err := os.Stat(login); err == nil {
 		t.Fatal("the login's record is left with nothing in it")
@@ -337,8 +360,8 @@ func TestInitInTwoProjects(t *testing.T) {
 	in(p.Root, scenario.Human, "claude\nyes\n", 0, "init", "--keys")()
 	in(second, scenario.Human, "claude\nyes\n", 0, "init", "--keys")()
 	in(p.Root, scenario.Human, "", 0, "init", "--remove", "--all")("Every project is out")
-	if read(t, rules) != mine || read(t, settings) != theirs {
-		t.Fatal("--remove --all left something behind")
+	if read(t, rules) != mine || !slices.Equal(keys(), []int{7, 7, 0, 7, 7, 0}) {
+		t.Fatalf("--remove --all left something behind: %v", keys())
 	}
 	if roots, _ := contract.ReadProjects(os.ReadFile, dirs.State); len(roots) != 0 {
 		t.Fatalf("the list of projects is %v", roots)

@@ -114,9 +114,6 @@ func (k *onKeeper) Load(s *contract.Snapshot) {
 // await waits until the keeper has found a pane's program in a state.
 func (k *onKeeper) await(pane, status string) {
 	k.p.t.Helper()
-	if status == contract.StatusDone {
-		status = contract.StatusIdle // an agent that has finished is idle to the engine
-	}
 	for end := time.Now().Add(patience); ; time.Sleep(10 * time.Millisecond) {
 		s, err := k.p.Kit.Terms.Snapshot(context.Background())
 		k.p.must(err)
@@ -130,7 +127,7 @@ func (k *onKeeper) await(pane, status string) {
 }
 
 // hookFor is the event of an agent's own hooks that means a state.
-var hookFor = map[string]string{contract.StatusWorking: "UserPromptSubmit", contract.StatusIdle: "Stop", contract.StatusDone: "Stop",
+var hookFor = map[string]string{contract.StatusWorking: "UserPromptSubmit", contract.StatusIdle: "Stop",
 	contract.StatusBlocked: "PermissionRequest"}
 
 // Push brings a change about as it comes about for real: a state by the

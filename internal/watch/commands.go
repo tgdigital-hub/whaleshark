@@ -67,6 +67,7 @@ type Watcher struct {
 	mu      sync.Mutex
 	st      State
 	home    string        // the program in front once the start was over; empty until then and where the system cannot tell
+	first   string        // a shell's own name as its pane started it, before anything was typed there
 	away    bool          // another program is in front of the agent
 	hook    string        // the state the hooks gave last; empty before the first and after the last
 	sees    int           // what the screen showed at the last reading
@@ -84,6 +85,9 @@ type Watcher struct {
 func New(p Pane, agent, name string, emit func(State)) *Watcher {
 	w := &Watcher{p: p, emit: emit, own: agent, poke: make(chan struct{}, 1), done: make(chan struct{}),
 		st: State{Agent: agent, Name: name, Status: contract.StatusUnknown}, wake: make(chan struct{})}
+	if agent == "" {
+		w.first, _ = p.Front()
+	}
 	go w.loop()
 	return w
 }

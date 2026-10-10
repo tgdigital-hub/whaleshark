@@ -1,6 +1,6 @@
 // Package notify reaches the person when they are not looking: the pop-up
 // and its sound through the terminals, held back by Do not disturb, silenced
-// by Mute, and never taken as seen on herdr's word alone.
+// by Mute, and counted as seen only when a window was there to show it.
 package notify
 
 import (
@@ -64,8 +64,8 @@ func over(ui contract.UIFile, now time.Time) bool {
 }
 
 // send goes through the channels until one has reached the person. The
-// pop-up counts only when herdr's own setting has it switched on: with it
-// off herdr still answers that it was shown.
+// pop-up counts when the keeper says it was shown, which it says only with
+// a window attached and the pop-up switched on.
 func (n Nudger) send(cfg contract.PersonConfig, ui contract.UIFile, title, body string) {
 	sound := cfg.Nudge.Sound && !ui.Mute
 	if cfg.Nudge.Popup {

@@ -49,8 +49,7 @@ type Store interface {
 
 // Snapshot is the terminals' picture of every pane at one moment. Instance is
 // new at every start of the keeper, so a restart is seen without inference;
-// Seq is the number of the last event the picture holds. Under herdr, until
-// the swap, Instance is empty and Seq counts what the adapter delivered.
+// Seq is the number of the last event the picture holds.
 type Snapshot struct {
 	At       time.Time `json:"at"`
 	Instance string    `json:"instance,omitempty"`
@@ -60,8 +59,7 @@ type Snapshot struct {
 
 // Pane is one pane as the terminals show it. Agent is empty when the pane
 // holds a bare shell. Status is one of the Status constants. Terminal is new
-// each time the pane's program is started; Workspace is herdr's and goes
-// with it.
+// each time the pane's program is started; Workspace is always empty.
 type Pane struct {
 	ID        string `json:"pane"`
 	Tab       string `json:"tab"`
@@ -79,7 +77,7 @@ type Pane struct {
 	Ours bool `json:"ours,omitempty"`
 }
 
-// What an agent is doing. Done and idle are one state to the tool. Busy and
+// What an agent is doing. An agent that has finished is idle. Busy and
 // quiet are the engine's honest words for a program whose output is all
 // there is to go by; a rule that does not know them reads neither as idle
 // nor as working.
@@ -88,7 +86,6 @@ const (
 	StatusQuiet   = "quiet"
 	StatusWorking = "working"
 	StatusIdle    = "idle"
-	StatusDone    = "done"
 	StatusBlocked = "blocked"
 	StatusUnknown = "unknown"
 )
@@ -168,7 +165,7 @@ var (
 	ErrAgentBlocked      = errors.New("agent_blocked")
 	ErrPromptStalled     = errors.New("agent_prompt_stalled")
 	ErrNoPane            = errors.New("no such pane or agent")
-	ErrEngineUnreachable = errors.New("herdr is not reachable")
+	ErrEngineUnreachable = errors.New("the engine is not running")
 )
 
 // The directions of Split, Resize and PaneFocus, and what Notify answers.
@@ -181,15 +178,12 @@ const (
 )
 
 // Terminals is the only way to the panes and what runs in them: the engine's
-// keeper and, until the swap, herdr. It has no call that sends a key to an
-// agent. What a comment gives to the engine alone, herdr's adapter refuses.
+// keeper. It has no call that sends a key to an agent.
 type Terminals interface {
 	Version() (string, error)
 	Snapshot(ctx context.Context) (*Snapshot, error)
 	// Events takes one snapshot, then delivers every change in order until
-	// the keeper stops, which closes the channel. Under herdr a pane's folder
-	// and an agent's session change with no event, and a status can come a
-	// few tenths of a second late; only the next snapshot shows the first two.
+	// the keeper stops, which closes the channel.
 	Events(ctx context.Context) (*Snapshot, <-chan TermEvent, error)
 	// TabCreate opens a tab without focusing it; env is KEY=VALUE.
 	TabCreate(cwd, label string, env []string) (Pane, error)
@@ -203,13 +197,13 @@ type Terminals interface {
 	Point(pane string, p Pointer, arg string) error
 	// Run runs a command of ids and tool-made paths in a pane. The keeper
 	// starts it there from the list, in place of the pane's shell, and closes
-	// the pane when it ends; herdr types it into the shell as one line.
+	// the pane when it ends.
 	Run(pane string, argv []string) error
 	// Screen returns the text a pane shows.
 	Screen(pane string) (string, error)
-	// Split opens a pane beside pane: Right or Down, and with the engine Left
-	// or Up. A ratio of at most 1 is the share pane keeps; with the engine a
-	// ratio above 1 is the new pane's size in cells, kept as the window changes.
+	// Split opens a pane beside pane, on any of the four sides. A ratio of at
+	// most 1 is the share pane keeps; above 1 it is the new pane's size in
+	// cells, kept as the window changes.
 	Split(pane, direction string, ratio float64) (Pane, error)
 	Swap(source, target string) error
 	// Resize moves a pane's dividing line by a fraction of its split: the line
@@ -217,21 +211,20 @@ type Terminals interface {
 	// the pane's other side.
 	Resize(pane, direction string, amount float64) error
 	PaneClose(pane string) error
-	// Size is a pane's width and height in cells; under herdr its frame is included.
+	// Size is a pane's width and height in cells.
 	Size(pane string) (w, h int, err error)
 	// PaneFocus gives the keys to the pane beside pane in a direction and
 	// returns the pane that then has them: pane's neighbour, or with none
-	// there whichever had them before. With the engine an empty direction
-	// gives them to pane itself.
+	// there whichever had them before. An empty direction gives them to
+	// pane itself.
 	PaneFocus(pane, direction string) (focused string, err error)
-	// Notify shows the pop-up and returns the reason (with the engine one of
-	// the Notify constants) and the pop-up's setting, without which herdr's
-	// reason cannot be trusted.
+	// Notify shows the pop-up and returns the reason, one of the Notify
+	// constants, and the pop-up's setting.
 	Notify(title, body string, sound bool) (reason, delivery string, err error)
 	// SetKeys replaces our marked shortcuts in the settings; none removes them.
 	SetKeys(entries []KeyEntry) error
 	// Overlay runs a program in a pane drawn over the tab until it ends; w
-	// and h are shares of the window, or cells above 1. The engine only.
+	// and h are shares of the window, or cells above 1.
 	Overlay(argv []string, w, h float64) error
 }
 
@@ -360,8 +353,8 @@ type Evidence interface {
 
 // AgentSetup is what start and init hand to an agent so that its two hooks
 // run. File is the settings file in the agent's folder that carries them,
-// empty when they ride on the command line alone; such an agent loses them
-// when herdr restarts it. Gated is true when the gate will hold the agent.
+// empty when they ride on the command line alone; the keeper starts such an
+// agent again with the arguments it was started with. Gated is true when the gate will hold the agent.
 type AgentSetup struct {
 	File  string
 	Args  []string

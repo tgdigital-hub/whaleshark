@@ -17,7 +17,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/screen"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
-	"github.com/tgdigital-hub/whaleshark/test/fakeherdr"
+	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
 )
 
 // glass is a pane's terminal: what the pane sends goes through the reader,
@@ -117,13 +117,10 @@ func TestOurPanesCellForCell(t *testing.T) {
 				if err := os.WriteFile(filepath.Join(home, "r3", "state.json"), []byte("{}"), 0o600); err != nil {
 					t.Fatal(err)
 				}
-				herdr, err := fakeherdr.New(k)
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer herdr.Close()
-				herdr.Load(fx.Terms)
-				k.Terms = herdr
+				double := fakeengine.New()
+				defer double.Close()
+				double.Load(fx.Terms)
+				k.Terms = double
 
 				w, h := size[0], size[1]
 				g := &glass{t: t, s: screen.New(w, h)}

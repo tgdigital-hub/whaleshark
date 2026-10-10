@@ -14,6 +14,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
+	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
@@ -69,9 +70,9 @@ func run(t *testing.T, p *scenario.Project, who string, args ...string) (answer,
 // pointers is every line typed into a pane so far, as "pane: text".
 func pointers(p *scenario.Project) []string {
 	var out []string
-	for _, call := range p.Herdr.Calls() {
-		if len(call) >= 4 && call[0] == "agent" && call[1] == "prompt" {
-			out = append(out, call[2]+": "+call[3])
+	for _, c := range p.Double.Calls() {
+		if line := fakeengine.Typed(c); line != "" {
+			out = append(out, c.Pane+c.Name+": "+line)
 		}
 	}
 	return out
@@ -170,7 +171,7 @@ func TestTellPointer(t *testing.T) {
 	}
 
 	// An agent at a prompt of its own is typed into by nobody.
-	p.Herdr.Push(contract.StatusBlocked, "w1:p13")
+	p.Double.Push(contract.StatusBlocked, "w1:p13")
 	a, _ := run(t, p, scenario.Orch, "tell", "T12", "y")
 	want(t, "pointer", a.Result.Pointer+": "+a.Result.Why, "deferred: the agent is at a prompt of its own")
 

@@ -12,5 +12,5 @@ The rules that matter most for the lead agent:
 3. A worker's name is three words at most, and you choose it.
 4. Nothing is finished until `whaleshark accept` has checked it.
 5. After every step, run `whaleshark wait` and act on what it returns.
-6. Never add `--human`, never run `herdr` commands, never answer a prompt in another tab.
+6. Never add `--human`, never start the window or the keeper (whaleshark's open and engine commands), never answer a prompt in another tab.
 <!-- whaleshark:end -->
