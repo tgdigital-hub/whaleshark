@@ -14,7 +14,7 @@ orch: help wait &
 kill-wait
 
 pane fleet: 60x20
-expect-row "login page · done"
+expect-row "login page · idle"
 expect-row "search box · working"
 term-event blocked T3
 expect-row "search box · blocked"

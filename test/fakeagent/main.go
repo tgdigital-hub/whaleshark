@@ -1,5 +1,5 @@
-// Command fakeagent is the agent of a scripted test. The fake herdr starts
-// it in a pane with the script as its first argument. It prints its
+// Command fakeagent is the agent of a scripted test. The fake herdr, or the
+// engine's double, starts it in a pane with the script as its first argument. It prints its
 // environment, waits like a real agent for its first prompt, which names the
 // prompt file, and then plays the steps, each a real whaleshark command.
 // What it prints is the pane's screen.
@@ -7,6 +7,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -20,16 +21,28 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
+	"github.com/tgdigital-hub/whaleshark/internal/engine"
+	"github.com/tgdigital-hub/whaleshark/internal/platform"
 )
 
-// tell reports this agent's state to the fake herdr, as a real agent's hook does to herdr.
-func tell(args ...string) {
+// tell reports this agent's state as a real agent's hook does: to the fake
+// herdr in herdr's words, and to the keeper, where a socket is named, by
+// the event of the agent that means the state.
+func tell(state string) {
+	if os.Getenv(contract.EnvSocket) != "" {
+		k := contract.NewKit()
+		platform.Plug(k)
+		pane, _ := contract.PaneOf(os.Getenv)
+		event := map[string]string{contract.StatusIdle: "Stop", contract.StatusBlocked: "PermissionRequest"}[state]
+		engine.New(k).Call(context.Background(), contract.WireCall{Op: contract.OpHook, Kind: event, Pane: pane})
+		return
+	}
 	conn, err := net.Dial("unix", os.Getenv(testkit.EnvFake))
 	if err != nil {
 		return
 	}
 	defer conn.Close()
-	args = append([]string{"pane", args[0], os.Getenv(contract.EnvPane), "--source", "fakeagent", "--agent", "claude"}, args[1:]...)
+	args := []string{"pane", "report-agent", os.Getenv(contract.EnvPane), "--source", "fakeagent", "--agent", "claude", "--state", state}
 	if json.NewEncoder(conn).Encode(testkit.FakeCall{Args: args}) == nil {
 		json.NewDecoder(conn).Decode(new(testkit.FakeAnswer))
 	}
@@ -106,10 +119,10 @@ func main() {
 		case "die":
 			os.Exit(0)
 		case "hang":
-			tell("report-agent", "--state", contract.StatusIdle)
+			tell(contract.StatusIdle)
 			forever()
 		case "block":
-			tell("report-agent", "--state", contract.StatusBlocked)
+			tell(contract.StatusBlocked)
 			forever()
 		case "edit":
 			if file, err := os.OpenFile(arg(1), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
@@ -124,7 +137,7 @@ func main() {
 			os.Exit(2)
 		}
 	}
-	tell("report-agent", "--state", contract.StatusIdle)
+	tell(contract.StatusIdle)
 	forever()
 }
 
