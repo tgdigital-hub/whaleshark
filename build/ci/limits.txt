@@ -13,17 +13,26 @@
 # of the code's own copies, a sync's count and words, the plan and the
 # messages of the view model. The 67 left are for the contracts of phase 3.
 # screen pays, see there.
-lines 3300 contract internal/contract cmd/whaleshark
+# 250 more at the start of phase 3, for what its packages share: the server's
+# file and its one reader, the paired phones with their one writer, the
+# page's routes and what a screen is drawn from, who is calling at a phone's
+# door. Phases 1 and 2 each showed the shared part larger than planned and
+# the leaves smaller; screen pays again.
+lines 3550 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
 # line run by the system's shell and the end of all it started came here
 # from the window and from accept, which are smaller by as much; the
-# worker commands' line pays.
-lines 1170 platform internal/platform
+# worker commands' line pays. 10 more at the start of phase 3: the fixes for
+# Windows left it three lines over; pty pays.
+lines 1180 platform internal/platform
 # cli: 40 more at the start of phase 2. Recording what the person does left
 # it four lines short of full, with three phases still to pass through it.
-lines 940 cli internal/cli
+# 30 more at the start of phase 3: the program typed alone sets a project up
+# and opens the window, and a record this login never made is refused.
+# input pays.
+lines 970 cli internal/cli
 lines 1600 rules internal/rules
 lines 500 store internal/store
 lines 350 guide internal/guide
@@ -38,10 +47,15 @@ lines 350 guide internal/guide
 # base and branch and the removal of what a run left to 35, and the wiring
 # after this one still adds the warning of task add. integrate, built at 690
 # with nothing left to come but one refusal, pays.
-lines 1325 runtask internal/runtask
+# 30 more at the start of phase 3, for the browser check in accept and init
+# on a server; it stood 17 short of full. input pays.
+lines 1355 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
-lines 1250 launch internal/launch
+# 40 more at the start of phase 3: the server's cap and block, the browser's
+# place and a temp folder of the login's own in every tab; 24 were left.
+# watch pays.
+lines 1290 launch internal/launch
 lines 165 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
 # half its line in phase 1 and keeps twice what its phase 2 package is
@@ -57,8 +71,11 @@ lines 700 inbox internal/inbox
 lines 2260 view internal/view
 lines 620 question internal/question
 lines 380 mail internal/mail
-lines 420 notify internal/notify
-lines 1100 gitwt internal/gitwt
+# notify: 10 more at the start of phase 3, to hand a nudge to a paired
+# phone; watch pays.
+lines 430 notify internal/notify
+# gitwt gives 60 at the start of phase 3: built whole at 886.
+lines 1040 gitwt internal/gitwt
 # integrate gives 100 of its 900: 75 to runtask, 25 to team.
 lines 800 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
@@ -66,7 +83,10 @@ lines 800 integrate internal/integrate
 lines 810 overlap internal/overlap
 # doctor: its 30 of the engine's share (the keeper's rows, the paste line),
 # planned since the engine decision and kept out of this file until phase 2.
-lines 1030 doctor internal/doctor
+# 180 more at the start of phase 3: fifteen rows of proof for a server, seven
+# for the tunnel and the server command do not fit in the 319 that were
+# left. screen pays.
+lines 1210 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
@@ -83,12 +103,18 @@ lines 460 hook internal/hook
 # team: 25 more. It was built at 273 after three rewrites, with nothing left
 # to cut that the row or the design does not ask for; integrate pays.
 lines 275 team internal/team
-lines 1910 dash internal/dash
+# dash: 150 more at the start of phase 3. It is three passes through one
+# folder (the page, the phone, the tunnel), the kind of folder that ran over
+# in both phases before. screen, gitwt and window pay.
+lines 2060 dash internal/dash
 lines 350 push internal/push
-lines 450 connect internal/connect
+# connect and install: 30 and 20 of the engine's share (the clipboard lift,
+# the keeper's service entry), planned since the engine decision and put
+# into this file now that their packages start.
+lines 480 connect internal/connect
 lines 250 evidence internal/evidence
 lines 1280 dashweb internal/dashweb
-lines 1180 install install
+lines 1200 install install
 
 # The engine's eleven folders. A reserve of 1,200 lines for the screen
 # reader is in no line: it is spent by raising screen's, with the recording
@@ -99,17 +125,21 @@ lines 1180 install install
 # pay for contract, cli, runtask, launch, view, panes and hook, with inbox,
 # question and notify: 1,390 lines moved, none added. 160 more to view at
 # the join of phase 2; the screen reader stands at 1,366.
-lines 1790 screen internal/screen
+# At the start of phase 3 screen, input, watch, pty, gitwt and window give
+# 300, 120, 100, 80, 60 and 40, each built whole and under its line: 700
+# lines moved to contract, doctor, dash, launch, cli, runtask, notify and
+# platform, none added.
+lines 1490 screen internal/screen
 lines 1820 keeper internal/keeper
 lines 900 layout internal/layout
 # pty gives 50 to restore at the join of phase 2; it is built whole at 617.
-lines 800 pty internal/pty
-lines 650 watch internal/watch
-lines 750 input internal/input
+lines 720 pty internal/pty
+lines 550 watch internal/watch
+lines 630 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore
-lines 450 window internal/window
+lines 410 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
 lines 250 overlay internal/overlay
@@ -120,9 +150,8 @@ skip _test.go testdata testkit
 
 # All of the above together, with no tenth. The cap was 28,000 until the
 # project decided to build its own terminal engine and depend on no other
-# program. The folders above are planned at 37,445; with the look rounds,
-# the screen reader's reserve and what two later folders get for the
-# engine, 39,095 are planned.
+# program. The folders above are planned at 37,495; with the look rounds
+# and the screen reader's reserve, 39,095 are planned.
 total 40000
 
 # The whole module list, not only the direct ones.
