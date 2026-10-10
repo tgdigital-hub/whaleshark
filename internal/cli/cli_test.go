@@ -792,11 +792,28 @@ func TestTheProgramTypedAlone(t *testing.T) {
 			t.Errorf("%s: ran %q, exit %d, printed\n%s", tc.name, calls, exit, out)
 		}
 	}
-	// What init refuses stops it: the window is not opened over a refusal.
+	// The keeper is the login's and no project's: it starts in a folder
+	// whose record another login made, and where the record cannot be read.
 	dir := t.TempDir()
 	t.Chdir(dir)
-	os.Mkdir(filepath.Join(dir, ".git"), 0o700)
+	os.Mkdir(filepath.Join(dir, contract.ProjectDir), 0o700)
 	k, store := world(t)
+	k.Store, k.Platform, store.broken = placed{store}, listed{state: t.TempDir()}, errors.New("torn")
+	for _, who := range []scene{person, nobody, other} {
+		kept := seen(k, "engine")
+		if _, errw, exit := call(t, k, who, "engine", "run"); exit != 0 || kept.Command == nil {
+			t.Errorf("engine run in a folder another login set up: exit %d, said %q", exit, errw)
+		}
+	}
+	if _, errw, exit := call(t, k, person, "status"); exit != contract.ExitEnv || !strings.Contains(errw, "init --adopt") {
+		t.Errorf("status in the same folder: exit %d, said %q", exit, errw)
+	}
+
+	// What init refuses stops it: the window is not opened over a refusal.
+	dir = t.TempDir()
+	t.Chdir(dir)
+	os.Mkdir(filepath.Join(dir, ".git"), 0o700)
+	k, store = world(t)
 	k.Store = placed{store}
 	k.Handle("init", func(*contract.Call) (any, error) { return nil, refuse("shared_folder", "no") })
 	opened := seen(k, "open")
