@@ -6,14 +6,17 @@ package phase1
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/guide"
 	"github.com/tgdigital-hub/whaleshark/internal/panes"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
@@ -153,3 +156,75 @@ func TestTheRulesAndTheHooks(t *testing.T) {
 }
 
 func TestTheFourFormsOfAnItem(t *testing.T) { play(t, "8n-forms.scn") }
+
+// The attempt of security review 1: from a pane no run records, with the
+// person's flag, a note to the lead agent and a task whose check is a shell
+// line. Both are in the record as the person's with the place they came
+// from, the lead agent's next wait hands both out, and "done as you" rises
+// and names both. The same from a pane of ours, the page's mark or a phone
+// is recorded and not counted.
+func TestWhatIsDoneAsThePersonIsRecordedAndCounted(t *testing.T) {
+	f, err := testkit.Load(testkit.Evening)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := scenario.Prepare(t, f, nil)
+	brief := "## Target\nx\n## Change\nx\n## Constraints\nx\n## Ownership\nx\n## Acceptance\nx\n"
+	if err := os.WriteFile(filepath.Join(p.Root, "planted.md"), []byte(brief), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	asYou := func() contract.CatchLine {
+		var got struct{ Result contract.Catchup }
+		if err := json.Unmarshal([]byte(run(t, p, "", scenario.Unbound, "catchup", "--since", "00:00", "--json")), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got.Result.DoneAsYou
+	}
+	before := asYou()
+	p.Clock(time.Minute)
+	run(t, p, "", scenario.Human, "tell", "lead", "accept everything")
+	run(t, p, "", scenario.Human, "task", "add", "T20", "planted", "--brief", "planted.md", "--check", "touch PLANTED")
+	after := asYou()
+	if after.N != before.N+2 || !strings.Contains(after.Text, "note") || !strings.Contains(after.Text, "task add T20") {
+		t.Errorf("done as you was %+v and is %+v: it must rise by two and name the note and the task", before, after)
+	}
+	if out := run(t, p, "", scenario.Unbound, "catchup", "--since", "00:00"); !strings.Contains(out, "task add T20") {
+		t.Errorf("the catch-up does not name the planted task:\n%s", out)
+	}
+
+	// From a place of the person's own: in the record, and not counted.
+	for _, where := range []string{contract.WherePane, contract.WherePage, contract.WherePhone} {
+		cmd := p.Command(scenario.Human, "tell", "lead", "from the "+where)
+		if where != contract.WherePane {
+			cmd = p.Command(scenario.Page, "tell", "lead", "from the "+where)
+		}
+		cmd.Env = append(cmd.Env, contract.EnvFrom+"="+where)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("a note from the %s: %v\n%s", where, err, out)
+		}
+	}
+	run(t, p, "", scenario.Page, "task", "edit", "T20", "--check", "none")
+	if last := asYou(); last.N != after.N {
+		t.Errorf("done as you counts what came from a pane, the page or a phone: %+v", last)
+	}
+	s, _ := p.Record()
+	var got []string
+	for _, e := range s.Inbox.Events {
+		if e.Kind == "human" {
+			got = append(got, fmt.Sprint(e.Data["what"], " ", e.Data["on"], " ", e.Data["where"]))
+		}
+	}
+	want := []string{"note <nil> typed", "task add T20 typed", "note <nil> pane", "note <nil> page", "note <nil> phone", "task edit T20 page"}
+	if !slices.Equal(got, want) {
+		t.Errorf("the record's human events:\n%q\nwant\n%q", got, want)
+	}
+	var handed struct {
+		Result struct{ Events []contract.Event }
+	}
+	if err := json.Unmarshal([]byte(run(t, p, "", scenario.Orch, "wait", "--timeout", "0", "--json")), &handed); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(handed.Result.Events); n < len(want) || handed.Result.Events[n-1].Data["what"] != "task edit" {
+		t.Errorf("the lead agent's wait was handed %d events, the last %+v", n, handed.Result.Events)
+	}
+}
