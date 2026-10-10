@@ -75,8 +75,11 @@ func play(t *testing.T, cmd *exec.Cmd, exit int, words ...string) string {
 	if got := cmd.ProcessState.ExitCode(); got != exit {
 		t.Fatalf("%v: exit %d, expected %d\n%s", cmd.Args[1:], got, exit, out)
 	}
+	// A line to type is written for the system's shell, which on Windows
+	// puts each word in single quotes: the words are looked for without them.
+	plain := strings.ReplaceAll(string(out), "'", "")
 	for _, w := range words {
-		if !strings.Contains(string(out), w) {
+		if !strings.Contains(string(out), w) && !strings.Contains(plain, w) {
 			t.Fatalf("%v: expected %q in what it printed:\n%s", cmd.Args[1:], w, out)
 		}
 	}
