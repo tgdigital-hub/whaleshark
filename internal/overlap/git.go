@@ -24,6 +24,10 @@ import (
 // is the file beside those objects that holds what the merges said.
 const wipeAfter, answers = 5000, "pairs.json"
 
+// listed names a folder in a list git divides at colons: quoted, with the
+// two characters the quoting itself gives a meaning escaped.
+var listed = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
+
 // simulation merges two commits in git's store alone (git 2.38); with batch
 // one process does every pair it is given on its input (git 2.40).
 var (
@@ -85,7 +89,7 @@ func open(ctx context.Context, k *contract.Kit, root string, s *contract.State) 
 	if err = cmp.Or(os.MkdirAll(objects, 0o700), k.Platform.Private(g.dir)); err != nil {
 		return nil, err
 	}
-	g.env = append(g.env, "GIT_OBJECT_DIRECTORY="+objects, "GIT_ALTERNATE_OBJECT_DIRECTORIES="+store)
+	g.env = append(g.env, "GIT_OBJECT_DIRECTORY="+objects, `GIT_ALTERNATE_OBJECT_DIRECTORIES="`+listed.Replace(store)+`"`)
 	out, err := g.git(root, "", "for-each-ref", "--format=%(objectname) %(refname)", "refs/heads/")
 	for _, line := range strings.Split(out, "\n") {
 		oid, name, _ := strings.Cut(line, " refs/heads/")

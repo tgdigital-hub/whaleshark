@@ -61,10 +61,12 @@ lines 420 notify internal/notify
 lines 1100 gitwt internal/gitwt
 # integrate gives 100 of its 900: 75 to runtask, 25 to team.
 lines 800 integrate internal/integrate
-lines 800 overlap internal/overlap
+# overlap: 10 more after the second security review, for the quoting of the
+# project's object folder in git's list; it stood at its line. doctor pays.
+lines 810 overlap internal/overlap
 # doctor: its 30 of the engine's share (the keeper's rows, the paste line),
 # planned since the engine decision and kept out of this file until phase 2.
-lines 1040 doctor internal/doctor
+lines 1030 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
