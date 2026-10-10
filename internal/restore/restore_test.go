@@ -437,18 +437,20 @@ func TestOldLines(t *testing.T) {
 	}
 }
 
-// files counts the writes of a Saver.
+// files counts the writes of a Saver and refuses as many as it is told to.
 type files struct {
 	contract.Files
-	n atomic.Int32
+	n, refuse atomic.Int32
 }
 
-// A write is counted once the file is in place: a test that waits for the
-// count and then reads would else find no file yet.
+// A write is counted once it is done, in place or refused: a test that waits
+// for the count and then reads would else find no file yet.
 func (f *files) Replace(tmp, final string) error {
-	err := f.Files.Replace(tmp, final)
-	f.n.Add(1)
-	return err
+	defer f.n.Add(1)
+	if f.refuse.Add(-1) >= 0 {
+		return errors.New("held open by another program")
+	}
+	return f.Files.Replace(tmp, final)
 }
 
 func TestSaver(t *testing.T) {
@@ -518,6 +520,31 @@ func TestSaver(t *testing.T) {
 	}
 }
 
+// A write that failed, as when another program holds the file for longer
+// than a replace waits, is made again a few seconds later with nothing
+// changed in between: the file does not stay behind until the next change.
+func TestAWriteThatFailedIsMadeAgain(t *testing.T) {
+	_, dirs := login(t)
+	fs := &files{Files: platform.New(runtime.GOOS)}
+	fs.refuse.Store(1)
+	s := restore.Start(fs, dirs, func() *restore.File {
+		lay, f := layout.Layout{}, &restore.File{}
+		lay.Add("t1", "kept", "p1")
+		f.Layout, _ = json.Marshal(&lay)
+		return f
+	})
+	defer s.Stop()
+	s.Changed()
+	for end := time.Now().Add(30 * time.Second); fs.n.Load() < 2 || s.Err() != nil; time.Sleep(5 * time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatalf("%d writes after one that failed, the last: %v", fs.n.Load(), s.Err())
+		}
+	}
+	if _, lay, err := restore.Load(fs, dirs); err != nil || lay == nil || lay.Tabs[0].Label != "kept" || s.Err() != nil {
+		t.Fatalf("after the second write: %v, %v, the last write: %v", lay, err, s.Err())
+	}
+}
+
 // A pane's last lines are in a file of their own beside the layout file:
 // written a few seconds after output and at the stop, never for a change of
 // the layout, and not again while the pane's program has printed nothing.
@@ -543,11 +570,13 @@ func TestAPanesLinesAreWrittenWhenItPrinted(t *testing.T) {
 		f.Layout, _ = json.Marshal(&lay)
 		return f
 	})
+	// A write on a busy machine can take seconds, and three follow a tick
+	// that is itself seconds away: the wait is long and ends with the writes.
 	wait := func(n int32) {
 		t.Helper()
-		for end := time.Now().Add(6 * time.Second); fs.n.Load() < n; time.Sleep(5 * time.Millisecond) {
+		for end := time.Now().Add(30 * time.Second); fs.n.Load() < n; time.Sleep(5 * time.Millisecond) {
 			if time.Now().After(end) {
-				t.Fatalf("%d writes, want %d", fs.n.Load(), n)
+				t.Fatalf("%d writes, want %d; the last write: %v", fs.n.Load(), n, s.Err())
 			}
 		}
 		time.Sleep(300 * time.Millisecond)

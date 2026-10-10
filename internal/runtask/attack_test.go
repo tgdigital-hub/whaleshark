@@ -33,6 +33,12 @@ func TestARepositorysOwnApprovalCountsForNothing(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(w.Path, "ran.txt")); err == nil || w.Setup != contract.SetupUntrusted {
 		t.Fatalf("the setup line of a repository that approved itself: %s, ran.txt %v", w.Setup, err)
 	}
+	// The agent is still at work in the worktree: the test's folders are
+	// removed when it has committed, and its work did not run the line either.
+	h.reported("A")
+	if _, err := os.Stat(filepath.Join(w.Path, "ran.txt")); err == nil {
+		t.Fatal("the setup line ran while the agent worked")
+	}
 }
 
 // A record that this login did not make, a run with a task whose check is a
