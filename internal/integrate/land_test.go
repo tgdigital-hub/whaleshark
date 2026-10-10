@@ -124,7 +124,8 @@ func TestLandPullRequest(t *testing.T) {
 	_, err := r.accept("A", nil)
 	must(t, err)
 	write(t, filepath.Join(r.root, "whaleshark.toml"), "[land]\ncheck = \"exit 1\"\n")
-	play(t, r.p.Command(scenario.Human, "land", "--pr"), 0, "https://example.test/pull/1", "whaleshark/r1")
+	// Whoever lands is told that the check was left out, not only the lead agent.
+	play(t, r.p.Command(scenario.Human, "land", "--pr"), 0, "https://example.test/pull/1", "whaleshark/r1", "is NOT run", "whaleshark trust")
 
 	if pushed := testkit.Git(t, remote, "rev-parse", "whaleshark/r1"); pushed != r.branch() || r.git(r.root, "rev-parse", "main") == pushed {
 		t.Fatalf("the remote has the branch at %s", pushed)

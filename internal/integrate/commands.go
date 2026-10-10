@@ -117,6 +117,7 @@ func (g integrator) land(c *contract.Call) (any, error) {
 
 	out := landed{Run: s.Run.ID, Branch: in.Branch, Tip: tip, Onto: onto, How: "local"}
 	if slices.Contains(project.Held, "land.check") {
+		fmt.Fprintln(c.Out, "This project's [land] check is not approved as it stands, so it is NOT run: the collected work goes on unchecked as a whole. To have it checked, approve the file first: whaleshark trust.")
 		err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
 			k.Rules.Raise(s, contract.Event{Kind: "untrusted", Text: "[land] check is not approved, so the collected work is landed without it"}, c.Now)
 			return nil
