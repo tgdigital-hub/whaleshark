@@ -145,11 +145,15 @@ func (k *Keeper) stop() {
 			all = append(all, p.tty)
 		}
 		k.panes = map[string]*pane{}
+		k.mu.Unlock()
+		end(all)
+		// The connections close last: whoever asked for the stop waits
+		// for the end of its own, and by then every terminal has ended.
+		k.mu.Lock()
 		for conn := range k.conns {
 			conn.Close()
 		}
 		k.mu.Unlock()
-		end(all)
 		k.unlock()
 		close(k.stopped)
 	})
