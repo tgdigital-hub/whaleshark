@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -346,12 +347,14 @@ func plan(p *contract.Page, r contract.PlanRow) [2]string {
 	return [2]string{w, after}
 }
 
-// job is the look and the word of one open run in the list of jobs.
+// job is the look and the word of one open run in the list of jobs, and the
+// address that makes it the job this browser is shown.
 func job(j contract.Job) (out struct {
 	contract.LookOf
-	Word string
+	Word, To string
 }) {
 	n := j.View.Counts
+	out.To = contract.RouteTeam + "?" + url.Values{contract.FieldRoot: {j.Root}, contract.FieldRun: {j.View.Run}}.Encode()
 	out.LookOf, out.Word = look(contract.LookQueued), plural(n.Agents, "agent", "agents")
 	if n.Agents > 0 {
 		out.LookOf = look(contract.LookBuilding)

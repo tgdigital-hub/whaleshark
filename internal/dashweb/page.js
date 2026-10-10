@@ -59,7 +59,8 @@
 		asking = true;
 		tried = Date.now();
 		fetch(location.href, { credentials: 'same-origin', cache: 'no-store' }).then(r => {
-			if (r.redirected) return location.reload(); // signed out: the browser goes where it is sent
+			// Signed out, or a screen that is gone: the server's own answer is shown.
+			if (r.redirected || r.status >= 400 && r.status < 500) return location.reload();
 			if (!r.ok) throw new Error(r.status);
 			return r.text().then(html => {
 				got = Date.now();

@@ -30,9 +30,6 @@ const (
 	// routeOwn is where this login's own dash command asks the running
 	// server how it is, or to stop: followed by the word, with a code.
 	routeOwn = "/dash/"
-	// The fields that choose which of the login's jobs the page shows; the
-	// choice is then kept in a cookie of that browser.
-	fieldRoot, fieldRun = "root", "run"
 
 	maxBody = 64 << 10
 	policy  = "default-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
@@ -259,7 +256,7 @@ func (s *server) open() (all []job) {
 // one this browser chose last, else the first. Only a run of the login's
 // own list of projects can be chosen, whatever the browser sends.
 func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job) {
-	choice, chosen := r.URL.Query(), r.URL.Query().Has(fieldRoot)
+	choice, chosen := r.URL.Query(), r.URL.Query().Has(contract.FieldRoot)
 	if c, err := r.Cookie(s.cookie + "j"); !chosen && err == nil {
 		choice, _ = url.ParseQuery(c.Value)
 	}
@@ -267,8 +264,8 @@ func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job)
 	key, fit := s.k.Platform.PathKey, 0 // 1 for any job, 2 for one of the chosen project, 3 for the chosen run
 	for _, a := range all {
 		is := 1
-		if root := choice.Get(fieldRoot); root != "" && key(a.root) == key(root) {
-			if is = 2; a.run == choice.Get(fieldRun) {
+		if root := choice.Get(contract.FieldRoot); root != "" && key(a.root) == key(root) {
+			if is = 2; a.run == choice.Get(contract.FieldRun) {
 				is = 3
 			}
 		}
@@ -277,7 +274,7 @@ func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job)
 		}
 	}
 	if chosen && fit > 1 {
-		http.SetCookie(w, &http.Cookie{Name: s.cookie + "j", Value: url.Values{fieldRoot: {j.root}, fieldRun: {j.run}}.Encode(),
+		http.SetCookie(w, &http.Cookie{Name: s.cookie + "j", Value: url.Values{contract.FieldRoot: {j.root}, contract.FieldRun: {j.run}}.Encode(),
 			Path: "/", MaxAge: int(sessionLife / time.Second), HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	}
 	return j, all

@@ -305,11 +305,15 @@ const (
 // braces ("text" for {file}, which the server writes to a private file),
 // and FieldToken, the request token of the session. RouteTask is followed
 // by a task's id; RouteEvidence by an attempt and the number of a file in
-// the list Evidence gives for it, never a name. RouteSites answers connect
-// with the ports of live tasks' slots that have a site answering, as a JSON
-// list of numbers. RoutePair is all an unpaired phone is ever shown;
-// RoutePush answers a paired phone's script with Kit.PushKey and takes what
-// the phone then hands over for its nudges, a PushTo.
+// the list Evidence gives for it, never a name. RouteSites answers connect,
+// which has no session, under a name of PageHosts with the ports of live
+// tasks' slots that have a site answering, as a JSON list of numbers.
+// RouteLive is held open as an event stream: any message says "something
+// changed, ask again", and a comment line is the beat. Any screen's address
+// may carry FieldRoot and FieldRun, a project's folder and a run of it: the
+// job that browser is shown from then on. RoutePair is all an unpaired
+// phone is ever shown; RoutePush answers a paired phone's script with
+// Kit.PushKey and takes what the phone then hands over for its nudges, a PushTo.
 const (
 	RouteTeam     = "/"
 	RoutePlan     = "/plan"
@@ -328,6 +332,8 @@ const (
 
 	FieldToken = "t"
 	FieldCode  = "code"
+	FieldRoot  = "root"
+	FieldRun   = "run"
 )
 
 // DashURL is what `dash url --json` answers and connect reads: the page's

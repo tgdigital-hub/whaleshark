@@ -122,6 +122,11 @@ func until(t *testing.T, what string, ok func() bool) {
 	}
 }
 
+// shows reports whether an answer is the real page's screen of that name.
+func shows(got, screen string) bool {
+	return strings.HasPrefix(got, "200 ") && strings.Contains(got, `<body data-screen="`+screen+`">`)
+}
+
 func TestThePageFromEndToEnd(t *testing.T) {
 	f, err := testkit.Load(testkit.Evening)
 	if err != nil {
@@ -147,7 +152,7 @@ func TestThePageFromEndToEnd(t *testing.T) {
 	page := "http://" + contract.PageHosts[0] + ":" + strconv.Itoa(contract.PagePort)
 	browser := over(u.Socket)
 	in := page + contract.RouteIn + "?" + contract.FieldCode + "=" + u.Code
-	if got := get(t, browser, in); !strings.HasPrefix(got, "200 ") || !strings.Contains(got, contract.ScreenTeam) {
+	if got := get(t, browser, in); !shows(got, contract.ScreenTeam) {
 		t.Fatalf("signing in: %s", got)
 	}
 	if got := get(t, over(u.Socket), in); !strings.HasPrefix(got, "403 ") {
@@ -155,9 +160,17 @@ func TestThePageFromEndToEnd(t *testing.T) {
 	}
 	for path, screen := range map[string]string{contract.RoutePlan: contract.ScreenPlan, contract.RouteMessages: contract.ScreenMessages,
 		contract.RouteJobs: contract.ScreenJobs, contract.RouteTask + "T8": contract.ScreenTask, contract.RouteLead: contract.ScreenLead} {
-		if got := get(t, browser, page+path); !strings.HasPrefix(got, "200 ") || !strings.Contains(got, screen+":") {
+		if got := get(t, browser, page+path); !shows(got, screen) {
 			t.Errorf("%s: %s", path, got)
 		}
+	}
+	// A row of the jobs screen leads to its job, in the words the server takes.
+	now, _ := p.Record()
+	choice := "?" + url.Values{contract.FieldRoot: {p.Root}, contract.FieldRun: {now.Run.ID}}.Encode()
+	if got := get(t, browser, page+contract.RouteJobs); !strings.Contains(got, `href="`+contract.RouteTeam+strings.ReplaceAll(choice, "&", "&amp;")+`"`) {
+		t.Errorf("no row of the jobs screen leads to this job with %s: %s", choice, got)
+	} else if got := get(t, browser, page+contract.RouteTeam+choice); !shows(got, contract.ScreenTeam) {
+		t.Errorf("the job a row leads to: %s", got)
 	}
 	// connect asks for the running sites with no session.
 	if got := get(t, over(u.Socket), page+contract.RouteSites); strings.TrimSpace(got) != "200 []" {

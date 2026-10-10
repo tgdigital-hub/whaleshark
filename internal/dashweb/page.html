@@ -10,7 +10,7 @@
 <script src="/a/page.js" defer></script>
 {{- end}}
 </head>
-<body>
+<body data-screen="{{.Screen}}">
 {{- if eq .Screen "pair"}}
 <main class="alone">
 <h1>WhaleShark</h1>
@@ -168,6 +168,6 @@
 
 {{define "jobs"}}
 <table class="rows">
-{{range .Jobs}}{{$j := job .}}<tr><td class="mark c-{{$j.Colour}}">{{$j.Mark}}</td><td>{{.View.Run}}</td><td class="name">{{base .Root}}</td><td class="c-{{$j.Colour}}">{{$j.Word}}</td><td>"{{.View.Objective}}"</td><td class="c-dim">&gt; {{.Next}}</td></tr>
+{{range .Jobs}}{{$j := job .}}<tr><td class="mark c-{{$j.Colour}}">{{$j.Mark}}</td><td><a href="{{$j.To}}">{{.View.Run}}</a></td><td class="name">{{base .Root}}</td><td class="c-{{$j.Colour}}">{{$j.Word}}</td><td>"{{.View.Objective}}"</td><td class="c-dim">&gt; {{.Next}}</td></tr>
 {{end}}</table>
 {{end}}
