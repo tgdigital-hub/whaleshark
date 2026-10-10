@@ -7,7 +7,7 @@ human: status --all              -> expect "DONE" "--human"
 as-worker T1.1: status           -> expect exit 5 "not a worker's command"
 as-unbound: status               -> expect "T7"
 orch: status --json              -> expect '"run":"r3"' '"news":'
-orch: status --sweep --quiet --json -> expect '"ran":false'
+orch: status --sweep --quiet --json -> expect '"ran":true'
 
 pane actions: 100x20
 expect-row "Must the old sign-up link keep working?"

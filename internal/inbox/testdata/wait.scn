@@ -1,0 +1,18 @@
+# The lead agent's side of 8e, with the runner's own steps: an agent stops at
+# a prompt, the sweep raises it, and the batch is handed out until it is
+# acknowledged.
+fixture evening-2114
+
+orch: wait --timeout 0                 -> expect No event yet
+orch: wait &
+kill-wait
+term-drop blocked T1
+clock +5s
+orch: status --sweep --quiet
+orch: wait                             -> expect d10 blocked T1.1 prompt
+orch: wait                             -> expect d10 blocked handed out before
+as-unbound: wait --ack last            -> expect exit 5 takeover
+as-worker T2.1: wait                   -> expect exit 5
+orch: wait --ack last --timeout 0      -> expect No event yet
+orch: wait --ack last --timeout 0
+assert: T1.1 state working; no event lost; no event twice
