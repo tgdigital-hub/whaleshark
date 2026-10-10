@@ -301,12 +301,12 @@ func TestAnAnswerSettlesByTheClock(t *testing.T) {
 		return rule.Answer(s, "n4", contract.AnswerApprove, contract.Origin{Caller: contract.Human, Where: contract.WherePane}, 3*time.Second, now)
 	})
 	cmd, out := w.waiting()
-	record := w.file(stateFile)
+	record := w.file(contract.StateFile)
 	w.p.Clock(2 * time.Second) // no file of the run changes with it
 	if exit := w.ended(cmd); exit != 0 || !strings.Contains(out.String(), "answered T8 approve") {
 		t.Fatalf("exit %d\n%s", exit, out)
 	}
-	if bytes.Equal(record, w.file(stateFile)) || w.state().Questions["n4"].State != contract.QuestionUsed {
+	if bytes.Equal(record, w.file(contract.StateFile)) || w.state().Questions["n4"].State != contract.QuestionUsed {
 		t.Fatal("the answer was handed out and not marked used")
 	}
 }
@@ -377,7 +377,7 @@ func TestTheTerminalsDownChangesNothing(t *testing.T) {
 	w := evening(t, nil)
 	w.p.Herdr.Drop(testkit.PushGone, w.pane("T1.1"))
 	w.sweep()
-	record := w.file(stateFile)
+	record := w.file(contract.StateFile)
 	w.p.Herdr.Close()
 	for _, d := range []time.Duration{5 * time.Second, time.Minute, 10 * time.Minute} {
 		w.p.Clock(d)
@@ -388,7 +388,7 @@ func TestTheTerminalsDownChangesNothing(t *testing.T) {
 	if out, errOut, exit := w.run(scenario.Orch, "status"); exit != 0 || !strings.Contains(out, "login page") {
 		t.Fatalf("status without the terminals: exit %d\n%s%s", exit, out, errOut)
 	}
-	if !bytes.Equal(record, w.file(stateFile)) {
+	if !bytes.Equal(record, w.file(contract.StateFile)) {
 		t.Fatal("the record changed while the terminals could not be reached")
 	}
 }
@@ -411,15 +411,15 @@ func TestTwentyWorkingAgentsCauseNoWrite(t *testing.T) {
 			f.Terms.Panes = append(f.Terms.Panes, p)
 		}
 	})
-	record, _ := os.Stat(filepath.Join(w.dir, stateFile))
-	bytesBefore, snapshots := w.file(stateFile), 0
+	record, _ := os.Stat(filepath.Join(w.dir, contract.StateFile))
+	bytesBefore, snapshots := w.file(contract.StateFile), 0
 	// The sweeps of ten minutes, in this process for their number; the last
 	// one is the real program's.
 	rules.Plug(w.p.Kit)
 	Plug(w.p.Kit)
 	for range 10*60/5 - 1 {
 		w.p.Clock(5 * time.Second)
-		if s, err := w.p.Kit.Sweeper.Sweep(w.p.Root, "r3", contract.Now()); err != nil || !s.Ran || s.Changed {
+		if s, _, err := w.p.Kit.Sweeper.Sweep(w.p.Root, "r3", contract.Now()); err != nil || !s.Ran || s.Changed {
 			t.Fatalf("a sweep of twenty working agents: %+v, %v", s, err)
 		}
 	}
@@ -431,8 +431,8 @@ func TestTwentyWorkingAgentsCauseNoWrite(t *testing.T) {
 			snapshots++
 		}
 	}
-	after, _ := os.Stat(filepath.Join(w.dir, stateFile))
-	if !after.ModTime().Equal(record.ModTime()) || !bytes.Equal(bytesBefore, w.file(stateFile)) || snapshots != 120 {
+	after, _ := os.Stat(filepath.Join(w.dir, contract.StateFile))
+	if !after.ModTime().Equal(record.ModTime()) || !bytes.Equal(bytesBefore, w.file(contract.StateFile)) || snapshots != 120 {
 		t.Fatalf("ten minutes of twenty working agents wrote the record (%v, then %v) or did not look each time (%d pictures)",
 			record.ModTime(), after.ModTime(), snapshots)
 	}
@@ -616,8 +616,8 @@ func TestTheStampKeepsSweepsApart(t *testing.T) {
 	first := w.sweep()
 	w.p.Herdr.Drop(testkit.PushGone, w.pane("T1.1"))
 	w.p.Clock(4 * time.Second)
-	record, calls := w.file(stateFile), len(w.p.Herdr.Calls())
-	if second := w.sweep(); !second.Ran || second.Changed || !second.At.Equal(first.At) || len(w.p.Herdr.Calls()) != calls || !bytes.Equal(record, w.file(stateFile)) {
+	record, calls := w.file(contract.StateFile), len(w.p.Herdr.Calls())
+	if second := w.sweep(); !second.Ran || second.Changed || !second.At.Equal(first.At) || len(w.p.Herdr.Calls()) != calls || !bytes.Equal(record, w.file(contract.StateFile)) {
 		t.Fatalf("a second sweep within five seconds: %+v after %+v", second, first)
 	}
 	if third := w.after(time.Second); !third.Changed || !third.At.Equal(first.At.Add(5*time.Second)) || len(w.p.Herdr.Calls()) != calls+1 {
@@ -630,9 +630,9 @@ func TestTheStampKeepsSweepsApart(t *testing.T) {
 		t.Fatalf("the sweep as JSON: %s", out)
 	}
 	w.change(func(s *contract.State, now time.Time) error { s.Run.ClosedAt = now; return nil })
-	record = w.file(stateFile)
+	record = w.file(contract.StateFile)
 	w.p.Herdr.Drop(testkit.PushGone, w.pane("T3.1"))
-	if s := w.after(time.Minute); s.Changed || !bytes.Equal(record, w.file(stateFile)) {
+	if s := w.after(time.Minute); s.Changed || !bytes.Equal(record, w.file(contract.StateFile)) {
 		t.Fatalf("a sweep of a closed run: %+v", s)
 	}
 }

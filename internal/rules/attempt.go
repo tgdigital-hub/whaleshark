@@ -119,6 +119,14 @@ func gone(a *contract.Attempt) *contract.Refusal {
 	return refused("not_active", "%s is %s. This attempt is no longer active; stop.", a.ID, a.State)
 }
 
+func (Rules) Token(s *contract.State, id, tokenHash string) error {
+	a, _, err := attempt(s, id)
+	if err == nil && (tokenHash == "" || tokenHash != a.TokenHash) {
+		err = refused("bad_token", "The token does not match %s. Stop.", a.ID)
+	}
+	return err
+}
+
 func (Rules) Progress(s *contract.State, id string, pct int, note string, now time.Time) error {
 	a, _, err := attempt(s, id)
 	if err != nil {

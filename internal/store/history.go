@@ -24,7 +24,8 @@ func (st *Store) version(dir string) error {
 }
 
 // History reads history.jsonl, one event to a line. A last line with no end
-// is one a writer was cut off in, and is left out.
+// is one a writer was cut off in, and is left out; so is an event that is
+// there a second time, which an acknowledgement cut off half-way leaves.
 func (st *Store) History(root, run string) (events []contract.Event, err error) {
 	err = st.locked(root, run, false, func(dir string) error {
 		if err := st.version(dir); err != nil {
@@ -34,6 +35,7 @@ func (st *Store) History(root, run string) (events []contract.Event, err error) 
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
+		seen := map[int]bool{}
 		for n := 1; err == nil; n++ {
 			line, rest, whole := bytes.Cut(data, []byte{'\n'})
 			if !whole {
@@ -43,7 +45,9 @@ func (st *Store) History(root, run string) (events []contract.Event, err error) 
 			if err = json.Unmarshal(line, &e); err != nil {
 				err = fmt.Errorf("%s of run %s, line %d: %w", historyFile, run, n, err)
 			}
-			events, data = append(events, e), rest
+			if data = rest; e.Seq == 0 || !seen[e.Seq] {
+				events, seen[e.Seq] = append(events, e), true
+			}
 		}
 		return err
 	})

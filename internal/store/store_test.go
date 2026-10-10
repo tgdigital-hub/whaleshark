@@ -52,7 +52,7 @@ func writer(root string, n int) {
 			return nil
 		})
 		if err == nil {
-			err = st.Append(root, "r1", []contract.Event{e, e})
+			err = st.Append(root, "r1", []contract.Event{e, e}) // twice: it is read once
 		}
 		if err != nil {
 			fmt.Println(err)
@@ -434,6 +434,11 @@ func TestTornHistoryLine(t *testing.T) {
 	if got := seqs(); !slices.Equal(got, []int{1, 2, 3, 5}) || !bytes.HasPrefix(data, whole) || bytes.Contains(data, []byte(`"do{`)) {
 		t.Fatalf("after the next append: %v\n%s", got, data)
 	}
+	// A batch that an acknowledgement cut off half-way wrote a second time is read once.
+	st.Append(root, "r1", []contract.Event{{Seq: 5, Kind: "done"}, {Seq: 6, Kind: "done"}})
+	if got := seqs(); !slices.Equal(got, []int{1, 2, 3, 5, 6}) {
+		t.Fatalf("an event that is there twice: %v", got)
+	}
 	if info, _ := os.Stat(file); private && info.Mode().Perm() != 0o600 {
 		t.Fatalf("the history is open to others: %v", info.Mode())
 	}
@@ -550,10 +555,11 @@ func TestKills(t *testing.T) {
 					t.Errorf("kill %d: the history cannot be read: %v", i, err)
 					return
 				}
-				// Every change is in the record once; the history has each
-				// twice, and may lack only what the killed writer still owed.
+				// Every change is in the record once; the history, where each
+				// was written twice, gives each once and may lack only what
+				// the killed writer still owed.
 				n := s.Counters.Seq - first.Counters.Seq
-				if s.Counters.Seq <= seen || len(s.Inbox.Events)-had != s.Counters.Seq || len(events) > 2*n || len(events) < 2*(n-i-1) {
+				if s.Counters.Seq <= seen || len(s.Inbox.Events)-had != s.Counters.Seq || len(events) > n || len(events) < n-i-1 {
 					t.Errorf("kill %d: %d changes, at %d after %d, with %d events and %d lines of history", i, n, s.Counters.Seq, seen, len(s.Inbox.Events), len(events))
 					return
 				}
@@ -617,8 +623,8 @@ func TestTwentyProcesses(t *testing.T) {
 		t.Fatal(err)
 	}
 	events, err := st.History(root, "r1")
-	if got := s.Counters.Seq - before.Counters.Seq; got != writers*each || len(events) != 2*writers*each || err != nil {
-		t.Fatalf("%d processes made %d changes and %d lines of history, not %d and %d: %v", writers, got, len(events), writers*each, 2*writers*each, err)
+	if got := s.Counters.Seq - before.Counters.Seq; got != writers*each || len(events) != writers*each || err != nil {
+		t.Fatalf("%d processes made %d changes and %d events of history, not %d and %d: %v", writers, got, len(events), writers*each, writers*each, err)
 	}
 	t.Logf("%d changes by %d processes, %d reads beside them", writers*each, writers, reads.Load())
 }

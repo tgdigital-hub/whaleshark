@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path"
 	"slices"
 	"strconv"
@@ -282,3 +283,11 @@ func (s *System) Watch(paths ...string) (contract.Watcher, error) {
 
 // SelfPath does not follow links: the stable entry is the one to hand on.
 func (s *System) SelfPath() (string, error) { return os.Executable() }
+
+// System is the system's Go name.
+func (s *System) System() string { return s.OS }
+
+// Shell and EndTree are a line run by the system's own shell and the end of
+// all it started: a check that runs over its time must not leave a child.
+func (s *System) Shell(line string) *exec.Cmd { return shell(line) }
+func (s *System) EndTree(cmd *exec.Cmd) error { return endTree(cmd) }

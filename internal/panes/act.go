@@ -303,13 +303,15 @@ func (p *pane) act(id string, fill map[string]string) {
 	case a.How == contract.HowPoint:
 		p.hint = "no lead agent holds this run"
 	default:
-		p.launch(a, fill, c)
+		p.launch(a, fill)
 	}
 }
 
 // launch fills a row's command line in and starts it. A task or an item comes
 // from what is selected; anything else that is missing is typed on a line.
-func (p *pane) launch(a contract.Action, fill map[string]string, c *contract.Card) {
+// A start or a check, which can take minutes, is a child like any other: the
+// command moves itself into a tab of its own and the child ends at once.
+func (p *pane) launch(a contract.Action, fill map[string]string) {
 	var argv []string
 	for _, word := range a.Run {
 		name := strings.Trim(word, "{}")
@@ -334,7 +336,7 @@ func (p *pane) launch(a contract.Action, fill map[string]string, c *contract.Car
 					typed, fill["value"], _ = strings.Cut(typed, " ")
 				}
 				fill[name] = typed
-				p.launch(a, fill, c)
+				p.launch(a, fill)
 			})
 			return
 		}
@@ -342,25 +344,15 @@ func (p *pane) launch(a contract.Action, fill map[string]string, c *contract.Car
 	switch {
 	case p.self == "":
 		p.hint = a.Label + ": this pane was not started by the program"
-	case a.How == contract.HowTab:
-		// A check or a start can take minutes: it runs in a tab of its own.
-		label, line := strings.ToLower(a.Label), append([]string{p.self}, p.cmd(argv...)...)
-		if c != nil {
-			label += " " + c.Name
-		}
-		p.helper(func() {
-			tab, err := p.k.Terms.TabCreate(p.root, label, []string{contract.EnvFrom + "=" + contract.WherePane})
-			if err == nil {
-				err = p.k.Terms.Run(tab.ID, line)
-			}
-			if err != nil {
-				p.tell(news{said: a.Label + ": " + err.Error()})
-			}
-		})
 	case a.ID == "catchup":
-		p.child(p.cmd(append(argv, "--json")...), "", func(out []byte, said string, ok bool) {
+		// From when the person left, not from the key that asks: that key,
+		// and coming back to the window before it, already said "here".
+		if argv = append(argv, "--json"); !p.away.IsZero() {
+			argv = append(argv, "--since", p.away.Format(time.RFC3339))
+		}
+		p.child(p.cmd(argv...), "", func(out []byte, said string, ok bool) {
 			if p.catch = (contract.Catchup{}); ok && result(out, &p.catch) {
-				p.over, p.hint = a.ID, ""
+				p.over, p.hint, p.away = a.ID, "", time.Time{}
 			} else {
 				p.hint = cmp.Or(said, "catch me up: the answer could not be read")
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"time"
@@ -203,7 +204,9 @@ type Terminals interface {
 	// ratio above 1 is the new pane's size in cells, kept as the window changes.
 	Split(pane, direction string, ratio float64) (Pane, error)
 	Swap(source, target string) error
-	// Resize moves a pane's dividing line by a fraction of its split.
+	// Resize moves a pane's dividing line by a fraction of its split: the line
+	// on the side the direction names, or at the window's edge the line on
+	// the pane's other side.
 	Resize(pane, direction string, amount float64) error
 	PaneClose(pane string) error
 	// Size is a pane's width and height in cells; under herdr its frame is included.
@@ -281,6 +284,13 @@ type Platform interface {
 	Quote(shell string, argv []string) string
 	Watch(paths ...string) (Watcher, error)
 	SelfPath() (string, error)
+	// System is the system this program runs on: "darwin", "linux" or "windows".
+	System() string
+	// Shell is the command that runs one line in the system's own shell, set
+	// up so that EndTree reaches whatever the line starts.
+	Shell(line string) *exec.Cmd
+	// EndTree ends a started command and everything it started.
+	EndTree(cmd *exec.Cmd) error
 }
 
 // Placement decides the folder a task's attempts work in.
@@ -327,7 +337,12 @@ type Nudge struct {
 
 // Notifier reaches the person when they are not looking.
 type Notifier interface {
+	// Nudge is one call about something that is no item.
 	Nudge(n Nudge) error
+	// Items puts every item of a run that waits for the person in front of
+	// them and stamps it as shown; whoever swept or raised an item calls it.
+	// snap is the picture the caller has just taken, or nil.
+	Items(root, run string, snap *Snapshot, now time.Time) error
 }
 
 // Evidence lists what a worker saved from its browser check.
@@ -364,9 +379,10 @@ type Swept struct {
 	Changed bool      `json:"changed"`
 }
 
-// Sweeper looks at every live attempt of a run once.
+// Sweeper looks at every live attempt of a run once. It returns the picture
+// it took, nil when it took none, so its caller need not ask for a second.
 type Sweeper interface {
-	Sweep(root, run string, now time.Time) (Swept, error)
+	Sweep(root, run string, now time.Time) (Swept, *Snapshot, error)
 }
 
 // The stand-ins: each does nothing, until the package that owns the real
@@ -435,6 +451,9 @@ func (NoPlatform) PathKey(path string) string            { return path }
 func (NoPlatform) Quote(_ string, argv []string) string  { return strings.Join(argv, " ") }
 func (NoPlatform) Watch(...string) (Watcher, error)      { return nil, ErrNotBuilt }
 func (NoPlatform) SelfPath() (string, error)             { return "", ErrNotBuilt }
+func (NoPlatform) System() string                        { return "" }
+func (NoPlatform) Shell(line string) *exec.Cmd           { return exec.Command(line) }
+func (NoPlatform) EndTree(*exec.Cmd) error               { return ErrNotBuilt }
 
 // Place gives the project folder, or the folder the task names: phase 1 has
 // no worktrees.
@@ -451,7 +470,8 @@ func (NoIntegrator) Collect(string, *State, string, Checked) (string, error) { r
 
 func (NoOverlap) Scan(string, *State, []string) ([]Finding, error) { return nil, nil }
 
-func (NoNotifier) Nudge(Nudge) error { return nil }
+func (NoNotifier) Nudge(Nudge) error                                { return nil }
+func (NoNotifier) Items(string, string, *Snapshot, time.Time) error { return nil }
 
 func (NoEvidence) List(string, string, string) ([]EvidenceFile, error) { return nil, nil }
 
@@ -460,4 +480,6 @@ func (NoAgentSettings) Ensure(string, string, string, bool) (AgentSetup, error) 
 }
 func (NoAgentSettings) Remove(string, string) error { return nil }
 
-func (NoSweeper) Sweep(string, string, time.Time) (Swept, error) { return Swept{}, nil }
+func (NoSweeper) Sweep(string, string, time.Time) (Swept, *Snapshot, error) {
+	return Swept{}, nil, nil
+}

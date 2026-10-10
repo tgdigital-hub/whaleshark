@@ -45,7 +45,7 @@ func status(c *contract.Call) (any, error) {
 	if c.Run == "" {
 		return none()
 	}
-	swept, err := c.Kit.Sweeper.Sweep(c.Root, c.Run, c.Now)
+	swept, snap, err := c.Kit.Sweeper.Sweep(c.Root, c.Run, c.Now)
 	if quiet {
 		return swept, err
 	}
@@ -56,7 +56,7 @@ func status(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	in := input(c, s, swept)
+	in := input(c, s, swept, snap)
 	in.All = has("all")
 	v := Build(in)
 	Text(c.Out, v, Options{Width: width(), PlainMarks: contract.PlainMarks(os.Getenv), Items: has("items")})
@@ -93,7 +93,8 @@ func usage(message string) *contract.Refusal {
 // input gathers what the view is built from besides the run: herdr's
 // picture, each agent's context figure, the person's screen file and the
 // project's limits. Whatever cannot be had is left out, and the view says so.
-func input(c *contract.Call, s *contract.State, swept contract.Swept) contract.ViewInput {
+// snap is the picture a sweep has just taken; with none, one is asked for.
+func input(c *contract.Call, s *contract.State, swept contract.Swept, snap *contract.Snapshot) contract.ViewInput {
 	in := contract.ViewInput{
 		Now: c.Now, Caller: c.Caller.Kind, State: s, Limits: contract.ProjectDefaults(),
 		Checked: s.Run.Terms.SeenAt, Swept: swept, Watched: true,
@@ -101,16 +102,19 @@ func input(c *contract.Call, s *contract.State, swept contract.Swept) contract.V
 	if p, err := contract.ReadProjectFile(c.Root); err == nil {
 		in.Limits = p
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), snapshotWait)
-	defer cancel()
-	if snap, err := c.Kit.Terms.Snapshot(ctx); err == nil && snap != nil {
+	if snap == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), snapshotWait)
+		defer cancel()
+		snap, _ = c.Kit.Terms.Snapshot(ctx)
+	}
+	if snap != nil {
 		in.Terms, in.Checked = snap, c.Now
 	}
 	dirs, err := c.Kit.Platform.Dirs()
 	if err != nil {
 		return in
 	}
-	contract.ReadVersioned(c.Kit.Platform.Peek, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &in.UI)
+	contract.ReadVersioned(c.Kit.Platform.Peek, filepath.Join(dirs.State, contract.UIFileName), contract.FileVersion, &in.UI)
 	in.Ctx = contract.ReadCtx(c.Kit.Platform.Peek, dirs.State, s)
 	return in
 }

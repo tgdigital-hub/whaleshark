@@ -23,6 +23,8 @@ type Rules interface {
 	// 6.3 Task. taken holds the names on every open tab of the login.
 	AddTask(s *State, t Task, taken []string, now time.Time) error
 	EditTask(s *State, id string, edit TaskEdit, now time.Time) (ready []string, err error)
+	// Looked stamps a task as seen by the person: show and jump call it.
+	Looked(s *State, task string, now time.Time) error
 	CancelTask(s *State, id string, now time.Time) error
 	ResetTask(s *State, id string, now time.Time) error
 	// FindTask resolves an id or a name.
@@ -36,6 +38,9 @@ type Rules interface {
 	Placed(s *State, attempt string, p Place, now time.Time) error
 	Working(s *State, attempt string, now time.Time) error
 	StartFailed(s *State, attempt, why string, now time.Time) error
+	// Token refuses a worker's command whose token is not the attempt's:
+	// progress, ask and mail call it; Report checks for itself and keeps the refusal.
+	Token(s *State, attempt, tokenHash string) error
 	Progress(s *State, attempt string, pct int, note string, now time.Time) error
 	// Report records a worker's report. kept is a refusal that was written
 	// into the record as a rejected event: the caller lets Store.Change save

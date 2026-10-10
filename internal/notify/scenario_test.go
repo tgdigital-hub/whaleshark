@@ -76,7 +76,7 @@ func (e *evening) pass(later time.Duration) {
 	e.t.Helper()
 	e.Clock(later)
 	e.now = e.now.Add(later)
-	if err := e.n.Items(e.Root, e.run, e.now); err != nil {
+	if err := e.n.Items(e.Root, e.run, nil, e.now); err != nil {
 		e.t.Fatal(err)
 	}
 }
@@ -282,9 +282,7 @@ func TestSound(t *testing.T) {
 func TestPlug(t *testing.T) {
 	k := contract.NewKit()
 	Plug(k)
-	if _, ok := k.Notifier.(interface {
-		Items(root, run string, now time.Time) error
-	}); !ok {
-		t.Fatal("the pass cannot be reached through the kit")
+	if _, ok := k.Notifier.(Nudger); !ok {
+		t.Fatal("the nudger is not the kit's notifier")
 	}
 }

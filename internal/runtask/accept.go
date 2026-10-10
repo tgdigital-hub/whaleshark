@@ -1,17 +1,16 @@
 package runtask
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/launch"
 )
 
 // accepted is what accept answers with.
@@ -38,6 +37,13 @@ func accept(c *contract.Call) (any, error) {
 		return nil, noRun()
 	case byHand && strings.TrimSpace(last(c, "by-hand")) == "":
 		return nil, usage(c, "--by-hand needs a note: what you ran or read.")
+	}
+	// A button's check can take minutes: it runs in a tab of its own, which
+	// is typed its line, so only an id goes there.
+	if !byHand && cli.Valid("id", c.Args[0], "") == nil {
+		if moved, err := launch.OwnTab(c, c.Args[0], c.Args[0]); moved != nil || err != nil {
+			return moved, err
+		}
 	}
 	dir := k.Store.Dir(c.Root, c.Run)
 	unlock, free, err := k.Platform.TryLock(filepath.Join(dir, "accept.lock"))
@@ -139,16 +145,8 @@ func accept(c *contract.Call) (any, error) {
 	if len(out.Ready) > 0 {
 		fmt.Fprintf(c.Out, "Ready now: %s.\n", strings.Join(out.Ready, ", "))
 	}
+	launch.CloseOwnTab(c)
 	return out, nil
-}
-
-// shell is how a check's line is run: by sh where the system has one, else by
-// the command processor Windows names.
-func shell(line string) []string {
-	if sh, err := exec.LookPath("sh"); err == nil {
-		return []string{sh, "-c", line}
-	}
-	return []string{os.Getenv("ComSpec"), "/C", line}
 }
 
 // check runs a task's check in its folder with all it prints written to the
@@ -167,19 +165,15 @@ func check(c *contract.Call, line, dir, log string) (contract.CheckResult, error
 	}
 	defer file.Close()
 	limit := time.Duration(project.Check.TimeoutSeconds) * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), limit)
-	defer cancel()
-	argv := shell(line)
-	// #nosec G204 G702 -- the check is the shell line the lead agent gave the task, which is its to give
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := c.Kit.Platform.Shell(line)
 	cmd.Dir, cmd.Stdout, cmd.Stderr = dir, file, file
-	err = cmd.Run()
-	var exit *exec.ExitError
-	switch {
-	case ctx.Err() != nil:
-		fmt.Fprintf(file, "\nwhaleshark: the check was stopped after %v\n", limit)
-	case err != nil && !errors.As(err, &exit):
+	if err := cmd.Start(); err != nil {
 		return contract.CheckResult{}, fmt.Errorf("the check could not be started: %w", err)
+	}
+	// Over its time the check is ended with everything it started.
+	over := time.AfterFunc(limit, func() { c.Kit.Platform.EndTree(cmd) })
+	if err = cmd.Wait(); !over.Stop() {
+		fmt.Fprintf(file, "\nwhaleshark: the check was stopped after %v\n", limit)
 	}
 	return contract.CheckResult{OK: err == nil, At: c.Now, Tail: tail(log)}, nil
 }

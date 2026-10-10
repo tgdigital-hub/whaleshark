@@ -271,12 +271,11 @@ func (i *setting) agent(kind string) error {
 	return err
 }
 
-// shortcuts is the action table's keys that work from anywhere: the first
-// action that names a key has it. The action list and the catch-up open over
+// shortcuts is the action table's keys that work from anywhere. The action list and the catch-up open over
 // the screen, the rest run unseen. A value an action leaves open is "toggle".
 func shortcuts(bin string) (keys []contract.KeyEntry, labels []string) {
 	for _, a := range contract.Actions {
-		if a.Prefix == "" || slices.ContainsFunc(keys, func(k contract.KeyEntry) bool { return k.Key == a.Prefix }) {
+		if a.Prefix == "" {
 			continue
 		}
 		e := contract.KeyEntry{Key: a.Prefix, Type: "shell", Argv: []string{bin}}

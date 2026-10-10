@@ -48,31 +48,32 @@ type look struct {
 
 var errSame = errors.New("nothing changed")
 
-func (sw sweeper) Sweep(root, run string, now time.Time) (contract.Swept, error) {
+func (sw sweeper) Sweep(root, run string, now time.Time) (contract.Swept, *contract.Snapshot, error) {
 	return sw.sweep(root, run, now, false)
 }
 
 // sweep takes one picture and applies it. The record is read under the
 // shared lock and tried on that copy first: only when a state, a flag or a
 // liveness value moved is it changed under the exclusive one. always is for
-// wait, whose own five seconds are not held back by the stamp.
-func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.Swept, error) {
+// wait, whose own five seconds are not held back by the stamp. After it the
+// notifier's pass runs: an item is in the record before its nudge.
+func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.Swept, *contract.Snapshot, error) {
 	k, dir := sw.k, sw.k.Store.Dir(root, run)
 	var last stamp
 	contract.ReadVersioned(k.Platform.Peek, filepath.Join(dir, stampFile), contract.FileVersion, &last)
 	swept := contract.Swept{Ran: !last.At.IsZero(), At: last.At}
 	if age := now.Sub(last.At); !always && age >= 0 && age < sweepEvery {
-		return swept, nil
+		return swept, nil, nil
 	}
 	s, err := k.Store.Read(root, run)
 	if err != nil {
-		return swept, err
+		return swept, nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), snapshotWait)
 	snap, err := k.Terms.Snapshot(ctx)
 	cancel()
 	if err != nil {
-		return swept, &contract.Refusal{Exit: contract.ExitEnv, Code: "no_picture",
+		return swept, nil, &contract.Refusal{Exit: contract.ExitEnv, Code: "no_picture",
 			Message: "The sweep changed nothing, because it could not see the terminals: " + err.Error() + "."}
 	}
 	free := func(lock string) bool {
@@ -83,7 +84,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		return ok && err == nil
 	}
 	l := &look{rules: k.Rules, panes: map[string]*contract.Pane{}, limits: contract.ProjectDefaults(),
-		dead: map[string]bool{}, waiting: !free(filepath.Join(dir, waitLock)), now: now}
+		dead: map[string]bool{}, waiting: !free(filepath.Join(dir, contract.WaitLock)), now: now}
 	if p, err := contract.ReadProjectFile(root); err == nil {
 		l.limits = p
 	}
@@ -92,7 +93,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	}
 	for id, a := range s.Attempts {
 		if a.State == contract.AttemptStarting && now.Sub(a.StateSince) >= sweepEvery {
-			l.dead[id] = free(filepath.Join(dir, "attempts", id, "start.lock"))
+			l.dead[id] = free(filepath.Join(contract.AttemptDir(dir, id), "start.lock"))
 		}
 	}
 
@@ -105,7 +106,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 			return nil
 		})
 		if err != nil && !errors.Is(err, errSame) {
-			return swept, err
+			return swept, nil, err
 		}
 	}
 	todo = slices.DeleteFunc(todo, func(p pointer) bool {
@@ -124,7 +125,15 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
 		stamp{contract.Versioned{Version: contract.FileVersion}, now})
-	return contract.Swept{Ran: true, At: now, Changed: changed}, nil
+	// The nudge pass, only while an item has not been put in front of the
+	// person yet: twenty agents at work cost it nothing.
+	for _, q := range s.Questions {
+		if q.State == contract.QuestionOpen && q.ShownAt.IsZero() {
+			k.Notifier.Items(root, run, snap, now)
+			break
+		}
+	}
+	return contract.Swept{Ran: true, At: now, Changed: changed}, snap, nil
 }
 
 func resting(p *contract.Pane) bool {

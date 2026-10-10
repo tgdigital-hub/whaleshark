@@ -18,7 +18,7 @@ func look(c *contract.Call) (*contract.State, contract.ViewInput, *contract.View
 	if err != nil {
 		return nil, contract.ViewInput{}, nil, err
 	}
-	in := input(c, s, contract.Swept{})
+	in := input(c, s, contract.Swept{}, nil)
 	in.All = true
 	return s, in, c.Kit.View(in), nil
 }
@@ -47,8 +47,7 @@ func wordOf(c contract.Card) string {
 func looked(c *contract.Call, task string) {
 	if c.Caller.Kind == contract.Human {
 		_ = c.Kit.Store.Change(c.Root, c.Run, func(s *contract.State) error {
-			s.Tasks[task].SeenAt = c.Now
-			return nil
+			return c.Kit.Rules.Looked(s, task, c.Now)
 		})
 	}
 }

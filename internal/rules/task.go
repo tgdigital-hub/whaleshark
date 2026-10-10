@@ -192,6 +192,14 @@ func (Rules) FindTask(s *contract.State, idOrName string) (*contract.Task, error
 	return nil, next(refuse(contract.ExitMissing, "no_such_task", "There is no task %q in run %s.", idOrName, s.Run.ID), "whaleshark status")
 }
 
+func (r Rules) Looked(s *contract.State, task string, now time.Time) error {
+	t, err := r.FindTask(s, task)
+	if err == nil {
+		t.SeenAt = now
+	}
+	return err
+}
+
 func (r Rules) SetWorktree(s *contract.State, task string, w *contract.Worktree, now time.Time) error {
 	t, err := r.FindTask(s, task)
 	if err != nil {

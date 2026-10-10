@@ -8,7 +8,7 @@ as-unbound: show T7.1               -> expect "all sending paths covered"
 orch: show T7 --screen              -> expect "SCREEN"
 human: show T99                     -> expect exit 4 "no task"
 as-worker T1.1: show T7             -> expect exit 5
-orch: show T7 --json                -> expect '"Says":"all sending paths covered"'
+orch: show T7 --json                -> expect '"says":"all sending paths covered"'
 
 human: jump "search box"            -> expect "in front: search box"
 human: jump lead                    -> expect "in front: lead agent"

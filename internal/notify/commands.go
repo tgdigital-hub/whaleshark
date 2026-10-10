@@ -5,15 +5,11 @@ package notify
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/BurntSushi/toml"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -25,9 +21,8 @@ const (
 	snapshotWait = 3 * time.Second
 )
 
-// Nudger is the kit's Notifier. Its Items is the pass a watcher runs after
-// each sweep; a package that cannot import this one reaches it through the
-// kit as interface{ Items(root, run string, now time.Time) error }.
+// Nudger is the kit's Notifier. Its Items is the pass that runs after each
+// sweep and after each new item.
 type Nudger struct {
 	k *contract.Kit
 	// next are the channels after the pop-up, tried in order until one says
@@ -53,16 +48,10 @@ func (n Nudger) settings() (cfg contract.PersonConfig, ui contract.UIFile, file 
 	if err != nil {
 		return cfg, ui, "", err
 	}
-	data, err := n.k.Platform.Peek(filepath.Join(dirs.Config, "config.toml"))
-	if err == nil {
-		err = toml.Unmarshal(data, &cfg)
-	} else if errors.Is(err, fs.ErrNotExist) {
-		err = nil
-	}
-	if err != nil {
+	if cfg, err = contract.ReadPerson(n.k.Platform.Peek, dirs.Config); err != nil {
 		return cfg, ui, "", err
 	}
-	file = filepath.Join(dirs.State, "ui.json")
+	file = filepath.Join(dirs.State, contract.UIFileName)
 	// Read, not Peek: a file missed at the moment it is replaced would read
 	// as Do not disturb switched off.
 	err = contract.ReadVersioned(n.k.Platform.Read, file, contract.FileVersion, &ui)
@@ -130,7 +119,7 @@ func (n Nudger) Nudge(c contract.Nudge) error {
 // an item is in the pane before its nudge. Do not disturb holds everything
 // but the urgent back, unstamped; when its end time has passed it is
 // switched off here and one nudge announces all that was held.
-func (n Nudger) Items(root, run string, now time.Time) error {
+func (n Nudger) Items(root, run string, snap *contract.Snapshot, now time.Time) error {
 	cfg, ui, file, err := n.settings()
 	if err != nil {
 		return err
@@ -146,9 +135,11 @@ func (n Nudger) Items(root, run string, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), snapshotWait)
-	snap, _ := n.k.Terms.Snapshot(ctx)
-	cancel()
+	if snap == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), snapshotWait)
+		snap, _ = n.k.Terms.Snapshot(ctx)
+		cancel()
+	}
 	// The view model says what waits, what holds work up and what Do not
 	// disturb keeps back; the nudge is one more printer of it.
 	v := n.k.View(contract.ViewInput{Now: now, Caller: contract.Human, State: s,

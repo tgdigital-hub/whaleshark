@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"strconv"
 
 	"golang.org/x/sys/windows"
@@ -90,3 +91,15 @@ func moveUnder(tmp, final string) error {
 
 // owner cannot tell: who may write a file on Windows is not read yet.
 func owner(fs.FileInfo) (uid, gid uint32, ok bool) { return 0, 0, false }
+
+// shell runs a line by the command processor Windows names; endTree asks
+// the system's own tool to end it with all it started.
+func shell(line string) *exec.Cmd {
+	// #nosec G204 -- the line is a task's check, which is the lead agent's to give
+	return exec.Command(os.Getenv("ComSpec"), "/C", line)
+}
+
+func endTree(cmd *exec.Cmd) error {
+	// #nosec G204 -- a process number of our own child
+	return exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
+}

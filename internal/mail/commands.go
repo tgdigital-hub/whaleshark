@@ -149,9 +149,16 @@ func (o *sent) said() string {
 // is left to the sweep, which types it once the agent is idle. The agent's
 // state is the one the last sweep saw.
 func toWorker(c *contract.Call, out *sent, a *contract.Attempt, now, quiet bool) error {
+	stamp := func() error {
+		return c.Kit.Store.Change(c.Root, c.Run, func(s *contract.State) error {
+			return c.Kit.Rules.Pointed(s, a.ID, out.Seq, c.Now)
+		})
+	}
 	switch {
 	case quiet:
+		// Stamped as pointed at, so that no sweep types the line later.
 		out.Pointer, out.Why = skipped, "--quiet"
+		return stamp()
 	case a.State == contract.AttemptReported || a.State == contract.AttemptChecking:
 		out.Pointer, out.Why = skipped, "it has reported and reads this if its result is sent back"
 	case a.State == contract.AttemptStarting:
@@ -160,9 +167,7 @@ func toWorker(c *contract.Call, out *sent, a *contract.Attempt, now, quiet bool)
 		out.Pointer, out.Why = deferred, "until it is idle"
 	default:
 		if out.Pointer, out.Why = point(c, a.Place.Pane, contract.PointMail, ""); out.Pointer == typed {
-			return c.Kit.Store.Change(c.Root, c.Run, func(s *contract.State) error {
-				return c.Kit.Rules.Pointed(s, a.ID, out.Seq, c.Now)
-			})
+			return stamp()
 		}
 	}
 	return nil
@@ -178,7 +183,7 @@ func toLead(c *contract.Call, out *sent, pane string, unread int, now, quiet boo
 		return
 	}
 	k := c.Kit
-	unlock, free, err := k.Platform.TryLock(filepath.Join(k.Store.Dir(c.Root, c.Run), "wait.lock"))
+	unlock, free, err := k.Platform.TryLock(filepath.Join(k.Store.Dir(c.Root, c.Run), contract.WaitLock))
 	if free {
 		unlock()
 	}
@@ -235,9 +240,12 @@ func read(c *contract.Call) (any, error) {
 		return nil, err
 	}
 	a := s.Attempts[id]
-	token, _ := k.Platform.Read(filepath.Join(k.Store.Dir(c.Root, c.Run), "attempts", id, "token"))
-	if contract.TokenHash(string(token)) != a.TokenHash {
-		return nil, &contract.Refusal{Exit: contract.ExitRefused, Code: "bad_token", Message: "The token does not match " + id + ". Stop."}
+	token, err := contract.ReadToken(k.Platform.Read, k.Store.Dir(c.Root, c.Run), id)
+	if err == nil {
+		err = k.Rules.Token(s, id, token)
+	}
+	if err != nil {
+		return nil, err
 	}
 	if out.Paused = s.Run.Paused != nil; out.Paused {
 		fmt.Fprintln(c.Out, contract.PausedReply)

@@ -129,6 +129,11 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	// and a person at a plain terminal. Nothing else, so a variable an agent
 	// inherited or a flag it added where it has no pane gains it nothing.
 	human, from := c.Flags["human"] != nil, os.Getenv(contract.EnvFrom)
+	if own := os.Getenv(contract.EnvOwnTab); pane != "" && own != "" {
+		// A button's long command, moved into a tab of its own, is still the
+		// button's: the tab says where it was pressed.
+		from = own
+	}
 	who := contract.Caller{Kind: contract.Unbound, Pane: pane}
 	switch {
 	case attempt != "":
@@ -136,7 +141,7 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	case pane == "" && (from == contract.WherePage || from == contract.WherePhone):
 		who.Kind, who.Where = contract.Human, from
 	case human && len(leads) > 0:
-	case human && pane != "" && from == contract.WherePane:
+	case human && pane != "" && (from == contract.WherePane || from == contract.WherePage || from == contract.WherePhone):
 		who.Kind, who.Where = contract.Human, from
 	case human && (pane != "" || key != ""), pane == "" && onTerminal():
 		who.Kind, who.Where = contract.Human, contract.WhereTyped

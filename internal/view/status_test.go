@@ -49,9 +49,9 @@ type sweeps struct {
 	err error
 }
 
-func (s *sweeps) Sweep(_, _ string, now time.Time) (contract.Swept, error) {
+func (s *sweeps) Sweep(_, _ string, now time.Time) (contract.Swept, *contract.Snapshot, error) {
 	s.n++
-	return contract.Swept{Ran: true, At: now}, s.err
+	return contract.Swept{Ran: true, At: now}, nil, s.err
 }
 
 type login struct {

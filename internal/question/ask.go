@@ -19,10 +19,7 @@ var (
 	keepalive = 15 * time.Second
 )
 
-const (
-	patience = 540 // seconds, when --timeout says nothing
-	record   = "state.json"
-)
+const patience = 540 // seconds, when --timeout says nothing
 
 type asked struct {
 	ID     string `json:"id"`
@@ -33,6 +30,10 @@ func ask(c *contract.Call) (any, error) {
 	limit, id := patience, ""
 	if f := c.Flags["timeout"]; f != nil {
 		limit, _ = strconv.Atoi(f[len(f)-1])
+	}
+	token, err := contract.ReadToken(c.Kit.Platform.Read, c.Kit.Store.Dir(c.Root, c.Run), c.Caller.Attempt)
+	if err != nil {
+		return nil, err
 	}
 	if f := c.Flags["resume"]; f != nil {
 		if id = f[len(f)-1]; len(c.Args) != 0 || c.Flags["options"] != nil {
@@ -51,7 +52,9 @@ func ask(c *contract.Call) (any, error) {
 			return nil, err
 		}
 		s, _, err := change(c, "", func(s *contract.State) (err error) {
-			id, err = c.Kit.Rules.Ask(s, c.Caller.Attempt, text, choices, c.Now)
+			if err = c.Kit.Rules.Token(s, c.Caller.Attempt, token); err == nil {
+				id, err = c.Kit.Rules.Ask(s, c.Caller.Attempt, text, choices, c.Now)
+			}
 			return err
 		})
 		if err != nil {
@@ -62,7 +65,7 @@ func ask(c *contract.Call) (any, error) {
 		}
 		unread(c, s)
 	}
-	return wait(c, id, time.Duration(limit)*time.Second)
+	return wait(c, id, token, time.Duration(limit)*time.Second)
 }
 
 // wait blocks until the answer to a question of the calling attempt may be
@@ -70,7 +73,7 @@ func ask(c *contract.Call) (any, error) {
 // lock, which is how answer knows that somebody is waiting, and it reads the
 // record only when the file has changed. An answer that is still settling,
 // or given while all work is paused, is not returned (8n, 8o).
-func wait(c *contract.Call, id string, limit time.Duration) (any, error) {
+func wait(c *contract.Call, id, token string, limit time.Duration) (any, error) {
 	k, lock := c.Kit, askLock(c, id)
 	if err := os.MkdirAll(filepath.Dir(lock), 0o700); err != nil {
 		return nil, err
@@ -91,11 +94,14 @@ func wait(c *contract.Call, id string, limit time.Duration) (any, error) {
 
 	var seen os.FileInfo
 	var q *contract.Question
-	file, paused := filepath.Join(k.Store.Dir(c.Root, c.Run), record), false
+	file, paused := filepath.Join(k.Store.Dir(c.Root, c.Run), contract.StateFile), false
 	for began, beat := c.Now, time.Now(); ; time.Sleep(look) {
 		now := contract.Now()
 		if at, err := os.Stat(file); err != nil || seen == nil || !os.SameFile(seen, at) || !seen.ModTime().Equal(at.ModTime()) || seen.Size() != at.Size() {
 			s, err := k.Store.Read(c.Root, c.Run)
+			if err == nil {
+				err = k.Rules.Token(s, c.Caller.Attempt, token)
+			}
 			if err != nil {
 				return nil, err
 			}

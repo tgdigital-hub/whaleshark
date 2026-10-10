@@ -164,6 +164,10 @@ func TestTellPointer(t *testing.T) {
 		}
 	}
 	want(t, "typed lines", len(pointers(p)), 2)
+	// A quiet message is stamped, so that no sweep types its pointer later.
+	if s, _ := p.Record(); s.Attempts["T12.1"].Mail[0].NudgedAt.IsZero() {
+		t.Fatal("a quiet message is left for the sweep to point at")
+	}
 
 	// An agent at a prompt of its own is typed into by nobody.
 	p.Herdr.Push(contract.StatusBlocked, "w1:p13")

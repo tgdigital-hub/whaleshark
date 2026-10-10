@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -28,15 +26,10 @@ func Plug(k *contract.Kit) {
 	k.Handle("need", need)
 }
 
-// The locks of a run's folder (6.1) that say whether somebody is waiting: a
-// worker blocked in ask holds its question's, the lead agent's wait its own.
-const (
-	waitLock  = "wait.lock"
-	questions = "questions"
-)
-
+// askLock is held by a worker blocked in ask: that is how answer knows
+// somebody is waiting.
 func askLock(c *contract.Call, id string) string {
-	return filepath.Join(c.Kit.Store.Dir(c.Root, c.Run), questions, id+".lock")
+	return contract.AskLock(c.Kit.Store.Dir(c.Root, c.Run), id)
 }
 
 func usage(c *contract.Call, format string, a ...any) error {
@@ -92,7 +85,7 @@ func pointLead(c *contract.Call, s *contract.State, p contract.Pointer, arg stri
 	if o == nil || s.Run.Paused != nil {
 		return false
 	}
-	unlock, free, err := k.Platform.TryLock(filepath.Join(k.Store.Dir(c.Root, c.Run), waitLock))
+	unlock, free, err := k.Platform.TryLock(filepath.Join(k.Store.Dir(c.Root, c.Run), contract.WaitLock))
 	if err != nil || !free {
 		return false
 	}
@@ -113,15 +106,8 @@ func unread(c *contract.Call, s *contract.State) {
 }
 
 // nudge calls for the person once an item of theirs is in the record. The
-// notifier decides whether, how and when: it knows Do not disturb.
-func nudge(c *contract.Call, s *contract.State, id string) {
-	q := s.Questions[id]
-	title := "needs you"
-	if t := s.Tasks[q.Task]; t != nil {
-		title = t.Name + " — " + title
-	}
-	c.Kit.Notifier.Nudge(contract.Nudge{Title: title, Body: q.Text, Task: q.Task, Urgent: q.Urgent})
-}
+// notifier's pass decides whether, how and when: it knows Do not disturb.
+func nudge(c *contract.Call) { c.Kit.Notifier.Items(c.Root, c.Run, nil, c.Now) }
 
 // button reports whether an answer was one click or one key: given in a
 // pane, on the page or on a phone, and not a typed line, whose Enter was the
@@ -138,9 +124,7 @@ func button(q *contract.Question, text string, by contract.Origin) bool {
 func settling(k *contract.Kit) time.Duration {
 	cfg := contract.PersonDefaults()
 	if dirs, err := k.Platform.Dirs(); err == nil {
-		if data, err := k.Platform.Peek(filepath.Join(dirs.Config, "config.toml")); err == nil {
-			toml.Decode(string(data), &cfg)
-		}
+		cfg, _ = contract.ReadPerson(k.Platform.Peek, dirs.Config)
 	}
 	return time.Duration(max(0, cfg.UI.SettleSeconds)) * time.Second
 }
@@ -183,11 +167,6 @@ func answer(c *contract.Call) (any, error) {
 			return r.Undo(s, id, by, c.Now)
 		}
 		q, settle := s.Questions[id], time.Duration(0)
-		if q != nil && q.Form == contract.FormChoice && len(q.Options) == 0 {
-			// A choice with no options stored is Yes and No (6.6); the rules
-			// hold an answer to the options that are stored.
-			q.Options = []string{"yes", "no"}
-		}
 		if q != nil && button(q, text, by) {
 			settle = settling(c.Kit)
 		}
@@ -260,11 +239,10 @@ func escalate(c *contract.Call) (any, error) {
 		return nil, usage(c, "escalate takes the id of one question.")
 	}
 	id := c.Args[0]
-	s, _, err := change(c, "", func(s *contract.State) error { return c.Kit.Rules.Escalate(s, id, c.Now) })
-	if err != nil {
+	if _, _, err := change(c, "", func(s *contract.State) error { return c.Kit.Rules.Escalate(s, id, c.Now) }); err != nil {
 		return nil, err
 	}
-	nudge(c, s, id)
+	nudge(c)
 	fmt.Fprintf(c.Out, "%s is now for the person, in the action pane. Do not ask it again in the chat.\n", id)
 	return map[string]string{"id": id, "for": contract.ForHuman}, nil
 }
@@ -311,14 +289,14 @@ func need(c *contract.Call) (any, error) {
 		q.Task = t[len(t)-1]
 	}
 	id := ""
-	s, _, err := change(c, form, func(s *contract.State) (err error) {
+	_, _, err = change(c, form, func(s *contract.State) (err error) {
 		id, err = c.Kit.Rules.Need(s, q, c.Now)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	nudge(c, s, id)
+	nudge(c)
 	fmt.Fprintln(c.Out, id)
 	return map[string]string{"id": id}, nil
 }

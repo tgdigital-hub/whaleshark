@@ -158,6 +158,8 @@ func TestAttemptChanges(t *testing.T) {
 			return err
 		},
 			map[contract.AttemptState]string{"=": "!bad_token"}, nil},
+		{"a command with a wrong token", func(s *contract.State) error { return r.Token(s, "T1.1", "other") },
+			map[contract.AttemptState]string{"=": "!bad_token"}, nil},
 		{"ask", func(s *contract.State) error { _, err := r.Ask(s, "T1.1", "which?", nil, later); return err },
 			map[contract.AttemptState]string{"working": "asked", "asked": "!already_asked", "=": "!not_active"}, nil},
 		{"checking", func(s *contract.State) error { return r.Checking(s, "T1", contract.Checked{OID: "abc"}, later) },

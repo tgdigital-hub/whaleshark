@@ -153,12 +153,42 @@ func SetPaused(stateDir string, p *Pause) error {
 // then. EnvActivePane is what herdr hands the command of a shortcut, which
 // has no pane of its own. EnvNotices set to NoticesOff makes a watcher lose
 // its file notices, so a test can see it find that out.
+//
+// EnvOwnTab marks a tab opened for one long command of a button, and holds
+// where the button was pressed. EnvSystem is how connect says which system
+// the person sits at, for the window's keys.
 const (
 	EnvFrom       = "WHALESHARK_FROM"
 	EnvActivePane = "HERDR_ACTIVE_PANE_ID"
 	EnvNotices    = "WHALESHARK_NOTICES"
 	NoticesOff    = "off"
+	EnvOwnTab     = "WHALESHARK_OWN_TAB"
+	EnvSystem     = "WHALESHARK_SYSTEM"
 )
+
+// The files of a run's folder that more than one package names (6.1): the
+// record, the lock the lead agent's wait holds, the lock of one question's
+// blocked ask, and an attempt's own folder with its token.
+const (
+	StateFile = "state.json"
+	WaitLock  = "wait.lock"
+)
+
+func AskLock(runDir, question string) string {
+	return filepath.Join(runDir, "questions", question+".lock")
+}
+
+func AttemptDir(runDir, attempt string) string { return filepath.Join(runDir, "attempts", attempt) }
+
+// ReadToken is the record's form of the token in an attempt's own file, and
+// nothing where there is no such file: the rules refuse that as a wrong one.
+func ReadToken(read func(path string) ([]byte, error), runDir, attempt string) (string, error) {
+	data, err := read(filepath.Join(AttemptDir(runDir, attempt), "token"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	return TokenHash(string(data)), err
+}
 
 const (
 	EnvRoot     = "WHALESHARK_ROOT"
@@ -337,6 +367,26 @@ type PersonConfig struct {
 		Phone       bool `toml:"phone"`
 		LeadMinutes int  `toml:"lead_minutes"`
 	} `toml:"nudge"`
+}
+
+// ConfigFile and UIFileName are the person's two files of ours.
+const (
+	ConfigFile = "config.toml"
+	UIFileName = "ui.json"
+)
+
+// ReadPerson reads the person's config.toml over the defaults; a missing
+// file gives the defaults.
+func ReadPerson(read func(path string) ([]byte, error), configDir string) (PersonConfig, error) {
+	c := PersonDefaults()
+	data, err := read(filepath.Join(configDir, ConfigFile))
+	if errors.Is(err, fs.ErrNotExist) {
+		return c, nil
+	}
+	if err == nil {
+		err = toml.Unmarshal(data, &c)
+	}
+	return c, err
 }
 
 // PersonDefaults is a PersonConfig with every default filled in.

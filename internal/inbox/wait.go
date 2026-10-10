@@ -45,7 +45,12 @@ func wait(c *contract.Call) (any, error) {
 		return nil, r
 	}
 	dir := k.Store.Dir(c.Root, c.Run)
-	unlock, ok, err := k.Platform.TryLock(filepath.Join(dir, waitLock))
+	// Whoever asks whether a wait is running takes this lock for an instant.
+	unlock, ok, err := k.Platform.TryLock(filepath.Join(dir, contract.WaitLock))
+	for tries := 0; err == nil && !ok && tries < 3; tries++ {
+		time.Sleep(100 * time.Millisecond)
+		unlock, ok, err = k.Platform.TryLock(filepath.Join(dir, contract.WaitLock))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +72,7 @@ func wait(c *contract.Call) (any, error) {
 		over = time.After(time.Duration(sec) * time.Second)
 	}
 	var changed <-chan string
-	if w, err := k.Platform.Watch(filepath.Join(dir, stateFile)); err == nil {
+	if w, err := k.Platform.Watch(filepath.Join(dir, contract.StateFile)); err == nil {
 		defer w.Close()
 		changed = w.Changes()
 	}
@@ -78,8 +83,21 @@ func wait(c *contract.Call) (any, error) {
 
 	for {
 		var out delivery
-		var acked []contract.Event
 		now := contract.Now()
+		// A batch goes into the history first and is dropped from the record
+		// second (6.5): cut off between the two it is there twice, which
+		// the history's reader leaves out, and never lost.
+		if ack != "" {
+			s, err := k.Store.Read(c.Root, c.Run)
+			if err != nil {
+				return nil, err
+			}
+			if acked, _ := k.Rules.Ack(s, ack); len(acked) > 0 {
+				if err := k.Store.Append(c.Root, c.Run, acked); err != nil {
+					return nil, err
+				}
+			}
+		}
 		err := k.Store.Change(c.Root, c.Run, func(s *contract.State) (err error) {
 			if gen >= 0 && s.Run.Gen != gen {
 				return refuse(contract.ExitRefused, "replaced", "You have been replaced: run %s is driven from another pane now. Stop.", c.Run)
@@ -89,7 +107,7 @@ func wait(c *contract.Call) (any, error) {
 			}
 			gen = s.Run.Gen
 			if ack != "" {
-				if acked, err = k.Rules.Ack(s, ack); err != nil {
+				if _, err = k.Rules.Ack(s, ack); err != nil {
 					return err
 				}
 			}
@@ -109,9 +127,6 @@ func wait(c *contract.Call) (any, error) {
 			}
 			return err
 		})
-		if err == nil {
-			err = k.Store.Append(c.Root, c.Run, acked)
-		}
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +138,7 @@ func wait(c *contract.Call) (any, error) {
 			case <-settle:
 				again = true
 			case <-sweep.C:
-				swept, _ := sweeper{k}.sweep(c.Root, c.Run, contract.Now(), true)
+				swept, _, _ := sweeper{k}.sweep(c.Root, c.Run, contract.Now(), true)
 				again = swept.Changed && changed == nil
 				sweep.Reset(sweepEvery)
 			case <-alive.C:

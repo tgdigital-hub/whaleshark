@@ -145,7 +145,7 @@ func TestEditResetAndAccept(t *testing.T) {
 	review(f, "T8", "echo two tests broken && exit 3")
 	review(f, "T9", contract.CheckNone)
 	review(f, "T10", "test -f go.txt || sleep 4")
-	review(f, "T12", "echo slow && sleep 3")
+	review(f, "T12", "echo slow; (sleep 2; touch outlived) & sleep 3")
 	f.State.Tasks["T14"].Status, f.State.Tasks["T14"].Failures = contract.TaskFailed, 3
 	p := scenario.Prepare(t, f, nil)
 	orch := func(exit int, args ...string) func(words ...string) string {
@@ -207,6 +207,11 @@ func TestEditResetAndAccept(t *testing.T) {
 		// A check that outlasts the project's limit is stopped and has failed.
 		write(t, filepath.Join(p.Root, "whaleshark.toml"), "[check]\ntimeout_seconds = 1\n")
 		orch(1, "accept", "T12")("the check was stopped after 1s")
+		// And what the check itself started has ended with it.
+		time.Sleep(3 * time.Second)
+		if _, err := os.Stat(filepath.Join(p.Root, "outlived")); err == nil {
+			t.Fatal("a program the stopped check had started lived on")
+		}
 	}
 
 	s, _ := p.Record()

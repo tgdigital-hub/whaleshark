@@ -5,12 +5,8 @@ package inbox
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
-// The files of a run's folder this package names.
-const (
-	stateFile = "state.json"
-	waitLock  = "wait.lock"
-	stampFile = "sweep.at"
-)
+// stampFile holds when the run was last swept.
+const stampFile = "sweep.at"
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {

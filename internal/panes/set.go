@@ -19,7 +19,7 @@ import (
 // screen reads ui.json for a command that may write it back.
 func screen(k *contract.Kit) (dirs contract.Dirs, ui contract.UIFile, file string, err error) {
 	if dirs, err = k.Platform.Dirs(); err == nil {
-		file = filepath.Join(dirs.State, "ui.json")
+		file = filepath.Join(dirs.State, contract.UIFileName)
 		err = contract.ReadVersioned(k.Platform.Read, file, contract.FileVersion, &ui)
 	}
 	return dirs, ui, file, err
@@ -101,15 +101,17 @@ func set(c *contract.Call) (any, error) {
 	default:
 		return bad("There is no setting %q. The settings: %s.", key, c.Command.Help[strings.Index(c.Command.Help, ":")+2:])
 	}
-	if onOff != nil && value != "on" && value != "off" {
+	if onOff != nil && value != "on" && value != "off" && value != "toggle" {
 		return bad("%s is on or off.", key)
 	} else if onOff != nil {
-		*onOff = value == "on"
+		// toggle is what a shortcut says: it cannot know which way it is.
+		*onOff = value == "on" || value == "toggle" && !*onOff
+		value = map[bool]string{true: "on", false: "off"}[*onOff]
 	}
 	if key == "theme" || key == "actions" || strings.HasPrefix(key, "nudge.") {
 		var b bytes.Buffer
 		if err = toml.NewEncoder(&b).Encode(cfg); err == nil {
-			err = replace(k, filepath.Join(dirs.Config, "config.toml"), b.Bytes())
+			err = replace(k, filepath.Join(dirs.Config, contract.ConfigFile), b.Bytes())
 		}
 		if key == "actions" && err == nil && ui.ActionsPane != "" {
 			fmt.Fprintln(c.Out, "the action pane moves when it is next opened: whaleshark ui actions off, then on")

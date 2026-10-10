@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/theme"
@@ -114,6 +112,7 @@ type pane struct {
 	pick             int
 	query            term.Line
 	catch            contract.Catchup
+	away             time.Time // when the person left, kept until they have been caught up
 	shown            contract.Card
 	sure, asked      string // the row that asked "sure?", and the one a second press confirms
 
@@ -334,9 +333,9 @@ func (p *pane) load() {
 	}
 	if p.watch == nil && err == nil {
 		paths := []string{filepath.Join(dirs.State, "ctx"), filepath.Join(dirs.State, "ui.json"),
-			filepath.Join(dirs.State, "paused"), filepath.Join(dirs.Config, "config.toml")}
+			filepath.Join(dirs.State, "paused"), filepath.Join(dirs.Config, contract.ConfigFile)}
 		if p.run != "" {
-			paths = append(paths, filepath.Join(r.Dir(p.root, p.run), "state.json"))
+			paths = append(paths, filepath.Join(r.Dir(p.root, p.run), contract.StateFile))
 			p.watch, _ = p.k.Platform.Watch(paths...)
 		}
 	}
@@ -365,10 +364,7 @@ func (p *pane) load() {
 
 // person reads the login's own settings over what holds when they say nothing.
 func person(k *contract.Kit, dirs contract.Dirs) contract.PersonConfig {
-	cfg := contract.PersonDefaults()
-	if data, err := k.Platform.Peek(filepath.Join(dirs.Config, "config.toml")); err == nil {
-		toml.Unmarshal(data, &cfg)
-	}
+	cfg, _ := contract.ReadPerson(k.Platform.Peek, dirs.Config)
 	return cfg
 }
 
@@ -396,6 +392,9 @@ func (p *pane) build() {
 		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Terms: p.picture,
 			Ctx: p.figures, UI: p.ui, Limits: p.limits, Checked: checked, Notes: notes,
 			Swept: p.swept, Watched: !p.sweptAt.IsZero() && now.Sub(p.sweptAt) < 3*compareEvery*second, All: p.all})
+		if a := p.view.Strip.Away; !a.IsZero() {
+			p.away = a
+		}
 	case p.readErr != nil && !errors.Is(p.readErr, contract.ErrNoRun):
 		p.view = contract.View{Alerts: []string{"the record cannot be read: " + p.readErr.Error()}, Fresh: contract.Fresh{Notes: notes}}
 	default:

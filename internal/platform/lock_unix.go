@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 
@@ -59,3 +60,13 @@ func owner(info fs.FileInfo) (uid, gid uint32, ok bool) {
 	}
 	return st.Uid, st.Gid, true
 }
+
+// shell runs a line by sh in a process group of its own, which endTree kills whole.
+func shell(line string) *exec.Cmd {
+	// #nosec G204 -- the line is a task's check, which is the lead agent's to give
+	cmd := exec.Command("sh", "-c", line)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	return cmd
+}
+
+func endTree(cmd *exec.Cmd) error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }

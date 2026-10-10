@@ -4,6 +4,7 @@ package hook
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,7 +48,9 @@ func run(c *contract.Call) (any, error) {
 		// The lead agent is told of a pause and not held, and a session of
 		// the person's own is none of ours: the gate is a worker's alone.
 		if ours && c.Caller.Kind == contract.Worker {
-			gate(c, dirs.State)
+			// The settings of a kind other than Claude Code name it as a
+			// second word: each kind needs its own answer.
+			gate(c, dirs.State, cmp.Or(contract.Gates[append(c.Args, claude)[1]], contract.Gates[claude]))
 		}
 	}
 	return nil, nil
@@ -122,9 +125,9 @@ const refusal = `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permission
 // pressed Stop all it answers with both parts, the deny decision and the end
 // of the turn: the second alone lets the step run. A pause mark that cannot
 // be read holds the worker too.
-func gate(c *contract.Call, stateDir string) {
+func gate(c *contract.Call, stateDir string, kind contract.Gate) {
 	if p, err := contract.Paused(stateDir); p != nil || err != nil {
-		fmt.Fprintf(c.Out, contract.Gates[claude].Answer+"\n", contract.PausedReason, contract.PausedReason)
+		fmt.Fprintf(c.Out, kind.Answer+"\n", contract.PausedReason, contract.PausedReason)
 		return
 	}
 	var m struct {

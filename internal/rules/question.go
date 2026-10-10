@@ -97,8 +97,12 @@ func answer(q *contract.Question, text string) (string, bool) {
 	}
 	switch q.Form {
 	case contract.FormChoice:
-		if i := slices.IndexFunc(q.Options, func(o string) bool { return strings.EqualFold(o, text) }); i >= 0 {
-			return q.Options[i], true
+		options := q.Options
+		if len(options) == 0 {
+			options = []string{"yes", "no"} // a choice with none stored (6.6)
+		}
+		if i := slices.IndexFunc(options, func(o string) bool { return strings.EqualFold(o, text) }); i >= 0 {
+			return options[i], true
 		}
 		return text, free(contract.AnswerOther)
 	case contract.FormSignoff:

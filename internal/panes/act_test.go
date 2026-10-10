@@ -181,12 +181,12 @@ var outcomes = map[string]outcome{
 	"carry-on":       {herdr: "w1:p1 whaleshark: questions for the human"},
 	"ask-lead":       {herdr: "w1:p1 whaleshark: a question is waiting"},
 	"note-lead":      {typed: "look at the prices", child: `tell lead --file "look at the prices" --human`},
-	"accept":         {herdr: "accept T2 --human"},
+	"accept":         {child: "accept T2 --human"},
 	"accept-by-hand": {typed: "read the diff", child: `accept T2 --by-hand --file "read the diff" --human`},
 	"send-back":      {typed: "no tests", child: `reject T2 --file "no tests" --human`},
 	"stop":           {twice: true, child: "stop T2 --human"},
-	"start":          {herdr: "start T2 --human"},
-	"retry":          {herdr: "start T2 --retry --human"},
+	"start":          {child: "start T2 --human"},
+	"retry":          {child: "start T2 --retry --human"},
 	"note":           {typed: "see the sheet", child: `tell T2 --file "see the sheet" --human`},
 	"close":          {child: "close T2 --human"},
 	"stop-all":       {twice: true, child: "pause --everywhere --human"},
@@ -769,6 +769,13 @@ func TestSet(t *testing.T) {
 	var off contract.UIFile
 	if contract.ReadVersioned(d.k.Platform.Read, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &off); off.DND || !off.DNDUntil.IsZero() || !off.Mute {
 		t.Errorf("after dnd off ui.json holds %+v", off)
+	}
+	// A shortcut cannot know which way a switch stands: it says toggle.
+	if out, err := run("mute", "toggle"); err != nil || !strings.Contains(out, "mute: off") {
+		t.Errorf("set mute toggle: %q, %v", out, err)
+	}
+	if out, err := run("mute", "toggle"); err != nil || !strings.Contains(out, "mute: on") {
+		t.Errorf("set mute toggle, again: %q, %v", out, err)
 	}
 	for _, args := range [][]string{nil, {"theme", "neon"}, {"actions", "left"}, {"mute", "maybe"}, {"dnd", "until", "soon"}, {"fleet.width", "wide"}, {"volume", "11"}} {
 		if _, err := run(args...); exit(err) != contract.ExitUsage {

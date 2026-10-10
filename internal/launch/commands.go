@@ -237,17 +237,14 @@ func closeTabs(c *contract.Call) (any, error) {
 	return map[string]any{"closed": closed}, err
 }
 
-// ownTabEnv marks a tab that was opened for one command of ours, which
-// closes it when it ends well.
-const ownTabEnv = "WHALESHARK_OWN_TAB"
-
 // OwnTab moves a button's long command into a tab of its own (decision 57):
 // a pane or the page waits only milliseconds for its child, and such a
 // command runs for minutes and needs a tab's surroundings. argv is the
 // command's own line and holds ids and switches, nothing else. moved is nil
 // for every other caller, who runs the command where it is.
 func OwnTab(c *contract.Call, label string, argv ...string) (moved any, err error) {
-	if w := c.Caller.Where; c.Caller.Kind != contract.Human || w != contract.WherePane && w != contract.WherePage && w != contract.WherePhone {
+	w := c.Caller.Where
+	if c.Caller.Kind != contract.Human || w != contract.WherePane && w != contract.WherePage && w != contract.WherePhone || os.Getenv(contract.EnvOwnTab) != "" {
 		return nil, nil
 	}
 	k := c.Kit
@@ -256,7 +253,7 @@ func OwnTab(c *contract.Call, label string, argv ...string) (moved any, err erro
 		return nil, err
 	}
 	label = c.Command.Name + " " + label
-	pane, err := k.Terms.TabCreate(c.Root, label, []string{ownTabEnv + "=1"})
+	pane, err := k.Terms.TabCreate(c.Root, label, []string{contract.EnvOwnTab + "=" + w})
 	if err == nil {
 		argv = append([]string{self, c.Command.Name}, append(argv, "--human", "--root", c.Root, "--run", c.Run)...)
 		err = k.Terms.Run(pane.ID, argv)
@@ -271,7 +268,7 @@ func OwnTab(c *contract.Call, label string, argv ...string) (moved any, err erro
 // CloseOwnTab closes the tab OwnTab opened for this command, once it has
 // ended well; one that failed keeps its tab, with what it printed.
 func CloseOwnTab(c *contract.Call) {
-	if os.Getenv(ownTabEnv) == "" {
+	if os.Getenv(contract.EnvOwnTab) == "" {
 		return
 	}
 	snap, err := c.Kit.Terms.Snapshot(context.Background())

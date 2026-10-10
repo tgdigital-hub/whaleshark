@@ -16,7 +16,7 @@ type Action struct {
 
 const (
 	HowChild  = "child"  // started by the pane or the page, which waits for it
-	HowTab    = "tab"    // run by herdr in a tab of its own: it can take minutes
+	HowTab    = "tab"    // a child too, which moves itself into a tab of its own: it can take minutes
 	HowPoint  = "point"  // a fixed pointer typed into the lead agent's tab
 	HowResize = "resize" // herdr's own resize, then set fleet.width
 	HowScreen = "screen" // nothing is run
@@ -29,7 +29,7 @@ var Actions = []Action{
 	{ID: "ask-lead", Label: "Ask the lead", Run: []string{string(PointQuestion)}, How: HowPoint},
 	{ID: "note-lead", Label: "Send the lead agent a note", Run: []string{"tell", "lead", "--file", "{file}", "--human"}, How: HowChild},
 	{ID: "accept", Label: "Accept", Run: []string{"accept", "{task}", "--human"}, How: HowTab},
-	{ID: "accept-by-hand", Label: "Accept", Run: []string{"accept", "{task}", "--by-hand", "--file", "{file}", "--human"}, How: HowChild},
+	{ID: "accept-by-hand", Label: "Accept by hand", Run: []string{"accept", "{task}", "--by-hand", "--file", "{file}", "--human"}, How: HowChild},
 	{ID: "send-back", Label: "Send back", Run: []string{"reject", "{task}", "--file", "{file}", "--human"}, How: HowChild},
 	{ID: "stop", Label: "Stop", Run: []string{"stop", "{task}", "--human"}, How: HowChild, Confirm: true},
 	{ID: "start", Label: "Start", Run: []string{"start", "{task}", "--human"}, How: HowTab},
@@ -37,7 +37,7 @@ var Actions = []Action{
 	{ID: "note", Label: "Send a note or a link", Run: []string{"tell", "{task}", "--file", "{file}", "--human"}, How: HowChild},
 	{ID: "close", Label: "Close the tab", Run: []string{"close", "{task}", "--human"}, How: HowChild},
 	{ID: "stop-all", Label: "Stop all", Run: []string{"pause", "--everywhere", "--human"}, How: HowChild, Key: "S", Prefix: "shift+a", Confirm: true},
-	{ID: "resume", Label: "Resume", Run: []string{"resume", "--everywhere", "--human"}, How: HowChild, Key: "r", Prefix: "shift+a"},
+	{ID: "resume", Label: "Resume", Run: []string{"resume", "--everywhere", "--human"}, How: HowChild, Key: "r"},
 	{ID: "dnd", Label: "Do not disturb", Run: []string{"set", "dnd", "{value}"}, How: HowChild, Key: "d", Prefix: "shift+m"},
 	{ID: "mute", Label: "Mute", Run: []string{"set", "mute", "{value}"}, How: HowChild, Key: "m", Prefix: "m"},
 	{ID: "theme", Label: "Next colour scheme", Run: []string{"set", "theme", "{value}"}, How: HowChild, Key: "t"},
@@ -95,6 +95,7 @@ var Gates = map[string]Gate{
 const (
 	PausedReason = "the person has paused all work"
 	PausedReply  = "The person has paused all work. Stop now, change nothing more, and wait to be told."
+	PausedLine   = "paused: stop now and wait to be told"
 )
 
 // ValueRule is one rule of the validator every value passes before anything

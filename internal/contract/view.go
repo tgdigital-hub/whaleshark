@@ -295,46 +295,48 @@ const (
 // Catchup is "while you were away": built from the record, the same words
 // every time. Each line is a count and what it counts.
 type Catchup struct {
-	From, To      time.Time
-	Waiting       CatchLine
-	Finished      CatchLine
-	CheckFailed   CatchLine
-	Clashes       CatchLine
-	WentIdle      CatchLine
-	AnsweredLead  int
-	DoneAsYou     CatchLine
-	StillBuilding int
-	Stopped       int
-	Failed        int
+	From          time.Time `json:"from"`
+	To            time.Time `json:"to"`
+	Waiting       CatchLine `json:"waiting"`
+	Finished      CatchLine `json:"finished"`
+	CheckFailed   CatchLine `json:"check_failed"`
+	Clashes       CatchLine `json:"clashes"`
+	WentIdle      CatchLine `json:"went_idle"`
+	AnsweredLead  int       `json:"answered_lead"`
+	DoneAsYou     CatchLine `json:"done_as_you"`
+	StillBuilding int       `json:"still_building"`
+	Stopped       int       `json:"stopped"`
+	Failed        int       `json:"failed"`
 }
 
 type CatchLine struct {
-	N    int
-	Text string
+	N    int    `json:"n"`
+	Text string `json:"text,omitempty"`
 }
 
 // TaskView is one task in full: what to do next, what the worker says, the
 // proof, then the background, newest try first.
 type TaskView struct {
-	Card   Card
-	Run    string
-	Says   string
-	Check  string
-	Result *CheckResult
-	ByHand string
-	Owns   []string
-	Brief  string
-	Tries  []Try
-	Items  []Item
-	Screen string
+	Card      Card         `json:"card"`
+	Run       string       `json:"run"`
+	Says      string       `json:"says,omitempty"`
+	Check     string       `json:"check,omitempty"`
+	Result    *CheckResult `json:"result,omitempty"`
+	ByHand    string       `json:"by_hand,omitempty"`
+	Owns      []string     `json:"owns,omitempty"`
+	Brief     string       `json:"brief,omitempty"`
+	Decisions []Decision   `json:"decisions,omitempty"`
+	Tries     []Try        `json:"tries"`
+	Items     []Item       `json:"items,omitempty"`
+	Screen    string       `json:"screen,omitempty"`
 }
 
 // Try is one attempt of a task, with the files it left and its history.
 type Try struct {
-	Attempt  string
-	State    AttemptState
-	Result   string
-	CheckLog string
-	Evidence []EvidenceFile
-	History  []Event
+	Attempt  string         `json:"attempt"`
+	State    AttemptState   `json:"state"`
+	Result   string         `json:"result,omitempty"`
+	CheckLog string         `json:"check_log,omitempty"`
+	Evidence []EvidenceFile `json:"evidence,omitempty"`
+	History  []Event        `json:"history,omitempty"`
 }

@@ -24,10 +24,6 @@ const (
 	enter = term.Enter + "\x1b[>1u"
 	leave = "\x1b[<u" + term.Leave
 
-	// envSystem is how the program that carries a window from another
-	// computer says which system the person sits at.
-	envSystem = "WHALESHARK_SYSTEM"
-
 	// A keeper that is starting is waited for this long, and asked this often.
 	startWait, startStep = 5 * time.Second, 50 * time.Millisecond
 )
@@ -41,8 +37,8 @@ func refuse(code, message string, next ...string) *contract.Refusal {
 
 // whose is the system whose copy keys apply: the one the person sits at.
 // Through a bare ssh nobody can tell, and the empty answer is the safe rule.
-func whose(getenv func(string) string) string {
-	if s := getenv(envSystem); s != "" {
+func whose(getenv func(string) string, system string) string {
+	if s := getenv(contract.EnvSystem); s != "" {
 		return s
 	}
 	if getenv("SSH_CONNECTION") != "" || getenv("SSH_TTY") != "" {
@@ -182,7 +178,7 @@ func open(c *contract.Call) (any, error) {
 		os.Exit(128 + int(s.(syscall.Signal)))
 	}()
 
-	attach := contract.WireCall{ID: 2, Op: contract.OpAttach, W: float64(w), H: float64(h), System: whose(os.Getenv)}
+	attach := contract.WireCall{ID: 2, Op: contract.OpAttach, W: float64(w), H: float64(h), System: whose(os.Getenv, c.Kit.Platform.System())}
 	for _, name := range attachEnv {
 		if v, ok := os.LookupEnv(name); ok {
 			attach.Env = append(attach.Env, name+"="+v)

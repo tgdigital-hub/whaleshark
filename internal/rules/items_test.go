@@ -50,6 +50,12 @@ func TestForms(t *testing.T) {
 			t.Errorf("%s answered %q: %v", row.form, row.text, err)
 		}
 	}
+	// A choice that was stored with no options is Yes and No all the same.
+	bare := newRun()
+	bare.Questions["q7"] = &contract.Question{ID: "q7", Form: contract.FormChoice, For: contract.ForHuman, State: contract.QuestionOpen}
+	if err := r.Answer(bare, "q7", "Yes", human, 0, t0); err != nil || bare.Questions["q7"].Answer != "yes" {
+		t.Errorf("a choice with no options answered yes: %v, %+v", err, bare.Questions["q7"])
+	}
 	s := newRun()
 	if _, err := r.Need(s, contract.Question{Form: "poll", Text: "?"}, t0); code(err) != "bad_form" {
 		t.Errorf("an unknown form: %v", err)

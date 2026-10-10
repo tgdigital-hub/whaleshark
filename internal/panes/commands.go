@@ -51,12 +51,12 @@ func ui(c *contract.Call) (any, error) {
 		return nil, err
 	case a[0] == "" || a[0] == "close" && a[1] == "":
 		return place(c, func(string, bool) bool { return a[0] == "" })
-	case one && (a[1] == "" || a[1] == "on" || a[1] == "off"):
+	case one && (a[1] == "" || a[1] == "on" || a[1] == "off" || a[1] == "toggle"):
 		return place(c, func(kind string, open bool) bool {
 			if kind != a[0] {
 				return open
 			}
-			return a[1] == "on" || a[1] == "" && !open
+			return a[1] == "on" || a[1] != "off" && !open
 		})
 	}
 	return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "Usage: whaleshark " + c.Command.Usage}

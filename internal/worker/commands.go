@@ -5,9 +5,7 @@
 package worker
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -21,9 +19,6 @@ func Plug(k *contract.Kit) {
 	k.Handle("report", report)
 	k.Handle("progress", progress)
 }
-
-// pausedLine is what a worker reads whose agent no gate will hold.
-const pausedLine = "paused: stop now and wait to be told"
 
 // said is what both commands answer.
 type said struct {
@@ -41,14 +36,9 @@ func file(c *contract.Call, name string) string {
 	return filepath.Join(c.Kit.Store.Dir(c.Root, c.Run), "attempts", c.Caller.Attempt, name)
 }
 
-// tokenHash is the record's form of the token in the attempt's file, and
-// nothing where there is no such file: the rules refuse that as a wrong one.
+// tokenHash is the record's form of the token in the attempt's own file.
 func tokenHash(c *contract.Call) (string, error) {
-	data, err := c.Kit.Platform.Read(file(c, "token"))
-	if errors.Is(err, fs.ErrNotExist) {
-		return "", nil
-	}
-	return contract.TokenHash(string(data)), err
+	return contract.ReadToken(c.Kit.Platform.Read, c.Kit.Store.Dir(c.Root, c.Run), c.Caller.Attempt)
 }
 
 // change applies fn to the caller's attempt under the lock. It answers
@@ -71,7 +61,7 @@ func (o said) print(c *contract.Call, word string) (any, error) {
 		fmt.Fprintln(c.Out, word)
 	}
 	if o.Paused {
-		fmt.Fprintln(c.Out, pausedLine)
+		fmt.Fprintln(c.Out, contract.PausedLine)
 	}
 	return o, nil
 }
@@ -129,9 +119,8 @@ func progress(c *contract.Call) (any, error) {
 		return nil, err
 	}
 	out, err := change(c, func(s *contract.State, a *contract.Attempt) error {
-		if hash == "" || hash != a.TokenHash {
-			return &contract.Refusal{Exit: contract.ExitRefused, Code: "bad_token",
-				Message: "The token does not match " + a.ID + ". Stop."}
+		if err := c.Kit.Rules.Token(s, a.ID, hash); err != nil {
+			return err
 		}
 		return c.Kit.Rules.Progress(s, a.ID, pct, c.Args[1], c.Now)
 	})
