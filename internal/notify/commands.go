@@ -36,7 +36,11 @@ type Nudger struct {
 }
 
 // Plug puts the nudger into the kit. The package binds no command.
-func Plug(k *contract.Kit) { k.Notifier = Nudger{k, []channel{phone}} }
+func Plug(k *contract.Kit) {
+	n := Nudger{k: k}
+	n.next = []channel{phone, n.paired}
+	k.Notifier = n
+}
 
 // sentFile is nudged.json in the login's state folder. At is when a task
 // was last nudged about, kept for as long as the limit lasts. Said is, by

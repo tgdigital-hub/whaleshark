@@ -303,8 +303,53 @@ func TestSound(t *testing.T) {
 func TestPlug(t *testing.T) {
 	k := contract.NewKit()
 	Plug(k)
-	if n, ok := k.Notifier.(Nudger); !ok || len(n.next) != 1 {
-		t.Fatal("the nudger with the phone after the pop-up is not the kit's notifier")
+	if n, ok := k.Notifier.(Nudger); !ok || len(n.next) != 2 {
+		t.Fatal("the nudger with the phone's two ways after the pop-up is not the kit's notifier")
+	}
+}
+
+// The paired phones are the last way: asked once no window showed the
+// pop-up and no notice service took the nudge, with the page's address for
+// a tap, and never while nudge.phone is off. Do not disturb holds the nudge
+// back before any way is asked.
+func TestThePairedPhonesComeLast(t *testing.T) {
+	for name, c := range map[string]struct {
+		more              string
+		service           bool
+		attached, quiet   bool
+		toService, toPush int
+	}{
+		"no window and no address: the paired phones":      {toPush: 1},
+		"the notice service took it":                       {service: true, toService: 1},
+		"a window showed the pop-up":                       {attached: true},
+		"nudge.phone is off":                               {more: "[nudge]\nphone = false\n"},
+		"Do not disturb holds it back":                     {quiet: true},
+		"nudge.phone off stops the service and the phones": {service: true, more: "[nudge]\nphone = false\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := prepare(t, func(f *testkit.Fixture) { f.UI.DND = c.quiet }, "q7")
+			var pushed []string
+			e.Kit.Push = func(n contract.Nudge, link string) (int, error) {
+				pushed = append(pushed, n.Title+" "+link)
+				return 1, nil
+			}
+			Plug(e.Kit)
+			e.n = e.Kit.Notifier.(Nudger)
+			got := make(chan string, 9)
+			if e.Double.Attached = c.attached; c.service {
+				got = e.service("/topic", c.more)
+				e.n = e.Kit.Notifier.(Nudger)
+			} else {
+				e.write(filepath.Join(e.dirs.Config, "config.toml"), "[notify]\nlink = \"https://page.example/r3\"\n"+c.more)
+			}
+			e.pass(0)
+			if sent := requests(got); len(sent) != c.toService || len(pushed) != c.toPush {
+				t.Fatalf("the service was sent %q and the phones %q", sent, pushed)
+			}
+			if c.toPush == 1 && pushed[0] != "sign-up page — needs you https://page.example/r3" {
+				t.Errorf("the phones were handed %q", pushed[0])
+			}
+		})
 	}
 }
 

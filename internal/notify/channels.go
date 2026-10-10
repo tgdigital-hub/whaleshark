@@ -55,6 +55,19 @@ func phone(ctx context.Context, set settings, c contract.Nudge) bool {
 	return res.StatusCode < 300
 }
 
+// paired hands the nudge to the phones paired with the page that asked for
+// nudges, and it is the last way tried: one sealed message a phone, through
+// its maker's push service, which can take all of reach where a service
+// does not answer. It obeys nudge.phone as the address above does; Do not
+// disturb held the nudge back before any channel was asked.
+func (n Nudger) paired(_ context.Context, set settings, c contract.Nudge) bool {
+	if !set.Nudge.Phone {
+		return false
+	}
+	sent, _ := n.k.Push(c, set.Notify.Link)
+	return sent > 0
+}
+
 // hooks starts every program in hooks/nudge.d of the person's settings
 // folder with the nudge on its standard input, as one JSON object, and
 // returns what waits for them. When ctx ends each is ended with all it
