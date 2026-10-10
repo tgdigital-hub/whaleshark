@@ -211,6 +211,7 @@ func input(c *contract.Call, s *contract.State, swept contract.Swept, snap *cont
 		return in
 	}
 	contract.ReadVersioned(c.Kit.Platform.Peek, filepath.Join(dirs.State, contract.UIFileName), contract.FileVersion, &in.UI)
+	in.Phones, _ = contract.ReadPhones(c.Kit.Platform.Peek, dirs.State)
 	if s != nil {
 		in.Ctx = contract.ReadCtx(c.Kit.Platform.Peek, dirs.State, s)
 	}

@@ -58,6 +58,7 @@ type pane struct {
 	state   *contract.State
 	readErr error
 	ui      contract.UIFile
+	phones  contract.Phones // what the login's phones ask of the person
 	figures map[string]contract.CtxFile
 	limits  contract.ProjectFile
 	cfg     contract.PersonConfig
@@ -350,7 +351,7 @@ func (p *pane) load() {
 	}
 	if p.watch == nil && err == nil {
 		paths := []string{filepath.Join(dirs.State, "ctx"), filepath.Join(dirs.State, contract.UIFileName),
-			filepath.Join(dirs.State, "paused"), filepath.Join(dirs.Config, contract.ConfigFile)}
+			filepath.Join(dirs.State, contract.PhonesFile), filepath.Join(dirs.State, "paused"), filepath.Join(dirs.Config, contract.ConfigFile)}
 		if p.anyRun {
 			// Where a new run appears and where the person's pointer lies.
 			paths = append(paths, r.Dir(p.root, ""), filepath.Dir(r.Dir(p.root, "r1")))
@@ -375,6 +376,7 @@ func (p *pane) load() {
 	if contract.ReadVersioned(p.k.Platform.Peek, filepath.Join(dirs.State, contract.UIFileName), contract.FileVersion, &ui) == nil {
 		p.ui = ui
 	}
+	p.phones, _ = contract.ReadPhones(p.k.Platform.Peek, dirs.State)
 	if p.figures = nil; p.state != nil {
 		p.figures = contract.ReadCtx(p.k.Platform.Peek, dirs.State, p.state)
 	}
@@ -447,7 +449,7 @@ func (p *pane) build() {
 	switch {
 	case p.state != nil:
 		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Terms: p.picture,
-			Ctx: p.figures, UI: p.ui, Limits: p.limits, Checked: checked, Notes: notes,
+			Ctx: p.figures, UI: p.ui, Phones: p.phones, Limits: p.limits, Checked: checked, Notes: notes,
 			Swept: p.swept, Watched: !p.sweptAt.IsZero() && now.Sub(p.sweptAt) < 3*compareEvery*second, All: p.all})
 		if a := p.view.Strip.Away; !a.IsZero() {
 			p.away = a

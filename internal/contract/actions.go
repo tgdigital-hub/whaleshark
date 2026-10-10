@@ -55,6 +55,8 @@ var Actions = []Action{
 	{ID: "show", Label: "Show", How: HowScreen},
 	{ID: "keys", Label: "All keys", How: HowScreen, Key: "?"},
 	{ID: "forget-phone", Label: "Forget a phone", Run: []string{"dash", "phone", "forget", "{id}"}, How: HowChild},
+	{ID: "phone-yes", Label: "Approve a phone", Run: []string{"dash", "phone", "approve", "{id}"}, How: HowChild},
+	{ID: "phone-no", Label: "Refuse a phone", Run: []string{"dash", "phone", "refuse", "{id}"}, How: HowChild},
 }
 
 // Never lists what neither the panes nor the page may ever run.

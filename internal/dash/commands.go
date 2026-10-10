@@ -15,7 +15,8 @@
 // phone's connection to it and says who is calling, or Cloudflare's does,
 // with a signed pass that the door checks itself on every request. A phone
 // is paired once, by a number the person approves where they are signed in
-// already, and is then shown the same page in one column.
+// already (on the page, in a pane, or with `dash phone approve`), and is then
+// shown the same page in one column.
 //
 // A server that holds a connection open and says a line when something
 // changed is the ordinary shape of a live page (the HTML standard's
@@ -31,6 +32,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -139,7 +141,7 @@ func dash(c *contract.Call) (any, error) {
 // ask puts one question of this login's own to the running server, over
 // its socket file, with a code signed for that word. ok is false when no
 // server answers.
-func ask(k *contract.Kit, dirs contract.Dirs, word string) (st status, ok bool) {
+func ask(k *contract.Kit, dirs contract.Dirs, word string, id ...string) (st status, ok bool) {
 	key, err := readKey(k.Platform, dirs, false, false)
 	if err != nil {
 		return st, false
@@ -149,7 +151,7 @@ func ask(k *contract.Kit, dirs contract.Dirs, word string) (st status, ok bool) 
 		return new(net.Dialer).DialContext(ctx, "unix", sock)
 	}}}
 	defer client.CloseIdleConnections()
-	resp, err := client.Get("http://" + contract.Loopback + routeOwn + word + "?" + contract.FieldCode + "=" + newCode(key, word, contract.Now()))
+	resp, err := client.Get("http://" + contract.Loopback + routeOwn + word + "?" + url.Values{contract.FieldCode: {newCode(key, word, contract.Now())}, "id": id}.Encode())
 	if err != nil {
 		return st, false
 	}

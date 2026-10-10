@@ -256,24 +256,32 @@ type status struct {
 	Refused string    `json:"refused,omitempty"`
 	Pass    string    `json:"pass,omitempty"`
 	Shut    time.Time `json:"shut,omitzero"`
+	// Decided answers `dash phone approve` or `refuse`: the number was the
+	// open request's, and it is decided now.
+	Decided bool `json:"decided,omitempty"`
 }
 
 // own answers this login's own dash command, which proves itself with a
 // code signed for the one word; "door" has the door for phones opened or
-// closed as phones.json says since that command wrote it.
+// closed as phones.json says since that command wrote it, and "approve"
+// and "refuse" decide the request to pair whose number comes with them.
 func (s *server) own(w http.ResponseWriter, r *http.Request, word string, now time.Time) {
-	if (word != "status" && word != "stop" && word != "door") || codeNumber(s.key, word, r.URL.Query().Get(contract.FieldCode), now) == 0 {
+	decides := word == "approve" || word == "refuse"
+	if (word != "status" && word != "stop" && word != "door" && !decides) || codeNumber(s.key, word, r.URL.Query().Get(contract.FieldCode), now) == 0 {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
+	decided := false
 	if word == "door" {
 		s.doors()
+	} else if decides {
+		decided, _ = s.decide("pair"+r.URL.Query().Get("id"), word, now)
 	}
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	s.mu.Lock()
 	st := status{Running: word != "stop", Socket: s.sock, Version: contract.Version, Since: s.since,
-		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran, Door: s.port, Caller: s.caller, Refused: s.why, Pass: s.shape, Shut: s.shut}
+		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran, Door: s.port, Caller: s.caller, Refused: s.why, Pass: s.shape, Shut: s.shut, Decided: decided}
 	s.mu.Unlock()
 	json.NewEncoder(w).Encode(st)
 	if word == "stop" {
@@ -345,12 +353,15 @@ func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job)
 func (s *server) view(ctx context.Context, j job, all []job, every bool) *contract.View {
 	now, peek := contract.Now(), s.k.Platform.Peek
 	in := contract.ViewInput{Now: now, Caller: contract.Human, Watched: true, Limits: contract.ProjectDefaults()}
+	// What the login's phones ask is decided where the person is signed in
+	// on the laptop's road, never on a phone: a phone is not shown it.
+	if from(ctx) == "" {
+		in.Phones, _ = contract.ReadPhones(peek, s.dirs.State)
+	}
 	if j.state == nil {
-		v := &contract.View{Version: contract.ViewVersion, At: now, Caller: contract.Human,
+		v := &contract.View{Version: contract.ViewVersion, At: now, Caller: contract.Human, Items: in.Phones.Items(now, true),
 			Alerts: []string{"no open run in any project of this login"}, Fresh: contract.Fresh{Checked: now}}
-		if from(ctx) == "" {
-			s.withPhones(v, false)
-		}
+		v.Counts.Waiting = len(v.Items)
 		return v
 	}
 	var err error
@@ -373,9 +384,7 @@ func (s *server) view(ctx context.Context, j job, all []job, every bool) *contra
 	s.mu.Unlock()
 	in.State, in.Ctx, in.All = j.state, contract.ReadCtx(peek, s.dirs.State, j.state), every
 	v := s.k.View(in)
-	if from(ctx) == "" {
-		s.withPhones(v, true)
-	}
+	withPhones(v, in.Phones)
 	return v
 }
 

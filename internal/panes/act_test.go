@@ -235,6 +235,8 @@ var outcomes = map[string]outcome{
 	"show":           {shows: " answered: 0"},
 	"keys":           {shows: "all keys"},
 	"forget-phone":   {child: "dash phone forget q7 --human"},
+	"phone-yes":      {child: "dash phone approve q7 --human"},
+	"phone-no":       {child: "dash phone refuse q7 --human"},
 }
 
 // reached checks what a row led to, and leaves the pane as it was.

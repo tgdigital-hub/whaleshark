@@ -66,7 +66,7 @@ func TestTheSettingsAreLinesOfTheActionList(t *testing.T) {
 	wd.s.Type("\x1b[I")
 	wd.shows("KEYS GO HERE")
 	wd.key("/")
-	wd.shows("42 actions and settings · type to search")
+	wd.shows("44 actions and settings · type to search")
 	wd.s.Type("scheme: kelp")
 	wd.shows("1 actions and settings")
 	wd.s.Key("enter")
@@ -243,4 +243,41 @@ func TestTheFleetShowsTheLinesAndWhatIsUnseen(t *testing.T) {
 			t.Errorf("%s is bold: %v\n%s", c.Name, got, frame(p))
 		}
 	}
+}
+
+// A phone that asks to be paired is an item of the login, not of a run: the
+// pane sees the phones' file change without being told, hands it to the
+// builder, and its two buttons are rows of the action table that carry the
+// item's id to `dash phone`.
+func TestAPhoneThatAsksInTheActionPane(t *testing.T) {
+	wd := startWith(t, actions, 110, 30, nil, ours)
+	wd.s.Type("\x1b[I")
+	wd.shows("KEYS GO HERE")
+	asking := &contract.Pairing{Number: "493 201", Identity: "robin@example.com", Name: "iPhone", At: wd.fx.Now}
+	if err := contract.ChangePhones(wd.sys, func(list *contract.Phones) error { list.Asking = asking; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	for end := time.Now().Add(10 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		wd.mu.Lock()
+		got := wd.in.Phones.Asking
+		if got != nil && got.Number == asking.Number {
+			// What the builder makes of it is the first item from now on.
+			wd.view.Items = append(wd.in.Phones.Items(wd.fx.Now, true), wd.view.Items...)
+			wd.mu.Unlock()
+			break
+		}
+		wd.mu.Unlock()
+		if time.Now().After(end) {
+			t.Fatal("the pane never handed the phone that asks to the builder")
+		}
+	}
+	wd.touch()
+	wd.shows("A phone wants to connect: 493 201 · robin@example.com · iPhone")
+	for range 6 { // up to the first item, wherever the selection stood
+		wd.key("k")
+	}
+	wd.key("y")
+	wd.ran("dash phone approve pair493201")
+	wd.key("n")
+	wd.ran("dash phone refuse pair493201")
 }

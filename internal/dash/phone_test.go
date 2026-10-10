@@ -135,7 +135,8 @@ func (p *phone) knock() (number string) {
 // decide presses Approve or Refuse on the laptop's page.
 func (b *browser) decide(number, answer string) *httptest.ResponseRecorder {
 	b.t.Helper()
-	return b.ask("POST", contract.RouteDo+"answer", url.Values{contract.FieldToken: {b.token()}, "id": {"pair" + number}, "text": {answer}}, nil)
+	button := map[string]string{"approve": "phone-yes", "refuse": "phone-no"}[answer]
+	return b.ask("POST", contract.RouteDo+button, url.Values{contract.FieldToken: {b.token()}, "id": {"pair" + number}}, nil)
 }
 
 // paired is a phone the person has approved.
@@ -303,12 +304,12 @@ func TestPairingIsApprovedWhereThePersonIsSignedIn(t *testing.T) {
 		t.Errorf("the item of a phone nobody names:\n%s", item)
 	}
 	press := func(by *phone, token string) *httptest.ResponseRecorder {
-		return by.ask("POST", contract.RouteDo+"answer", url.Values{contract.FieldToken: {token}, "id": {"pair" + number}, "text": {"approve"}}, nil)
+		return by.ask("POST", contract.RouteDo+"phone-yes", url.Values{contract.FieldToken: {token}, "id": {"pair" + number}}, nil)
 	}
 	b.refused("the asking phone approving itself", press(q, mac(b.s.key, "token", contract.TokenHash(q.cookie[0].Value))), http.StatusForbidden)
 	b.refused("a paired phone approving another", press(p, p.token()), http.StatusConflict)
 	b.refused("a number nobody was shown", b.decide("000000", "approve"), http.StatusConflict)
-	b.refused("another site approving", b.ask("POST", contract.RouteDo+"answer", url.Values{"id": {"pair" + number}, "text": {"approve"}}, nil), http.StatusForbidden)
+	b.refused("another site approving", b.ask("POST", contract.RouteDo+"phone-yes", url.Values{"id": {"pair" + number}}, nil), http.StatusForbidden)
 	if len(listOf(t, b).Paired) != 1 {
 		t.Fatal("a phone was paired by somebody who may not")
 	}
@@ -465,6 +466,7 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 		got, _ := res.(listed)
 		return out.String(), got, err
 	}
+	number := "" // what the phone that knocked last was shown
 	knock := func() (int, error) {
 		req, _ := http.NewRequest("GET", "http://"+at+contract.RoutePair, nil)
 		req.Host = strings.TrimPrefix(outside, "https://")
@@ -474,9 +476,11 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 		}
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
-		if !numberRE.Match(body) {
+		m := numberRE.FindSubmatch(body)
+		if m == nil {
 			return 0, nil
 		}
+		number = string(m[1]) + string(m[2])
 		return resp.StatusCode, nil
 	}
 	if _, err := knock(); err == nil {
@@ -491,6 +495,47 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 	}
 	if code, err := knock(); err != nil || code != http.StatusOK {
 		t.Fatalf("a phone at the open door: %d %v", code, err)
+	}
+	// A person at a terminal sees the phone that asks and decides it there:
+	// the command names the number, and the running server decides.
+	spaced := number[:3] + " " + number[3:]
+	phones := func() contract.Phones {
+		list, err := contract.ReadPhones(b.p.Kit.Platform.Read, dirs.State)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return list
+	}
+	if said, got, err := word("phone", "list"); err != nil || got.Asking == nil || got.Asking.Number != spaced ||
+		!strings.Contains(said, "A phone asks to be paired: "+spaced+" · nobody named") || !strings.Contains(said, "> whaleshark dash phone approve "+number) {
+		t.Fatalf("dash phone list with a phone asking: %v %+v\n%s", err, got, said)
+	}
+	other := "000000"
+	if other == number {
+		other = "000001"
+	}
+	for _, args := range [][]string{{"phone", "approve", other}, {"phone", "refuse", other}, {"phone", "approve"}, {"phone", "approve", number, "more"}} {
+		if said, _, err := word(args...); err == nil || len(phones().Paired) != 0 {
+			t.Fatalf("dash %v was taken: %s", args, said)
+		}
+	}
+	if said, _, err := word("phone", "refuse", "pair"+number); err != nil || !strings.Contains(said, "refused") || phones().Asking != nil {
+		t.Fatalf("dash phone refuse: %v %s, and the file still asks: %+v", err, said, phones().Asking)
+	}
+	if said, _, err := word("phone", "approve", number); err == nil {
+		t.Fatalf("a refused number was approved afterwards: %s", said)
+	}
+	if code, err := knock(); err != nil || code != http.StatusOK {
+		t.Fatalf("a second phone at the door: %d %v", code, err)
+	}
+	if said, _, err := word("phone", "approve", number[:3]+" "+number[3:]); err != nil || !strings.Contains(said, "is paired") {
+		t.Fatalf("dash phone approve: %v %s", err, said)
+	}
+	if list := phones(); len(list.Paired) != 1 || list.Paired[0].ID != "ph1" || list.Asking != nil {
+		t.Fatalf("after the approval at a terminal the phones are %+v", list)
+	}
+	if said, _, err := word("phone", "forget", "ph1"); err != nil {
+		t.Fatalf("dash phone forget: %v %s", err, said)
 	}
 	if err := contract.ChangePhones(b.p.Kit.Platform, func(list *contract.Phones) error {
 		list.Paired = append(list.Paired, contract.Phone{ID: "ph1", Name: "iPhone", Identity: robin, Session: "x", Push: &contract.PushTo{Auth: "secret-of-the-nudge"}})
@@ -553,7 +598,7 @@ func TestPairingNeedsNoOpenRun(t *testing.T) {
 	access(t, b.p.Kit, true)
 	p := &phone{b: b, who: robin}
 	number := p.knock()
-	if text := b.ask("GET", contract.RouteTeam, nil, nil).Body.String(); !strings.Contains(text, "A phone wants to connect: "+number[:3]) || !strings.Contains(text, `name="text" value="approve"`) {
+	if text := b.ask("GET", contract.RouteTeam, nil, nil).Body.String(); !strings.Contains(text, "A phone wants to connect: "+number[:3]) || !strings.Contains(text, `action="`+contract.RouteDo+`phone-yes"`) {
 		t.Fatalf("the laptop's page with no run:\n%s", text)
 	}
 	b.refused("approving", b.decide(number, "approve"), http.StatusSeeOther)

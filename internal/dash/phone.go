@@ -19,7 +19,7 @@ import (
 const (
 	// A request to pair is gone after pairLife; a session in use is marked
 	// as seen, and its cookie given a new end, once every seenEvery.
-	pairLife  = 2 * time.Minute
+	pairLife  = contract.PairLife
 	seenEvery = 5 * time.Minute
 	// bound begins the name of every cookie set at the door: a browser takes
 	// such a one only over HTTPS and only from the very name it is for, so
@@ -212,6 +212,9 @@ func (s *server) knock(w http.ResponseWriter, r *http.Request, srv *contract.Ser
 	}
 	s.mu.Unlock()
 	if fresh {
+		// Written down for the panes and the terminal, which see no memory
+		// of this server's; what is decided is decided here all the same.
+		s.asking(&contract.Pairing{Number: p.number, Identity: p.who, Name: p.name, Notes: p.notes, At: p.at})
 		s.wake()
 	}
 	if no != nil {
@@ -237,10 +240,10 @@ func (s *server) decide(id, answer string, now time.Time) (ok bool, err error) {
 	}
 	s.mu.Unlock()
 	defer s.wake()
-	if answer != "approve" {
-		return true, nil
-	}
 	return true, contract.ChangePhones(s.k.Platform, func(list *contract.Phones) error {
+		if list.Asking = nil; answer != "approve" {
+			return nil
+		}
 		n := 1
 		for slices.ContainsFunc(list.Paired, func(q contract.Phone) bool { return q.ID == "ph"+strconv.Itoa(n) }) {
 			n++
@@ -250,40 +253,22 @@ func (s *server) decide(id, answer string, now time.Time) (ok bool, err error) {
 	})
 }
 
-// withPhones adds to a screen of the laptop's road what the page's server alone
-// knows: the phone that asks to be paired, as the first item, and under the
-// answered ones each paired phone with the button that forgets it, which is
-// a child and so needs a run.
-func (s *server) withPhones(v *contract.View, run bool) {
-	s.mu.Lock()
-	p := s.pair
-	shut := s.shut
-	s.mu.Unlock()
-	item := contract.Item{Form: contract.FormChoice, Look: contract.LookNeedsYou, Source: "from the tool itself"}
-	if !shut.IsZero() && v.At.Sub(shut) < shutShown {
-		warn := item
-		warn.ID, warn.Since = "pass", shut
-		warn.Text = "Requests without a valid pass are reaching your page; check the Cloudflare set-up."
-		warn.News = warn.Text
-		v.Items = append([]contract.Item{warn}, v.Items...)
-		v.Counts.Waiting++
-	}
-	if p.hash != "" && v.At.Sub(p.at) < pairLife {
-		ask := item
-		ask.ID, ask.Since = p.id(), p.at
-		ask.Text = strings.Join(append([]string{"A phone wants to connect: " + p.number, whose(p.who), p.name}, p.notes...), " · ")
-		ask.News = ask.Text
-		ask.Buttons = []contract.Button{{Label: "Approve", Key: "y", Answer: "approve"}, {Label: "Refuse", Key: "n", Answer: "refuse"}}
-		v.Items = append([]contract.Item{ask}, v.Items...)
-		v.Counts.Waiting++
-	}
-	if !run {
-		return
-	}
-	list, _ := contract.ReadPhones(s.k.Platform.Peek, s.dirs.State)
+// asking writes down the request to pair that the screens show; shutNow
+// writes down that the door has just shut itself.
+func (s *server) asking(p *contract.Pairing) {
+	contract.ChangePhones(s.k.Platform, func(list *contract.Phones) error { list.Asking = p; return nil })
+}
+
+func (s *server) shutNow(now time.Time) {
+	contract.ChangePhones(s.k.Platform, func(list *contract.Phones) error { list.Shut = now; return nil })
+}
+
+// withPhones lists each paired phone under the answered items of a screen of
+// the laptop's road, with the button that forgets it, which is a child and
+// so needs a run.
+func withPhones(v *contract.View, list contract.Phones) {
 	for _, ph := range list.Paired {
-		is := item
-		is.ID, is.Since = ph.ID, ph.PairedAt
+		is := contract.Item{Form: contract.FormChoice, Look: contract.LookNeedsYou, Source: "from the tool itself", ID: ph.ID, Since: ph.PairedAt}
 		is.Text = "A paired phone: " + ph.Name + " · " + whose(ph.Identity) + " · last seen " + ph.SeenAt.In(v.At.Location()).Format("2 Jan 15:04")
 		is.News = is.Text
 		is.Buttons = []contract.Button{{Label: "Forget this phone", Action: "forget-phone"}}
@@ -327,6 +312,8 @@ type listed struct {
 	Port   int      `json:"port,omitempty"`
 	Name   string   `json:"name,omitempty"`
 	Phones []paired `json:"phones"`
+	// Asking is the phone that asks to be paired now, if one does.
+	Asking *contract.Pairing `json:"asking,omitempty"`
 }
 
 type paired struct {
@@ -338,7 +325,8 @@ type paired struct {
 	Nudges   bool      `json:"nudges"`
 }
 
-// phones is `dash phone on|off|list|forget <phone>`. The door needs a
+// phones is `dash phone on|off|list|forget <phone>|approve <number>|refuse
+// <number>`. The door needs a
 // server whose administrator has set this login's port for a phone; who
 // may come through it is decided at each pairing, never here.
 func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
@@ -347,7 +335,8 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 	if len(c.Args) > 1 {
 		word = c.Args[1]
 	}
-	if word == "forget" {
+	decides := word == "approve" || word == "refuse"
+	if word == "forget" || decides {
 		words = 3
 		id = c.Args[len(c.Args)-1]
 	}
@@ -356,8 +345,17 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 	out := listed{Phones: []paired{}}
 	var line string
 	switch {
-	case len(c.Args) != words, word != "on" && word != "off" && word != "list" && word != "forget":
-		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "dash phone takes on, off, list or forget <phone>.", Next: []string{"whaleshark help dash"}}
+	case len(c.Args) != words, word != "on" && word != "off" && word != "list" && word != "forget" && !decides:
+		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "dash phone takes on, off, list, forget <phone>, approve <number> or refuse <number>.", Next: []string{"whaleshark help dash"}}
+	case decides:
+		// The number as the phone shows it, or the item's id: the running
+		// server decides, since only it holds what the phone was handed.
+		number := strings.ReplaceAll(strings.TrimPrefix(id, "pair"), " ", "")
+		if st, _ := ask(k, dirs, word, number); !st.Decided {
+			return nil, &contract.Refusal{Exit: contract.ExitMissing, Code: "no_request", Message: "No phone is asking to be paired under the number " + number + ": it was decided already, or its two minutes ran out.", Next: []string{"whaleshark dash phone list"}}
+		}
+		fmt.Fprintln(c.Out, map[string]string{"approve": "The phone is paired: it shows the page now.", "refuse": "The phone was refused."}[word])
+		return map[string]string{"number": number, "answer": word}, nil
 	case word == "on" && (err != nil || srv == nil || srv.Login[login].Phone == 0 && !public):
 		return nil, refuse("no_door", "This login has no door for a phone: the administrator of a server sets one.", "sudo whaleshark server phone --user "+login)
 	}
@@ -370,7 +368,10 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 			found = found || p.ID == id
 			return p.ID == id
 		})
-		out.On = list.On
+		out.On, out.Asking = list.On, list.Asking
+		if a := out.Asking; a != nil && c.Now.Sub(a.At) >= contract.PairLife {
+			out.Asking = nil
+		}
 		for _, p := range list.Paired {
 			out.Phones = append(out.Phones, paired{p.ID, p.Name, p.Identity, p.PairedAt, p.SeenAt, p.Push != nil})
 		}
@@ -407,6 +408,10 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 		for _, p := range out.Phones {
 			line += fmt.Sprintf("\n  %s  %s  %s  paired %s  last seen %s  nudges %s", p.ID, p.Name, whose(p.Identity),
 				p.PairedAt.Local().Format("2 Jan 15:04"), p.SeenAt.Local().Format("2 Jan 15:04"), map[bool]string{true: "on", false: "off"}[p.Nudges])
+		}
+		if a := out.Asking; a != nil {
+			number := strings.ReplaceAll(a.Number, " ", "")
+			line += fmt.Sprintf("\nA phone asks to be paired: %s · %s · %s\n> whaleshark dash phone approve %s\n> whaleshark dash phone refuse %[4]s", a.Number, whose(a.Identity), a.Name, number)
 		}
 	}
 	fmt.Fprintln(c.Out, line)

@@ -352,7 +352,7 @@ func TestTwentyRefusalsShutTheDoorAndRaiseAnItem(t *testing.T) {
 	if !strings.Contains(b.ask("GET", contract.RouteTeam, nil, nil).Body.String(), item) {
 		t.Error("the item went before the person can have seen it")
 	}
-	b.p.Clock(shutShown)
+	b.p.Clock(contract.ShutShown)
 	if strings.Contains(b.ask("GET", contract.RouteTeam, nil, nil).Body.String(), item) {
 		t.Error("the item stays for ever")
 	}

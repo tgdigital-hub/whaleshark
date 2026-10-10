@@ -114,6 +114,9 @@ type ViewInput struct {
 	Ctx    map[string]CtxFile
 	UI     UIFile
 	Limits ProjectFile
+	// Phones is the login's phones.json: what it asks of the person is an
+	// item on every screen, whatever the run.
+	Phones Phones
 	// Elsewhere counts the person's other open runs that need them.
 	Elsewhere int
 	// Checked is when both sources of news last agreed with the screen; Swept

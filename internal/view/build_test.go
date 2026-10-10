@@ -354,3 +354,28 @@ func TestAReportedCardIsFull(t *testing.T) {
 		t.Errorf("sent back, the card stands at %d%%", got)
 	}
 }
+
+// What the login's phones ask stands on top of every screen of every run,
+// counted with what waits and holding no work up; the plain text gives a
+// person the two commands, and an agent neither.
+func TestAPhoneThatAsksIsAnItemOfEveryRun(t *testing.T) {
+	f := evening(t)
+	in := f.Input(contract.Human)
+	before := Build(in)
+	in.Phones = contract.Phones{Asking: &contract.Pairing{Number: "493 201", Identity: "robin@example.com", Name: "iPhone", At: f.Now.Add(-time.Minute)}}
+	v := Build(in)
+	if len(v.Items) != len(before.Items)+1 || v.Items[0].ID != "pair493201" || v.Counts.Waiting != before.Counts.Waiting+1 ||
+		v.Counts.Holding != before.Counts.Holding || v.Counts.NeedYou != before.Counts.NeedYou {
+		t.Fatalf("the view has %d items, the first %+v, and counts %+v", len(v.Items), v.Items[0], v.Counts)
+	}
+	text := text(v, Options{Width: 100})
+	for _, want := range []string{"A phone wants to connect: 493 201 ·", "robin@example.com · iPhone (approve / refuse)", "> whaleshark dash phone approve 493201", "dash phone refuse 493201"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the plain text lacks %q:\n%s", want, text)
+		}
+	}
+	in.Caller = contract.Orchestrator
+	if agent := Build(in); agent.Items[0].ID != "pair493201" || len(agent.Items[0].Next) != 1 || agent.Items[0].Next[0] != forHuman {
+		t.Errorf("the lead agent is shown %+v", agent.Items[0])
+	}
+}

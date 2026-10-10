@@ -145,8 +145,8 @@ func (s *server) do(w http.ResponseWriter, r *http.Request, id, button string) {
 	// only where the person is signed in on the laptop's road.
 	phone := from(r.Context())
 	paired, err := false, error(nil)
-	if a.ID == "answer" && phone == "" {
-		paired, err = s.decide(r.PostForm.Get("id"), r.PostForm.Get("text"), contract.Now())
+	if answer := map[string]string{"phone-yes": "approve", "phone-no": "refuse"}[a.ID]; answer != "" && phone == "" {
+		paired, err = s.decide(r.PostForm.Get("id"), answer, contract.Now())
 	}
 	j, all := s.pick(w, r)
 	if j.state == nil && !paired {

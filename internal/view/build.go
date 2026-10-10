@@ -26,7 +26,7 @@ const (
 	sourceWorker = "a question from the worker"
 	sourceLate   = "waiting for the lead agent"
 	leadName     = "lead agent"
-	forHuman     = "waiting for the human"
+	forHuman     = contract.ForThePerson
 )
 
 // order is each look's place in the one order, and its row of the table.
@@ -75,6 +75,7 @@ func Build(in contract.ViewInput) *contract.View {
 		b.seats[t.ID] = b.seat(t)
 	}
 	b.items(v)
+	v.Items = append(in.Phones.Items(in.Now, in.Caller == contract.Human), v.Items...)
 	b.clashes()
 
 	var seats []*seat
@@ -520,7 +521,11 @@ func (b *builder) around(v *contract.View) {
 		v.Alerts = append(v.Alerts, line)
 	}
 	for _, it := range append(slices.Clone(v.Items), v.Held...) {
-		switch b.s.Questions[it.ID].Cause {
+		q := b.s.Questions[it.ID]
+		if q == nil { // an item of the login's own, such as a phone that asks
+			continue
+		}
+		switch q.Cause {
 		case contract.CauseLeadSilent:
 			v.Alerts = append(v.Alerts, fmt.Sprintf("the lead agent is not listening · %s waiting", plural(len(b.s.Inbox.Events), "event", "events")))
 		case contract.CauseTogether:

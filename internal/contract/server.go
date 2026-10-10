@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -222,6 +223,58 @@ type Phones struct {
 	Versioned
 	On     bool    `json:"on"`
 	Paired []Phone `json:"paired,omitempty"`
+	// Asking is the one phone that asks to be paired and Shut when the door
+	// last shut itself over requests without a valid pass, each as the
+	// page's server wrote it down for the screens: it alone decides either.
+	Asking *Pairing  `json:"asking,omitempty"`
+	Shut   time.Time `json:"shut,omitzero"`
+}
+
+// Pairing is a phone's request to be paired: the number it is shown, who
+// the road names, the kind of phone, and what the person must know first.
+type Pairing struct {
+	Number   string    `json:"number"`
+	Identity string    `json:"identity,omitempty"`
+	Name     string    `json:"name"`
+	Notes    []string  `json:"notes,omitempty"`
+	At       time.Time `json:"at"`
+}
+
+// A request to pair is gone after PairLife; that the door shut itself is
+// shown for ShutShown. ForThePerson is what stands in the place of a next step
+// for a caller who may not take it.
+const (
+	PairLife     = 2 * time.Minute
+	ShutShown    = time.Hour
+	ForThePerson = "waiting for the human"
+)
+
+// Items is what a login's phones put in front of the person. They belong to
+// the login and to no run, so every screen of every run shows them, and so
+// does the page where no run is open: the door's warning, then the phone
+// that asks. Only a person decides, on the page, in a pane or at a terminal.
+func (p Phones) Items(now time.Time, human bool) (items []Item) {
+	item := Item{Form: FormChoice, Look: LookNeedsYou, Source: "from the tool itself", Next: []string{ForThePerson}}
+	if !p.Shut.IsZero() && now.Sub(p.Shut) < ShutShown {
+		warn := item
+		warn.ID, warn.Since, warn.Next = "pass", p.Shut, nil
+		warn.Text = "Requests without a valid pass are reaching your page; check the Cloudflare set-up."
+		items = append(items, warn)
+	}
+	if a := p.Asking; a != nil && now.Sub(a.At) < PairLife {
+		ask, number := item, strings.ReplaceAll(a.Number, " ", "")
+		ask.ID, ask.Since = "pair"+number, a.At
+		ask.Text = strings.Join(append([]string{"A phone wants to connect: " + a.Number, cmp.Or(a.Identity, "nobody named"), a.Name}, a.Notes...), " · ")
+		ask.Buttons = []Button{{Label: "Approve", Key: "y", Answer: "approve", Action: "phone-yes"}, {Label: "Refuse", Key: "n", Answer: "refuse", Action: "phone-no"}}
+		if human {
+			ask.Next = []string{"whaleshark dash phone approve " + number, "whaleshark dash phone refuse " + number}
+		}
+		items = append(items, ask)
+	}
+	for i := range items {
+		items[i].News = items[i].Text
+	}
+	return items
 }
 
 // Phone is one paired phone. Session is the TokenHash of the secret in its
@@ -247,12 +300,13 @@ type PushTo struct {
 	Auth     string `json:"auth"`
 }
 
-const phonesFile = "phones.json"
+// PhonesFile is the file's name, for whoever watches it change.
+const PhonesFile = "phones.json"
 
 // ReadPhones returns the login's phones.
 func ReadPhones(read func(path string) ([]byte, error), stateDir string) (Phones, error) {
 	var p Phones
-	err := ReadVersioned(read, filepath.Join(stateDir, phonesFile), FileVersion, &p)
+	err := ReadVersioned(read, filepath.Join(stateDir, PhonesFile), FileVersion, &p)
 	return p, err
 }
 
@@ -261,7 +315,7 @@ func ReadPhones(read func(path string) ([]byte, error), stateDir string) (Phones
 // over and for a phone its maker's service says is gone.
 func ChangePhones(p Platform, fn func(*Phones) error) error {
 	var list Phones
-	return change(p, phonesFile, &list, func() error {
+	return change(p, PhonesFile, &list, func() error {
 		list.Version = FileVersion
 		return fn(&list)
 	})

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // file answers ReadServer with a server's file, or with none.
@@ -221,5 +222,43 @@ func TestRoutesAndEnvelope(t *testing.T) {
 	back := Envelope{Result: &jobs}
 	if err := json.Unmarshal(printed, &back); err != nil || !back.OK || len(jobs) != 1 || jobs[0].View.Run != "r3" {
 		t.Errorf("%s read back as %+v, %v", printed, jobs, err)
+	}
+}
+
+// What a login's phones ask of the person is worded in one place, for every
+// screen: the door's warning for an hour, then the phone that asks for two
+// minutes, with the two buttons and, for a person, the two commands.
+func TestWhatThePhonesAsk(t *testing.T) {
+	at := time.Date(2026, 10, 8, 21, 14, 0, 0, time.UTC)
+	p := Phones{Shut: at.Add(-59 * time.Minute), Asking: &Pairing{Number: "493 201", Name: "iPhone", Notes: []string{"its session will stand alone"}, At: at.Add(-time.Minute)}}
+	got := p.Items(at, true)
+	if len(got) != 2 || got[0].ID != "pass" || got[0].Buttons != nil || got[0].Next != nil || !strings.HasPrefix(got[0].Text, "Requests without a valid pass") {
+		t.Fatalf("the items are %+v", got)
+	}
+	ask := got[1]
+	if ask.ID != "pair493201" || ask.Text != "A phone wants to connect: 493 201 · nobody named · iPhone · its session will stand alone" || ask.News != ask.Text ||
+		ask.Look != LookNeedsYou || ask.Holds || !ask.Since.Equal(p.Asking.At) ||
+		!slices.Equal(ask.Next, []string{"whaleshark dash phone approve 493201", "whaleshark dash phone refuse 493201"}) {
+		t.Errorf("the phone that asks is %+v", ask)
+	}
+	for i, b := range ask.Buttons {
+		row := slices.IndexFunc(Actions, func(a Action) bool { return a.ID == b.Action })
+		if want := []string{"dash", "phone", []string{"approve", "refuse"}[i], "{id}"}; row < 0 || !slices.Equal(Actions[row].Run, want) || b.Key != "yn"[i:i+1] {
+			t.Errorf("button %d is %+v", i, b)
+		}
+	}
+	// An agent is shown the item and told whose it is; nothing of it is an agent's to run.
+	if agent := p.Items(at, false); len(agent) != 2 || !slices.Equal(agent[1].Next, []string{ForThePerson}) {
+		t.Errorf("an agent is told %+v", agent)
+	}
+	p.Asking.Identity = "robin@example.com"
+	if later := p.Items(at.Add(61*time.Second), true); len(later) != 0 {
+		t.Errorf("after two minutes and after an hour: %+v", later)
+	}
+	if named := p.Items(at.Add(30*time.Second), true); len(named) != 2 || !strings.Contains(named[1].Text, " · robin@example.com · ") {
+		t.Errorf("with the road naming somebody: %+v", named)
+	}
+	if none := (Phones{}).Items(at, true); none != nil {
+		t.Errorf("a login with no phone asking: %+v", none)
 	}
 }

@@ -31,10 +31,9 @@ const (
 	keysEvery = time.Minute
 	skew      = time.Minute
 	// More than refusalsMost requests without a valid pass in a minute shut
-	// the door for shutFor, and the person is told for shutShown.
+	// the door for shutFor, and the person is told for contract.ShutShown.
 	refusalsMost = 20
 	shutFor      = time.Minute
-	shutShown    = time.Hour
 )
 
 // fetch asks Cloudflare for a team's keys: the page's one call out, to the
@@ -201,6 +200,7 @@ func (s *server) pass(r *http.Request, srv *contract.Server, now time.Time) (who
 	}
 	s.mu.Unlock()
 	if shut {
+		s.shutNow(now)
 		s.wake()
 	}
 	return who, until, why == ""
