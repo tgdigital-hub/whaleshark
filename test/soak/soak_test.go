@@ -201,7 +201,7 @@ func TestTwentyPanesForAnHour(t *testing.T) {
 		return r
 	}
 
-	var echoes, calls, reads []time.Duration
+	var echoes, switched, calls, reads []time.Duration // switched: the keys typed straight after another tab was shown
 	var rss, heap []uint64
 	var layoutSize int64
 	var goroutines, files []int
@@ -214,6 +214,9 @@ func TestTwentyPanesForAnHour(t *testing.T) {
 			w.send(contract.WireCall{Op: contract.OpWindowSize, W: float64(120 + i/150%3*20), H: float64(40 + i/150%2*10)})
 		}
 		echoes = append(echoes, w.key(i))
+		if i%5 == 0 {
+			switched = append(switched, echoes[i])
+		}
 		at := time.Now()
 		c.call(contract.WireCall{Op: contract.OpScreen, Pane: ids[i*7%panes]})
 		calls = append(calls, time.Since(at))
@@ -312,6 +315,7 @@ func TestTwentyPanesForAnHour(t *testing.T) {
 	}
 
 	slices.Sort(echoes)
+	slices.Sort(switched)
 	slices.Sort(calls)
 	slices.Sort(reads)
 	inTime, _ := slices.BinarySearch(echoes, echoMost+1)
@@ -344,6 +348,7 @@ the machine after: %s
 the keeper at the end: %s
 bytes printed by the %d agents, every one handed to the keeper and the last on each screen: %d (%s, %s a second)
 a key's echo, %d keys: half within %v, 19 of 20 within %v, 99 of 100 within %v, the slowest %v; %d of them (%.2f%%) within %v; %d never seen in %v
+of them the %d typed straight after another tab was shown: half within %v, 19 of 20 within %v
 a call that reads a screen, %d calls: half within %v, 19 of 20 within %v, the slowest %v
 the keeper's memory as the system counts it: %s at most; %s in the second fifth of the run, %s in the last
 the keeper's heap in use as Go counts it: %s at most, %s at the end; from the system in all %s
@@ -355,6 +360,7 @@ one read of the settings file, %d reads: half within %v, 19 of 20 within %v, the
 		lasted.Round(time.Second), loadAfter, status,
 		panes, total, mb(total), mb(uint64(float64(total)/lasted.Seconds())),
 		len(echoes), part(echoes, 0.5), part(echoes, 0.95), part(echoes, 0.99), part(echoes, 1), inTime, 100*float64(inTime)/float64(max(len(echoes), 1)), echoMost, lost, echoLost,
+		len(switched), part(switched, 0.5), part(switched, 0.95),
 		len(calls), part(calls, 0.5), part(calls, 0.95), part(calls, 1),
 		mb(peak), mb(early), mb(late),
 		mb(slices.Max(append(heap, 0))), mb(mid.Heap), mb(mid.Sys),
