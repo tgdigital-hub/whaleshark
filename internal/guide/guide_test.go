@@ -555,3 +555,15 @@ func TestFailedReplaceLeavesNothingBehind(t *testing.T) {
 		t.Errorf("the file became %q", got)
 	}
 }
+
+// A failed start: the old tab is closed before the retry, which is refused
+// while an agent sits in it, and it is not one of the three failures.
+func TestLeadGuideOnAFailedStart(t *testing.T) {
+	closing, retry := strings.Index(Lead, "`whaleshark close T3`"), strings.Index(Lead, "`whaleshark start T3 --retry`")
+	if closing < 0 || retry < closing {
+		t.Error("the lead guide does not close a failed task's tab before the retry")
+	}
+	if !strings.Contains(Lead, "A `start_failed` is not counted") {
+		t.Error("the lead guide does not say that a failed start is no failure of the task")
+	}
+}

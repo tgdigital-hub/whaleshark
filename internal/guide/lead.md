@@ -63,9 +63,11 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
       [agent]
       args = ["--permission-mode", "acceptEdits", "--allowedTools", "Bash({whaleshark}:*)", "Bash(git:*)"]
 - `failed`, `exited`, `start_failed`: read `whaleshark show T3`, mend the brief if the brief was
-  the cause (`task edit`), then `whaleshark start T3 --retry`. After three failures the task
-  stays failed until `whaleshark task reset T3`. A failed or cancelled task's copy, with whatever
-  it had not committed, goes only with `whaleshark close T3 --discard`.
+  the cause (`task edit`), then `whaleshark close T3`, which closes the old tab (a retry is refused
+  while an agent sits in it), and `whaleshark start T3 --retry`. After three `failed` or `exited`
+  the task stays failed until `whaleshark task reset T3`. A `start_failed` is not counted, no agent
+  read the brief: when a start fails twice the same way, stop and `whaleshark need todo "<why>"`.
+  A failed or cancelled task's copy goes only with `whaleshark close T3 --discard`.
 - A start that ends "at a prompt" in a project nobody has opened in Claude Code: the agent asks
   whether it trusts the folder, and only the person can say. The cure is theirs and is needed
   once: they start an agent in the project's own folder and say yes. After that no copy of the
