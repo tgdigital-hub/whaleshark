@@ -41,7 +41,7 @@ func play(t *testing.T, file string) *scenario.Project {
 			k, v, _ := strings.Cut(kv, "=")
 			t.Setenv(k, v)
 		}
-		view.Plug(p.Kit)
+		p.Plug(view.Plug)
 		panes.Run(name, tm, p.Kit, p.Root, "")
 	})
 }

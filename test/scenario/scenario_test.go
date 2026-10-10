@@ -110,7 +110,7 @@ func TestSelf(t *testing.T) {
 // each line of the scenario goes through all of them.
 func TestJoin(t *testing.T) {
 	p := Run(t, filepath.Join("testdata", "join.scn"), func(p *Project, name string, tm *term.Term) {
-		view.Plug(p.Kit)
+		p.Plug(view.Plug)
 		panes.Run(name, tm, p.Kit, p.Root, "")
 	})
 	// The click on a card went to that card's tab.
