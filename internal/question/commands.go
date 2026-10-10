@@ -60,21 +60,61 @@ func options(c *contract.Call) ([]string, error) {
 
 // change is one locked step on the caller's run, taken once the rules allow
 // the caller the command. It returns the record as it was saved, and whether
-// the step left the lead agent a new event.
+// the step left the lead agent a new event. An item of the tool's own that
+// the step brought up is nudged for.
 func change(c *contract.Call, sub string, fn func(*contract.State) error) (s *contract.State, raised bool, err error) {
+	fresh := false
 	err = c.Kit.Store.Change(c.Root, c.Run, func(now *contract.State) error {
 		if err := c.Kit.Rules.Allowed(now, c.Caller, c.Command.Name, sub); err != nil {
 			return err
 		}
 		before := len(now.Inbox.Events)
 		err := fn(now)
+		if err == nil {
+			fresh = trust(c, now)
+		}
 		s, raised = now, len(now.Inbox.Events) > before
 		return err
 	})
 	if errors.Is(err, contract.ErrNoRun) {
 		err = &contract.Refusal{Exit: contract.ExitMissing, Code: "no_run", Message: "No run is open here.", Next: []string{"whaleshark run list"}}
 	}
+	if err == nil && fresh {
+		nudge(c)
+	}
 	return s, raised, err
+}
+
+// overdue is how long a worker's question may wait for the lead agent before
+// the person is shown that it waits (8e).
+const overdue = 10 * time.Minute
+
+const textTrust = "This project's settings would run or reach what nobody has approved (%s). Look at it in a tab of your own: whaleshark trust --human"
+
+// trust keeps the tool's own item about project settings that nobody has
+// approved in step with its cause, inside a step that is being saved. It is
+// raised once while the project file's reader holds something back, and
+// closes when it holds nothing; one the person has dealt with is not raised
+// again while the cause lasts. It reports whether it raised the item.
+func trust(c *contract.Call, s *contract.State) bool {
+	project, err := contract.ReadProjectFile(c.Root)
+	if err != nil {
+		return false // settings that cannot be read say nothing
+	}
+	for _, q := range s.Questions {
+		if q.From == contract.FromTool && q.Cause == contract.CauseTrust && q.State != contract.QuestionClosed {
+			if len(project.Held) == 0 {
+				q.State = contract.QuestionClosed
+			}
+			return false
+		}
+	}
+	if len(project.Held) == 0 {
+		return false
+	}
+	_, err = c.Kit.Rules.Need(s, contract.Question{Form: contract.FormTodo, From: contract.FromTool, Cause: contract.CauseTrust,
+		Text: fmt.Sprintf(textTrust, strings.Join(project.Held, ", "))}, c.Now)
+	return err == nil
 }
 
 // pointLead types one of the fixed pointers into the lead agent's tab when
@@ -131,8 +171,9 @@ func settling(k *contract.Kit) time.Duration {
 
 // answered is what answer reports. Told says how the answer reaches whoever
 // asked: "waiting" (its ask is blocked and will return it), "pointer" (the
-// one line was typed into its tab), or nothing: it is in the record for the
-// next wait, ask --resume or Resume.
+// one line was typed into its tab), "mail" (a late answer, sent to the
+// attempt now at work), or nothing: it is in the record for the next wait,
+// ask --resume or Resume.
 type answered struct {
 	ID        string    `json:"id"`
 	State     string    `json:"state"`
@@ -160,7 +201,7 @@ func answer(c *contract.Call) (any, error) {
 			return nil, err
 		}
 	}
-	fresh := false
+	fresh, mailed := false, false
 	s, raised, err := change(c, "", func(s *contract.State) error {
 		r := c.Kit.Rules
 		if undo {
@@ -177,6 +218,12 @@ func answer(c *contract.Call) (any, error) {
 			// and not what, which nothing may use before it has settled.
 			r.Raise(s, contract.Event{Kind: "human", Task: q.Task, Attempt: q.Attempt, Text: "The person answered " + q.ID + " themselves.",
 				Data: map[string]any{"what": "answer", "id": q.ID, "where": by.Where}}, c.Now)
+		}
+		if err == nil && fresh && q.State == contract.QuestionClosed {
+			// A late answer is with the task's decisions, which an attempt
+			// already at work has not read: it gets the answer as a message.
+			_, none := r.Tell(s, q.Task, "Decided: "+q.Text+" Answer: "+q.Answer, "", c.Now)
+			mailed = none == nil
 		}
 		return err
 	})
@@ -201,12 +248,17 @@ func answer(c *contract.Call) (any, error) {
 			fmt.Fprintf(c.Out, "It can be taken back for %v: whaleshark answer %s --undo --human\n", left, id)
 		}
 	}
+	if mailed {
+		out.Told = "mail"
+		fmt.Fprintf(c.Out, "%s's attempt at work now gets it as a message.\n", q.Task)
+	}
 	return out, nil
 }
 
 // tell does what a new answer needs done outside the record, and says how it
-// reaches whoever asked. A worker blocked in ask holds its question's lock
-// and returns the answer itself; one that has stopped waiting gets the one
+// reaches whoever asked. A worker blocked in ask, like the lead agent in
+// need --wait, holds the lock of what it asked and returns the answer
+// itself; a worker that has stopped waiting gets the one
 // line that says to resume, never the answer (8b step 7). The lead agent is
 // pointed at an item of its own that the person answered, and at the event
 // that says the person answered in its place.
@@ -217,16 +269,16 @@ func tell(c *contract.Call, s *contract.State, q *contract.Question, by contract
 	if raised {
 		unread(c, s)
 	}
+	if unlock, free, err := c.Kit.Platform.TryLock(askLock(c, q.ID)); err == nil && !free {
+		return "waiting"
+	} else if free {
+		unlock()
+	}
 	if q.Kind == contract.KindNeed {
 		if q.From == contract.FromLead && by.Caller == contract.Human {
 			pointLead(c, s, contract.PointAnswer, "")
 		}
 		return ""
-	}
-	if unlock, free, err := c.Kit.Platform.TryLock(askLock(c, q.ID)); err == nil && !free {
-		return "waiting"
-	} else if free {
-		unlock()
 	}
 	if a := s.Attempts[q.Attempt]; a != nil && c.Kit.Terms.Point(a.Place.Pane, contract.PointAnswered, q.ID) == nil {
 		return "pointer"
@@ -250,12 +302,7 @@ func escalate(c *contract.Call) (any, error) {
 var forms = []string{contract.FormQuestion, contract.FormChoice, contract.FormSignoff, contract.FormTodo}
 
 func need(c *contract.Call) (any, error) {
-	for _, later := range []string{"holds", "wait", "timeout"} {
-		if c.Flags[later] != nil {
-			return nil, &contract.Refusal{Exit: contract.ExitFailed, Code: "not_built", Message: "--" + later + " comes with phase 2."}
-		}
-	}
-	form := ""
+	form, blocks := "", c.Flags["wait"] != nil
 	if len(c.Args) > 0 {
 		form = c.Args[0]
 	}
@@ -276,8 +323,10 @@ func need(c *contract.Call) (any, error) {
 		return nil, usage(c, "need %s takes one text: what the person is asked.", form)
 	case form != contract.FormChoice && c.Flags["options"] != nil:
 		return nil, usage(c, "--options is for a choice.")
+	case !blocks && c.Flags["timeout"] != nil:
+		return nil, usage(c, "--timeout is for --wait.")
 	}
-	q := contract.Question{Form: form, Urgent: c.Flags["urgent"] != nil}
+	q := contract.Question{Form: form, Urgent: c.Flags["urgent"] != nil, Holds: c.Flags["holds"] != nil}
 	var err error
 	if q.Text, err = said(c, "The text", c.Args[1]); err != nil {
 		return nil, err
@@ -297,6 +346,11 @@ func need(c *contract.Call) (any, error) {
 		return nil, err
 	}
 	nudge(c)
+	if blocks {
+		// The lead agent has no resume: what comes after the time is up is
+		// its wait, which hands the answer over as an answered event.
+		return wait(c, id, "", " Its answer will come as an answered event.", "whaleshark wait")
+	}
 	fmt.Fprintln(c.Out, id)
 	return map[string]string{"id": id}, nil
 }
