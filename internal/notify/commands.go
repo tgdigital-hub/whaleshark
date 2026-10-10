@@ -151,7 +151,7 @@ func (n Nudger) Items(root, run string, snap *contract.Snapshot, now time.Time) 
 			continue
 		}
 		due = append(due, it)
-		if nudged(it, q) && !looking(s, snap, it) {
+		if !looking(s, snap, it) {
 			loud = append(loud, it)
 		}
 	}
@@ -182,17 +182,6 @@ func (n Nudger) Items(root, run string, snap *contract.Snapshot, now time.Time) 
 		n.send(cfg, ui, things(len(loud))+" wait for you", names(loud))
 	}
 	return nil
-}
-
-// nudged is rule 1 for an item: it holds work up, it is urgent, or the tool
-// raised it for an agent at a prompt, a lead agent that is not listening, or
-// most workers stopping together.
-func nudged(it contract.Item, q *contract.Question) bool {
-	switch q.Cause {
-	case contract.CausePrompt, contract.CauseLeadSilent, contract.CauseTogether:
-		return true
-	}
-	return it.Holds || it.Urgent
 }
 
 // looking reports whether the tab the item is about is the one in front.

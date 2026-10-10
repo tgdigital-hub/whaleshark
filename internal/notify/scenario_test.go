@@ -130,7 +130,7 @@ func (s *seen) Notify(title, body string, sound bool) (string, string, error) {
 }
 
 func TestItemBeforeNudge(t *testing.T) {
-	e := prepare(t, nil, "q7", "n4")
+	e := prepare(t, nil, "q7")
 	spy := &seen{Terminals: e.Kit.Terms, e: e}
 	e.Kit.Terms = spy
 	e.pass(0)
@@ -140,9 +140,6 @@ func TestItemBeforeNudge(t *testing.T) {
 	want := [3]string{"sign-up page — needs you", "Must the old sign-up link keep working?", "request"}
 	if got := e.popups(); len(got) != 1 || got[0] != want {
 		t.Fatalf("pop-ups %q, want %q", got, want)
-	}
-	if !e.shown("n4") {
-		t.Fatal("an item that holds nothing up was not stamped as shown")
 	}
 	e.pass(5 * time.Second)
 	e.want("sign-up page — needs you")
