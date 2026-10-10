@@ -1,11 +1,13 @@
 package inbox
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"maps"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -85,6 +87,7 @@ func wait(c *contract.Call) (any, error) {
 	for {
 		var out delivery
 		now := contract.Now()
+		scan(k, c.Root, c.Run, now)
 		// A batch goes into the history first and is dropped from the record
 		// second (6.5): cut off between the two it is there twice, which
 		// the history's reader leaves out, and never lost.
@@ -154,6 +157,42 @@ func wait(c *contract.Call) (any, error) {
 			return out, nil
 		}
 	}
+}
+
+// scan runs the overlap scan when one is due (a report from a copy of the
+// code, an accept that moved the tip) and, while a copy is at work, the deep
+// one five minutes after the last. It runs outside the record's lock under a
+// limit of its own; a scan cut off is whole and is handed on, one that failed
+// keeps what the run had. What Found raises goes out in this wait's batch.
+func scan(k *contract.Kit, root, run string, now time.Time) {
+	s, err := k.Store.Read(root, run)
+	if err != nil || !s.Run.ClosedAt.IsZero() {
+		return
+	}
+	deep, limit := !s.Run.Scan.Due, scanWait
+	if deep {
+		limit = deepWait
+		last := s.Run.Scan.At
+		if last.IsZero() {
+			last = s.Run.CreatedAt
+		}
+		at := func(t *contract.Task) bool {
+			return t.Worktree != nil && t.Worktree.RemovedAt.IsZero() && t.Status == contract.TaskRunning
+		}
+		if now.Sub(last) < scanEvery || !slices.ContainsFunc(slices.Collect(maps.Values(s.Tasks)), at) {
+			return
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
+	found, err := k.Overlap.Scan(ctx, root, s, nil, deep)
+	if err != nil && ctx.Err() == nil {
+		found = s.Run.Findings
+	}
+	cancel()
+	k.Store.Change(root, run, func(s *contract.State) error {
+		k.Rules.Found(s, found, now)
+		return nil
+	})
 }
 
 // stuck is the wait's to say: nothing runs, nothing can be started, checked

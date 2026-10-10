@@ -427,7 +427,14 @@ func TestTheTerminalsDownChangesNothing(t *testing.T) {
 	w := evening(t, nil)
 	w.p.Double.Drop(testkit.PushGone, w.pane("T1.1"))
 	w.sweep()
-	record := w.file(contract.StateFile)
+	// The notifier's pass still runs, and stamps what it put in front of the
+	// person; the sweep itself changes no attempt, task or event.
+	held := func() []byte {
+		s := w.state()
+		b, _ := json.Marshal([]any{s.Attempts, s.Tasks, s.Inbox, s.Run.Terms})
+		return b
+	}
+	record := held()
 	w.p.Double.Close()
 	for _, d := range []time.Duration{5 * time.Second, time.Minute, 10 * time.Minute} {
 		w.p.Clock(d)
@@ -438,7 +445,7 @@ func TestTheTerminalsDownChangesNothing(t *testing.T) {
 	if out, errOut, exit := w.run(scenario.Orch, "status"); exit != 0 || !strings.Contains(out, "login page") {
 		t.Fatalf("status without the terminals: exit %d\n%s%s", exit, out, errOut)
 	}
-	if !bytes.Equal(record, w.file(contract.StateFile)) {
+	if !bytes.Equal(record, held()) {
 		t.Fatal("the record changed while the terminals could not be reached")
 	}
 }

@@ -199,11 +199,17 @@ func (Rules) Found(s *contract.State, findings []contract.Finding, now time.Time
 		}
 		had[key(f)], fresh = true, append(fresh, f)
 		kind := map[string]string{"overlap": "overlap", "lands": "overlap", "scope": "scope"}[f.Kind]
-		if kind == "" || len(f.Tasks) == 0 {
+		// A change in the project's own folder is nobody's task: its scope
+		// event names none.
+		if kind == "" || len(f.Tasks) == 0 && kind != "scope" {
 			continue
 		}
+		var t *contract.Task
+		if n := len(f.Tasks); n > 0 {
+			t = s.Tasks[f.Tasks[n-1]]
+		}
 		data := map[string]any{"kind": f.Kind, "tasks": f.Tasks, "files": f.Files}
-		raise(s, kind, s.Tasks[f.Tasks[len(f.Tasks)-1]], nil, f.How, data, now)
+		raise(s, kind, t, nil, f.How, data, now)
 	}
 	s.Run.Findings, s.Run.Scan = findings, contract.ScanSeen{At: now}
 	return fresh

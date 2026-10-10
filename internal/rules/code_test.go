@@ -92,4 +92,13 @@ func TestStuckAndFound(t *testing.T) {
 	if fresh := r.Found(s, []contract.Finding{clash}, t0); len(fresh) != 1 || len(s.Run.Findings) != 1 {
 		t.Fatalf("a finding that came back: %+v", fresh)
 	}
+	// A change in the project's own folder is no task's: one scope event
+	// that names none, and nothing else without a task is an event.
+	from = len(s.Inbox.Events)
+	own := contract.Finding{Kind: "scope", Files: []string{"d.go"}, How: "changed in the project's own folder"}
+	r.Found(s, []contract.Finding{clash, own, {Kind: "same", Files: []string{"e.go"}}}, t0)
+	r.Found(s, []contract.Finding{clash, own}, t0)
+	if got := kinds(s, from); len(got) != 1 || got[0] != "scope" || s.Inbox.Events[from].Task != "" || s.Inbox.Events[from].Text != own.How {
+		t.Fatalf("a change in the project's own folder raised %v", got)
+	}
 }

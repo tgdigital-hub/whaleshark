@@ -20,6 +20,9 @@ const (
 	snapshotWait = 3 * time.Second
 	// downAfter is how long the picture may fail before the person is told.
 	downAfter = time.Minute
+	// A scan after a report may take scanWait; the deep one, every scanEvery
+	// while a copy of the code is at work, deepWait.
+	scanWait, deepWait, scanEvery = 3 * time.Second, 30 * time.Second, 5 * time.Minute
 )
 
 // stamp is sweep.at: when the run was last held against the picture, and
@@ -93,6 +96,9 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		if last != was {
 			contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion, last)
 		}
+		// What waits is still put in front of the person, by the channels
+		// that need no engine.
+		k.Notifier.Items(root, run, nil, now)
 		return swept, nil, &contract.Refusal{Exit: contract.ExitEnv, Code: "no_picture",
 			Message: "The sweep changed nothing, because it could not see the terminals: " + err.Error() + "."}
 	}
@@ -148,14 +154,9 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
 		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now})
-	// The nudge pass, only while an item has not been put in front of the
-	// person yet: twenty agents at work cost it nothing.
-	for _, q := range s.Questions {
-		if q.State == contract.QuestionOpen && q.ShownAt.IsZero() {
-			k.Notifier.Items(root, run, snap, now)
-			break
-		}
-	}
+	// The nudge pass, after every sweep: it also says what is no item, a
+	// task failed for good and the whole job finished.
+	k.Notifier.Items(root, run, snap, now)
 	return contract.Swept{Ran: true, At: now, Changed: changed}, snap, nil
 }
 
