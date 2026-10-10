@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -107,6 +108,15 @@ type Project struct {
 	clock string
 	now   time.Time
 	seq   int // the last event number the fixture came with
+	plugs sync.Once
+}
+
+// Plug puts a package's parts into the project's kit, once, as the program
+// does at its start. A scenario's panes each run in a goroutine of their own
+// and all read the kit: one that plugged it again as it opened would write
+// what another is reading.
+func (p *Project) Plug(plug func(*contract.Kit)) {
+	p.plugs.Do(func() { plug(p.Kit) })
 }
 
 // Prepare makes a project. With a fixture it creates the run through the
