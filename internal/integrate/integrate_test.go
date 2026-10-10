@@ -10,6 +10,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
+	"github.com/tgdigital-hub/whaleshark/internal/gitwt"
 	"github.com/tgdigital-hub/whaleshark/internal/integrate"
 	"github.com/tgdigital-hub/whaleshark/internal/rules"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
@@ -37,6 +38,7 @@ func open(t *testing.T, files map[string]string) *run {
 	}
 	p := scenario.Prepare(t, nil, nil)
 	rules.Plug(p.Kit)
+	gitwt.Plug(p.Kit) // the run's copy is equipped as a task's own is
 	integrate.Plug(p.Kit)
 	work, err := filepath.EvalSymlinks(t.TempDir())
 	must(t, err)
@@ -45,12 +47,10 @@ func open(t *testing.T, files map[string]string) *run {
 	write(t, filepath.Join(r.root, ".git", "info", "exclude"), ".whaleshark\nwhaleshark.toml\n")
 	testkit.Commit(t, r.root, "start", files)
 	play(t, p.Command(scenario.Orch, "run", "new", "a shop"), 0)
-	base, err := integrate.Base(r.root, "")
-	must(t, err)
-	r.change(func(s *contract.State) { s.Run.Base = base })
-	in, err := r.k.Integrator.Begin(r.root, r.state())
-	must(t, err)
-	r.change(func(s *contract.State) { must(t, r.k.Rules.Integrated(s, *in)) })
+	// run new has written down the base and begun the run's branch there.
+	if s := r.state(); s.Run.Base == nil || s.Run.Base.Ref != "main" || s.Run.Integration == nil || s.Run.Integration.Tip != s.Run.Base.OID {
+		t.Fatalf("after run new the record has the base %+v and the branch %+v", s.Run.Base, s.Run.Integration)
+	}
 	return r
 }
 
@@ -203,17 +203,17 @@ func TestBegin(t *testing.T) {
 		t.Fatalf("the branch begins at %+v", in)
 	}
 	// Begun again, as after a run new that was cut off, it is the same branch.
-	if again, err := r.k.Integrator.Begin(r.root, s); err != nil || *again != *s.Run.Integration {
+	if _, again, err := r.k.Integrator.Begin(r.root, s); err != nil || *again != *s.Run.Integration {
 		t.Fatalf("begun again: %+v, %v", again, err)
 	}
 	old := testkit.Commit(t, r.root, "more", map[string]string{"c.txt": "c\n"})
 	s.Run.Base = nil
-	if _, err := r.k.Integrator.Begin(r.root, s); code(err) != "branch_exists" {
+	if _, _, err := r.k.Integrator.Begin(r.root, s); code(err) != "branch_exists" {
 		t.Fatalf("a branch of that name somewhere else: %v", err)
 	}
 	// A run can begin at a commit that is named.
 	s.Run.ID, s.Run.Base = "r2", &contract.GitRef{Ref: "main~1"}
-	if in, err := r.k.Integrator.Begin(r.root, s); err != nil || in.Tip == old || in.Tip != r.git(r.root, "rev-parse", "main~1") {
+	if _, in, err := r.k.Integrator.Begin(r.root, s); err != nil || in.Tip == old || in.Tip != r.git(r.root, "rev-parse", "main~1") {
 		t.Fatalf("a named base: %+v, %v", in, err)
 	}
 	if _, err := integrate.Base(r.root, "no-such"); code(err) != "no_base" {
@@ -221,7 +221,7 @@ func TestBegin(t *testing.T) {
 	}
 	// Without git there is no branch, and that is no error.
 	s.Run.Base = nil
-	if in, err := r.k.Integrator.Begin(t.TempDir(), s); in != nil || err != nil {
+	if _, in, err := r.k.Integrator.Begin(t.TempDir(), s); in != nil || err != nil {
 		t.Fatalf("no git: %+v, %v", in, err)
 	}
 }

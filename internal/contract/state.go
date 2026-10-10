@@ -450,8 +450,10 @@ const (
 	AnswerCannot   = "cannot:"
 )
 
-// Worktree is a task's own copy of the code. Setup is one of none, pending,
-// ok, failed, untrusted.
+// How the setup of a worktree went; pending is never written.
+const SetupNone, SetupOK, SetupFailed, SetupUntrusted = "none", "ok", "failed", "untrusted"
+
+// Worktree is a task's own copy of the code. Setup is one of the words above.
 type Worktree struct {
 	Path       string    `json:"path"`
 	Branch     string    `json:"branch"`

@@ -600,3 +600,57 @@ func TestManyAtOnce(t *testing.T) {
 		t.Fatalf("%d worktrees were made: %v", len(marks(d.root)), err)
 	}
 }
+
+// What is ours in a worktree, and what was linked into it, is out of git's
+// sight there: a status says nothing of it, nothing of it is committed, and
+// a file of that name the repository tracks is left as it lies. Another copy
+// of the project is equipped as a worktree is.
+func TestHideAndEquip(t *testing.T) {
+	d := project(t, map[string]string{"a.txt": "one\n", ".gitignore": "node_modules/\nmade\n", "kept/settings.json": "{}\n"})
+	d.write("node_modules/x.js", "x\n")
+	d.write("whaleshark.toml", "[worktrees]\nshare = [\"node_modules\"]\n[setup]\nscript = \"echo once>>made\"\nscript_windows = \"echo once>>made\"\n")
+	d.git("add", "whaleshark.toml")
+	d.git("commit", "-q", "-m", "settings")
+	d.trust()
+	dir, w := d.place("T1", "one")
+	ours, odd, tracked := filepath.Join(dir, "own", "settings.json"), filepath.Join(dir, "a[1]*.json"), filepath.Join(dir, "kept", "settings.json")
+	for _, path := range []string{ours, odd, tracked, filepath.Join(dir, "a1x.json")} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err == nil {
+			err = os.WriteFile(path, []byte("ours\n"), 0o600)
+		}
+	}
+	if err := d.tr.Hide(d.root, dir, ours, odd, tracked); err != nil {
+		t.Fatal(err)
+	}
+	// The link, the two hidden files and the tracked one say nothing; a file
+	// whose name the odd one's would match as a pattern is still seen.
+	if out, _ := git(dir, "status", "--porcelain"); out != "?? a1x.json" {
+		t.Fatalf("git sees in the worktree:\n%s", out)
+	}
+	if clean, err := d.tr.Clean(w.Path); clean || err != nil {
+		t.Fatalf("a new file of the worker's own must count: %v, %v", clean, err)
+	}
+	// Hidden twice, the file of exclusions has each line once.
+	before, _ := os.ReadFile(filepath.Join(d.root, ".git", "info", "exclude"))
+	if err := d.tr.Hide(d.root, dir, ours, odd); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := os.ReadFile(filepath.Join(d.root, ".git", "info", "exclude")); string(after) != string(before) || strings.Count(string(after), "/own/settings.json\n") != 1 {
+		t.Fatalf("the exclusions after a second call:\n%s", after)
+	}
+
+	// Another copy of the code, as the run's own is: the link and the setup.
+	copy := filepath.Join(t.TempDir(), "copy")
+	d.git("worktree", "add", "-q", "--detach", copy, "HEAD")
+	log := filepath.Join(t.TempDir(), "setup.log")
+	if how, err := d.tr.Equip(d.root, copy, log); how != setupOK || err != nil || !exists(filepath.Join(copy, "node_modules", "x.js")) || !exists(filepath.Join(copy, "made")) {
+		t.Fatalf("the copy was equipped %q, %v", how, err)
+	}
+	if out, _ := git(copy, "status", "--porcelain"); out != "" {
+		t.Fatalf("git sees in the equipped copy:\n%s", out)
+	}
+	// Outside git there is nothing to hide from, and that is no error.
+	if err := d.tr.Hide(d.root, t.TempDir(), "x"); err != nil {
+		t.Fatal(err)
+	}
+}

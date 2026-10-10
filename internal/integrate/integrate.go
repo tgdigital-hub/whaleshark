@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -40,7 +39,7 @@ func Base(root, name string) (*contract.GitRef, error) {
 	return &contract.GitRef{Ref: name, OID: oid}, nil
 }
 
-func (g integrator) Begin(root string, s *contract.State) (*contract.Integration, error) {
+func (g integrator) Begin(root string, s *contract.State) (*contract.GitRef, *contract.Integration, error) {
 	base := s.Run.Base
 	if base == nil || base.OID == "" {
 		name := ""
@@ -49,24 +48,24 @@ func (g integrator) Begin(root string, s *contract.State) (*contract.Integration
 		}
 		var err error
 		if base, err = Base(root, name); base == nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	project, err := contract.ReadProjectFile(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	branch := project.Worktrees.BranchPrefix + s.Run.ID
 	if _, err := git(root, "check-ref-format", ref(branch)); err != nil {
-		return nil, refuse(contract.ExitRefused, "bad_branch", "git takes no branch named "+branch+": change branch_prefix in whaleshark.toml.")
+		return nil, nil, refuse(contract.ExitRefused, "bad_branch", "git takes no branch named "+branch+": change branch_prefix in whaleshark.toml.")
 	}
 	// An empty old value lets git make the branch only where there is none.
 	if _, err := git(root, "update-ref", ref(branch), base.OID, ""); err != nil {
 		if there, _ := at(root, ref(branch)); there != base.OID {
-			return nil, refuse(contract.ExitRefused, "branch_exists", "The branch "+branch+" exists already and is somewhere else. Remove or rename it first.")
+			return nil, nil, refuse(contract.ExitRefused, "branch_exists", "The branch "+branch+" exists already and is somewhere else. Remove or rename it first.")
 		}
 	}
-	return &contract.Integration{Branch: branch, Tip: base.OID}, nil
+	return base, &contract.Integration{Branch: branch, Tip: base.OID}, nil
 }
 
 // folder is a task's own copy of the code, or nothing where it has none.
@@ -321,8 +320,8 @@ func (g integrator) scratch(root string, s *contract.State) (string, error) {
 }
 
 // place puts a commit into the run's copy. The first time, the copy is made
-// as a worktree on no branch and the project's approved setup is run in it,
-// once; later only its tracked files move, so what the setup left stays.
+// as a worktree on no branch and equipped as a task's own is, once; later
+// only its tracked files move, so what the setup left stays.
 func (g integrator) place(root string, s *contract.State, dir, oid string) error {
 	if _, err := os.Stat(dir + ready); err == nil {
 		if _, err = git(dir, "checkout", "--quiet", "--force", "--detach", oid); err == nil {
@@ -347,23 +346,14 @@ func (g integrator) place(root string, s *contract.State, dir, oid string) error
 	if _, err := git(root, "worktree", "add", "--quiet", "--detach", dir, oid); err != nil {
 		return err
 	}
-	project, err := contract.ReadProjectFile(root)
+	// The copy is given what a task's own copy is given, the setup included.
+	log := filepath.Join(g.k.Store.Dir(root, s.Run.ID), "copy-setup.log")
+	how, err := g.k.Placement.Equip(root, dir, log)
+	if err == nil && how == contract.SetupFailed {
+		err = fmt.Errorf("the setup of the run's copy of the code failed. The whole log: %s", log)
+	}
 	if err != nil {
 		return err
-	}
-	line := project.Setup.Script
-	if g.k.Platform.System() == "windows" {
-		line = project.Setup.ScriptWindows
-	}
-	if line != "" {
-		log := filepath.Join(g.k.Store.Dir(root, s.Run.ID), "copy-setup.log")
-		ok, tail, err := g.run(line, dir, log, time.Duration(project.Setup.TimeoutSeconds)*time.Second)
-		if err == nil && !ok {
-			err = fmt.Errorf("the setup of the run's copy of the code failed: %s\nThe whole log: %s", tail, log)
-		}
-		if err != nil {
-			return err
-		}
 	}
 	return os.WriteFile(dir+ready, nil, 0o600)
 }

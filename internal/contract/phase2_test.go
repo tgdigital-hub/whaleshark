@@ -113,7 +113,7 @@ func TestThePhaseTwoStandIns(t *testing.T) {
 	if clean, err := k.Placement.Clean("x"); !clean || err != nil {
 		t.Error("with no worktrees a folder must count as committed")
 	}
-	if in, err := k.Integrator.Begin("x", &State{}); in != nil || err != nil {
+	if base, in, err := k.Integrator.Begin("x", &State{}); base != nil || in != nil || err != nil {
 		t.Error("with no git a new run has no integration branch")
 	}
 	if _, err := k.Integrator.PrepareAll("x", &State{}, nil); !errors.Is(err, ErrNotBuilt) {

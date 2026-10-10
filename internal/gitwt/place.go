@@ -16,10 +16,10 @@ import (
 
 // What a worktree's record says of its setup.
 const (
-	setupNone      = "none"
-	setupOK        = "ok"
-	setupFailed    = "failed"
-	setupUntrusted = "untrusted"
+	setupNone      = contract.SetupNone
+	setupOK        = contract.SetupOK
+	setupFailed    = contract.SetupFailed
+	setupUntrusted = contract.SetupUntrusted
 )
 
 func (t *trees) Place(root string, s *contract.State, task string) (dir string, w *contract.Worktree, err error) {

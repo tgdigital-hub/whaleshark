@@ -319,6 +319,12 @@ type Placement interface {
 	// Repair finds removals that were interrupted and worktrees no run
 	// records, one line each, and with fix finishes or removes them.
 	Repair(root string, runs []*State, fix bool) (found []string, err error)
+	// Equip gives dir, another copy of the project's code, what a new
+	// worktree gets beyond git: the carried files and the approved setup,
+	// its output in log. It returns the setup's word.
+	Equip(root, dir, log string) (setup string, err error)
+	// Hide keeps files of ours in a worktree out of git's sight there.
+	Hide(root, dir string, paths ...string) error
 }
 
 // Checked is the work an accept is about to check: the folder, the commit the
@@ -330,9 +336,10 @@ type Checked struct{ Dir, OID, Tip string }
 // branch. It binds land itself. Nothing here writes the record: the caller
 // hands what comes back to Rules.Integrated and Rules.Checked.
 type Integrator interface {
-	// Begin makes the branch of a new run at its base and returns it; where
-	// the project has no git it returns nil and no error.
-	Begin(root string, s *State) (*Integration, error)
+	// Begin makes the branch of a new run and returns it with the base it
+	// stands at: the one the run names, else the branch the project is on.
+	// Where the project has no git it returns nil and no error.
+	Begin(root string, s *State) (*GitRef, *Integration, error)
 	// Prepare simulates the merge and brings the tip into the task's folder.
 	// A conflict is a *Refusal that lists the files.
 	Prepare(root string, s *State, task string) (Checked, error)
@@ -511,8 +518,10 @@ func (NoPlacement) Clean(string) (bool, error)                             { ret
 func (NoPlacement) Left(string) (int, []string, error)                     { return 0, nil, nil }
 func (NoPlacement) Forget(string, *State) ([]string, error)                { return nil, nil }
 func (NoPlacement) Repair(string, []*State, bool) ([]string, error)        { return nil, nil }
+func (NoPlacement) Equip(string, string, string) (string, error)           { return "", nil }
+func (NoPlacement) Hide(string, string, ...string) error                   { return nil }
 
-func (NoIntegrator) Begin(string, *State) (*Integration, error)              { return nil, nil }
+func (NoIntegrator) Begin(string, *State) (*GitRef, *Integration, error)     { return nil, nil, nil }
 func (NoIntegrator) Prepare(string, *State, string) (Checked, error)         { return Checked{}, nil }
 func (NoIntegrator) PrepareAll(string, *State, []string) ([]Checked, error)  { return nil, ErrNotBuilt }
 func (NoIntegrator) Collect(string, *State, string, Checked) (string, error) { return "", nil }

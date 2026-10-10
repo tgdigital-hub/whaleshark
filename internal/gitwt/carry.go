@@ -104,7 +104,67 @@ func (t *trees) carry(root, dir string, copies, links []string) error {
 			return err
 		}
 	}
-	return nil
+	// A link is no folder: a rule that ignores the folder does not ignore it.
+	linked := make([]string, len(links))
+	for i, path := range links {
+		linked[i] = filepath.Join(dir, path)
+	}
+	return t.Hide(root, dir, linked...)
+}
+
+func (t *trees) Equip(root, dir, log string) (string, error) {
+	p, err := contract.ReadProjectFile(root)
+	if err != nil {
+		return "", err
+	}
+	copies, links, err := t.carried(root, p)
+	if err == nil {
+		err = t.carry(root, dir, copies, links)
+	}
+	return t.setup(p, dir, log), err
+}
+
+// literal makes a path a line of git's exclusions that names it and no other.
+var literal = strings.NewReplacer(`\`, `\\`, "*", `\*`, "?", `\?`, "[", `\[`)
+
+// Hide names each path, which lies in dir, in the repository's own file of
+// local exclusions: all its worktrees read that one file, and a path is
+// named from the top of whichever is asked.
+func (t *trees) Hide(root, dir string, paths ...string) error {
+	prefix, err := git(dir, "rev-parse", "--show-prefix")
+	file, ferr := git(dir, "rev-parse", "--path-format=absolute", "--git-path", "info/exclude")
+	if err != nil || ferr != nil || len(paths) == 0 {
+		return nil // no git, nothing to hide from
+	}
+	return t.alone(root, func() error {
+		// #nosec G304 -- git's own file of this repository
+		data, _ := os.ReadFile(file)
+		if len(data) > 0 && data[len(data)-1] != '\n' {
+			data = append(data, '\n')
+		}
+		had := len(data)
+		for _, path := range paths {
+			rel, err := filepath.Rel(dir, path)
+			if err != nil {
+				return err
+			}
+			line := "/" + literal.Replace(prefix+filepath.ToSlash(rel)) + "\n"
+			if !strings.Contains("\n"+string(data), "\n"+line) {
+				data = append(data, line...)
+			}
+			// A file the repository tracks is not hidden by an exclusion:
+			// this worktree's index is told to leave it as it lies.
+			git(dir, "update-index", "--skip-worktree", "--", rel)
+		}
+		if len(data) == had {
+			return nil
+		}
+		if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
+			return err
+		}
+		// #nosec G306 -- git's own file, with the permissions git gives it
+		return os.WriteFile(file, data, 0o644)
+	})
 }
 
 // copyTree copies a file, or a folder with the files and folders in it.
