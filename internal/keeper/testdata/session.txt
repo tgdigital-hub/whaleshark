@@ -1,0 +1,134 @@
+# A session with the keeper, one call a line. A line that starts with "!" is
+# something that happens by itself: a window of that size attaches, a pane's
+# program ends, or the next program fails to start.
+
+# Before any window: no pane has a place yet, and no split is refused.
+{"op":"version"}
+{"op":"snapshot"}
+{"op":"status"}
+{"op":"tab-create","label":"fix login bug","cwd":"/work/app","env":["COLOUR=teal"]}
+{"op":"tab-create","label":"write the tests","cwd":"/work/site"}
+{"op":"screen","pane":"p1"}
+{"op":"screen","pane":"p2"}
+{"op":"size","pane":"p1"}
+{"op":"split","pane":"p1","dir":"right","ratio":0.7}
+{"op":"split","pane":"p1","dir":"down","ratio":4}
+{"op":"screen","pane":"p3"}
+{"op":"screen","pane":"p4"}
+{"op":"snapshot"}
+
+# The keys.
+{"op":"pane-focus","pane":"p1","dir":"right"}
+{"op":"pane-focus","pane":"p3","dir":"right"}
+{"op":"pane-focus","pane":"p3","dir":"left"}
+{"op":"pane-focus","pane":"p1","dir":"down"}
+{"op":"pane-focus","pane":"p4","dir":"up"}
+{"op":"pane-focus","pane":"p4"}
+{"op":"pane-focus","pane":"p2"}
+{"op":"pane-focus","pane":"p1","dir":"sideways"}
+{"op":"tab-focus","tab":"t1"}
+{"op":"tab-focus","tab":"t1"}
+{"op":"tab-rename","tab":"t2","label":"tests for login"}
+{"op":"snapshot"}
+
+# What is not there.
+{"op":"tab-rename","tab":"t77","label":"nobody"}
+{"op":"tab-focus","tab":"t77"}
+{"op":"tab-close","tab":"t77"}
+{"op":"screen","pane":"p77"}
+{"op":"size","pane":"p77"}
+{"op":"split","pane":"p77","dir":"right","ratio":0.5}
+{"op":"swap","pane":"p77","target":"p3"}
+{"op":"swap","pane":"p3","target":"p77"}
+{"op":"resize","pane":"p77","dir":"right","ratio":0.1}
+{"op":"pane-close","pane":"p77"}
+{"op":"pane-focus","pane":"p77"}
+{"op":"run","pane":"p77","argv":["whaleshark","ui","run","fleet"]}
+
+# What is refused.
+{"op":"split","pane":"p1","dir":"sideways","ratio":0.5}
+{"op":"swap","pane":"p1","target":"p2"}
+{"op":"run","pane":"p3"}
+{"op":"dance"}
+{"op":"agent-start","name":"quiet otter","kind":"claude","pane":"p1"}
+{"op":"prompt","name":"quiet otter","text":"read the task"}
+{"op":"point","pane":"p1","pointer":"mail"}
+{"op":"hook","kind":"Stop","pane":"p1"}
+{"op":"overlay","argv":["whaleshark","ui","run","actions"],"w":0.5,"h":0.5}
+{"op":"notify","title":"T3","text":"needs you","sound":true}
+
+# A program of ours in a pane, in place of the shell.
+{"op":"swap","pane":"p1","target":"p3"}
+{"op":"run","pane":"p3","argv":["whaleshark","ui","run","fleet"]}
+{"op":"screen","pane":"p3"}
+{"op":"snapshot"}
+!fail
+{"op":"run","pane":"p4","argv":["missing"]}
+{"op":"screen","pane":"p4"}
+!fail
+{"op":"tab-create","label":"never"}
+!fail
+{"op":"split","pane":"p2","dir":"left"}
+{"op":"snapshot"}
+
+# A window: now every pane has a place, in cells.
+!window 120 40
+{"op":"status"}
+{"op":"size","pane":"p1"}
+{"op":"size","pane":"p3"}
+{"op":"size","pane":"p4"}
+{"op":"size","pane":"p2"}
+{"op":"screen","pane":"p1"}
+{"op":"screen","pane":"p2"}
+{"op":"split","pane":"p4","dir":"down","ratio":0.5}
+{"op":"split","pane":"p2","dir":"left","ratio":36}
+{"op":"split","pane":"p2","dir":"up","ratio":0.25}
+{"op":"size","pane":"p2"}
+{"op":"size","pane":"p5"}
+{"op":"size","pane":"p6"}
+{"op":"screen","pane":"p5"}
+{"op":"screen","pane":"p6"}
+{"op":"resize","pane":"p2","dir":"left","ratio":0.1}
+{"op":"size","pane":"p2"}
+{"op":"size","pane":"p5"}
+{"op":"resize","pane":"p2","dir":"up","ratio":0.2}
+{"op":"size","pane":"p2"}
+{"op":"size","pane":"p6"}
+{"op":"resize","pane":"p2","dir":"round","ratio":0.2}
+{"op":"pane-focus","pane":"p2","dir":"left"}
+{"op":"pane-focus","pane":"p2","dir":"up"}
+{"op":"pane-focus","pane":"p2","dir":"down"}
+{"op":"swap","pane":"p2","target":"p6"}
+{"op":"size","pane":"p2"}
+{"op":"size","pane":"p6"}
+{"op":"notify","title":"T3","text":"needs you"}
+{"op":"set-keys","keys":[{"key":"s","type":"shell","argv":["whaleshark","stop"]}]}
+{"op":"set-keys"}
+
+# A second window of another size: the panes take the size of the one used last.
+!window 60 20
+{"op":"status"}
+{"op":"size","pane":"p2"}
+{"op":"size","pane":"p5"}
+{"op":"size","pane":"p1"}
+{"op":"screen","pane":"p5"}
+
+# Panes and tabs go: closed, or ended by themselves.
+{"op":"pane-close","pane":"p4"}
+{"op":"pane-close","pane":"p4"}
+{"op":"size","pane":"p1"}
+!end p3
+{"op":"snapshot"}
+{"op":"tab-create","label":"third tab","cwd":"/work/app","env":["COLOUR=coral"]}
+{"op":"screen","pane":"p7"}
+{"op":"split","pane":"p7","dir":"up","ratio":0.5}
+{"op":"tab-focus","tab":"t3"}
+{"op":"tab-close","tab":"t2"}
+{"op":"snapshot"}
+{"op":"pane-close","pane":"p8"}
+!end p7
+{"op":"snapshot"}
+{"op":"pane-close","pane":"p1"}
+{"op":"snapshot"}
+{"op":"tab-create","label":"start again"}
+{"op":"status"}
