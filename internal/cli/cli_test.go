@@ -594,3 +594,43 @@ func FuzzValid(f *testing.F) {
 		}
 	})
 }
+
+type logins struct {
+	contract.NoPlatform
+	dir string
+}
+
+func (l logins) Dirs() (contract.Dirs, error) { return contract.Dirs{State: l.dir}, nil }
+
+// Every command leaves one line in the login's log: who, the run, the
+// command, its form and the names of its flags, how it ended. Nothing a
+// person or an agent typed is in it, and a hook leaves none.
+func TestTheCommandLog(t *testing.T) {
+	k, _ := world(t)
+	dir := t.TempDir()
+	k.Platform = logins{dir: dir}
+	seen(k, "need")
+	seen(k, "hook")
+	call(t, k, lead, "need", "choice", "is the secret word plover?", "--options", "aye,nay", "--urgent")
+	call(t, k, lead, "need", "choice", "x", "--no-such-flag") // refused before the command is taken up
+	call(t, k, worker, "need", "todo", "x")
+	call(t, k, worker, "hook", "gate")
+	files, _ := filepath.Glob(filepath.Join(dir, "log", "*.log"))
+	if len(files) != 1 {
+		t.Fatalf("the log folder holds %v", files)
+	}
+	data, _ := os.ReadFile(files[0])
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 || !strings.Contains(lines[0], " orchestrator r3 need choice --options --urgent exit=0 ") ||
+		!strings.Contains(lines[1], " worker r3 need todo exit=5 ") {
+		t.Fatalf("the log:\n%s", data)
+	}
+	for _, typed := range []string{"plover", "aye", "nay"} {
+		if strings.Contains(string(data), typed) {
+			t.Errorf("the log holds %q, which somebody typed", typed)
+		}
+	}
+	if info, err := os.Stat(files[0]); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("the log file: %v %v", info, err)
+	}
+}

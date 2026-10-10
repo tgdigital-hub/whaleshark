@@ -1,11 +1,17 @@
 package cli
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"maps"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -13,6 +19,7 @@ import (
 // Main runs one command line: it parses it, works out the caller, runs the
 // handler and prints the outcome, as text or as one envelope.
 func Main(k *contract.Kit, argv []string, in io.Reader, out, errw io.Writer) int {
+	began := time.Now()
 	c := &contract.Call{Kit: k, Now: contract.Now(), Stdin: in, Out: out, Err: errw}
 	for _, a := range argv {
 		if a == "--" {
@@ -23,7 +30,38 @@ func Main(k *contract.Kit, argv []string, in io.Reader, out, errw io.Writer) int
 		}
 	}
 	result, err := run(c, argv)
-	return finish(c, out, result, err)
+	exit := finish(c, out, result, err)
+	logged(c, exit, time.Since(began))
+	return exit
+}
+
+// logged adds one line to the day's file in the login's log folder (6.1):
+// when, who, which run, the command with the names of its flags, how it
+// ended and how long it took. Never an argument or a flag's value: those are
+// free text. A hook is run every few seconds and is left out.
+func logged(c *contract.Call, exit int, took time.Duration) {
+	dirs, err := c.Kit.Platform.Dirs()
+	if err != nil || c.Command == nil || c.Command.Name == "hook" {
+		return
+	}
+	line := []string{c.Now.UTC().Format(time.RFC3339), string(c.Caller.Kind), cmp.Or(c.Run, "-"), c.Command.Name}
+	// The form of a command is logged only when it is a word of its usage.
+	if len(c.Args) > 0 && slices.Contains(strings.FieldsFunc(c.Command.Usage, func(r rune) bool { return r < 'a' || r > 'z' }), c.Args[0]) {
+		line = append(line, c.Args[0])
+	}
+	for _, name := range slices.Sorted(maps.Keys(c.Flags)) {
+		line = append(line, "--"+name)
+	}
+	line = append(line, fmt.Sprintf("exit=%d %dms", exit, took.Milliseconds()))
+	dir := filepath.Join(dirs.State, "log")
+	if os.MkdirAll(dir, 0o700) != nil {
+		return
+	}
+	// #nosec G304 -- the login's own log folder and a date
+	if f, err := os.OpenFile(filepath.Join(dir, c.Now.UTC().Format(time.DateOnly)+".log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+		fmt.Fprintln(f, strings.Join(line, " "))
+		f.Close()
+	}
 }
 
 func run(c *contract.Call, argv []string) (any, error) {
