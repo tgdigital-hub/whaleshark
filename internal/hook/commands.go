@@ -1,5 +1,6 @@
-// Package hook is the two commands an agent's own harness runs, the status
-// line and the gate, and the settings that make the harness run them.
+// Package hook is the three commands an agent's own harness runs, the status
+// line, the gate and the report of its state, and the settings that make the
+// harness run them.
 package hook
 
 import (
@@ -20,6 +21,7 @@ import (
 const (
 	formStatus = "statusline"
 	formGate   = "gate"
+	formState  = "state"
 )
 
 // Plug binds this package's handlers and puts its implementations into the kit.
@@ -30,7 +32,7 @@ func Plug(k *contract.Kit) {
 
 // run never fails: a hook that ends badly would stand in an agent's way.
 // Outside a pane of a project of ours it does nothing, beyond printing the
-// person's own status line. `hook state` is the engine's and does nothing yet.
+// person's own status line.
 func run(c *contract.Call) (any, error) {
 	if len(c.Args) == 0 {
 		return nil, nil
@@ -52,8 +54,25 @@ func run(c *contract.Call) (any, error) {
 			// second word: each kind needs its own answer.
 			gate(c, dirs.State, cmp.Or(contract.Gates[append(c.Args, claude)[1]], contract.Gates[claude]))
 		}
+	case formState:
+		// What the harness says of its agent goes to the terminals that
+		// hold its pane, and only the engine's own take it.
+		var m struct {
+			Session string `json:"session_id"`
+			Cwd     string `json:"cwd"`
+		}
+		if t, takes := c.Kit.Terms.(teller); takes && pane != "" && len(c.Args) > 1 {
+			message(c, &m)
+			t.Hook(c.Args[1], pane, m.Session, m.Cwd)
+		}
 	}
 	return nil, nil
+}
+
+// teller is the terminals' side of `hook state`: one call, contract.OpHook,
+// with the event, the pane the hook ran in, and what the agent said.
+type teller interface {
+	Hook(event, pane, session, cwd string) error
 }
 
 func message(c *contract.Call, v any) []byte {

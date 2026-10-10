@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -565,5 +566,79 @@ func TestRealAgentIsStoppedByTheGate(t *testing.T) {
 		if !strings.Contains(said, want) {
 			t.Errorf("the agent's own report lacks %s", want)
 		}
+	}
+}
+
+// told is the engine's terminals as `hook state` needs them: they take the call.
+type told struct {
+	contract.NoTerminals
+	calls [][4]string
+}
+
+func (t *told) Hook(event, pane, session, cwd string) error {
+	t.calls = append(t.calls, [4]string{event, pane, session, cwd})
+	return errors.New("the keeper is not there")
+}
+
+// `hook state` hands the event, the pane and what the agent said to the
+// terminals, and stays silent and well whatever becomes of it.
+func TestStateTellsTheTerminals(t *testing.T) {
+	l := newLogin(t)
+	terms := &told{}
+	l.k.Terms = terms
+	msg := `{"session_id":"session-one","cwd":"/work/here","hook_event_name":"Stop"}`
+	for _, args := range [][]string{{"state", "Stop"}, {"state"}} {
+		if out := l.hook(msg, args...); out != "" || len(terms.calls) != 0 {
+			t.Errorf("outside a pane, hook %v printed %q and called %v", args, out, terms.calls)
+		}
+	}
+	t.Setenv(contract.EnvTermPane, "p4")
+	l.hook(msg, "state")
+	l.hook("not a message", "state", "SessionEnd")
+	if out := l.hook(msg, "state", "Stop"); out != "" {
+		t.Errorf("printed %q", out)
+	}
+	want := [][4]string{{"SessionEnd", "p4", "", ""}, {"Stop", "p4", "session-one", "/work/here"}}
+	if !reflect.DeepEqual(terms.calls, want) {
+		t.Errorf("the terminals were told %v, want %v", terms.calls, want)
+	}
+}
+
+// The settings run `hook state` at every moment that means a state and at
+// no other, beside what the person has there, and lose it again whole.
+func TestEnsureSetsTheStateHooks(t *testing.T) {
+	l := newLogin(t)
+	file := localFile(l.root)
+	write(t, file, theirs)
+	before := settingsOf(t, file)
+	if _, err := l.k.AgentSettings.Ensure(claude, l.root, "", true); err != nil {
+		t.Fatal(err)
+	}
+	var s struct {
+		Hooks map[string][]group `json:"hooks"`
+	}
+	data, _ := os.ReadFile(file)
+	if err := json.Unmarshal(data, &s); err != nil {
+		t.Fatal(err)
+	}
+	for _, event := range stateEvents {
+		n := 0
+		for _, g := range s.Hooks[event] {
+			if len(g.Hooks) == 1 && g.Hooks[0].Command == quoted(os.Args[0])+" hook state "+event && g.Matcher == "*" {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Errorf("%s has %d entries of ours: %+v", event, n, s.Hooks[event])
+		}
+	}
+	if len(s.Hooks) != len(stateEvents) || len(s.Hooks["Stop"]) != 2 || len(s.Hooks["SubagentStop"])+len(s.Hooks["Notification"]) != 0 {
+		t.Errorf("the hooks are %+v", s.Hooks)
+	}
+	if err := l.k.AgentSettings.Remove(claude, l.root); err != nil {
+		t.Fatal(err)
+	}
+	if after := settingsOf(t, file); !reflect.DeepEqual(before, after) {
+		t.Errorf("after the removal the file holds %v, and held %v", after, before)
 	}
 }
