@@ -1,0 +1,13 @@
+# What gitleaks is told about this repository, over its own rules, which all
+# stay in force. One finding is set aside, by its value alone: naming its
+# file as well would hide everything else in that file.
+[extend]
+useDefault = true
+
+# The authentication secret of the worked example in RFC 8291, appendix A:
+# printed in the standard for every sender to check itself against, and what
+# the test of the sealing does with it. It opens nothing.
+[[allowlists]]
+description = "the example secret RFC 8291 prints"
+targetRules = ["generic-api-key"]
+regexes = ['''^BTBZMqHH6r4Tts7J_aSIgg$''']

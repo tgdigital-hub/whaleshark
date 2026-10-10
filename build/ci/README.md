@@ -41,7 +41,7 @@ None of them is part of the program, and the gate installs nothing. A checker th
 | [gitleaks](https://github.com/gitleaks/gitleaks) | secrets in the files and in the history |
 | [shellcheck](https://www.shellcheck.net) | every shell script in the repository |
 
-A finding that is wrong for this code is silenced at its own line, with the reason in the comment (`#nosec` and the rule's number). No checker is switched off and no folder of the program is left out.
+A finding that is wrong for this code is silenced at its own line, with the reason in the comment (`#nosec` and the rule's number). No checker is switched off and no folder of the program is left out. gitleaks reads the history too, where no line can be given a comment any more, so its one set-aside finding stands in `.gitleaks.toml`, by its exact value and with the reason: the example secret RFC 8291 prints, which a test of the sealing checks itself against.
 
 gosec has two rules set aside for every folder, because the program is a command a person runs as themselves on files they name: G304 (a file opened by a path held in a variable, which is every file this program opens) and G104 (an error nobody reads: what is left is a close after the work is done or has failed, a line to a terminal or a connection that has gone, and the note of who holds a lock). `security.go` says the same beside the rule numbers.
 
