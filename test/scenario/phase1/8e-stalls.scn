@@ -1,0 +1,46 @@
+# 8e: workers that do not report. One leaves its tab without a word, one
+# sits at a prompt of its own, one goes idle. The sweep says each as what it
+# is, and never before it is proven.
+agent A.1: progress 10 "started" | die
+agent B.1: progress 20 "asking the system" | block
+agent C.1: progress 30 "thinking" | hang
+agent A.2: write-result | report done "second try"
+
+file brief.md: Target: a page | Change: your part | Constraints: none | Ownership: your file | Acceptance: the check
+orch: init
+orch: run new "three that stall"
+task A "Write one" --name "part one" --check "exit 0" --brief brief.md
+task B "Write two" --name "part two" --check "exit 0" --brief brief.md
+task C "Write three" --name "part three" --check "exit 0" --brief brief.md
+orch: start --ready
+await: A.1 state working; B.1 state working; C.1 state working
+# A blocked wait sweeps by itself every five seconds: it finds the prompt.
+orch: wait --for blocked --timeout 20               -> expect blocked B.1 "waiting at a prompt"
+term-event gone A
+clock +6s
+orch: status --sweep --quiet
+clock +10s
+orch: status --sweep --quiet
+await: attempts A.1 working
+clock +25s
+orch: status --sweep --quiet
+await: attempts A.1 exited; A status ready failures 1
+orch: wait --ack last --timeout 10                  -> expect exited A.1
+orch: status                                        -> expect "at a prompt" "part two" "start A --retry"
+
+# The agent at a prompt is the person's to clear: an item of the tool's own.
+pane actions: 100x20
+expect-row "part two"
+expect-row "at a prompt"
+
+# Two minutes with no word from the third: quiet, said once.
+clock +2m
+orch: status --sweep --quiet
+orch: wait --ack last --timeout 10                  -> expect quiet C.1
+orch: status                                        -> expect idle "part three" 'tell C --now "report or ask"'
+
+# The one that left is tried again, and its second try reports.
+orch: start A --retry                               -> expect "(A.2)"
+await: attempts A.2 reported
+assert: A failures 1; attempts A.1 exited, B.1 working, C.1 working
+assert: no event lost; no event twice

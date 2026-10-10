@@ -25,8 +25,14 @@ import (
 type Pane func(p *Project, name string, t *term.Term)
 
 // patience is how long a command may run that was not left running with "&",
-// and how long a pane is given to show something.
-const patience = 20 * time.Second
+// and how long a pane is given to show something. apart is the time a person
+// leaves before a key or a click: a pane takes keys that follow each other
+// faster for typing meant elsewhere, and refuses a click on a row that has
+// just moved.
+const (
+	patience = 20 * time.Second
+	apart    = 450 * time.Millisecond
+)
 
 type screen struct {
 	*termtest.Screen
@@ -122,6 +128,10 @@ func (r *runner) step(kind, rest string) {
 		r.command(Orch, rest)
 	case "task":
 		r.command(Orch, "task add "+rest)
+	case "file":
+		name, body, _ := strings.Cut(rest, ":")
+		body = strings.ReplaceAll(strings.TrimSpace(body), " | ", "\n") + "\n"
+		r.p.must(os.WriteFile(filepath.Join(r.p.Root, name), []byte(body), 0o600))
 	case "human:":
 		if button, ok := strings.CutPrefix(rest, "page:"); ok {
 			r.command(Page, button)
@@ -162,15 +172,22 @@ func (r *runner) step(kind, rest string) {
 	case "pane":
 		r.open(rest)
 	case "click":
-		if s := r.on(); !s.Wait(text(rest)) || !s.ClickText(text(rest)) {
+		s := r.on()
+		if !s.shows(text(rest)) {
+			r.fail("the pane does not show %q:\n%s", text(rest), s.all())
+		}
+		time.Sleep(apart)
+		if !s.ClickText(text(rest)) {
 			r.fail("the pane does not show %q:\n%s", text(rest), s.all())
 		}
 	case "key":
+		time.Sleep(apart)
 		r.on().Key(rest)
 	case "type":
+		time.Sleep(apart)
 		r.on().Type(text(rest))
 	case "expect-row":
-		if s := r.on(); !s.Wait(text(rest)) {
+		if s := r.on(); !s.shows(text(rest)) {
 			r.fail("no row shows %q:\n%s", text(rest), s.all())
 		}
 	case "expect-last-line":
@@ -180,9 +197,17 @@ func (r *runner) step(kind, rest string) {
 				r.fail("the last line does not show %q:\n%s", text(rest), s.all())
 			}
 		}
-	case "assert:":
+	case "assert:", "await:":
+		// An await line gives the record time to become so: a fake agent
+		// reports when it gets there, not when the scenario's next line runs.
 		for _, fact := range strings.Split(rest, ";") {
-			r.assert(strings.TrimSpace(fact))
+			not := r.assert(strings.TrimSpace(fact))
+			for end := time.Now().Add(patience); not != "" && kind == "await:" && time.Now().Before(end); not = r.assert(strings.TrimSpace(fact)) {
+				time.Sleep(20 * time.Millisecond)
+			}
+			if not != "" {
+				r.fail("%s", not)
+			}
 		}
 	}
 }
@@ -361,6 +386,17 @@ func (r *runner) on() *screen {
 	return r.shown
 }
 
+// shows gives a pane the runner's patience to show a text: what a button
+// started may stand in line behind a command that takes its time.
+func (s *screen) shows(text string) bool {
+	for end := time.Now().Add(patience); !s.Wait(text); {
+		if time.Now().After(end) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *screen) all() string {
 	var b strings.Builder
 	for y := range s.rows {
@@ -371,8 +407,9 @@ func (s *screen) all() string {
 
 // assert holds the record to one fact: "<id> <field> <value>..." for a task,
 // an attempt, a question or an item, with the fields as state.json names
-// them; "attempts <id> <state>, ..."; "no event lost"; "no event twice".
-func (r *runner) assert(fact string) {
+// them; "attempts <id> <state>, ..."; "no event lost"; "no event twice". It
+// answers with what is not so, or with nothing.
+func (r *runner) assert(fact string) string {
 	r.t.Helper()
 	s, _ := r.p.Record()
 	var raw struct{ Tasks, Attempts, Questions map[string]map[string]any }
@@ -381,11 +418,11 @@ func (r *runner) assert(fact string) {
 	w := words(fact)
 	switch {
 	case fact == "no event lost" || fact == "no event twice":
-		r.events(s, fact)
+		return r.events(s, fact)
 	case len(w) > 0 && w[0] == "attempts":
 		for _, pair := range strings.Split(strings.TrimPrefix(fact, "attempts"), ",") {
 			if p := words(pair); len(p) != 2 || raw.Attempts[p[0]]["state"] != p[1] {
-				r.fail("not so: attempt %s (the record says %v)", strings.TrimSpace(pair), raw.Attempts[p[0]]["state"])
+				return fmt.Sprintf("not so: attempt %s (the record says %v)", strings.TrimSpace(pair), raw.Attempts[p[0]]["state"])
 			}
 		}
 	case len(w) >= 3 && len(w)%2 == 1:
@@ -397,18 +434,19 @@ func (r *runner) assert(fact string) {
 		}
 		for i := 1; i < len(w); i += 2 {
 			if got := fmt.Sprint(thing[w[i]]); thing == nil || got != w[i+1] {
-				r.fail("not so: %s (the record says %s %s)", fact, w[i], got)
+				return fmt.Sprintf("not so: %s (the record says %s %s)", fact, w[i], got)
 			}
 		}
 	default:
-		r.fail("not a fact the runner knows: %s", fact)
+		return "not a fact the runner knows: " + fact
 	}
+	return ""
 }
 
 // events counts where every number given out since the scenario began is
 // now: an event still in the inbox, one acknowledged into history.jsonl, or
 // a message to a worker, which takes its number from the same counter.
-func (r *runner) events(s *contract.State, fact string) {
+func (r *runner) events(s *contract.State, fact string) string {
 	r.t.Helper()
 	seen := map[int]int{}
 	for _, e := range s.Inbox.Events {
@@ -428,7 +466,8 @@ func (r *runner) events(s *contract.State, fact string) {
 	}
 	for seq := r.p.seq + 1; seq <= s.Counters.Seq; seq++ {
 		if n := seen[seq]; n == 0 && fact == "no event lost" || n > 1 && fact == "no event twice" {
-			r.fail("not so: %s (number %d is there %d times)", fact, seq, n)
+			return fmt.Sprintf("not so: %s (number %d is there %d times)", fact, seq, n)
 		}
 	}
+	return ""
 }

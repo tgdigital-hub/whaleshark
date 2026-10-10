@@ -1,0 +1,44 @@
+# 8o: the four buttons, pressed in the real fleet pane on the evening of 9.10.
+# Stop all holds every worker through its gate and types nothing; Resume
+# tells each one; Catch me up says what happened; Do not disturb and Mute
+# are kept for the nudges.
+fixture evening-2114
+
+pane fleet: 60x44
+expect-row "search box"
+key S
+expect-row "press S again"
+key S
+expect-row "paused"
+orch: status                                        -> expect paused
+as-worker T1.1: hook gate                           -> expect '"permissionDecision":"deny"' '"continue":false' "the person has paused all work"
+orch: hook gate
+orch: start R1                                      -> expect exit 5 paused
+as-worker T1.1: progress 50 "still here"
+as-worker T1.1: mail                                -> expect "The person has paused all work"
+orch: wait --timeout 0                              -> expect paused
+
+key r
+await: T1.1 state working
+as-worker T1.1: hook gate
+as-worker T1.1: mail                                -> expect "You were paused at" "git status"
+orch: wait --ack last --timeout 0                   -> expect resumed
+
+clock +66m
+key c
+expect-row "WHILE YOU WERE AWAY"
+key esc
+# The pane's own sweep, as its child runs it every five seconds.
+human: status --sweep --quiet --json                -> expect '"ran":true'
+key d
+expect-row "dnd: on"
+key m
+expect-row "mute: on"
+
+# Under Do not disturb an ordinary item waits and an urgent one gets through,
+# without its sound while Mute is on; switched off, what waited is told once.
+orch: need todo "restart the test server"           -> expect n
+orch: need todo "the disk is full" --urgent         -> expect n
+human: set dnd off
+orch: need todo "look at the new prices"            -> expect n
+assert: no event lost; no event twice

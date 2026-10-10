@@ -25,7 +25,8 @@ fixture evening-2114
 agent T1.1: progress 85 "nearly there" | write-result | report done "ok"
 
 orch: wait                       -> expect done T1
-orch: accept T1 --ack last
+orch: wait --ack last --timeout 0
+orch: accept T1
 human: answer n4 approve
 assert: T1 status done; attempts T1.1 accepted; no event lost
 ```
@@ -33,6 +34,8 @@ assert: T1 status done; attempts T1.1 accepted; no event lost
 **Where it starts.** `fixture <name>` starts from a prepared run: a fixture of the testkit is created as a run through the program's own store, which also sets the current pointer, so the files are the ones a command would have written; `ui.json` and the context files are written beside it, every live attempt gets a token file whose hash the record holds, and the fixture's picture is handed to the fake herdr together with the two panes `ui.json` names. Without that line the project is empty, with one tab for the lead agent, and the scenario makes its run itself (`orch: init`, `orch: run new "..."`).
 
 **Fake agents.** `agent <attempt>: <step> | <step>` is what the fake agent of that attempt plays once `start` opens its tab. For an attempt the fixture already shows in a tab, the agent is started at once, in a tab of its own that the record then names. The steps are the testkit's `AgentSteps`. Those that are commands (`progress`, `ask`, `mail`, `report`) run the real program from the tab, so the worker's side is tested too.
+
+**Files.** `file brief.md: Target | Change | Constraints | Ownership | Acceptance` writes a file into the project folder, one line for each part between the bars: a task needs a brief with those five headings.
 
 **Commands.** Everything after the first word is a real command line, without the program's name. Quotes, double or single, keep words together.
 
@@ -51,9 +54,9 @@ A command must end with exit code 0. `-> expect` at the end of the line says oth
 
 **herdr.** `term-event <kind> <task>` changes the fake's picture and pushes the line; `term-drop` changes the picture and pushes nothing. The kind is `working`, `idle`, `done`, `blocked`, `unknown`, `gone` (the agent left its pane), `closed` (the pane was closed) or `focused`. In the place of a task, an attempt or `lead` may stand. `restart-terminals` does what the real one does: the same panes, none of our variables in any tab. `kill-orchestrator` ends the lead agent's commands and takes its agent out of its pane.
 
-**Panes.** `pane fleet: 100x30` starts that pane on a pretended terminal of that size, through the same terminal layer as a real one; `pane actions: 60x30` the other. The steps that follow act on the pane named last; `pane fleet:` with no size turns them back to one that is open, and a size starts the pane again. `click <text>` clicks the first cell of that text, `key <name>` presses one key (`enter`, `esc`, `tab`, `up`, `ctrl+c`, a letter), `type "<text>"` types. `expect-row <text>` waits up to two seconds for some row to show the text, `expect-last-line <text>` for the last line to. `notices off` makes file changes arrive without a notice in every pane and command started after it.
+**Panes.** `pane fleet: 100x30` starts that pane on a pretended terminal of that size, through the same terminal layer as a real one; `pane actions: 60x30` the other. The steps that follow act on the pane named last; `pane fleet:` with no size turns them back to one that is open, and a size starts the pane again. `click <text>` clicks the first cell of that text, `key <name>` presses one key and `type "<text>"` types, each after the half second a person leaves (a pane takes keys that follow faster for typing meant elsewhere, and refuses a click on a row that has just moved); a key is `enter`, `esc`, `tab`, `up`, `ctrl+c` or a letter. `expect-row <text>` waits up to twenty seconds for some row to show the text (what a button started may stand in line behind a command that takes its time), `expect-last-line <text>` for the last line to. `notices off` makes file changes arrive without a notice in every pane and command started after it.
 
-**Facts at the end.** `assert:` lines are checked once every step has run, against the record on disk. Facts are separated by `;`:
+**Facts at the end.** `assert:` lines are checked once every step has run, against the record on disk. An `await:` line takes the same facts and waits where it stands, up to twenty seconds, until the record says so: a fake agent reports when it gets there, not when the next line runs. Facts are separated by `;`:
 
 - `<id> <field> <value> ...` for a task, an attempt, a question or an item, with the fields named as in `state.json`: `T2 failures 1 status ready`;
 - `attempts T2.1 exited, T2.2 reported`: the state of each;

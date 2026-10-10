@@ -78,7 +78,7 @@ func TestFixtureMatchesTypes(t *testing.T) {
 }
 
 func TestGrammar(t *testing.T) {
-	if len(Lines) != 21 || len(AgentSteps) != 13 {
+	if len(Lines) != 23 || len(AgentSteps) != 13 {
 		t.Errorf("%d kinds of line and %d agent steps", len(Lines), len(AgentSteps))
 	}
 }

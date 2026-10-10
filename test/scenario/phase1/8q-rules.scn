@@ -1,0 +1,17 @@
+# 8q and 8m: init writes the rules for the lead agent into the agent tool's
+# own instruction file and sets the two hooks in the project; a worker
+# started afterwards is held by the gate, and its status line fills the
+# context bar.
+agent A.1: hang
+
+file brief.md: Target: a page | Change: write it | Constraints: none | Ownership: page.txt | Acceptance: it is there
+human: init --agent claude                          -> expect "the rules for the lead agent are in" "the status line and the gate for claude are set in"
+human: init --agent claude                          -> expect "the rules for the lead agent are in"
+orch: init --print-block                            -> expect "whaleshark"
+orch: guide                                         -> expect "whaleshark wait" "whaleshark start"
+orch: run new "one page"
+task A "Write the page" --name "the page" --check none --brief brief.md
+orch: start A
+await: A.1 state working gated true
+as-worker A.1: progress 10 "reading"
+as-worker A.1: guide                                -> expect "whaleshark report" "whaleshark ask"

@@ -63,6 +63,7 @@ func Load(name string) (*Fixture, error) {
 var Lines = map[string]string{
 	"fixture":           `fixture <name>                     start from a prepared run`,
 	"task":              `task <id> "<title>" [flags]        the flags of task add`,
+	"file":              `file <path>: <line> | <line>       write a file in the project folder, as a brief`,
 	"agent":             `agent <attempt>: <step> | <step>   the script the fake agent of that attempt plays`,
 	"orch:":             `orch: <command>                    a real command, run as the orchestrator; "--ack last" is the last delivery id`,
 	"human:":            `human: <command>                   a real command, run as the human`,
@@ -82,6 +83,7 @@ var Lines = map[string]string{
 	"expect-row":        `expect-row <text>                  some row of the pane's grid contains the text`,
 	"expect-last-line":  `expect-last-line <text>            the pane's last line contains the text`,
 	"assert:":           `assert: <fact>; <fact>             facts about the record once every step has run`,
+	"await:":            `await: <fact>; <fact>              wait, where the line stands, until the record says so`,
 }
 
 // AgentSteps is every step of a fake agent's script. Steps are separated by " | ".

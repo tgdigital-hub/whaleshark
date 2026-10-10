@@ -1,0 +1,36 @@
+# 8b, 8d and 8n: a worker asks and blocks. One question the lead agent
+# answers itself; the other it hands to the person, who answers it in the
+# action pane with a button, takes that back inside its four seconds, and
+# answers again. Each worker goes on with exactly the answer that stood.
+agent A.1: ask "tabs or spaces?" | expect-answer spaces | write-result | report done "spaces it is"
+agent B.1: ask "which colour?" --options red,blue | expect-answer blue | write-result | report done "blue it is"
+
+file brief.md: Target: a page | Change: your part | Constraints: none | Ownership: your file | Acceptance: the check
+orch: init
+orch: run new "two questions"
+task A "Indent the file" --name indenting --check "exit 0" --brief brief.md
+task B "Paint the wall" --name painting --check "exit 0" --brief brief.md
+orch: start A
+await: attempts A.1 asked
+orch: start B
+await: attempts B.1 asked
+orch: wait --timeout 10                             -> expect question q1 q2
+orch: status                                        -> expect asking 'answer q1 "<answer>"' "escalate q1"
+orch: answer q1 spaces
+await: attempts A.1 reported
+orch: escalate q2                                   -> expect "for the person"
+orch: answer q2 red                                 -> expect exit 5 "--relayed"
+
+pane actions: 100x20
+expect-row "which colour?"
+click "[ Red ]"
+expect-row "u to undo"
+await: q2 state answered answer red
+key u
+await: q2 state open
+click "[ Blue ]"
+await: q2 state answered answer blue; attempts B.1 asked
+clock +5s
+await: attempts B.1 reported; q2 state used
+orch: wait --ack last --timeout 10                  -> expect answered blue done
+assert: no event lost; no event twice

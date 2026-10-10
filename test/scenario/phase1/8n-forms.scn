@@ -1,0 +1,36 @@
+# 8d and 8n: the lead agent puts four things in front of the person, one of
+# each form, and each is answered in the action pane the way that form is
+# answered. The lead agent learns every answer from its wait, once the
+# answer has settled, and never earlier.
+orch: init
+orch: run new "four decisions"
+orch: need question "What is the shop called?"                    -> expect n1
+orch: need choice "Which colour for the buttons?" --options green,amber  -> expect n2
+orch: need signoff "The front page is ready to go live."          -> expect n3
+orch: need todo "Renew the certificate before Friday."            -> expect n4
+
+pane actions: 100x30
+expect-row "What is the shop called?"
+expect-row "[ Green ]  [ Amber ]"
+expect-row "[ Approve ]  [ Send back ]"
+expect-row "[ Done ]"
+click "What is the shop called?"
+key o
+type "Reef and Rope"
+key enter
+await: n1 state answered answer "Reef and Rope"
+click "[ Amber ]"
+await: n2 state answered answer amber
+click "[ Send back ]"
+type "the prices are missing"
+key enter
+await: n3 state answered answer "send back: the prices are missing"
+click "[ Done ]"
+await: n4 state answered answer done
+orch: wait --timeout 0                              -> expect "Reef and Rope" "the prices are missing"
+clock +5s
+orch: wait --ack last --timeout 5                   -> expect answered amber done
+orch: wait --ack last --timeout 0
+orch: status                                        -> expect "0 agents"
+assert: n1 state used; n2 state used; n3 state used; n4 state used
+assert: no event lost; no event twice

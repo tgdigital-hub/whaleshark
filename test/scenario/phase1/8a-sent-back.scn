@@ -1,0 +1,27 @@
+# 8a, the other way out: a result whose check fails is sent back with the
+# reason, the same worker reads it in its mail, mends the work and reports
+# again, and the second result passes.
+agent A.1: write-result | report done "the page is written"
+
+file brief.md: Target: a page | Change: write it | Constraints: none | Ownership: page.txt | Acceptance: page.txt is there
+orch: init
+orch: run new "one page"
+task A "Write the page" --name "the page" --check "test -f page.txt" --brief brief.md
+orch: start A
+await: attempts A.1 reported
+orch: accept A                                      -> expect exit 1 "The check of A failed" 'reject A "<why>"'
+orch: status                                        -> expect "check failed"
+orch: wait --timeout 10                             -> expect done check_failed
+orch: reject A "page.txt is not there"              -> expect "A is back with A.1 as message"
+await: attempts A.1 working
+as-worker A.1: mail                                 -> expect "page.txt is not there"
+as-worker A.1: mail                                 -> expect "No new messages."
+file page.txt: the page
+as-worker A.1: progress 90 "the page is there now"
+as-worker A.1: report done "the page is written, and the file is there"
+orch: wait --ack last --timeout 10                  -> expect done "the file is there"
+orch: accept A                                      -> expect "A is done, checked"
+orch: wait --ack last --timeout 0
+
+assert: A status done failures 0; attempts A.1 accepted
+assert: no event lost; no event twice

@@ -1,0 +1,31 @@
+# 8a and 8c: a job of three small tasks, two side by side and one that waits
+# for both, from an empty project to three checked results. Every step is a
+# real command; the workers are fake agents that run the real worker commands.
+agent A.1: progress 40 "half" | write-result | report done "the header is in"
+agent B.1: progress 60 "most" | write-result | report done "the footer is in"
+agent C.1: write-result | report done "the page is joined"
+
+file brief.md: Target: a small page | Change: your part of it | Constraints: none | Ownership: your own file | Acceptance: the check passes
+orch: init
+orch: run new "a small page"                        -> expect r1
+task A "Write the header" --name header --check "exit 0" --brief brief.md
+task B "Write the footer" --name footer --check "exit 0" --brief brief.md
+task C "Join the page" --name "whole page" --after header,footer --check "exit 0" --brief brief.md
+orch: status --all                                  -> expect header footer "whole page" queued
+orch: start C                                       -> expect exit 5
+orch: start --ready                                 -> expect "(A.1)" "(B.1)"
+await: attempts A.1 reported, B.1 reported
+orch: wait --timeout 10                             -> expect done A.1 B.1 "the footer is in"
+orch: status                                        -> expect "to check" header footer
+orch: accept A                                      -> expect "A is done, checked"
+orch: accept footer                                 -> expect "B is done, checked" "Ready now: C"
+orch: start --ready                                 -> expect "(C.1)"
+await: attempts C.1 reported
+orch: wait --ack last --timeout 10                  -> expect done C
+orch: accept C                                      -> expect "C is done, checked"
+orch: close --settled
+orch: wait --ack last --timeout 0
+orch: status --all                                  -> expect "3 done today"
+
+assert: A status done; B status done; C status done; attempts A.1 accepted, B.1 accepted, C.1 accepted
+assert: no event lost; no event twice
