@@ -226,7 +226,6 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 		pane, err := p.Kit.Terms.TabCreate(p.Root, f.State.Tasks[a.Task].Name, p.tab(f.State.Run.ID, a))
 		p.must(err)
 		p.must(p.Kit.Terms.AgentStart(a.Agent.Name, a.Agent.Kind, pane.ID, nil, 10*time.Second))
-		p.must(p.Kit.Terms.Prompt(a.Agent.Name, "Read and follow "+prompt, 10*time.Second))
 		if c, ok := ctx[a.Place.Pane]; ok {
 			delete(ctx, a.Place.Pane)
 			ctx[pane.ID] = c
@@ -238,6 +237,11 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 	p.must(contract.WriteVersioned(p.Kit.Platform, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, f.UI))
 	for pane, c := range ctx {
 		p.must(contract.WriteVersioned(p.Kit.Platform, contract.CtxPath(dirs.State, pane), contract.FileVersion, c))
+	}
+	// An agent is told to begin only now that the record is there: one that
+	// reports sooner finds no run to report to.
+	for _, a := range own {
+		p.must(p.Kit.Terms.Prompt(a.Agent.Name, "Read and follow "+filepath.Join(run, "attempts", a.ID, "prompt.md"), 10*time.Second))
 	}
 	return p
 }

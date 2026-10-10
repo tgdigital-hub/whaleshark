@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -20,6 +21,9 @@ import (
 func agent(t *testing.T) {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "fakeagent")
+	if runtime.GOOS == "windows" {
+		bin += ".exe" // Windows starts a program only from a file with that ending
+	}
 	if out, err := exec.Command("go", "build", "-o", bin, "../fakeagent").CombinedOutput(); err != nil {
 		t.Fatalf("%s: %v", out, err)
 	}
