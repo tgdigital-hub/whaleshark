@@ -1,0 +1,14 @@
+[Unit]
+Description=WhaleShark keeper: every pane's terminal of this login
+
+[Service]
+ExecStart="/opt/reef tools/whale\"shark\" & $$co <100%%>" engine run
+Environment="PATH=/opt/reef tools/bin:/usr/bin"
+Environment="SHELL=/bin/zsh"
+Environment="LANG=en_GB.UTF-8"
+Environment="XDG_STATE_HOME=/srv/reef/state \"a\" & <b> 100%% $HOME \\n"
+Restart=on-failure
+KillMode=mixed
+
+[Install]
+WantedBy=default.target
