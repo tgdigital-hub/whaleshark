@@ -9,6 +9,9 @@
 <link rel="manifest" href="/a/home.webmanifest">
 <script src="/a/page.js" defer></script>
 {{- end}}
+{{- if eq .Screen "pair"}}
+<meta http-equiv="refresh" content="3">
+{{- end}}
 </head>
 <body data-screen="{{.Screen}}">
 {{- if eq .Screen "pair"}}
@@ -51,9 +54,11 @@
 <footer id="foot">
 {{if ne .Screen "lead"}}{{with .Lead}}<pre class="lead">{{.}}</pre><a href="/lead">read more</a>{{end}}{{end}}
 {{template "form" do . "note-lead"}}
+{{if .Phone}}{{if nudge}}<button class="b" id="notice" hidden>Nudge me on this phone</button>{{end}}{{else -}}
 <details id="keys"><summary class="b" data-key="/">Keys</summary>
 <p class="c-dim">a first item · j k choose · y n o answer · u undo · S stop all · r resume · c catch me up · d do not disturb · m mute · / this list</p></details>
 <button class="b" id="notice" hidden>Notify me here</button>
+{{- end}}
 </footer>
 {{- end}}
 </body>
@@ -97,7 +102,7 @@
 {{end}}{{end}}{{end}}
 
 {{define "card"}}{{$p := .P}}
-<article class="card k-{{.Colour}}{{if .Unseen}} unseen{{end}}" id="c-{{.Task}}">
+<article class="card k-{{.Colour}}{{if .Unseen}} unseen{{end}}{{if and (eq .Look "building") (not .Word) (not .Clash)}} plain{{end}}" id="c-{{.Task}}">
 <span class="mark c-{{.Colour}}">{{(look .Look).Mark}}</span>
 <span><a class="name" href="{{open .Card}}">{{.Name}}</a>{{if .Flag}} <span class="c-needs">{{(needs).Mark}}</span>{{end}}</span>
 <span class="word c-{{.Colour}}">{{word $p .Card}}</span>

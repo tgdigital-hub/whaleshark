@@ -9,7 +9,12 @@
 // child that carries the page's mark; the server itself writes no run file.
 // Every five seconds it starts the sweep for each open run of the login,
 // whether or not a browser is connected, and that is all it does when
-// nobody is looking. The phone's door and the tunnel's are not built yet.
+// nobody is looking. While the person has phone access on, on a server
+// whose administrator set it up, it also listens on one loopback port of the
+// login's own block, the door: the private network's own program hands a
+// phone's connection to it and says who is calling. A phone is paired once,
+// by a number the person approves where they are signed in already, and is
+// then shown the same page in one column. The tunnel's door is not built yet.
 //
 // A server that holds a connection open and says a line when something
 // changed is the ordinary shape of a live page (the HTML standard's
@@ -64,7 +69,7 @@ func dash(c *contract.Call) (any, error) {
 	st, running := ask(k, dirs, "status")
 	switch {
 	case len(c.Args) > 0 && c.Args[0] == "phone":
-		return nil, refuse("not_built", "The door for phones is "+contract.ErrNotBuilt.Error()+".")
+		return phones(c, dirs, running)
 	case word == "start" && !running && !atTerminal():
 		return nil, serve(k, dirs)
 	case word == "start" || word == "url":
@@ -103,19 +108,25 @@ func dash(c *contract.Call) (any, error) {
 			if _, err := readKey(k.Platform, dirs, true, true); err != nil {
 				return nil, err
 			}
-			line += " Every browser is signed out."
+			if err := contract.ChangePhones(k.Platform, func(list *contract.Phones) error { list.Paired = nil; return nil }); err != nil {
+				return nil, err
+			}
+			line += " Every browser is signed out and every phone is forgotten."
 		}
 		fmt.Fprintln(c.Out, line)
 		return status{}, nil
 	case word == "status" && running:
 		fmt.Fprintf(c.Out, "The page's server is running since %s: %d MB of memory, %d browser tabs held open, %d open runs swept.\n",
 			st.Since.Format("15:04"), st.Memory>>20, st.Tabs, st.Runs)
+		if st.Door != 0 {
+			fmt.Fprintf(c.Out, "The door for phones is open on port %d of this machine itself; the last caller there was %s.\n", st.Door, whose(st.Caller))
+		}
 		return st, nil
 	case word == "status":
 		fmt.Fprintln(c.Out, "The page's server is not running.")
 		return status{}, nil
 	}
-	return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "dash takes one word: start, stop, url or status.", Next: []string{"whaleshark help dash"}}
+	return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "dash takes one word: start, stop, url or status, or phone with a word of its own.", Next: []string{"whaleshark help dash"}}
 }
 
 // ask puts one question of this login's own to the running server, over
@@ -183,7 +194,7 @@ func serve(k *contract.Kit, dirs contract.Dirs) error {
 		return err
 	}
 	os.Remove(s.sock)
-	l, err := listen("unix", s.sock)
+	l, err := listen("unix", s.sock, 0)
 	if err != nil {
 		return err
 	}
@@ -203,8 +214,14 @@ func serve(k *contract.Kit, dirs contract.Dirs) error {
 		case <-s.ctx.Done():
 		}
 		srv.Close()
+		s.mu.Lock()
+		if s.door != nil {
+			s.door.Close()
+		}
+		s.mu.Unlock()
 	}()
 	go s.sweeps()
+	s.doors()
 	if err = srv.Serve(l); err == http.ErrServerClosed {
 		err = nil
 	}

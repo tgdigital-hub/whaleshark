@@ -96,10 +96,11 @@ progress::-moz-progress-bar { background: currentColor; }
 /* One column: a phone, or a narrow window. Nothing is in another order. */
 .phone body { font-size: 16px; }
 .phone .b { padding: .45rem 1rem; }
+.phone .strip .b { padding: .45rem .5rem; }
 .phone .card { grid-template-columns: 1.6rem 1fr auto; }
 .phone .bar { grid-column: 2; }
 .phone .news { grid-column: 2 / 4; }
-.phone .k-building .news { display: none; }
+.phone .plain .news { display: none; }
 .phone progress { width: 40vw; }
 .phone .ctx progress { display: none; }
 .phone .strip { margin-left: 0; }

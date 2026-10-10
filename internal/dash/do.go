@@ -26,7 +26,8 @@ const (
 )
 
 // child runs this same program with one command line of ours for a job,
-// marked as coming from the page, and returns what it printed as JSON.
+// marked as coming from the page or from a phone, and returns what it
+// printed as JSON.
 // Free text rides in a private file in the place of "{file}", never on the
 // line. A command that can take minutes moves itself into a tab of its own
 // and this child ends at once.
@@ -48,7 +49,10 @@ func (s *server) child(ctx context.Context, j job, text string, args ...string) 
 	}
 	args = append(args, "--json", "--root", j.root, "--run", j.run)
 	cmd := exec.CommandContext(ctx, s.self, args...) // #nosec G204 G702 -- this program's own file, with a row of the action table or a read command
-	cmd.Dir, cmd.Env = j.root, s.env
+	if cmd.Dir, cmd.Env = j.root, s.env; from(ctx) != "" {
+		// The same surroundings with the phone's mark for the page's, which is the last.
+		cmd.Env = append(slices.Clone(s.env[:len(s.env)-1]), contract.EnvFrom+"="+contract.WherePhone)
+	}
 	out, err := cmd.Output()
 	if len(out) > 0 {
 		err = nil // the command said how it ended, and that is what is shown
@@ -130,16 +134,6 @@ func (s *server) do(w http.ResponseWriter, r *http.Request, id, button string) {
 		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("not_a_button", "That is no button of this page.")})
 		return
 	}
-	j, all := s.pick(w, r)
-	if j.state == nil {
-		s.screen(w, r, id, contract.RouteTeam, nil, nil)
-		return
-	}
-	argv, ok := fill(a, r.PostForm, s.view(r.Context(), j, all, true))
-	if !ok {
-		s.draw(w, http.StatusConflict, &contract.Page{Screen: contract.ScreenRefused, Said: said("not_listed", "That button is not on the page any more: go back and look again.")})
-		return
-	}
 	back := contract.RouteTeam
 	// The way back is a path on this page and nothing a browser could read
 	// as another site: no second slash, and no backslash, which browsers
@@ -147,20 +141,40 @@ func (s *server) do(w http.ResponseWriter, r *http.Request, id, button string) {
 	if from, err := url.Parse(r.Referer()); err == nil && strings.HasPrefix(from.Path, "/") && !strings.HasPrefix(from.Path, "//") && !strings.Contains(from.Path, `\`) && !strings.HasPrefix(from.Path, contract.RouteDo) {
 		back = from.Path
 	}
-	var err error
+	// The phone that asks to be paired is answered by the server itself, and
+	// only where the person is signed in on the laptop's road.
+	phone := from(r.Context())
+	paired, err := false, error(nil)
+	if a.ID == "answer" && phone == "" {
+		paired, err = s.decide(r.PostForm.Get("id"), r.PostForm.Get("text"), contract.Now())
+	}
+	j, all := s.pick(w, r)
+	if j.state == nil && !paired {
+		s.screen(w, r, id, contract.RouteTeam, nil, nil)
+		return
+	}
+	var argv []string
+	if ok := paired; !ok {
+		if argv, ok = fill(a, r.PostForm, s.view(r.Context(), j, all, true)); !ok {
+			s.draw(w, http.StatusConflict, &contract.Page{Screen: contract.ScreenRefused, Said: said("not_listed", "That button is not on the page any more: go back and look again.")})
+			return
+		}
+	}
+	ctx := context.WithValue(s.ctx, viaPhone{}, phone)
 	var catch *contract.Catchup
 	switch {
+	case paired:
 	case a.How == contract.HowPoint && j.state.Run.Orchestrator == nil:
 		err = said("no_lead", "No lead agent holds this run.")
 	case a.How == contract.HowPoint:
 		err = s.k.Terms.Point(j.state.Run.Orchestrator.Pane, contract.Pointer(argv[0]), "")
 	case a.ID == "catchup":
 		catch = new(contract.Catchup)
-		err = s.read(s.ctx, j, catch, "", argv...)
+		err = s.read(ctx, j, catch, "", argv...)
 	default:
 		// The server's own time, not the request's: a click is carried out
 		// even if the tab that made it is closed meanwhile.
-		err = s.read(s.ctx, j, nil, r.PostForm.Get("text"), argv...)
+		err = s.read(ctx, j, nil, r.PostForm.Get("text"), argv...)
 	}
 	told := new(contract.Refusal)
 	switch {

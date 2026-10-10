@@ -57,6 +57,14 @@ type server struct {
 	unlook       context.CancelFunc        // ends the looking; nil while no tab is connected
 	woken, slow  bool
 	ran          int
+	// The door for phones while it is open, and its port; the one request to
+	// pair, the refusals that slow the next, and who the road named last.
+	door     *http.Server
+	port     int
+	pair     pairing
+	refusals int
+	refused  time.Time
+	caller   string
 }
 
 // job is one open run of the login with its record as just read.
@@ -103,11 +111,13 @@ func newServer(k *contract.Kit, dirs contract.Dirs) (*server, error) {
 	return s, nil
 }
 
-// listen opens the one kind of door the page has: a socket file. There is
-// no setting that makes it listen where another machine could reach it.
-func listen(network, address string) (net.Listener, error) {
-	if network != "unix" {
-		return nil, refuse("no_such_door", "The page listens on its socket file and on nothing else: "+network+" "+address+" is refused.")
+// listen is the one place a door is opened, and the page has two kinds: its
+// socket file, and for phones the one loopback port the server's file gives
+// this login. There is no setting that makes it listen where another
+// machine could reach it.
+func listen(network, address string, door int) (net.Listener, error) {
+	if network != "unix" && (network != "tcp4" || door == 0 || address != net.JoinHostPort(contract.Loopback, strconv.Itoa(door))) {
+		return nil, refuse("no_such_door", "The page listens on its socket file and on this login's door for phones, and on nothing else: "+network+" "+address+" is refused.")
 	}
 	return net.Listen(network, address)
 }
@@ -119,6 +129,45 @@ func said(code, message string) *contract.Refusal {
 // ServeHTTP checks every request before anything is read for it: the host
 // name, where it comes from, how it asks and who is signed in.
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	head(w, r)
+	host, path := r.Host, r.URL.Path
+	if name, _, err := net.SplitHostPort(host); err == nil {
+		host = name
+	}
+	if !slices.Contains(contract.PageHosts, host) {
+		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("wrong_host", "The page answers under its own name only.")})
+		return
+	}
+	if !s.asked(w, r, "http://", strings.HasPrefix(path, contract.RouteDo)) {
+		return
+	}
+	now := contract.Now()
+	id, signed := s.session(w, r, now)
+	name, asset := strings.CutPrefix(path, contract.RouteAsset)
+	word, own := strings.CutPrefix(path, routeOwn)
+	switch {
+	case path == contract.RouteIn:
+		s.in(w, r, now)
+	case asset:
+		s.asset(w, name)
+	case path == contract.RouteSites:
+		// connect asks this without a session: it answers port numbers and
+		// is no screen, so it does not count as somebody looking.
+		ports, _ := s.sites(s.open()...)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(append([]int{}, ports...))
+	case own:
+		s.own(w, r, word, now)
+	case !signed:
+		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("signed_out", "Nobody is signed in in this browser."), Notes: []string{"whaleshark dash url"}})
+	default:
+		s.route(w, r, id)
+	}
+}
+
+// head says on every answer, by either road, what a browser may do with it,
+// and caps what is read of the request.
+func head(w http.ResponseWriter, r *http.Request) {
 	h := w.Header()
 	h.Set("Content-Security-Policy", policy)
 	h.Set("X-Frame-Options", "DENY")
@@ -126,48 +175,39 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("Cache-Control", "no-store")
 	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
-	host, path, origin := r.Host, r.URL.Path, r.Header.Get("Origin")
-	if name, _, err := net.SplitHostPort(host); err == nil {
-		host = name
-	}
-	post := r.Method == http.MethodPost
-	rest, do := strings.CutPrefix(path, contract.RouteDo)
+}
+
+// asked checks where a request comes from and how it asks: its origin, if
+// it names one, is the page's own under the road's scheme, and it is a POST
+// with an origin exactly where posts says one is taken.
+func (s *server) asked(w http.ResponseWriter, r *http.Request, scheme string, posts bool) bool {
+	origin, post := r.Header.Get("Origin"), r.Method == http.MethodPost
 	switch {
-	case !slices.Contains(contract.PageHosts, host):
-		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("wrong_host", "The page answers under its own name only.")})
-		return
-	case origin != "" && origin != "http://"+r.Host, post && origin == "":
+	case origin != "" && origin != scheme+r.Host, post && origin == "":
 		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("wrong_origin", "That request did not come from the page.")})
-		return
-	case post != do || !post && r.Method != http.MethodGet && r.Method != http.MethodHead:
+	case post != posts || !post && r.Method != http.MethodGet && r.Method != http.MethodHead:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+	default:
+		return true
 	}
-	now := contract.Now()
-	id, signed := s.session(w, r, now)
-	name, asset := strings.CutPrefix(path, contract.RouteAsset)
-	word, own := strings.CutPrefix(path, routeOwn)
+	return false
+}
+
+func (s *server) asset(w http.ResponseWriter, name string) {
+	if body, kind, ok := s.k.Asset(name); ok {
+		w.Header().Set("Content-Type", kind)
+		w.Write(body)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+// route answers a caller who is signed in, by either road.
+func (s *server) route(w http.ResponseWriter, r *http.Request, id string) {
+	path := r.URL.Path
+	rest, do := strings.CutPrefix(path, contract.RouteDo)
 	file, evidence := strings.CutPrefix(path, contract.RouteEvidence)
 	switch {
-	case path == contract.RouteIn:
-		s.in(w, r, now)
-	case asset:
-		if body, kind, ok := s.k.Asset(name); ok {
-			h.Set("Content-Type", kind)
-			w.Write(body)
-		} else {
-			w.WriteHeader(http.StatusNotFound)
-		}
-	case path == contract.RouteSites:
-		// connect asks this without a session: it answers port numbers and
-		// is no screen, so it does not count as somebody looking.
-		ports, _ := s.sites(s.open()...)
-		h.Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(append([]int{}, ports...))
-	case own:
-		s.own(w, r, word, now)
-	case !signed:
-		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("signed_out", "Nobody is signed in in this browser."), Notes: []string{"whaleshark dash url"}})
 	case do:
 		s.do(w, r, id, rest)
 	case path == contract.RouteLive:
@@ -205,20 +245,28 @@ type status struct {
 	Tabs     int    `json:"tabs"`
 	Watching bool   `json:"watching"`
 	Runs     int    `json:"runs"`
+	// Door is the loopback port open for phones, 0 while there is none, and
+	// Caller who the road named at the door last.
+	Door   int    `json:"door,omitempty"`
+	Caller string `json:"caller,omitempty"`
 }
 
 // own answers this login's own dash command, which proves itself with a
-// code signed for the one word.
+// code signed for the one word; "door" has the door for phones opened or
+// closed as phones.json says since that command wrote it.
 func (s *server) own(w http.ResponseWriter, r *http.Request, word string, now time.Time) {
-	if (word != "status" && word != "stop") || codeNumber(s.key, word, r.URL.Query().Get(contract.FieldCode), now) == 0 {
+	if (word != "status" && word != "stop" && word != "door") || codeNumber(s.key, word, r.URL.Query().Get(contract.FieldCode), now) == 0 {
 		w.WriteHeader(http.StatusForbidden)
 		return
+	}
+	if word == "door" {
+		s.doors()
 	}
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	s.mu.Lock()
-	st := status{Running: word == "status", Socket: s.sock, Version: contract.Version, Since: s.since,
-		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran}
+	st := status{Running: word != "stop", Socket: s.sock, Version: contract.Version, Since: s.since,
+		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran, Door: s.port, Caller: s.caller}
 	s.mu.Unlock()
 	json.NewEncoder(w).Encode(st)
 	if word == "stop" {
@@ -274,9 +322,9 @@ func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job)
 		}
 	}
 	if chosen && fit > 1 {
-		// #nosec G124 -- as the session's cookie in grant: no Secure on the loopback road
+		// #nosec G124 -- as the session's cookie in grant: no Secure on the loopback road, and Secure at the door
 		http.SetCookie(w, &http.Cookie{Name: s.cookie + "j", Value: url.Values{contract.FieldRoot: {j.root}, contract.FieldRun: {j.run}}.Encode(),
-			Path: "/", MaxAge: int(sessionLife / time.Second), HttpOnly: true, SameSite: http.SameSiteStrictMode})
+			Path: "/", MaxAge: int(sessionLife / time.Second), HttpOnly: true, Secure: from(r.Context()) != "", SameSite: http.SameSiteStrictMode})
 	}
 	return j, all
 }
@@ -287,8 +335,12 @@ func (s *server) view(ctx context.Context, j job, all []job, every bool) *contra
 	now, peek := contract.Now(), s.k.Platform.Peek
 	in := contract.ViewInput{Now: now, Caller: contract.Human, Watched: true, Limits: contract.ProjectDefaults()}
 	if j.state == nil {
-		return &contract.View{Version: contract.ViewVersion, At: now, Caller: contract.Human,
+		v := &contract.View{Version: contract.ViewVersion, At: now, Caller: contract.Human,
 			Alerts: []string{"no open run in any project of this login"}, Fresh: contract.Fresh{Checked: now}}
+		if from(ctx) == "" {
+			s.withPhones(v, false)
+		}
+		return v
 	}
 	var err error
 	if in.Terms, err = s.k.Terms.Snapshot(ctx); err == nil {
@@ -309,7 +361,11 @@ func (s *server) view(ctx context.Context, j job, all []job, every bool) *contra
 	}
 	s.mu.Unlock()
 	in.State, in.Ctx, in.All = j.state, contract.ReadCtx(peek, s.dirs.State, j.state), every
-	return s.k.View(in)
+	v := s.k.View(in)
+	if from(ctx) == "" {
+		s.withPhones(v, true)
+	}
+	return v
 }
 
 // screen draws one screen. The team's is built here; every other is the
@@ -317,15 +373,25 @@ func (s *server) view(ctx context.Context, j job, all []job, every bool) *contra
 func (s *server) screen(w http.ResponseWriter, r *http.Request, id, path string, told *contract.Refusal, catch *contract.Catchup) {
 	j, all := s.pick(w, r)
 	cfg, _ := contract.ReadPerson(s.k.Platform.Peek, s.dirs.Config)
-	p := &contract.Page{Screen: contract.ScreenTeam, Theme: cfg.UI.Theme, Token: mac(s.key, "token", id),
+	p := &contract.Page{Screen: contract.ScreenTeam, Phone: from(r.Context()) != "", Theme: cfg.UI.Theme, Token: mac(s.key, "token", id),
 		View: s.view(r.Context(), j, all, false), Said: told, Catchup: catch}
 	code, ctx := http.StatusOK, r.Context()
 	var err error
 	task, one := strings.CutPrefix(path, contract.RouteTask)
+	if lead := path == contract.RouteLead; j.state != nil && j.state.Run.Orchestrator != nil && (lead || p.Phone) {
+		// A phone has the lead agent's last screen at the foot of every screen.
+		var lerr error
+		if p.Lead, lerr = s.k.Terms.Screen(j.state.Run.Orchestrator.Pane); lead {
+			err = lerr
+		}
+		p.Lead = strings.Map(plain, p.Lead)
+	}
 	switch {
 	case j.state == nil:
 	case path == contract.RouteTeam:
-		_, p.Sites = s.sites(j)
+		if !p.Phone {
+			_, p.Sites = s.sites(j)
+		}
 	case path == contract.RoutePlan:
 		p.Screen, p.Plan = contract.ScreenPlan, new(contract.Plan)
 		err = s.read(ctx, j, p.Plan, "", "graph")
@@ -336,14 +402,13 @@ func (s *server) screen(w http.ResponseWriter, r *http.Request, id, path string,
 		p.Screen = contract.ScreenJobs
 		err = s.read(ctx, j, &p.Jobs, "", "status", "--everywhere")
 	case path == contract.RouteLead:
-		if p.Screen = contract.ScreenLead; j.state.Run.Orchestrator != nil {
-			p.Lead, err = s.k.Terms.Screen(j.state.Run.Orchestrator.Pane)
-			p.Lead = strings.Map(plain, p.Lead)
-		}
+		p.Screen = contract.ScreenLead
 	case one && j.state.Tasks[task] != nil:
 		p.Screen, p.Task = contract.ScreenTask, new(contract.TaskView)
 		err = s.read(ctx, j, p.Task, "", "show", task)
-		_, p.Sites = s.sites(j)
+		if !p.Phone {
+			_, p.Sites = s.sites(j)
+		}
 	default:
 		code, p.Screen, p.Said = http.StatusNotFound, contract.ScreenRefused, said("no_such_screen", "The page has no such screen.")
 	}

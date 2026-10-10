@@ -123,7 +123,7 @@ func (b *browser) refused(what string, w *httptest.ResponseRecorder, code int) {
 // Reaching it at all: there is a socket file and no other door.
 func TestNoDoorButTheSocketFile(t *testing.T) {
 	for _, door := range [][2]string{{"tcp", ":7780"}, {"tcp", "localhost:7780"}, {"tcp4", contract.Loopback + ":0"}, {"udp", ":0"}} {
-		l, err := listen(door[0], door[1])
+		l, err := listen(door[0], door[1], 0)
 		if r := new(contract.Refusal); err == nil || !errors.As(err, &r) {
 			t.Errorf("%v was opened: %v", door, err)
 		}

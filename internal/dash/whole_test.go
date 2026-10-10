@@ -249,9 +249,29 @@ func TestThePageFromEndToEnd(t *testing.T) {
 		t.Errorf("the idle server holds %d bytes", st.Memory)
 	}
 
-	// Stop, with --forget: the server ends by itself and the browser is signed out.
+	// The phone's words: this machine is no server, so there is no door to
+	// open; the list is the file's.
+	if out, err := p.Command(scenario.Unbound, "dash", "phone", "on").CombinedOutput(); err == nil || !strings.Contains(string(out), "no door for a phone") {
+		t.Errorf("dash phone on where there is no server: %v %s", err, out)
+	}
+	if err := contract.ChangePhones(p.Kit.Platform, func(list *contract.Phones) error {
+		list.Paired = append(list.Paired, contract.Phone{ID: "ph1", Name: "iPhone", Session: "x"})
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var phones listed
+	if answer(t, p, &phones, "dash", "phone", "list"); phones.On || len(phones.Phones) != 1 || phones.Phones[0].ID != "ph1" {
+		t.Errorf("dash phone list: %+v", phones)
+	}
+
+	// Stop, with --forget: the server ends by itself, the browser is signed
+	// out and the phone is forgotten.
 	if out, err := p.Command(scenario.Unbound, "dash", "stop", "--forget").CombinedOutput(); err != nil || !strings.Contains(string(out), "signed out") {
 		t.Fatalf("dash stop --forget: %v %s", err, out)
+	}
+	if list, err := contract.ReadPhones(p.Kit.Platform.Read, dirs.State); err != nil || len(list.Paired) != 0 {
+		t.Errorf("after --forget the phones are %+v, %v", list.Paired, err)
 	}
 	if err := cmd.Wait(); err != nil {
 		t.Errorf("the stopped server ended with %v", err)
