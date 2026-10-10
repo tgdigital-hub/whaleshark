@@ -115,6 +115,7 @@ func start(k *contract.Kit, path string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	// #nosec G204 -- this same program, by the path the system gives for it, with two words of ours
 	cmd := exec.Command(self, "engine", "run")
 	cmd.SysProcAttr = apart
 	if err = cmd.Start(); err != nil {

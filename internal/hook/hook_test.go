@@ -83,7 +83,7 @@ func (l *login) hook(stdin string, args ...string) string {
 
 func (l *login) pause() {
 	l.t.Helper()
-	if err := contract.SetPaused(l.state, &contract.Pause{At: time.Now(), By: "human"}); err != nil {
+	if err := contract.SetPaused(l.k.Platform, l.state, &contract.Pause{At: time.Now(), By: "human"}); err != nil {
 		l.t.Fatal(err)
 	}
 }

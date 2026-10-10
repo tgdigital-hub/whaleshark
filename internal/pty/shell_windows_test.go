@@ -21,13 +21,14 @@ var (
 // on. A process id alone would not do: Windows gives one away at once.
 func watch(t *testing.T, p contract.Pty) func() []int {
 	leader, err := windows.GetProcessId(windows.Handle(p.(*console).proc))
-	if err != nil {
-		t.Fatal(err)
-	}
 	held := map[uint32]windows.Handle{}
-	all, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	var all windows.Handle
+	if err == nil {
+		all, err = windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	}
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err) // not Fatal: this runs beside the test's own goroutine
+		return func() []int { return nil }
 	}
 	defer windows.CloseHandle(all)
 	entry := windows.ProcessEntry32{}

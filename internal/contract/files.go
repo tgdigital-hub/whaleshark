@@ -112,8 +112,10 @@ const pauseFile = "paused"
 
 // Paused reads the login's pause mark, the one file the gate reads. It
 // reports when and by whom Stop all was pressed, or nil when it was not.
-func Paused(stateDir string) (*Pause, error) {
-	data, err := os.ReadFile(filepath.Join(stateDir, pauseFile))
+// The reader is the platform's Peek: every agent's gate reads the mark
+// before every step, and none of them may stand in the way of its removal.
+func Paused(read func(string) ([]byte, error), stateDir string) (*Pause, error) {
+	data, err := read(filepath.Join(stateDir, pauseFile))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -126,13 +128,17 @@ func Paused(stateDir string) (*Pause, error) {
 	return p, nil
 }
 
-// SetPaused writes the pause mark, or removes it when p is nil.
-func SetPaused(stateDir string, p *Pause) error {
+// SetPaused writes the pause mark, or removes it when p is nil. It is
+// removed by moving it to another name with the platform's Replace, which
+// waits out a program that holds it open on Windows, where a plain remove
+// would be refused; the moved file is of no use and goes if it can.
+func SetPaused(files Files, stateDir string, p *Pause) error {
 	path := filepath.Join(stateDir, pauseFile)
 	if p == nil {
-		if err := os.Remove(path); !errors.Is(err, fs.ErrNotExist) {
+		if err := files.Replace(path, path+".off"); !errors.Is(err, fs.ErrNotExist) && err != nil {
 			return err
 		}
+		os.Remove(path + ".off")
 		return nil
 	}
 	if err := os.MkdirAll(stateDir, 0o700); err != nil {

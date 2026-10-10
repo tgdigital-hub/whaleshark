@@ -105,8 +105,10 @@ func TestEndedBySignalAndCloseTwice(t *testing.T) {
 	if code, err := p.Wait(); code != -1 || err != nil {
 		t.Fatalf("exit %d, %v", code, err)
 	}
-	if p.Close() != nil || p.Close() != nil {
-		t.Fatal("close failed")
+	for range 2 {
+		if err := p.Close(); err != nil {
+			t.Fatal("close failed: ", err)
+		}
 	}
 	if _, err := p.Front(); err == nil {
 		t.Fatal("a closed terminal named a program in front")

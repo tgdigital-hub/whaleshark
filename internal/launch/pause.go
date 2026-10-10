@@ -66,10 +66,10 @@ func pause(c *contract.Call) (any, error) {
 		}
 	}
 	by := c.Caller.Where
-	if mark, err := contract.Paused(dirs.State); err != nil {
+	if mark, err := contract.Paused(k.Platform.Peek, dirs.State); err != nil {
 		return nil, err
 	} else if mark == nil {
-		if err := contract.SetPaused(dirs.State, &contract.Pause{At: c.Now, By: by}); err != nil {
+		if err := contract.SetPaused(k.Platform, dirs.State, &contract.Pause{At: c.Now, By: by}); err != nil {
 			return nil, err
 		}
 	}
@@ -160,7 +160,7 @@ func resume(c *contract.Call) (any, error) {
 			others = true
 		}
 	}
-	mark, err := contract.Paused(dirs.State)
+	mark, err := contract.Paused(k.Platform.Peek, dirs.State)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func resume(c *contract.Call) (any, error) {
 		r.Next = []string{line(c, "resume --everywhere")}
 		return nil, r
 	}
-	if err := contract.SetPaused(dirs.State, nil); err != nil {
+	if err := contract.SetPaused(k.Platform, dirs.State, nil); err != nil {
 		return nil, err
 	}
 	snap, snapErr := k.Terms.Snapshot(context.Background())
