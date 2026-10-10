@@ -18,14 +18,19 @@ import (
 
 func TestMain(m *testing.M) { Main(m) }
 
-// tabs is a pane for this test only: one row for each tab of herdr's
-// picture, the clock, and on the last line what was last done to it.
+// tabs is a pane for this test only: one row for each pane of the
+// terminals' picture, the clock, and on the last line what was last done to
+// it. Done reads idle: the two are one state to the tool, and only herdr
+// tells them apart.
 func tabs(p *Project, name string, t *term.Term) {
 	said, typed := name+", notices "+os.Getenv(contract.EnvNotices), ""
 	for {
 		t.Clear()
-		picture, _ := p.Herdr.Snapshot(context.Background())
+		picture, _ := p.Kit.Terms.Snapshot(context.Background())
 		for y, pane := range picture.Panes {
+			if pane.Status == contract.StatusDone {
+				pane.Status = contract.StatusIdle
+			}
 			t.Put(0, y, t.W, pane.Label+" · "+pane.Status, term.Style{})
 		}
 		t.Put(0, t.H-2, t.W, contract.Now().Format("15:04:05"), term.Style{})

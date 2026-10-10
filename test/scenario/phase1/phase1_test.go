@@ -33,7 +33,7 @@ func play(t *testing.T, file string) *scenario.Project {
 	}
 	t.Setenv(contract.EnvBin, bin)
 	return scenario.Run(t, file, func(p *scenario.Project, name string, tm *term.Term) {
-		for _, kv := range append(p.Herdr.Env(), contract.EnvPane+"="+p.Own) {
+		for _, kv := range p.Env(p.Own) {
 			k, v, _ := strings.Cut(kv, "=")
 			t.Setenv(k, v)
 		}

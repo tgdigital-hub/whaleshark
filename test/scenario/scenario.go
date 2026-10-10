@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,6 +63,16 @@ type runner struct {
 // to look at beyond the file's own expectations.
 func Run(t testing.TB, path string, pane Pane) *Project {
 	t.Helper()
+	return RunOn(t, Herdr, path, pane)
+}
+
+// RunOn is Run with another backend behind the terminals. On the double a
+// scenario means what it means on herdr's stand-in, but that a restart
+// keeps each tab's variables, as the keeper's will. The real keeper has no
+// agents yet and takes no change but through its own calls: a scenario with
+// a fixture, a fake agent or a line that changes the terminals is skipped on it.
+func RunOn(t testing.TB, on Backend, path string, pane Pane) *Project {
+	t.Helper()
 	file, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -98,11 +109,14 @@ func Run(t testing.TB, path string, pane Pane) *Project {
 			if testkit.Lines[s.kind] == "" {
 				t.Fatalf("%s: %q does not start a line of a scenario", s.at, s.kind)
 			}
+			if on == Keeper && slices.Contains(driven, s.kind) {
+				t.Skipf("waits for the keeper's agent calls: %s: %s", s.at, s.kind)
+			}
 			steps = append(steps, s)
 		}
 	}
 
-	r := &runner{t: t, p: Prepare(t, fixture, scripts), pane: pane, screens: map[string]*screen{}}
+	r := &runner{t: t, p: PrepareOn(t, on, fixture, scripts), pane: pane, screens: map[string]*screen{}}
 	t.Cleanup(func() {
 		for name := range r.screens {
 			r.shut(name)
@@ -113,7 +127,41 @@ func Run(t testing.TB, path string, pane Pane) *Project {
 		r.at = s.at
 		r.step(s.kind, s.rest)
 	}
+	r.p.Log = append(r.p.Log, r.record()...)
 	return r.p
+}
+
+// driven are the lines that change the terminals behind the tool's back.
+var driven = []string{"kill-orchestrator", "restart-terminals", "term-event", "term-drop"}
+
+// record is the end of a run's log: every task, attempt and question with
+// its state, and how many events of each kind the run has had.
+func (r *runner) record() (lines []string) {
+	if id, _ := r.p.Kit.Store.Current(r.p.Root); id == "" {
+		return nil
+	}
+	s, _ := r.p.Record()
+	for _, id := range slices.Sorted(maps.Keys(s.Tasks)) {
+		lines = append(lines, fmt.Sprintf("task %s %s, %d failures", id, s.Tasks[id].Status, s.Tasks[id].Failures))
+	}
+	for _, id := range slices.Sorted(maps.Keys(s.Attempts)) {
+		lines = append(lines, fmt.Sprintf("attempt %s %s", id, s.Attempts[id].State))
+	}
+	for _, id := range slices.Sorted(maps.Keys(s.Questions)) {
+		lines = append(lines, fmt.Sprintf("question %s %s", id, s.Questions[id].State))
+	}
+	history, err := r.p.Kit.Store.History(r.p.Root, s.Run.ID)
+	r.p.must(err)
+	kinds := map[string]int{}
+	for _, e := range append(history, s.Inbox.Events...) {
+		if slices.Contains(contract.EventKinds, e.Kind) {
+			kinds[e.Kind]++
+		}
+	}
+	for _, kind := range slices.Sorted(maps.Keys(kinds)) {
+		lines = append(lines, fmt.Sprintf("events %s %d", kind, kinds[kind]))
+	}
+	return lines
 }
 
 func (r *runner) fail(format string, a ...any) {
@@ -153,19 +201,19 @@ func (r *runner) step(kind, rest string) {
 		r.kill(func(c running) bool { return slices.Contains(c.cmd.Args, "wait") })
 	case "kill-orchestrator":
 		r.kill(func(c running) bool { return c.who == Orch })
-		r.p.Herdr.Push(testkit.PushGone, r.p.Lead)
+		r.p.drive.Push(testkit.PushGone, r.p.Lead)
 	case "restart-terminals":
-		r.p.Herdr.Restart()
-		r.p.restarted = true
+		r.p.drive.Restart()
+		r.p.restarted = r.p.on == Herdr
 	case "term-event", "term-drop":
 		w := words(rest)
 		if len(w) != 2 || !slices.Contains(pushes, w[0]) {
 			r.fail("it takes one of %s, then a task, an attempt or lead", strings.Join(pushes, ", "))
 		}
 		if kind == "term-event" {
-			r.p.Herdr.Push(w[0], r.where(w[1]))
+			r.p.drive.Push(w[0], r.where(w[1]))
 		} else {
-			r.p.Herdr.Drop(w[0], r.where(w[1]))
+			r.p.drive.Drop(w[0], r.where(w[1]))
 		}
 	case "notices":
 		r.t.Setenv(contract.EnvNotices, rest)
@@ -304,6 +352,7 @@ func (r *runner) command(who, line string) {
 	if got := cmd.ProcessState.ExitCode(); got != exit {
 		r.fail("exit %d, expected %d\n%s", got, exit, &out)
 	}
+	r.p.Log = append(r.p.Log, fmt.Sprintf("%s %s: %s: exit %d", r.at, who, strings.TrimSpace(line), exit))
 	for _, w := range must {
 		if !bytes.Contains(out.Bytes(), []byte(w)) {
 			r.fail("expected %q in what it printed:\n%s", w, &out)

@@ -75,6 +75,22 @@ out, err := p.Command("T2.1", "progress", "50", "half").CombinedOutput()
 
 `Command` takes `scenario.Orch`, `Human`, `Page`, `Unbound` or an attempt's id. `p.Record()` reads the record back through the store, `p.Clock(d)` moves the clock, `p.Herdr` is the fake, and `p.Kit` holds the real platform and the real store beside it. A test that opens the real panes plugs the view builder into that kit and hands `Run` a function that calls `panes.Run`; `testdata/join.scn` is the example.
 
+## The engine in herdr's place
+
+`Run` and `Prepare` put the fake herdr behind the terminals. `RunOn` and `PrepareOn` take a backend first:
+
+| Backend | What stands behind the terminals | How a command reaches it |
+|---|---|---|
+| `scenario.Herdr` | the fake herdr; `p.Herdr` is the fake | the stand-in program named `herdr` on the PATH |
+| `scenario.Double` | the engine's double (`test/fakeengine`): tabs, panes and fake agents in memory, answering the keeper's own calls; `p.Double` is the double | the real adapter, over a socket file of the test's own |
+| `scenario.Keeper` | the real keeper: `whaleshark engine run` in the project's own login, with real terminals, stopped with the test | the real adapter, over a socket file of the test's own |
+
+A scenario file needs no change: the same lines are played on each. `p.Kit.Terms` is the terminals on every backend, `p.Env(pane)` is what a program started in a pane has in its environment to reach them, and `p.Log` is what the run came to in words no backend changes: every command with its exit code, then every task, attempt and question with its state and the events by kind. `TestEveryScenarioOnEveryBackend` plays every `*.scn` of the tree on all three and holds the logs against each other; `TestTheDoubleAnswersAsTheKeeper` makes one round of calls on the real keeper and on the double and compares every answer and event.
+
+Two things differ on the engine, both because the engine differs. An agent that has finished its turn is `idle`, never `done`. And `restart-terminals` keeps each tab's variables, as the keeper will, so a worker's command after it still has them.
+
+The real keeper has no agents yet and its picture changes only through its own calls. A scenario with a `fixture`, an `agent` line, `kill-orchestrator`, `restart-terminals`, `term-event` or `term-drop` is skipped on it, and the skip says why.
+
 ## What is not played
 
-The fake herdr keeps no pane sizes, starts nothing for a command line typed into a pane, never answers that it is busy, and pushes its lines at once and in order: the lateness of the real one is not played. The project folder is not a git repository. The token of a fixture's live attempt is `token-of-<attempt>`.
+The fake herdr keeps no pane sizes, starts nothing for a command line typed into a pane, never answers that it is busy, and pushes its lines at once and in order: the lateness of the real one is not played. The double keeps no layout either: a pane's neighbour is the pane split off on that side. The project folder is not a git repository. The token of a fixture's live attempt is `token-of-<attempt>`.
