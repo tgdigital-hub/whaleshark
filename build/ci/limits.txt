@@ -37,10 +37,15 @@ lines 1180 platform internal/platform
 # 30 more at the start of phase 3: the program typed alone sets a project up
 # and opens the window, and a record this login never made is refused.
 # input pays.
-lines 970 cli internal/cli
+# 20 more after the real runs of phase 2: a person whose commands go to no
+# run is told the open runs and the command that turns to one, in the one
+# place every command passes; it stood at 957. guide pays.
+lines 990 cli internal/cli
 lines 1600 rules internal/rules
 lines 500 store internal/store
-lines 350 guide internal/guide
+# guide gives 40 after the real runs of phase 2, to cli and runtask: built
+# whole at 272, and its longest text is held to 150 lines by its own test.
+lines 310 guide internal/guide
 # runtask: 100 more at the join of phase 1. init with its five forms, its
 # two records and exact removal was built at 1,036 with nothing left to cut
 # that the command set does not promise; inbox, built at a third of its
@@ -54,7 +59,10 @@ lines 350 guide internal/guide
 # with nothing left to come but one refusal, pays.
 # 30 more at the start of phase 3, for the browser check in accept and init
 # on a server; it stood 17 short of full. input pays.
-lines 1355 runtask internal/runtask
+# 20 more after the real runs of phase 2: a run's number passes over a
+# branch a removed run left with work on it, run rm names that branch, and
+# init asks nobody where nobody is; it stood at 1,346. guide pays.
+lines 1375 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -92,7 +100,10 @@ lines 940 gitwt internal/gitwt
 lines 730 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
 # project's object folder in git's list; it stood at its line. doctor pays.
-lines 810 overlap internal/overlap
+# 50 more after the real runs of phase 2: sync sends the result of a worker
+# that has reported back with the brief and types the line that says so,
+# which was the dead end of both runs; it stood at 804. install pays.
+lines 860 overlap internal/overlap
 # doctor: its 30 of the engine's share (the keeper's rows, the paste line),
 # planned since the engine decision and kept out of this file until phase 2.
 # 180 more at the start of phase 3: fifteen rows of proof for a server, seven
@@ -103,7 +114,9 @@ lines 810 overlap internal/overlap
 # the tunnel together, with nothing cut that the row asks for: it stood at
 # 1,322. About 200 are for the tunnel's seven rows and its command, which
 # are still to come. dashweb, gitwt, integrate and evidence pay.
-lines 1530 doctor internal/doctor
+# 60 more after the real runs of phase 2: with the tunnel's rows and its
+# command joined it stands at 1,582. install pays.
+lines 1590 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
@@ -135,7 +148,9 @@ lines 210 evidence internal/evidence
 # phone's layout and the refusal are built, at 937; what the phone's and the
 # tunnel's passes still add is a few lines of script.
 lines 1160 dashweb internal/dashweb
-lines 1200 install install
+# install gives 110 after the real runs of phase 2, 60 to doctor and 50 to
+# overlap: it stands at 945.
+lines 1090 install install
 
 # The engine's eleven folders. A reserve of 1,200 lines for the screen
 # reader is in no line: it is spent by raising screen's, with the recording
