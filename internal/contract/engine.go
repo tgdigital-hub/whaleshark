@@ -154,9 +154,12 @@ const (
 // a direction; Ratio is Split's ratio and Resize's amount; W and H are
 // Overlay's size in shares or cells, and the window's size in cells for
 // OpAttach and OpWindowSize; Millis is a timeout. For OpAttach, Env
-// holds the window's TERM, COLORTERM, NO_COLOR and TERM_PROGRAM, and System
-// the system it runs on. For OpHook, Kind is the agent's event, Pane the
-// pane the hook ran in, Session and Cwd what the agent said.
+// holds the window's TERM, COLORTERM, NO_COLOR and TERM_PROGRAM, System
+// the system the person sits at and Reach how the window got here. For
+// OpHook, Kind is the agent's event, Pane the pane the hook ran in, Session
+// and Cwd what the agent said. From is the keeper's pane the caller itself
+// runs in, when it runs in one: the keeper refuses an agent it started the
+// calls that are not an agent's to make.
 type WireCall struct {
 	V       int        `json:"v,omitempty"`
 	ID      uint64     `json:"id,omitempty"`
@@ -174,6 +177,8 @@ type WireCall struct {
 	Pointer Pointer    `json:"pointer,omitempty"`
 	Session string     `json:"session,omitempty"`
 	System  string     `json:"system,omitempty"`
+	Reach   string     `json:"reach,omitempty"`
+	From    string     `json:"from,omitempty"`
 	Argv    []string   `json:"argv,omitempty"`
 	Env     []string   `json:"env,omitempty"`
 	Keys    []KeyEntry `json:"keys,omitempty"`
@@ -183,6 +188,19 @@ type WireCall struct {
 	Millis  int64      `json:"millis,omitempty"`
 	Sound   bool       `json:"sound,omitempty"`
 }
+
+// How a window got to the keeper. Only a local one sits at the keeper's own
+// clipboard; one that does not say is taken for the least: a bare ssh.
+const (
+	ReachLocal   = "local"
+	ReachSSH     = "ssh"
+	ReachConnect = "connect"
+	ReachPage    = "page"
+)
+
+// Version is the program's version, which the cli sets at its start: what
+// the keeper answers, and the name its panes' programs are told.
+var Version = "dev"
 
 // WireReply answers the WireCall with the same ID. Err is empty, or the name of the
 // error (ErrCode) with Message for a person. Text is Version's, Screen's and

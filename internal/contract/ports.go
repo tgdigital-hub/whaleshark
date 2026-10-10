@@ -74,10 +74,18 @@ type Pane struct {
 	Name      string `json:"name,omitempty"`
 	Session   string `json:"session,omitempty"`
 	Status    string `json:"status"`
+	// Ours marks a pane program of our own, which the keeper started from
+	// its list of arguments; no program can set it from inside a pane.
+	Ours bool `json:"ours,omitempty"`
 }
 
-// What an agent is doing. Done and idle are one state to the tool.
+// What an agent is doing. Done and idle are one state to the tool. Busy and
+// quiet are the engine's honest words for a program whose output is all
+// there is to go by; a rule that does not know them reads neither as idle
+// nor as working.
 const (
+	StatusBusy    = "busy"
+	StatusQuiet   = "quiet"
 	StatusWorking = "working"
 	StatusIdle    = "idle"
 	StatusDone    = "done"

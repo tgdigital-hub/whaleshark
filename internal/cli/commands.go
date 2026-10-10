@@ -16,6 +16,7 @@ var Version = "dev"
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Main = Main
+	contract.Version = Version
 	k.Handle("help", help)
 	k.Handle("version", version)
 }

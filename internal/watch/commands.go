@@ -18,8 +18,8 @@ func Plug(*contract.Kit) {}
 // Busy and Quiet are the honest words for a program whose output is all
 // there is to go by: something is being printed, or nothing has been for a while.
 const (
-	Busy  = "busy"
-	Quiet = "quiet"
+	Busy  = contract.StatusBusy
+	Quiet = contract.StatusQuiet
 )
 
 const (
