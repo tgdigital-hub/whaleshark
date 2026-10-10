@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	installedFile = "installed.json"
+	installedFile = contract.InstalledFile
 	manyRuns      = 20
 	// watchedFor is how long after a sweep a run still counts as watched:
 	// three of the five seconds everybody's sweeps are kept apart by.
@@ -223,7 +223,7 @@ func (e *exam) left(ours string) {
 			}
 		}
 		var swept struct{ At time.Time }
-		contract.ReadVersioned(k.Platform.Peek, filepath.Join(dir, "sweep.at"), contract.FileVersion, &swept)
+		contract.ReadVersioned(k.Platform.Peek, filepath.Join(dir, contract.SweepFile), contract.FileVersion, &swept)
 		unlock, free, err := k.Platform.TryLock(filepath.Join(dir, contract.WaitLock))
 		if free {
 			unlock()

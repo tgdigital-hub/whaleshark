@@ -125,7 +125,7 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 	}
 	if err != nil || !lay.Sound() {
 		// Left where it is, it would be in the way of every later save.
-		if merr := files.Replace(Path(d), Path(d)+".bad"); merr != nil {
+		if merr := files.Replace(Path(d), filepath.Join(filepath.Dir(Path(d)), contract.LayoutBad)); merr != nil {
 			return nil, nil, fmt.Errorf("%w: %v", ErrUnusable, merr)
 		}
 		return nil, nil, ErrUnusable

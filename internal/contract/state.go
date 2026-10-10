@@ -287,10 +287,14 @@ type Report struct {
 	Evidence []EvidenceFile `json:"evidence,omitempty"`
 }
 
+// EvidenceFile is one file of a browser check. Kind is "png", "jpeg" or
+// "webp", judged by the file's first bytes, and empty for anything else,
+// which a page offers as a download and never shows.
 type EvidenceFile struct {
 	Name string    `json:"name"`
 	Size int64     `json:"size"`
 	At   time.Time `json:"at"`
+	Kind string    `json:"kind,omitempty"`
 }
 
 // Accepting is set while an accept runs.
@@ -388,7 +392,6 @@ const (
 	CauseLeadUnread = "lead_unread"
 	CauseLeadSilent = "lead_silent"
 	CauseTogether   = "together"
-	CauseAskWaiting = "ask_waiting"
 	CauseTrust      = "trust"
 	CausePair       = "pair"
 )

@@ -137,9 +137,9 @@ func (c *Command) May(kind CallerKind, sub string) bool {
 // Commands is the command table, in the order help prints it.
 var Commands = []Command{
 	{Name: "init", Section: "setup", Phase: 1, Who: H | O | U, Exits: []int{0, 3},
-		Usage:   "init [--agent KIND,...] [--keys] [--print-block] [--remove [--all]] [--allow-synced]",
+		Usage:   "init [--agent KIND,...] [--keys] [--print-block] [--remove [--all]] [--allow-synced] [--adopt]",
 		Help:    "set this project up, check what it needs, and offer the rules for the lead agent",
-		Flags:   flags("agent=KIND,...", "keys", "print-block", "remove", "all", "allow-synced"),
+		Flags:   flags("agent=KIND,...", "keys", "print-block", "remove", "all", "allow-synced", "adopt!"),
 		Example: "whaleshark init --agent claude"},
 	{Name: "doctor", Section: "setup", Phase: 2, Who: H | O | U, Exits: []int{0, 1},
 		Usage:   "doctor [--fix] [--server] [--notify]",
@@ -286,7 +286,7 @@ var Commands = []Command{
 		Usage: "graph [--ready]", Help: "the plan: tasks in the order they depend on each other",
 		Flags:   flags("ready"),
 		Example: "whaleshark graph --ready"},
-	{Name: "log", Section: "views", Phase: 2, Who: O | H | U, Exits: []int{0},
+	{Name: "log", Section: "views", Phase: 2, Who: O | H | U, Exits: []int{0, 4},
 		Usage: "log [--all] [--task ID]", Help: "the messages both ways, newest last",
 		Flags:   flags("all", "task=ID"),
 		Example: "whaleshark log --task T3"},
@@ -303,7 +303,7 @@ var Commands = []Command{
 		Flags:   flags("since=TIME"),
 		Example: "whaleshark catchup"},
 
-	{Name: "overlap", Section: "code", Phase: 2, Who: O | H | U, Exits: []int{0, 1, 6, 7},
+	{Name: "overlap", Section: "code", Phase: 2, Who: O | H | U, Exits: []int{0, 1, 4, 6, 7},
 		Usage: "overlap [task...]", Help: "files touched by more than one task, and pairs that would conflict",
 		Example: "whaleshark overlap --json"},
 	{Name: "sync", Section: "code", Phase: 2, Who: O, Exits: []int{0, 5},

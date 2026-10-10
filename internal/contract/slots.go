@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // Ports is the login's own block of ports: Count of them from Base.
@@ -54,29 +55,39 @@ func ReadSlots(read func(path string) ([]byte, error), stateDir string) ([]Slot,
 	return s.Taken, err
 }
 
-// changeSlots is the one writer of slots.json: under a lock of its own it
-// reads the list, lets fn change it and writes it back.
-func changeSlots(p Platform, fn func(taken []Slot) ([]Slot, error)) error {
+// change is the one way a small file of the login's state folder is
+// written by more than one command: under a lock of the file's own it reads
+// v, lets fn change it and writes it back.
+func change(p Platform, file string, v any, fn func() error) error {
 	dirs, err := p.Dirs()
 	if err == nil {
-		err = os.MkdirAll(dirs.State, 0o700) // a login's first task finds no folder yet
+		err = os.MkdirAll(dirs.State, 0o700) // a login's first command finds no folder yet
 	}
 	if err != nil {
 		return err
 	}
-	unlock, err := p.Lock(filepath.Join(dirs.State, "slots.lock"), true)
+	unlock, err := p.Lock(filepath.Join(dirs.State, strings.TrimSuffix(file, ".json")+".lock"), true)
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	taken, err := ReadSlots(p.Read, dirs.State)
-	if err == nil {
-		taken, err = fn(taken)
+	path := filepath.Join(dirs.State, file)
+	if err = ReadVersioned(p.Read, path, FileVersion, v); err == nil {
+		err = fn()
 	}
 	if err != nil {
 		return err
 	}
-	return WriteVersioned(p, filepath.Join(dirs.State, slotsFile), FileVersion, Slots{Versioned{FileVersion}, taken})
+	return WriteVersioned(p, path, FileVersion, v)
+}
+
+// changeSlots is the one writer of slots.json.
+func changeSlots(p Platform, fn func(taken []Slot) ([]Slot, error)) error {
+	list := Slots{Versioned: Versioned{FileVersion}}
+	return change(p, slotsFile, &list, func() (err error) {
+		list.Taken, err = fn(list.Taken)
+		return err
+	})
 }
 
 // TakeSlot gives a task its slot of size ports: the one it has, or the

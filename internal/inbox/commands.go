@@ -6,7 +6,7 @@ package inbox
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
 // stampFile holds when the run was last swept.
-const stampFile = "sweep.at"
+const stampFile = contract.SweepFile
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {

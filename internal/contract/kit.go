@@ -65,6 +65,18 @@ type Kit struct {
 	View func(ViewInput) *View
 	// SyncText words a sync brief; the guides put theirs here.
 	SyncText func(SyncBrief) string
+	// Page draws one screen of the page and Asset hands out one of its fixed
+	// files, by the name after RouteAsset, with its type; the templates'
+	// package puts both here and the page's server knows no other way to them.
+	Page  func(w io.Writer, p *Page) error
+	Asset func(name string) (body []byte, kind string, ok bool)
+	// Push sends a nudge to every paired phone that asked for them and
+	// answers how many it reached; link is the page's address for a tap.
+	// PushKey is the public half of the login's key for nudges, which a
+	// phone's browser needs before it hands anything over; empty means the
+	// page offers no nudge of its own.
+	Push    func(n Nudge, link string) (sent int, err error)
+	PushKey func() string
 	// Main parses the arguments, works out the caller, runs the handler and
 	// returns the exit code; in is the command's standard input. The cli
 	// package replaces the one NewKit sets.
@@ -79,7 +91,7 @@ func NewKit() *Kit {
 		Store: NoStore{}, Terms: NoTerminals{}, Pty: NoPty, Platform: NoPlatform{}, Placement: NoPlacement{},
 		Integrator: NoIntegrator{}, Overlap: NoOverlap{}, Notifier: NoNotifier{},
 		Evidence: NoEvidence{}, AgentSettings: NoAgentSettings{}, Sweeper: NoSweeper{},
-		View: noView, SyncText: noSyncText, Main: listOnly, handlers: map[string]Handler{},
+		View: noView, SyncText: noSyncText, Page: noPage, Asset: noAsset, Push: noPush, PushKey: func() string { return "" }, Main: listOnly, handlers: map[string]Handler{},
 	}
 }
 
@@ -88,6 +100,15 @@ func noView(in ViewInput) *View {
 	return &View{Version: ViewVersion, At: in.Now, Caller: in.Caller,
 		Alerts: []string{"the view model is " + ErrNotBuilt.Error()}, Fresh: Fresh{Checked: in.Checked}}
 }
+
+// The page, its files and the phone's nudge until their packages are built:
+// a screen that says so, no file, and no phone reached.
+func noPage(w io.Writer, p *Page) error {
+	_, err := fmt.Fprintf(w, "<!doctype html><title>WhaleShark</title><p>%s: %s</p>", p.Screen, ErrNotBuilt)
+	return err
+}
+func noAsset(string) ([]byte, string, bool) { return nil, "", false }
+func noPush(Nudge, string) (int, error)     { return 0, nil }
 
 // SyncBrief is what sync tells a worker whose copy has fallen behind: the
 // branch to merge in, how many commits behind it is, and each clash with

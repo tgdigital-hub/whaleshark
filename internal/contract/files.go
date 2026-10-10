@@ -179,6 +179,16 @@ const (
 	WaitLock  = "wait.lock"
 )
 
+// SweepFile is in a run's folder and says when it was last swept;
+// InstalledFile is what init wrote, in the project's folder of ours and in
+// the login's state folder; LayoutBad is a layout file the keeper could not
+// use at a start and kept, in the state folder.
+const (
+	SweepFile     = "sweep.at"
+	InstalledFile = "installed.json"
+	LayoutBad     = "layout.json.bad"
+)
+
 func AskLock(runDir, question string) string {
 	return filepath.Join(runDir, "questions", question+".lock")
 }

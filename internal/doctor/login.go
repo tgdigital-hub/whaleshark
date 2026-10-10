@@ -40,7 +40,7 @@ func (e *exam) engine() {
 		}
 	}
 	e.private("the engine's socket", sock)
-	if _, err := os.Stat(filepath.Join(e.dirs.State, "layout.json.bad")); err == nil {
+	if _, err := os.Stat(filepath.Join(e.dirs.State, contract.LayoutBad)); err == nil {
 		e.say(note, "", "the engine could not use its layout file at a start and kept it as layout.json.bad in %s: the tabs it held did not come back", e.dirs.State)
 	}
 	version, err := e.k.Terms.Version()

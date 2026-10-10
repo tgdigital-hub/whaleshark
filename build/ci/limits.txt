@@ -13,12 +13,13 @@
 # of the code's own copies, a sync's count and words, the plan and the
 # messages of the view model. The 67 left are for the contracts of phase 3.
 # screen pays, see there.
-# 250 more at the start of phase 3, for what its packages share: the server's
+# 460 more at the start of phase 3, for what its packages share: the server's
 # file and its one reader, the paired phones with their one writer, the
 # page's routes and what a screen is drawn from, who is calling at a phone's
 # door. Phases 1 and 2 each showed the shared part larger than planned and
-# the leaves smaller; screen pays again.
-lines 3550 contract internal/contract cmd/whaleshark
+# the leaves smaller; screen pays 250 of it, inbox, question and overlay
+# the 210 by which it came out larger than first counted.
+lines 3760 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -59,8 +60,9 @@ lines 1290 launch internal/launch
 lines 165 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
 # half its line in phase 1 and keeps twice what its phase 2 package is
-# sized at.
-lines 700 inbox internal/inbox
+# sized at. inbox gives 80 more at the start of phase 3 and question 70:
+# both are built whole, at 521 and 511.
+lines 620 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the
 # other runs of a login are three screens that 186 lines could not hold;
 # status --brief, which nobody asked for, left the command table instead of
@@ -69,7 +71,7 @@ lines 700 inbox internal/inbox
 # waiting results take to check and what a task changed are 37 more; 69 are
 # left for the look round and the browser check. screen pays.
 lines 2260 view internal/view
-lines 620 question internal/question
+lines 550 question internal/question
 lines 380 mail internal/mail
 # notify: 10 more at the start of phase 3, to hand a nudge to a paired
 # phone; watch pays.
@@ -126,8 +128,8 @@ lines 1200 install install
 # question and notify: 1,390 lines moved, none added. 160 more to view at
 # the join of phase 2; the screen reader stands at 1,366.
 # At the start of phase 3 screen, input, watch, pty, gitwt and window give
-# 300, 120, 100, 80, 60 and 40, each built whole and under its line: 700
-# lines moved to contract, doctor, dash, launch, cli, runtask, notify and
+# 300, 120, 100, 80, 60 and 40, each built whole and under its line, and
+# inbox, question and overlay 80, 70 and 60: 910 lines moved to contract, doctor, dash, launch, cli, runtask, notify and
 # platform, none added.
 lines 1490 screen internal/screen
 lines 1820 keeper internal/keeper
@@ -142,7 +144,8 @@ lines 510 restore internal/restore
 lines 410 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
-lines 250 overlay internal/overlay
+# overlay gives 60 at the start of phase 3: built whole at 140.
+lines 190 overlay internal/overlay
 
 # What a shipped file is: these endings, but no file or folder named in skip.
 count .go .html .css .js .sh

@@ -3,6 +3,7 @@ package contract
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"slices"
@@ -395,10 +396,23 @@ type Notifier interface {
 	Items(root, run string, snap *Snapshot, now time.Time) error
 }
 
-// Evidence lists what a worker saved from its browser check.
+// Evidence is what a worker saved from its browser check: at most
+// EvidenceFiles files and EvidenceBytes bytes an attempt, and nothing a link
+// in the folder leads to outside it.
 type Evidence interface {
+	// List names the files, oldest first, each with its kind.
 	List(root, run, attempt string) ([]EvidenceFile, error)
+	// Open opens the file at a place in List's answer through a handle that
+	// cannot leave the attempt's evidence folder.
+	Open(root, run, attempt string, index int) (io.ReadCloser, EvidenceFile, error)
+	// Answering returns those of the ports that a site answers on now.
+	Answering(ports []int) []int
 }
+
+const (
+	EvidenceFiles = 40
+	EvidenceBytes = 50 << 20
+)
 
 // AgentSetup is what start and init hand to an agent so that its two hooks
 // run. File is the settings file in the agent's folder that carries them,
@@ -536,6 +550,10 @@ func (NoNotifier) Nudge(Nudge) error                                { return nil
 func (NoNotifier) Items(string, string, *Snapshot, time.Time) error { return nil }
 
 func (NoEvidence) List(string, string, string) ([]EvidenceFile, error) { return nil, nil }
+func (NoEvidence) Answering([]int) []int                               { return nil }
+func (NoEvidence) Open(string, string, string, int) (io.ReadCloser, EvidenceFile, error) {
+	return nil, EvidenceFile{}, ErrNotBuilt
+}
 
 func (NoAgentSettings) Ensure(string, string, string, bool) (AgentSetup, error) {
 	return AgentSetup{}, nil
