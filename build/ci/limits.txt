@@ -11,17 +11,24 @@
 lines 2860 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
-# its first instants.
-lines 1135 platform internal/platform
+# its first instants. 35 more at the join of phase 1: the system's name, a
+# line run by the system's shell and the end of all it started came here
+# from the window and from accept, which are smaller by as much; the
+# window's line pays.
+lines 1170 platform internal/platform
 lines 900 cli internal/cli
 lines 1600 rules internal/rules
 lines 500 store internal/store
 lines 840 herdr internal/herdr
 lines 350 guide internal/guide
-lines 950 runtask internal/runtask
+# runtask: 100 more at the join of phase 1. init with its five forms, its
+# two records and exact removal was built at 1,036 with nothing left to cut
+# that the command set does not promise; inbox, built at a third of its
+# line, pays.
+lines 1050 runtask internal/runtask
 lines 1150 launch internal/launch
-lines 300 worker internal/worker
-lines 950 inbox internal/inbox
+lines 200 worker internal/worker
+lines 850 inbox internal/inbox
 lines 1800 view internal/view
 lines 700 question internal/question
 lines 380 mail internal/mail
@@ -31,7 +38,11 @@ lines 900 integrate internal/integrate
 lines 800 overlap internal/overlap
 lines 1010 doctor internal/doctor
 lines 1300 term internal/term
-lines 2200 panes internal/panes
+# panes: 100 more at the join of phase 1: every row of the action table,
+# the typing line, the guards and the lists came to 2,257. worker, built at
+# 131, pays. The pass that adds the further schemes and lists has no room
+# in this line and needs its own decision.
+lines 2300 panes internal/panes
 lines 120 theme internal/theme
 lines 400 hook internal/hook
 lines 250 team internal/team
@@ -52,7 +63,7 @@ lines 850 pty internal/pty
 lines 850 watch internal/watch
 lines 750 input internal/input
 lines 460 restore internal/restore
-lines 450 window internal/window
+lines 415 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
 lines 250 overlay internal/overlay
