@@ -283,7 +283,12 @@ func (p *Project) tab(run string, a *contract.Attempt) []string {
 // It stands still in between.
 func (p *Project) Clock(by time.Duration) {
 	p.now = p.now.Add(by)
-	p.must(os.WriteFile(p.clock, []byte(p.now.Format(time.RFC3339Nano)), 0o600))
+	// Replaced, not rewritten: a command that reads the clock while it is
+	// being written would find it empty and take the real time instead.
+	next, text := p.clock+".next", []byte(p.now.Format(time.RFC3339Nano))
+	if os.WriteFile(next, text, 0o600) != nil || os.Rename(next, p.clock) != nil {
+		p.must(os.WriteFile(p.clock, text, 0o600))
+	}
 }
 
 // Record reads the current run as the store has it now, and names the run's
