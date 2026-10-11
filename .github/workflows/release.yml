@@ -116,7 +116,10 @@ jobs:
           echo "GOTOOLCHAIN=go$(sed -n 's/^go //p' go.mod)" >> "$GITHUB_ENV"
       - name: A second build gives the files that were signed
         run: |
-          go run ./build/release -version "${TAG#v}" -signer "$SIGNER" -site "file://$PWD/site"
+          # Homebrew is given this folder for the release's address; winget
+          # reads the real one, and takes no other kind.
+          [ "$RUNNER_OS" != macOS ] || site=file://$PWD/site
+          go run ./build/release -version "${TAG#v}" -signer "$SIGNER" ${site:+-site "$site"}
           echo "$LIST" | base64 -d | cmp - dist/SHA256SUMS
           echo "$SIG" | base64 -d > dist/SHA256SUMS.sig
           echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
@@ -145,7 +148,8 @@ jobs:
       - name: apt installs it from the repository's files, and it runs
         if: runner.os == 'Linux'
         run: |
-          echo "deb [signed-by=$PWD/dist/apt/whaleshark.gpg] file://$PWD/dist/apt stable main" |
+          sudo install -m 644 dist/apt/whaleshark.gpg /etc/apt/keyrings/whaleshark.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/whaleshark.gpg] file://$PWD/dist/apt stable main" |
             sudo tee /etc/apt/sources.list.d/whaleshark.list
           sudo apt-get update -o Dir::Etc::sourcelist=sources.list.d/whaleshark.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
           sudo apt-get install -y whaleshark
