@@ -116,6 +116,39 @@ func in(t *testing.T, state contract.AttemptState) *contract.State {
 	return s
 }
 
+// An agent can be quicker with its first command than the start that typed
+// its prompt is with the record: the question or the report of an attempt
+// that is still starting is taken, the attempt is at work from then on as if
+// its start had said so, and the start's own word afterwards changes nothing.
+// Seen on a hosted machine: such a question was answered "no longer active;
+// stop", the agent stopped, and its attempt was marked as working for good.
+func TestAnAgentQuickerThanItsStart(t *testing.T) {
+	for _, first := range []string{"ask", "report"} {
+		s := in(t, contract.AttemptStarting)
+		must(t, r.Placed(s, "T1.1", contract.Place{Tab: "w1:t2", Pane: "w1:p2", Terminal: "term1"}, t0))
+		want := contract.AttemptAsked
+		if first == "ask" {
+			_, err := r.Ask(s, "T1.1", "which base?", nil, t0)
+			must(t, err)
+		} else {
+			_, err := report(r.Report(s, "T1.1", token, outDone, "summary", nil, t0))
+			must(t, err)
+			want = contract.AttemptReported
+		}
+		a := s.Attempts["T1.1"]
+		if a.State != want || a.Seen.Liveness != contract.Live || !a.Seen.LastWorking.Equal(t0) {
+			t.Errorf("after its %s the attempt is %s, seen %+v", first, a.State, a.Seen)
+		}
+		if err := r.Working(s, "T1.1", after(time.Second)); err != nil || a.State != want || !a.Seen.LastWorking.Equal(t0) {
+			t.Errorf("the start's word after the agent's %s: %v; the attempt is %s, seen %+v", first, err, a.State, a.Seen)
+		}
+		// A start that failed after all still finds an attempt that is not its own to end.
+		if err := r.StartFailed(s, "T1.1", "why", after(time.Second)); code(err) != "not_starting" {
+			t.Errorf("a start that gives up after the agent's %s: %v", first, err)
+		}
+	}
+}
+
 var states = []contract.AttemptState{
 	contract.AttemptStarting, contract.AttemptWorking, contract.AttemptAsked, contract.AttemptReported, contract.AttemptChecking,
 	contract.AttemptAccepted, contract.AttemptFailed, contract.AttemptExited, contract.AttemptStopped, contract.AttemptStartFailed,
@@ -134,8 +167,10 @@ func TestAttemptChanges(t *testing.T) {
 	}{
 		{"placed", func(s *contract.State) error { return r.Placed(s, "T1.1", contract.Place{Tab: "t"}, later) },
 			map[contract.AttemptState]string{"starting": "starting", "=": "!not_starting"}, nil},
+		// The agent may have been quicker than its start: then nothing is left to mark.
 		{"working", func(s *contract.State) error { return r.Working(s, "T1.1", later) },
-			map[contract.AttemptState]string{"starting": "working", "=": "!not_starting"}, nil},
+			map[contract.AttemptState]string{"starting": "working", "working": "working", "asked": "asked", "reported": "reported", "checking": "checking",
+				"=": "!not_starting"}, nil},
 		{"start failed", func(s *contract.State) error { return r.StartFailed(s, "T1.1", "why", later) },
 			map[contract.AttemptState]string{"starting": "start_failed", "=": "!not_starting"},
 			map[contract.AttemptState]contract.TaskStatus{"starting": "ready"}},
@@ -145,14 +180,14 @@ func TestAttemptChanges(t *testing.T) {
 			_, err := report(r.Report(s, "T1.1", token, outDone, "ok", nil, later))
 			return err
 		},
-			map[contract.AttemptState]string{"working": "reported", "asked": "reported", "reported": "reported", "=": "!not_active"},
-			map[contract.AttemptState]contract.TaskStatus{"working": "review", "asked": "review"}},
+			map[contract.AttemptState]string{"starting": "reported", "working": "reported", "asked": "reported", "reported": "reported", "=": "!not_active"},
+			map[contract.AttemptState]contract.TaskStatus{"starting": "review", "working": "review", "asked": "review"}},
 		{"report failed", func(s *contract.State) error {
 			_, err := report(r.Report(s, "T1.1", token, outFailed, "no", nil, later))
 			return err
 		},
-			map[contract.AttemptState]string{"working": "failed", "asked": "failed", "failed": "failed", "=": "!not_active"},
-			map[contract.AttemptState]contract.TaskStatus{"working": "ready", "asked": "ready"}},
+			map[contract.AttemptState]string{"starting": "failed", "working": "failed", "asked": "failed", "failed": "failed", "=": "!not_active"},
+			map[contract.AttemptState]contract.TaskStatus{"starting": "ready", "working": "ready", "asked": "ready"}},
 		{"report with a wrong token", func(s *contract.State) error {
 			_, err := report(r.Report(s, "T1.1", "other", outDone, "ok", nil, later))
 			return err
@@ -161,7 +196,7 @@ func TestAttemptChanges(t *testing.T) {
 		{"a command with a wrong token", func(s *contract.State) error { return r.Token(s, "T1.1", "other") },
 			map[contract.AttemptState]string{"=": "!bad_token"}, nil},
 		{"ask", func(s *contract.State) error { _, err := r.Ask(s, "T1.1", "which?", nil, later); return err },
-			map[contract.AttemptState]string{"working": "asked", "asked": "!already_asked", "=": "!not_active"}, nil},
+			map[contract.AttemptState]string{"starting": "asked", "working": "asked", "asked": "!already_asked", "=": "!not_active"}, nil},
 		{"checking", func(s *contract.State) error { return r.Checking(s, "T1", contract.Checked{OID: "abc"}, later) },
 			map[contract.AttemptState]string{"reported": "checking", "checking": "checking", "=": "!not_in_review"}, nil},
 		{"check passed", func(s *contract.State) error {
