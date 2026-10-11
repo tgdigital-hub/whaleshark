@@ -19,10 +19,10 @@ Each line is one test of `test/platform/windows/`; run one with `go test -v -run
 
 | What is proven | Test |
 |---|---|
-| **A file another program holds open.** PowerShell opens a run's record and keeps it open, with each of the four kinds of leave Windows knows. Without leave to replace the file (none at all; to read; to read and write) a command that changes the run waits two seconds, ends with exit code 3 and `state_busy`, and every file of the run is byte for byte what it was, with no temporary file left; the moment the other program lets go the same command goes through. With leave to replace, the command goes through under the open file | `TestARecordAnotherProgramHoldsOpen` |
+| **A file another program holds open.** PowerShell opens a run's record and keeps it open, with each of the four kinds of leave Windows knows. Where it lets others read the file but not replace it (leave to read; to read and write), a command that changes the run waits two seconds and ends with exit code 3 and `state_busy`. Where it gives no leave at all, the command ends at once with exit code 3 and `state_unreadable` (finding 1). Either way every file of the run is byte for byte what it was, with no temporary file left, and the moment the other program lets go the same command goes through. With leave to replace, the command goes through under the open file | `TestARecordAnotherProgramHoldsOpen` |
 | **Locking, by whole commands.** A real command from each of seven tabs at the same moment, five rounds, against one record: every command ends well and no tab's word is lost | `TestEveryTabAtOnce` |
 | **File-change notices.** A real command's change of the record reaches a watcher within the second, five times out of five, by the system's own notice and not by the once-a-second look | `TestACommandsChangeIsTold` |
-| **Worker commands through every shell.** `progress` with four texts (plain; every sign a shell could take for its own; accented letters and a dash; double quotes) typed into `cmd`, Windows PowerShell, PowerShell 7 and git's bash, each spelled for that shell: the record holds the text as it was written, but for the double quotes in two of the shells (findings 2 and 3). The same texts from `--file` arrive whole in all four. `mail` ends well in each | `TestWorkerCommandsThroughEveryShell` |
+| **Worker commands through every shell.** `progress` with four texts (plain; every sign a shell could take for its own; accented letters and a dash; double quotes) typed into `cmd`, Windows PowerShell, PowerShell 7 and git's bash, each spelled for that shell: the record holds the text as it was written, but for the double quotes in two of the shells (findings 3 and 4). The same texts from `--file` arrive whole in all four. `mail` ends well in each | `TestWorkerCommandsThroughEveryShell` |
 | **The line of the worker's prompt.** The prompt's own line for `progress` works in both PowerShells | `TestThePromptsOwnLineInEveryShell` |
 | **Long paths.** A project with a file 322 characters deep: the task's own copy of the code, the worker's commit, the scan, the check, the merge and the landing all go through, once git is told `core.longpaths` | `TestAProjectWithALongPath` |
 | **The overlap scenarios** (two tasks on one file, both orders of the story) with git set as its Windows installer sets it, `core.autocrlf=true`: one clash is found and no more, the sync and the merge keep both tasks' lines, and what lands has Windows' line endings | `TestTheOverlapScenariosWithWindowsLineEndings` |
@@ -37,10 +37,11 @@ Beside these, the rest of the suite runs on the same hosted machine and proves t
 
 These are true of Windows today. Each is held by a test, so the day one of them changes, a test says so.
 
-1. **The worker's prompt is written for PowerShell alone.** Its command lines begin with PowerShell's call sign (`& 'C:\...\whaleshark.exe' progress ...`). `cmd` and git's bash refuse such a line. An agent whose own tool runs its commands in one of those two cannot use the lines as they stand; it must drop the `& ` (bash) or write the program's path in double quotes without it (`cmd`). The prompt does not know which shell the agent's tool uses.
-2. **Windows PowerShell (the one that comes with Windows) drops double quotes inside an argument.** `progress 40 'she said "done" twice'` arrives as `she said done twice`. PowerShell 7, `cmd` and bash hand the quotes on. Text with double quotes goes through `--file`, which works in every shell.
-3. **The spelling the tool writes for `cmd` breaks an argument that holds a double quote.** It doubles the quote (`"she said ""done"" twice"`), which `cmd` passes on and the program's own start-up then reads as the end of the argument: the command is refused as a usage error and changes nothing. Every other sign arrives whole through `cmd`. Until the spelling is mended (a backslash before the quote is what the program reads), such text goes through `--file`.
-4. **The prompt's browser line saves no picture on Windows, in any shell.** As written there it is `chrome.exe --headless --user-data-dir="${TMPDIR:-$HOME/.cache}/..." --screenshot="$WHALESHARK_EVIDENCE/page.png" ...`: the browser is on no PATH, and the variables are spelled for a POSIX shell. What the line must be, for each shell (each saves the picture before it ends):
+1. **A record held with no leave at all is refused as "unreadable", at once, not as "busy" after a wait.** A program that opens a run's record and lets nobody else even read it (a backup or an antivirus at its strictest) makes a command end with `state_unreadable` in a tenth of a second, where the design asks for the two seconds of patience and `state_busy`. Nothing is damaged and the next try works; but a command that would have gone through a moment later is refused, and the word is the one a broken record gets.
+2. **The worker's prompt is written for PowerShell alone.** Its command lines begin with PowerShell's call sign (`& 'C:\...\whaleshark.exe' progress ...`). `cmd` and git's bash refuse such a line. An agent whose own tool runs its commands in one of those two cannot use the lines as they stand; it must drop the `& ` (bash) or write the program's path in double quotes without it (`cmd`). The prompt does not know which shell the agent's tool uses.
+3. **Windows PowerShell (the one that comes with Windows) drops double quotes inside an argument.** `progress 40 'she said "done" twice'` arrives as `she said done twice`. PowerShell 7, `cmd` and bash hand the quotes on. Text with double quotes goes through `--file`, which works in every shell.
+4. **The spelling the tool writes for `cmd` breaks an argument that holds a double quote.** It doubles the quote (`"she said ""done"" twice"`), which `cmd` passes on and the program's own start-up then reads as the end of the argument: the command is refused as a usage error and changes nothing. Every other sign arrives whole through `cmd`. Until the spelling is mended (a backslash before the quote is what the program reads), such text goes through `--file`.
+5. **The prompt's browser line saves no picture on Windows, in any shell.** As written there it is `chrome.exe --headless --user-data-dir="${TMPDIR:-$HOME/.cache}/..." --screenshot="$WHALESHARK_EVIDENCE/page.png" ...`: the browser is on no PATH, and the variables are spelled for a POSIX shell. What the line must be, for each shell (each saves the picture before it ends):
 
    PowerShell, both:
    ```
@@ -55,9 +56,9 @@ These are true of Windows today. Each is held by a test, so the day one of them 
    "$PROGRAMFILES/Google/Chrome/Application/chrome.exe" --headless --user-data-dir="$TEMP/whaleshark-browser-$WHALESHARK_RUN-$WHALESHARK_ATTEMPT" --screenshot="$WHALESHARK_EVIDENCE/page.png" --window-size=1280,900 "http://localhost:$PORT/"
    ```
    The `| Out-Null` and the `start "" /wait` are not decoration: PowerShell and `cmd` do not wait for a program with a window of its own, and without them the line ends before the picture is saved, so a `report done` typed next would be refused. (The tests use the loopback address in numbers where these lines say `localhost`.)
-5. **git on Windows refuses a path longer than 260 characters until it is told otherwise.** With no setting, `git add` of the 322-character file fails. `git config --global core.longpaths true` is needed once on a PC whose projects have such files; with it everything above passes. The tool does not check or set this today.
-6. **Nothing starts the keeper at log-on on Windows.** The keeper's service entry is written for macOS and Linux; on Windows there is none. The proof shows that the mechanism works (a scheduled task with the trigger "at log on" that runs `whaleshark engine run`), not that the tool sets it up. Until it does, `whaleshark open` starts the keeper when none runs, and after a restart of the PC the first `whaleshark open` brings the tabs back.
-7. **The scenario suite does not play the real keeper on Windows.** It plays every scenario on the engine's stand-in there, and skips the real keeper. `TestTheKeeperOnThisSystem` is the keeper's proof on Windows until that skip goes.
+6. **git on Windows refuses a path longer than 260 characters until it is told otherwise.** With no setting, `git add` of the 322-character file fails. `git config --global core.longpaths true` is needed once on a PC whose projects have such files; with it everything above passes. The tool does not check or set this today.
+7. **Nothing starts the keeper at log-on on Windows.** The keeper's service entry is written for macOS and Linux; on Windows there is none. The proof shows that the mechanism works (a scheduled task with the trigger "at log on" that runs `whaleshark engine run`), not that the tool sets it up. Until it does, `whaleshark open` starts the keeper when none runs, and after a restart of the PC the first `whaleshark open` brings the tabs back.
+8. **The scenario suite does not play the real keeper on Windows.** It plays every scenario on the engine's stand-in there, and skips the real keeper. `TestTheKeeperOnThisSystem` is the keeper's proof on Windows until that skip goes.
 
 Known before the proof and unchanged by it: on Windows no file is made private by the tool (a file has the permissions of the person's profile folder), "who else can write this" answers "cannot tell", and the keeper cannot ask who is on the other end of its socket file; the folder's permissions are the whole defence. On a PC used by one person this is what every program has. On a shared Windows machine it is unproven.
 
@@ -120,7 +121,7 @@ For one person at one Windows 10 or 11 PC, about an hour. Tick each box or write
 - [ ] The question shows in the action pane with a line to type in. Answer it there, by keyboard alone; the worker goes on. Do the next one by mouse alone.
 - [ ] A yes-or-no item shows its choices as buttons; click one.
 - [ ] Click a card: its tab comes to the front. Go back to the lead tab with one key.
-- [ ] Watch one worker's own commands as it types them (`progress`, `ask`, `mail`, `report`). Write down the shell its tool used, and whether any of them failed. If its tool runs `cmd` or git's bash, write down exactly what it typed and what came back (finding 1 above).
+- [ ] Watch one worker's own commands as it types them (`progress`, `ask`, `mail`, `report`). Write down the shell its tool used, and whether any of them failed. If its tool runs `cmd` or git's bash, write down exactly what it typed and what came back (finding 2 above).
 - [ ] The lead agent accepts the work; `whaleshark land --local` puts it on your branch; `git log` shows it.
 - [ ] `git status` in the project and in a task's own copy shows no file as changed that nobody changed (line endings).
 
@@ -141,8 +142,8 @@ Each is a button on the pane and a key; try both.
 ### 8. A browser check
 
 - [ ] Add a task with `--browser-check` for a small page, and let a real agent do it. Its screenshot shows in `whaleshark show <task>`.
-- [ ] Write down whether the agent used a browser tool of its own or the prompt's one command, and if the command, exactly what it typed (finding 4 above).
-- [ ] Type the PowerShell line of finding 4 in a pane yourself, with `$env:PORT` set to a port something answers on and `$env:WHALESHARK_EVIDENCE` to a folder: the picture is there when the prompt comes back.
+- [ ] Write down whether the agent used a browser tool of its own or the prompt's one command, and if the command, exactly what it typed (finding 5 above).
+- [ ] Type the PowerShell line of finding 5 in a pane yourself, with `$env:PORT` set to a port something answers on and `$env:WHALESHARK_EVIDENCE` to a folder: the picture is there when the prompt comes back.
 
 ### 9. Stops, restarts and log-on
 
@@ -161,7 +162,7 @@ Each is a button on the pane and a key; try both.
 ### 11. Other programs at the files
 
 - [ ] Open a run's `state.json` (under `.whaleshark\runs\` in the project) in Notepad and leave it open: commands go on working.
-- [ ] Open it in a program that locks what it opens (Excel will do) and run `whaleshark progress`-like work from a worker or `whaleshark answer` yourself: the command says `state_busy` after two seconds and names the file; close the program and the same command works. Nothing in `whaleshark status` is wrong afterwards.
+- [ ] Open it in a program that locks what it opens (Excel will do) and run `whaleshark progress`-like work from a worker or `whaleshark answer` yourself: the command says `state_busy` after two seconds, or `state_unreadable` at once (finding 1), and names the file; close the program and the same command works. Nothing in `whaleshark status` is wrong afterwards.
 - [ ] Leave the antivirus and the search indexer on for the whole hour, and write down every `state_busy` you saw that you did not cause.
 
 ### 12. Long paths and odd names
