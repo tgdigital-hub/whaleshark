@@ -99,10 +99,14 @@ func TestThePromptsOwnCommandSavesAPictureTheReportTakes(t *testing.T) {
 	}))
 	defer site.Close()
 	_, port, _ := net.SplitHostPort(site.Listener.Addr().String())
-	tmp, err := p.Kit.Platform.PrivateTemp()
+	// A tab's temp folder on a server is a private one in the login's cache.
+	// The browser keeps a socket in it, whose path the system holds to 107
+	// characters, and the home of a test has too long a name for that.
+	tmp, err := os.MkdirTemp("", "ws")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.RemoveAll(tmp)
 	shot := filepath.Join(dir, "evidence", "page.png")
 	// The tab's variables as start gives them on a server, and the port the
 	// worker's site answers on.

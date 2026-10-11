@@ -108,7 +108,9 @@ func TestContainers(t *testing.T) {
 		t.Run(image.name, func(t *testing.T) {
 			t.Parallel()
 			as, name := "plain", own+"-"+strings.NewReplacer(":", "-", ".", "-").Replace(image.name)
-			args := []string{"run", "--rm", "--name", name, "-e", "WHALESHARK_INSIDE",
+			// The smallest share of the processor: the tests beside this one
+			// keep the machine, and a container takes what they leave.
+			args := []string{"run", "--rm", "--name", name, "--cpu-shares", "2", "-e", "WHALESHARK_INSIDE",
 				"-v", module + ":/src:ro", "-v", goroot + ":/usr/local/go:ro", "-v", mods + ":/gomod:ro", "-v", bin + ":/ws:ro", "-v", own + ":/cache"}
 			if kind == "server" && image.server {
 				// The rule for who may connect to a login's ports is loaded for
