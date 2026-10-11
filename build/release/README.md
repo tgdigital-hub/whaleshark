@@ -48,15 +48,17 @@ gpg --clearsign -o dist/apt/dists/stable/InRelease dist/apt/dists/stable/Release
 
 and its public half (`gpg --export`) is the file a machine is given before its first `apt-get install`. The program inside a package is the file the release key signed.
 
+**The apt key does not exist yet.** A release is made without it: the list is signed as ever, the apt index is not signed, and the draft's `packages.tar.gz` holds the `brew` and `winget` folders and no `apt` folder, because an index nobody signed is not handed out. The run says so in three notices. The `.deb` files are still built on every run, and a run without the key installs one with `dpkg` to see that it holds the program. The day the secret `APT_KEY` is there, the same workflow signs the index and the draft carries the `apt` folder; nothing else changes.
+
 Neither private half is ever in the repository. `settings.txt` holds what is public: the signer line, and the two pins of Cloudflare's connector that `server.sh` is given.
 
 ## On hosted machines
 
 `.github/workflows/release.yml` does the above with no step written by anyone else.
 
-- **A dry run** starts by hand, or by itself when this folder or the workflow changes. It makes two keys inside the run, builds, signs, and on macOS, Linux and Windows builds again, holds the second build against the signed list, installs from those files (`install.sh`; `apt-get` on Linux; `brew` on macOS; by hand on Windows) and runs the program. Then it changes one byte of the program and sees it refused. It publishes nothing, and its keys end with it.
+- **A dry run** starts by hand, or by itself when this folder or the workflow changes. Started by hand it can be told to go `without` a key for apt, as a tag does while that key does not exist. It makes two keys inside the run (one, when told `without`), builds, signs, and on macOS, Linux and Windows builds again, holds the second build against the signed list, installs from those files (`install.sh`; `apt-get` on Linux; `brew` on macOS; by hand on Windows) and runs the program. Then it changes one byte of the program and sees it refused. It publishes nothing, and its keys end with it.
 - **A tag `v1.2.3`** does the same with the real keys, and then makes a draft release holding the five files, `install.sh`, `LICENSE`, `NOTICE`, the list and its signature, and `packages.tar.gz` (the `apt`, `brew` and `winget` folders with the signed index). A person publishes the draft.
 
-The real keys are two secrets, `RELEASE_KEY` and `APT_KEY`, of an environment named `release`, which should let only tags through and ask a person each time. The job that reads them can write nothing to the repository; the job that writes the draft holds no key; no file passes between them, only the two signatures, and each job builds the files again and holds them against what was signed.
+The real keys are two secrets, `RELEASE_KEY` and (once it exists) `APT_KEY`, of an environment named `release`, which lets only tags `v*` through and asks a person each time. The job that reads them can write nothing to the repository; the job that writes the draft holds no key; no file passes between them, only the two signatures, and each job builds the files again and holds them against what was signed.
 
 With a key that never leaves a person's desk, the same lines above are typed there, and the two signatures are added to the draft by hand.

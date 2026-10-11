@@ -3,6 +3,11 @@
 # made in the run and thrown away with it, and publishes nothing. A dry run
 # starts by hand, or by itself when what makes a release has changed.
 #
+# apt reads only an OpenPGP signature, so its index has a key of its own,
+# the secret APT_KEY. Where that secret is not there, a tag's release is
+# made without it: the index is not signed and the draft carries no apt
+# folder. A dry run started by hand can be told to go that way too.
+#
 # No step here is written by anyone else (see gate.yml). No file passes from
 # one job to the next: every job builds the files again from the commit,
 # which gives the same bytes, and only the two signatures travel. So the job
@@ -16,6 +21,12 @@ on:
     branches: ['**']
     paths: ['build/release/**', '.github/workflows/release.yml']
   workflow_dispatch:
+    inputs:
+      apt-key:
+        description: with a key for the apt index made in the run, or without one, as a tag is while that key does not exist
+        type: choice
+        options: [with, without]
+        default: with
 
 permissions:
   contents: read
@@ -26,6 +37,7 @@ defaults:
 
 env:
   TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.0.0-dry' }}
+  APT: ${{ inputs.apt-key || 'with' }}
 
 jobs:
   sign:
@@ -62,10 +74,10 @@ jobs:
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             printf '%s\n' "$RELEASE_KEY" > "$RUNNER_TEMP/key"
-            printf '%s\n' "$APT_KEY" | gpg --batch --import
+            [ -z "$APT_KEY" ] || printf '%s\n' "$APT_KEY" | gpg --batch --import
           else
             ssh-keygen -q -t ed25519 -N '' -C '' -f "$RUNNER_TEMP/key"
-            gpg --batch --passphrase '' --quick-generate-key 'a dry run' ed25519 sign never
+            [ "$APT" = without ] || gpg --batch --passphrase '' --quick-generate-key 'a dry run' ed25519 sign never
             echo "SIGNER=release namespaces=\"file\" $(cut -d' ' -f1,2 "$RUNNER_TEMP/key.pub")" >> "$GITHUB_ENV"
           fi
       - name: The files
@@ -77,15 +89,21 @@ jobs:
           # The signature must answer to the line install.sh carries.
           sed -n "s/^SIGNER='\(.*\)'$/\1/p" dist/install.sh > "$RUNNER_TEMP/signers"
           ssh-keygen -Y verify -f "$RUNNER_TEMP/signers" -I release -n file -s dist/SHA256SUMS.sig < dist/SHA256SUMS
-          gpg --batch --clearsign -o "$RUNNER_TEMP/InRelease" dist/apt/dists/stable/Release
-          gpg --batch --export > "$RUNNER_TEMP/apt.gpg"
           {
             echo "signer=$(cat "$RUNNER_TEMP/signers")"
             echo "list=$(base64 -w0 dist/SHA256SUMS)"
             echo "sig=$(base64 -w0 dist/SHA256SUMS.sig)"
-            echo "index=$(base64 -w0 "$RUNNER_TEMP/InRelease")"
-            echo "key=$(base64 -w0 "$RUNNER_TEMP/apt.gpg")"
           } >> "$GITHUB_OUTPUT"
+          if gpg --batch --list-secret-keys --with-colons | grep -q '^sec'; then
+            gpg --batch --clearsign -o "$RUNNER_TEMP/InRelease" dist/apt/dists/stable/Release
+            gpg --batch --export > "$RUNNER_TEMP/apt.gpg"
+            {
+              echo "index=$(base64 -w0 "$RUNNER_TEMP/InRelease")"
+              echo "key=$(base64 -w0 "$RUNNER_TEMP/apt.gpg")"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::There is no apt key: the apt index is not signed, and this release carries no apt folder."
+          fi
 
   install:
     needs: sign
@@ -122,8 +140,10 @@ jobs:
           go run ./build/release -version "${TAG#v}" -signer "$SIGNER" ${site:+-site "$site"}
           echo "$LIST" | base64 -d | cmp - dist/SHA256SUMS
           echo "$SIG" | base64 -d > dist/SHA256SUMS.sig
-          echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
-          echo "$KEY" | base64 -d > dist/apt/whaleshark.gpg
+          if [ -n "$INDEX" ]; then
+            echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
+            echo "$KEY" | base64 -d > dist/apt/whaleshark.gpg
+          fi
           mkdir site
           cp -R dist "site/$TAG"
       - name: install.sh installs it for one login, and it runs
@@ -148,11 +168,18 @@ jobs:
       - name: apt installs it from the repository's files, and it runs
         if: runner.os == 'Linux'
         run: |
-          sudo install -m 644 dist/apt/whaleshark.gpg /etc/apt/keyrings/whaleshark.gpg
-          echo "deb [signed-by=/etc/apt/keyrings/whaleshark.gpg] file://$PWD/dist/apt stable main" |
-            sudo tee /etc/apt/sources.list.d/whaleshark.list
-          sudo apt-get update -o Dir::Etc::sourcelist=sources.list.d/whaleshark.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
-          sudo apt-get install -y whaleshark
+          if [ -n "$INDEX" ]; then
+            sudo install -m 644 dist/apt/whaleshark.gpg /etc/apt/keyrings/whaleshark.gpg
+            echo "deb [signed-by=/etc/apt/keyrings/whaleshark.gpg] file://$PWD/dist/apt stable main" |
+              sudo tee /etc/apt/sources.list.d/whaleshark.list
+            sudo apt-get update -o Dir::Etc::sourcelist=sources.list.d/whaleshark.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
+            sudo apt-get install -y whaleshark
+          else
+            # No apt key, so no index apt would believe: the package alone
+            # is installed, by the tool under apt.
+            echo "::notice::There is no apt key: the package is installed by dpkg, not from an index."
+            sudo dpkg -i dist/apt/pool/whaleshark_*_amd64.deb
+          fi
           dpkg -S /usr/bin/whaleshark
           /usr/bin/whaleshark version | grep -F "whaleshark ${TAG#v} "
       - name: Homebrew installs it from the formula, and it runs
@@ -209,11 +236,21 @@ jobs:
           go run ./build/release -version "${TAG#v}" -signer "$SIGNER"
           echo "$LIST" | base64 -d | cmp - dist/SHA256SUMS
           echo "$SIG" | base64 -d > dist/SHA256SUMS.sig
-          echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
-          echo "$KEY" | base64 -d > dist/apt/whaleshark.gpg
+          if [ -n "$INDEX" ]; then
+            echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
+            echo "$KEY" | base64 -d > dist/apt/whaleshark.gpg
+          fi
       - name: The draft, and its files fetched back and checked
         run: |
-          tar -czf packages.tar.gz -C dist apt brew winget
+          # Without an apt key the draft carries no apt folder: an index
+          # nobody signed is not handed out.
+          folders="brew winget"
+          if [ -n "$INDEX" ]; then
+            folders="apt $folders"
+          else
+            echo "::notice::There is no apt key: the draft's packages.tar.gz holds no apt folder."
+          fi
+          tar -czf packages.tar.gz -C dist $folders
           gh release create "$TAG" --draft --verify-tag --title "$TAG" --notes "" \
             dist/whaleshark-* dist/install.sh dist/LICENSE dist/NOTICE dist/SHA256SUMS dist/SHA256SUMS.sig packages.tar.gz
           gh release download "$TAG" -D back -p 'whaleshark-*' -p install.sh -p LICENSE -p NOTICE -p 'SHA256SUMS*'
