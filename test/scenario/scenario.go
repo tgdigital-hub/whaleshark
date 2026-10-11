@@ -272,18 +272,17 @@ func (r *runner) step(kind, rest string) {
 
 // tabs is what the scripted agents have said in their tabs so far, for a
 // fact that did not come about: the record says that an agent has not got
-// there, its tab says why. Only an agent's own lines are given: a tab also
-// shows the environment it was started in, which is nobody's to print.
+// there, its tab says why. Only what follows an agent's first line is
+// given, with what its commands answered: before it a tab shows the
+// environment the agent was started in, which is nobody's to print.
 func (r *runner) tabs() string {
 	var b strings.Builder
 	if snap, err := r.p.Kit.Terms.Snapshot(context.Background()); err == nil {
 		for _, pane := range snap.Panes {
 			shown, _ := r.p.Kit.Terms.Screen(pane.ID)
 			fmt.Fprintf(&b, "\n-- %s %s, %s", pane.ID, pane.Name, pane.Status)
-			for _, line := range strings.Split(shown, "\n") {
-				if strings.HasPrefix(line, "fakeagent: ") {
-					b.WriteString("\n" + line)
-				}
+			if _, said, ok := strings.Cut(shown, "fakeagent: ready"); ok {
+				b.WriteString("\nfakeagent: ready" + strings.TrimRight(said, "\n"))
 			}
 		}
 	}
