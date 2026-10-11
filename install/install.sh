@@ -57,6 +57,8 @@ file=whaleshark-$os-$arch
 # The work folder lies beside the program's place, private to this login, so
 # that the last step is a rename and nothing is ever in a shared temp folder.
 mkdir -p "$DEST"
+# mv would put the file inside a folder of that name and say nothing.
+[ ! -d "$DEST/whaleshark" ] || die "$DEST/whaleshark is a folder, where the program goes; nothing was installed"
 work=$(mktemp -d "$DEST/.whaleshark-install.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 trap 'exit 1' HUP INT TERM
@@ -102,4 +104,10 @@ case :$PATH: in
 *:"$DEST":*) ;;
 *) say "$DEST is not on your PATH: add it, or type the whole path." ;;
 esac
-say "Next: type whaleshark in a project. On a server: sudo $DEST/whaleshark server setup"
+# The line for root is one a person pastes: a path with a blank or a sign in
+# it is written as the one word a shell reads it back as.
+case $DEST in
+*[!A-Za-z0-9/._-]*) bin=\'$(say "$DEST/whaleshark" | sed "s/'/'\\\\''/g")\' ;;
+*) bin=$DEST/whaleshark ;;
+esac
+say "Next: type whaleshark in a project. On a server: sudo $bin server setup"

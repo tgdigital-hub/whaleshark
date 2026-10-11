@@ -3,6 +3,7 @@ package install
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -657,6 +658,62 @@ func TestTheInstallerInstallsNothingItCouldNotCheck(t *testing.T) {
 	cmd.Env = []string{"PATH=" + tools(), "HOME=" + home}
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("with every tool: %v\n%s", err, out)
+	}
+}
+
+// A folder where the program goes, or a link to one: mv would put the file
+// inside it under the release's name and the script would say "installed".
+// Nothing is installed, and it says so.
+func TestTheInstallerSaysInstalledOnlyWhereTheProgramIs(t *testing.T) {
+	for what, block := range map[string]func(place, elsewhere string) error{
+		"a folder":           func(place, _ string) error { return os.Mkdir(place, 0o755) },
+		"a link to a folder": func(place, elsewhere string) error { return os.Symlink(elsewhere, place) },
+	} {
+		dir, script, home := release(t)
+		bin, elsewhere := filepath.Join(home, ".local", "bin"), t.TempDir()
+		if err := errors.Join(os.MkdirAll(bin, 0o755), block(filepath.Join(bin, "whaleshark"), elsewhere)); err != nil {
+			t.Fatal(err)
+		}
+		out, err := install(home, script, "--from", dir)
+		if err == nil || strings.Contains(out, "installed "+bin) || !strings.Contains(out, "is a folder") {
+			t.Errorf("%s in the program's place: %v:\n%s", what, err, out)
+		}
+		for _, in := range []string{filepath.Join(bin, "whaleshark"), elsewhere, bin} {
+			if left, _ := os.ReadDir(in); len(left) > 1 || len(left) == 1 && left[0].Name() != "whaleshark" {
+				t.Errorf("%s in the program's place: %d entries were left in %s", what, len(left), in)
+			}
+		}
+	}
+}
+
+// The script ends with a line for root that a person pastes. With a home
+// folder whose name holds a blank, a quote and a command, a shell reads the
+// program's path in it back as one word, and runs nothing of the name.
+func TestTheLineForRootIsReadBackAsItsWords(t *testing.T) {
+	dir, script, _ := release(t)
+	top := t.TempDir()
+	home := filepath.Join(top, "a home's $(touch made) ;&*")
+	if err := os.Mkdir(home, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	out, err := install(home, script, "--from", dir)
+	_, line, found := strings.Cut(out, "On a server: ")
+	if err != nil || !found {
+		t.Fatalf("%v:\n%s", err, out)
+	}
+	cmd := exec.Command("sh", "-c", `sudo() { printf '%s\n' "$@"; }; `+line)
+	cmd.Dir = top
+	words, err := cmd.CombinedOutput()
+	if want := filepath.Join(home, ".local", "bin", "whaleshark") + "\nserver\nsetup\n"; err != nil || string(words) != want {
+		t.Errorf("the line %q is read as %q (%v), want %q", line, words, err, want)
+	}
+	if left, _ := os.ReadDir(top); len(left) != 1 {
+		t.Errorf("reading the line made %d entries beside the home folder", len(left)-1)
+	}
+	// A plain home folder's line stays as it was.
+	dir, script, home = release(t)
+	if out, _ := install(home, script, "--from", dir); !strings.Contains(out, "sudo "+filepath.Join(home, ".local", "bin", "whaleshark")+" server setup") {
+		t.Errorf("a plain path is not written plainly:\n%s", out)
 	}
 }
 
