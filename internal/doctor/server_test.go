@@ -81,10 +81,14 @@ func server(t *testing.T, text string, root bool) *box {
 	}
 	b := &box{desk: d, sys: t.TempDir(), bindRule: true, dialRule: true, blocks: map[string]int{"kim": kimAt, "ana": anaAt}}
 	d.k.Platform = linux{d.k.Platform, "linux"}
-	me, wasRoot, wasAsk, wasRootDir, wasScript, wasGet := contract.Me, isRoot, ask, sysRoot, script, get
+	me, wasRoot, wasAsk, wasRootDir, wasScript, wasGet, wasMax := contract.Me, isRoot, ask, sysRoot, script, get, socketMax
 	t.Cleanup(func() {
-		contract.Me, isRoot, ask, sysRoot, script, get = me, wasRoot, wasAsk, wasRootDir, wasScript, wasGet
+		contract.Me, isRoot, ask, sysRoot, script, get, socketMax = me, wasRoot, wasAsk, wasRootDir, wasScript, wasGet, wasMax
 	})
+	// A test's home lies deep in the system's temp folder, deeper than any
+	// login's: the room a socket has is held to the system's figure only
+	// by the row that asks for it.
+	socketMax = 4096
 	contract.Me, isRoot, ask, sysRoot = func() string { return "kim" }, func() bool { return root }, b.ask, b.sys
 	// Nothing here asks beyond this machine: only a door of the test's own
 	// is asked for real, and everything else is answered from the table.
@@ -246,7 +250,7 @@ func TestAWorkLoginOnAHealthyServer(t *testing.T) {
 	}
 	for _, words := range [][]string{
 		{"nothing but SSH listens"}, {"automatic security updates are on"}, {"program file is root's", self}, {"package whaleshark is as"},
-		{"home folder", "yours alone"}, {"temp files go to", "inside your own folders"}, {"ports 31000 to 31999", "yours alone"},
+		{"home folder", "yours alone"}, {"temp files go to", "inside your own folders"}, {"tabs' temp folders lie in", "yours alone"}, {"ports 31000 to 31999", "yours alone"},
 		{"engine is kept alive without a session"}, {"Claude is probably signed in"}, {"git commits as Kim Example"},
 		{"up to 20 agents; 15625 MB"}, {"shared browser took a picture"}, {"page's socket", "yours alone"}, {"page is running, signs in, and refuses"},
 		{"Tailscale forwards port 443 to the door of kim"}, {"door", "31999 is open", "only you and the system"},
@@ -275,6 +279,7 @@ func TestEachFaultOfAWorkLoginIsNamed(t *testing.T) {
 		{"not listed", strings.Replace(file, "login.kim", "login.eve", 1), nil, problem, []string{"kim is not a work login", addCmd + "kim"}},
 		{"restart", file, func(b *box) { b.write(filepath.Join(b.sys, "var", "run", "reboot-required"), "") }, note, []string{"restart needed since " + time.Now().Format(time.DateOnly), "sudo reboot"}},
 		{"listener", file, func(b *box) { b.said["ss -Hlnt"] = listen + "\nLISTEN 0 511 *:8080 *:*" }, note, []string{"more than SSH may listen", "(1 in"}},
+		{"no ss", file, func(b *box) { b.said["ss -Hlnt"] = "!not found" }, note, []string{"could not be asked (ss"}},
 		{"updates off", file, func(b *box) { b.said["apt-config dump"] = `APT::Periodic::Unattended-Upgrade "0";` }, problem, []string{"automatic security updates are off", setupCmd}},
 		{"restarts itself", file, func(b *box) { b.said["apt-config dump"] += "\n" + `Unattended-Upgrade::Automatic-Reboot "true";` }, problem, []string{"restart the machine by itself"}},
 		{"program writable", file, func(b *box) { b.said["stat -c %U %a "+self] = "root 775" }, problem, []string{"must be root's", "root 775"}},
@@ -285,6 +290,14 @@ func TestEachFaultOfAWorkLoginIsNamed(t *testing.T) {
 		{"network drive", file, func(b *box) { b.said["stat -f"] = "nfs" }, problem, []string{"state folder", "network drive (nfs)"}},
 		{"shared temp in a tab", file, func(b *box) { b.Setenv("TMPDIR", b.sys); b.Setenv(contract.EnvPane, "p1") }, problem, []string{"this tab's temp folder", "other logins share"}},
 		{"shared temp in a shell", file, func(b *box) { b.Setenv("TMPDIR", b.sys) }, note, []string{"this shell's temp folder", "a shared one"}},
+		{"no room for a socket", file, func(b *box) {
+			socketMax = 107
+			b.Setenv("XDG_CACHE_HOME", filepath.Join(b.sys, strings.Repeat("c", 70)))
+		}, problem, []string{"a browser's socket", "the system takes 107", "shorter path"}},
+		{"no temp folder", file, func(b *box) {
+			b.write(filepath.Join(b.sys, "a-file"), "")
+			b.Setenv("XDG_CACHE_HOME", filepath.Join(b.sys, "a-file", "cache"))
+		}, problem, []string{"no temp folder of your own can be made for a tab"}},
 		{"rules unproven", strings.Replace(file, "proven", "unproven", 1), nil, note, []string{"not proven yours alone", "port rules are unproven", proveCmd}},
 		{"processes seen", file, func(b *box) { b.write(filepath.Join(b.sys, "proc", "mounts"), "proc /proc proc rw 0 0\n") }, note, []string{"processes hidden from you: false"}},
 		{"no lingering", file, func(b *box) { b.said["loginctl show-user"] = "no" }, problem, []string{"not kept alive without a session", "lingering: no", addCmd + "kim"}},

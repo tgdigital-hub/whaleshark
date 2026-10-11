@@ -158,7 +158,12 @@ lines 855 overlap internal/overlap
 # 45 more after the Windows proof: three rows only Windows asks for, the
 # keeper at log-on, git's long paths and a program path every shell can
 # type; it stands at 1,652. input pays.
-lines 1655 doctor internal/doctor
+# 15 more at the integration of phase 4: on a server the work login's rows
+# count the path a browser's socket would get under a tab's temp folder
+# against what the system takes, before a browser check fails over it, and
+# say whose the folder of those temp folders is; and a missing ss is said
+# as that. screen pays.
+lines 1670 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
@@ -223,8 +228,9 @@ lines 1090 install install
 # doctor, contract and launch, none added.
 # At the wiring of phase 3 dashweb and window give 60 each: 120 lines
 # moved to contract, runtask, launch and view, none added.
-# screen gives 15 after the Windows proof, to cli, launch and guide.
-lines 1475 screen internal/screen
+# screen gives 15 after the Windows proof, to cli, launch and guide, and 15
+# at the integration of phase 4, to doctor.
+lines 1460 screen internal/screen
 lines 1820 keeper internal/keeper
 # layout gives 135 and input 120 after the Windows proof, to platform,
 # guide, runtask and doctor: both are built whole, at 763 and 467.

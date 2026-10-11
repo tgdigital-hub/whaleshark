@@ -152,7 +152,9 @@ func (e *exam) network() {
 	open := slices.DeleteFunc(strings.Split(out, "\n"), func(l string) bool {
 		return l == "" || strings.Contains(l, " 127.") || strings.Contains(l, " [::1]:") || strings.Contains(l, ":22 ")
 	})
-	if err != nil || len(open) > 0 {
+	if err != nil {
+		e.say(note, "", "what listens beyond this machine itself could not be asked (ss: %v): only the firewall keeps a listener from outside", err)
+	} else if len(open) > 0 {
 		e.say(note, "", "more than SSH may listen beyond this machine itself (%d in ss -lnt): only the firewall keeps that from outside", len(open))
 	} else {
 		e.say(ok, "", "nothing but SSH listens beyond this machine itself")
@@ -297,6 +299,10 @@ func (e *exam) blocks(r *record) {
 	}
 }
 
+// socketMax is the longest path the system takes for a socket file. A
+// browser keeps one two names below its temp folder.
+var socketMax = 107
+
 // login is the work login's own rows: its folders and its temp folder its
 // alone and on this machine's disk, what the server's file says of its
 // block, and whether its processes are hidden, which nothing relies on.
@@ -315,6 +321,15 @@ func (e *exam) login(r *record, me string) {
 		e.say(problem, restart, "this tab's temp folder is %s, which other logins share", tmp)
 	default:
 		e.say(note, "", "this shell's temp folder is %s, a shared one; a tab of the window has a private one, and doctor run there checks it", tmp)
+	}
+	if dir, err := p.PrivateTemp(); err != nil {
+		e.say(problem, "", "no temp folder of your own can be made for a tab: %v", err)
+	} else {
+		os.Remove(dir)
+		e.private("the folder your tabs' temp folders lie in", filepath.Dir(dir))
+		if n := len(dir) + len("/org.chromium.Chromium.XXXXXX/SingletonSocket"); n > socketMax {
+			e.say(problem, "", "a browser's socket under a tab's temp folder (%s) would have a path of %d characters, and the system takes %d: a browser check fails here until your cache folder has a shorter path", dir, n, socketMax)
+		}
 	}
 	block, _ := r.Block(me)
 	if r.Rules == contract.RulesProven {
