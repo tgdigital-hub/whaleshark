@@ -10,11 +10,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
@@ -80,6 +82,17 @@ func TestThePromptsOwnCommandSavesAPictureTheReportTakes(t *testing.T) {
 	if inside != "server" {
 		t.Skip("needs the browser that server setup installs: the containers set up as servers run it")
 	}
+	// A tab's temp folder on a server, as start makes it for this login: a
+	// private one in the login's own cache. It is made here, before the
+	// scenario gives the test a home of its own, so that it lies where a
+	// real tab's does; the browser keeps a socket in it, whose whole path the
+	// system holds to 107 characters, and a login's name may take 32 of them.
+	tmp, err := platform.New(runtime.GOOS).PrivateTemp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	t.Logf("the tab's temp folder of %s is %s, %d characters", contract.Me(), tmp, len(tmp))
 	p, _, dir := started(t)
 	prompt, err := os.ReadFile(filepath.Join(dir, "prompt.md"))
 	if err != nil {
@@ -91,7 +104,7 @@ func TestThePromptsOwnCommandSavesAPictureTheReportTakes(t *testing.T) {
 			line = strings.TrimSpace(l)
 		}
 	}
-	if !strings.HasPrefix(line, `"$`+contract.EnvBrowsers+`"/chromium-*/chrome-linux/chrome --headless`) {
+	if !strings.HasPrefix(line, `"$`+contract.EnvBrowsers+`"/chromium-`) {
 		t.Fatalf("the prompt's command for a server is %q", line)
 	}
 	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -99,34 +112,16 @@ func TestThePromptsOwnCommandSavesAPictureTheReportTakes(t *testing.T) {
 	}))
 	defer site.Close()
 	_, port, _ := net.SplitHostPort(site.Listener.Addr().String())
-	// A tab's temp folder on a server is a private one in the login's cache.
-	// The browser keeps a socket in it, whose path the system holds to 107
-	// characters, and the home of a test has too long a name for that.
-	tmp, err := os.MkdirTemp("", "ws")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
 	shot := filepath.Join(dir, "evidence", "page.png")
-	// The tab's variables as start gives them on a server, and the port the
-	// worker's site answers on.
-	take := func(line string) string {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, "sh", "-c", line)
-		cmd.Env = append(p.Command("A.1").Env, "PORT="+port, contract.EnvEvidence+"="+filepath.Dir(shot),
-			contract.EnvBrowsers+"="+contract.ServerBrowsers, "TMPDIR="+tmp)
-		out, err := cmd.CombinedOutput()
-		return fmt.Sprintf("%v\n%s", err, out)
-	}
-	said := take(line)
-	// The pinned browser tooling names the program's folder chrome-linux64
-	// where the prompt says chrome-linux, so as written nothing is found.
-	// Until the prompt is mended the line is run with the folder as it is.
-	if strings.Contains(said, "not found") {
-		t.Logf("AS WRITTEN IT FINDS NO BROWSER: %s", said)
-		said = take(strings.Replace(line, "/chrome-linux/", "/chrome-linux*/", 1))
-	}
+	// The line as the prompt has it, with the tab's variables as start gives
+	// them on a server, and the port the worker's site answers on.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "sh", "-c", line)
+	cmd.Env = append(p.Command("A.1").Env, "PORT="+port, contract.EnvEvidence+"="+filepath.Dir(shot),
+		contract.EnvBrowsers+"="+contract.ServerBrowsers, "TMPDIR="+tmp)
+	out, err := cmd.CombinedOutput()
+	said := fmt.Sprintf("%v\n%s", err, out)
 	file, err := os.Open(shot)
 	if err != nil {
 		browsers, _ := filepath.Glob(contract.ServerBrowsers + "/*/*")

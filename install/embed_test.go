@@ -253,6 +253,11 @@ func TestWhatStopsSetupAndAdd(t *testing.T) {
 	m.write(filepath.Join(m.fake, "uid"), "0\n", 0o644)
 	m.write(filepath.Join(m.root, "etc/os-release"), "ID=debian\nVERSION_ID=\"11\"\n", 0o644)
 	m.refused(3, "setup", "admin")
+	// Ubuntu 22.04's own git is older than the program works with.
+	m.write(filepath.Join(m.root, "etc/os-release"), "ID=ubuntu\nVERSION_ID=\"22.04\"\n", 0o644)
+	if out := m.refused(3, "setup", "admin"); !strings.Contains(out, "Ubuntu 22.04 is older than git 2.38") || !strings.Contains(out, "Ubuntu 24.04 and Debian 12") {
+		t.Errorf("setup on Ubuntu 22.04 says %q", out)
+	}
 	m.write(filepath.Join(m.root, "etc/os-release"), "ID=debian\nVERSION_ID=\"12\"\n", 0o644)
 
 	m.ok("setup", "admin")

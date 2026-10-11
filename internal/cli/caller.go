@@ -71,6 +71,15 @@ func Brought(root string) []string {
 	return strings.FieldsFunc(string(out), func(r rune) bool { return r == 0 })
 }
 
+// OldGit reports whether git, by the line it prints of itself, is older
+// than 2.38, the first that merges in its store alone and so the least the
+// tool works with.
+func OldGit(line string) bool {
+	var major, minor int
+	fmt.Sscanf(line, "git version %d.%d", &major, &minor)
+	return major < 2 || major == 2 && minor < 38
+}
+
 // SetUp reports whether this login set the folder up itself: by init, or by
 // the store making the project's folder of ours.
 func SetUp(c *contract.Call, root string) bool {

@@ -1,7 +1,8 @@
 // Package linux is the proof on Linux that needs no real server: the program
 // file, the tests that lean on git and the checks of a work login, run in
-// containers of the systems a person or a server may have. Three of them are
-// also set up as a server, as far as a container holds one.
+// containers of the systems a person or a server may have. Two of them are
+// also set up as a server, as far as a container holds one, and one, whose
+// own git is older than the program works with, proves that it is refused.
 // docs/platform/linux.md says what that proves and what waits for a real
 // machine.
 package linux
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -32,21 +34,24 @@ func TestMain(m *testing.M) {
 	scenario.Main(m)
 }
 
-// images are the systems, each by its maker's official image; server says
-// that the system is one a server may be (Ubuntu 22.04, 24.04, Debian 12).
+// images are the systems, each by its maker's official image. server says
+// that the system is tried as a server: Debian 12 and Ubuntu 24.04, which
+// are the systems a server may be, and Ubuntu 22.04, which is not one,
+// because its own git (2.34) is older than 2.38, the least the program
+// works with: oldGit says that this container proves the refusals.
 var images = []struct {
-	name   string
-	server bool
+	name           string
+	server, oldGit bool
 }{
-	{"alpine:3.22", false},
-	{"debian:12", true},
-	{"ubuntu:22.04", true},
-	{"ubuntu:24.04", true},
+	{"alpine:3.22", false, false},
+	{"debian:12", true, false},
+	{"ubuntu:22.04", true, true},
+	{"ubuntu:24.04", true, false},
 }
 
 // wanted says how much is run here. WHALESHARK_CONTAINERS names it: "plain"
 // or "server". Unnamed, a hosted Linux machine runs the plain part on every
-// push, and the server part, which fetches a browser three times, on a
+// push, and the server part, which fetches a browser twice, on a
 // branch whose name ends in "linux".
 func wanted() string {
 	if kind := os.Getenv("WHALESHARK_CONTAINERS"); kind != "" {
@@ -121,6 +126,9 @@ func TestContainers(t *testing.T) {
 			}
 			cmd := exec.CommandContext(ctx, "docker", append(args, image.name, "sh", "/src/test/platform/linux/testdata/inside.sh", as)...)
 			cmd.Env = append(os.Environ(), "WHALESHARK_INSIDE="+as)
+			if image.oldGit {
+				cmd.Args = slices.Insert(cmd.Args, 2, "-e", "WHALESHARK_OLD_GIT=1")
+			}
 			out, err := cmd.CombinedOutput()
 			t.Cleanup(func() { exec.Command("docker", "rm", "-f", name).Run() })
 			t.Logf("%s as %s:\n%s", image.name, as, out)

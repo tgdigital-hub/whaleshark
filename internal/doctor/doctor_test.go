@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -378,13 +380,30 @@ func TestProject(t *testing.T) {
 	}
 }
 
-func TestOldGit(t *testing.T) {
-	for line, old := range map[string]bool{"git version 2.37.9": true, "git version 1.9.0": true, "git version 2.38.0": false,
-		"git version 2.54.0 (a vendor's build)": false, "git version 3.0.1": false, "something else": true} {
-		if got := oldGit(line); got != old {
-			t.Errorf("%q: old is %v", line, got)
-		}
+// A git older than the least the tool works with is a problem, with what
+// puts it right: the git here says of itself that it is Ubuntu 22.04's.
+func TestAnOldGitIsAProblemWithItsFix(t *testing.T) {
+	real, err := exec.LookPath("git")
+	if err != nil || runtime.GOOS == "windows" {
+		t.Skip("a stand-in for git as a shell's file")
 	}
+	d, bin := project(t), t.TempDir()
+	d.write(filepath.Join(bin, "git"), "#!/bin/sh\n[ \"$3\" != --version ] || exec echo git version 2.34.1\nexec '"+real+"' \"$@\"\n")
+	if err := os.Chmod(filepath.Join(bin, "git"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	e, exit := d.doctor()
+	d.want(e, problem, "git version 2.34.1 is older than git 2.38")
+	if l := e.line("git version"); exit == 0 || l == nil || l.Fix != "install git 2.38 or newer" {
+		t.Errorf("doctor ended well with a git it cannot work with:\n%s", e.text())
+	}
+	// The same where nothing is set up yet, which is where init's refusal leaves a person.
+	bare := &desk{T: t, k: d.k, root: t.TempDir(), terms: d.terms}
+	if e, _ = bare.doctor(); e.line("is not set up as a project") == nil {
+		t.Fatalf("a folder with nothing of ours:\n%s", e.text())
+	}
+	bare.want(e, problem, "git version 2.34.1 is older than git 2.38")
 }
 
 // The worktree checks, for real: a worktree no run records and a removal

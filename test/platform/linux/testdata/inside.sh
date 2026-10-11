@@ -6,6 +6,10 @@
 #   server   first the server command for real, as far as a container holds
 #            a server; then the same as that server's work login
 #
+# With WHALESHARK_OLD_GIT set the system's own git is older than 2.38, the
+# least the program works with: there the container proves that the program
+# refuses, and how it says so, and runs nothing else.
+#
 # It finds this tree in /src, Go in /usr/local/go, the modules in /gomod and
 # the program as it is shipped in /ws, all to read only, and a folder every
 # container shares in /cache. docs/platform/linux.md says what each step
@@ -67,7 +71,24 @@ dial() {
 	esac
 }
 
-server() {
+# long is a work login with the longest name a server gives one: 32 letters.
+long=alongloginnameofthirtytwoletters
+
+# refused CODE WORDS COMMAND...: the command ends with the code and says the words.
+refused() {
+	want=$1 words=$2
+	shift 2
+	code=0
+	got=$("$@" 2>&1) || code=$?
+	echo "$got"
+	[ "$code" = "$want" ] || fail "$* ended with $code, not $want"
+	case $got in
+	*"$words"*) ;;
+	*) fail "$* did not say: $words" ;;
+	esac
+}
+
+fresh() {
 	say "what a fresh server has and a container's image lacks: an SSH server, and the key root came in by"
 	apt-get install -y -q --no-install-recommends openssh-server >/dev/null
 	mkdir -p /root/.ssh /root/.local/bin
@@ -78,7 +99,22 @@ server() {
 	for p in systemctl loginctl apparmor_parser; do
 		standin "$p"
 	done
+}
 
+# On a system whose own git is too old, setup refuses before it changes anything.
+unserved() {
+	fresh
+	say "server setup, on a system whose own git is older than the program works with"
+	refused 1 "the git of Ubuntu 22.04 is older than git 2.38" /root/.local/bin/whaleshark server setup --admin admin
+	refused 1 "this is for Ubuntu 24.04 and Debian 12, whose own git is new enough; nothing was changed" /root/.local/bin/whaleshark server setup --admin admin
+	for left in /etc/whaleshark /usr/local/bin/whaleshark /opt/whaleshark; do
+		[ ! -e "$left" ] || fail "the refused setup left $left"
+	done
+	! id admin >/dev/null 2>&1 || fail "the refused setup made the administrator"
+}
+
+server() {
+	fresh
 	say "server setup, on a machine with nothing"
 	/root/.local/bin/whaleshark server setup --admin admin
 	say "server setup again"
@@ -125,6 +161,8 @@ EOF
 	is "robin 700" "$(home robin)"
 	grep '^SocketBind' "/etc/systemd/system/user-$uid.slice.d/50-whaleshark.conf"
 	grep -q "dport 21000-21999 meta skuid != { 0, $uid }" /etc/whaleshark/ports.nft || fail "the rule file does not keep robin's block robin's"
+	say "server add, for a login with the longest name there is"
+	whaleshark server add --user "$long"
 	cat /etc/whaleshark/server.toml
 	whaleshark server status
 
@@ -178,7 +216,11 @@ root() {
 		apt-get update -q >/dev/null
 		apt-get install -y -q --no-install-recommends git ca-certificates >/dev/null
 	fi
-	[ "$kind" = plain ] || server
+	case $kind:${WHALESHARK_OLD_GIT:-} in
+	plain:*) ;;
+	server:) server ;;
+	*) unserved ;;
+	esac
 	if id robin >/dev/null 2>&1; then
 		:
 	elif command -v useradd >/dev/null; then
@@ -192,28 +234,58 @@ root() {
 	mkdir -p /cache/go
 	chmod 1777 /cache /cache/go
 	su -s /bin/sh robin -c "exec sh /work/test/platform/linux/testdata/inside.sh login $kind"
+	# The browser keeps a socket under the tab's temp folder, which lies in
+	# the login's home: the check of the prompt's command once more, as the
+	# login whose home has the longest name.
+	if id "$long" >/dev/null 2>&1; then
+		su -s /bin/sh "$long" -c "exec sh /work/test/platform/linux/testdata/inside.sh browser $kind"
+	fi
 }
 
-login() {
+surroundings() {
 	export PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
 	export GOCACHE=/cache/go GOMODCACHE=/gomod GOFLAGS=-buildvcs=false GOPROXY=off GOTOOLCHAIN=local CGO_ENABLED=0
 	cd /work || exit 1
+}
+
+browser() {
+	surroundings
+	say "the prompt's own command, as $(id -un)"
+	(umask 0 && go test -vet=off -count=1 -v -run TestThePromptsOwnCommand ./test/platform/linux/)
+}
+
+# With a git older than the least the program works with, init sets nothing
+# up and says which git it found and which it needs, and doctor's row has
+# what puts it right.
+old() {
+	say "init and doctor, with $(git --version), as $(id -un)"
+	mkdir "$HOME/project"
+	cd "$HOME/project" || exit 1
+	git init -q .
+	refused 3 "$(git --version) is older than git 2.38, the least WhaleShark works with" /ws/whaleshark init
+	[ ! -e .whaleshark ] || fail "the refused init set the project up"
+	got=$(/ws/whaleshark doctor 2>&1) || true
+	echo "$got"
+	case $got in
+	*"problem "*"$(git --version) is older than git 2.38"*"Fix: install git 2.38 or newer"*) ;;
+	*) fail "doctor has no row for the git it cannot work with, or no fix in it" ;;
+	esac
+}
+
+login() {
+	surroundings
 	say "the program file, as $(id -un)"
 	/ws/whaleshark version
 	/ws/whaleshark help >/dev/null
 	git --version
+	if [ -n "${WHALESHARK_OLD_GIT:-}" ]; then
+		old
+		return
+	fi
 
 	# The first container to come here compiles and the others wait for it;
 	# what it writes any login of any container may read and add to.
 	set -- ./internal/overlap/ ./internal/gitwt/ ./internal/integrate/ ./test/scenario/phase2/ ./test/platform/linux/
-	# Collecting work and the overlap scan merge in git's store alone, which
-	# git can do from 2.38 on. Below that their tests fail, and are not run.
-	v=$(git --version | cut -d' ' -f3)
-	minor=${v#*.}
-	if [ "${v%%.*}" -eq 2 ] && [ "${minor%%.*}" -lt 38 ]; then
-		echo "NOT RUN: git $v is older than 2.38, which accept and the overlap scan need; their tests fail on this system"
-		set -- ./test/platform/linux/
-	fi
 	say "compiling, once for every container"
 	until mkdir /cache/lock 2>/dev/null; do
 		sleep 2
@@ -231,5 +303,6 @@ kind=${2:-$1}
 case $1 in
 plain | server) root ;;
 login) login ;;
+browser) browser ;;
 *) fail "plain or server" ;;
 esac

@@ -153,12 +153,20 @@ func (s *System) Private(path string) error {
 	return os.Chmod(path, 0o600)
 }
 
+// PrivateTemp makes a fresh folder of the login's own. On Linux it is a
+// server's tab that gets one for its temp folder, and a browser keeps a
+// socket there whose whole path the system holds to 107 characters, of
+// which a login's name may take 32: so there the folders lie beside our
+// cache folder under a name of two letters.
 func (s *System) PrivateTemp() (string, error) {
 	dirs, err := s.Dirs()
 	if err != nil {
 		return "", err
 	}
 	tmp := s.join(dirs.Cache, "tmp")
+	if s.OS == "linux" {
+		tmp = s.join(path.Dir(dirs.Cache), "ws")
+	}
 	if err := os.MkdirAll(tmp, 0o700); err != nil {
 		return "", err
 	}

@@ -433,6 +433,28 @@ func TestWritableByOthers(t *testing.T) {
 	}
 }
 
+// A browser's socket lies in a folder of its own under the tab's temp
+// folder, and the system holds a socket's path to 107 characters: it must
+// fit for the longest name a server's login may have.
+func TestATabsTempFolderLeavesRoomForASocket(t *testing.T) {
+	modes(t)
+	root := t.TempDir()
+	home := filepath.Join(root, "home", strings.Repeat("n", 32))
+	s := &System{OS: "linux", Home: home, Env: func(string) string { return "" }}
+	tmp, err := s.PrivateTemp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// As long as it can get: the fresh folder's name is a number of up to ten digits.
+	longest := len("/home/") + 32 + len(filepath.Dir(tmp)) - len(home) + len("/4294967295")
+	if socket := longest + len("/org.chromium.Chromium.XXXXXX/SingletonSocket"); socket > 107 || !strings.HasPrefix(tmp, home+"/.cache/") {
+		t.Errorf("the socket of a browser in %s can be %d characters long", tmp, socket)
+	}
+	if info, _ := os.Stat(filepath.Dir(tmp)); info.Mode().Perm() != 0o700 {
+		t.Errorf("%s is %v", filepath.Dir(tmp), info.Mode().Perm())
+	}
+}
+
 func TestPrivateTemp(t *testing.T) {
 	modes(t)
 	cache := t.TempDir()
@@ -445,6 +467,9 @@ func TestPrivateTemp(t *testing.T) {
 	}
 	b, _ := s.PrivateTemp()
 	want := filepath.Join(cache, "whaleshark", "tmp")
+	if runtime.GOOS == "linux" {
+		want = filepath.Join(cache, "ws")
+	}
 	if a == b || filepath.Dir(a) != want || filepath.Dir(b) != want {
 		t.Errorf("the folders are %s and %s", a, b)
 	}

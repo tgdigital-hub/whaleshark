@@ -68,8 +68,8 @@ func set(c *contract.Call) (any, error) {
 		onOff = &ui.Mute
 	case key == "folded":
 		onOff = &ui.Folded
-	case key == "dnd" && strings.HasPrefix(value, "until "):
-		at, err := time.ParseInLocation("15:04", value[len("until "):], c.Now.Location())
+	case key == "dnd" && strings.HasPrefix(value, "until"):
+		at, err := time.ParseInLocation("15:04", strings.TrimSpace(value[len("until"):]), c.Now.Location())
 		if err != nil {
 			return bad("Do not disturb takes a time of day: whaleshark set dnd until 9:00")
 		}

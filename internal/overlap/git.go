@@ -55,15 +55,14 @@ type seen struct {
 // objects it makes into a scratch folder of the login's private cache: the
 // project's own store is only read.
 type repo struct {
-	ctx   context.Context
-	k     *contract.Kit
-	root  string
-	dir   string
-	env   []string
-	seen  seen
-	blind bool              // this git cannot simulate a merge
-	at    map[string]string // the commit of every branch, by its name
-	tip   string            // the collected work
+	ctx  context.Context
+	k    *contract.Kit
+	root string
+	dir  string
+	env  []string
+	seen seen
+	at   map[string]string // the commit of every branch, by its name
+	tip  string            // the collected work
 }
 
 func open(ctx context.Context, k *contract.Kit, root string, s *contract.State) (*repo, error) {
@@ -128,9 +127,8 @@ func (g *repo) git(dir, stdin string, args ...string) (string, error) {
 
 // merge simulates every pair of commits it has no answer for yet and keeps
 // the answers: four processes side by side, each given its share of the
-// pairs at once. Cut off, it keeps the answers git had finished. An older
-// git gets one process a pair; one that cannot simulate at all leaves the
-// scan blind and is no error.
+// pairs at once. Cut off, it keeps the answers git had finished. A git
+// before 2.40 gets one process a pair.
 func (g *repo) merge(jobs [][2]string) error {
 	var todo [][2]string
 	for _, j := range jobs {
@@ -138,7 +136,7 @@ func (g *repo) merge(jobs [][2]string) error {
 			todo = append(todo, j)
 		}
 	}
-	if len(todo) == 0 || g.blind {
+	if len(todo) == 0 {
 		return nil
 	}
 	var mu sync.Mutex
@@ -184,10 +182,7 @@ func (g *repo) merge(jobs [][2]string) error {
 		switch {
 		case g.ctx.Err() != nil:
 			return g.ctx.Err()
-		case errors.As(err, &ended) && ended.ExitCode() == 129:
-			g.blind = true
-			return nil
-		case err != nil && (ended == nil || ended.ExitCode() != 1):
+		case err != nil && (!errors.As(err, &ended) || ended.ExitCode() != 1):
 			return err
 		}
 		m, _, _ := parse(strings.Split(out, "\x00"), 1)

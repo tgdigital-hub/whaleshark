@@ -11,7 +11,7 @@ A server lets agents work while your laptop is shut. WhaleShark has no accounts 
 
 ## The five lines
 
-A fresh Ubuntu 22.04, Ubuntu 24.04 or Debian 12. Any other system is refused.
+A fresh Ubuntu 24.04 or Debian 12. Any other system is refused before anything is changed; Ubuntu 22.04 too, because its own git (2.34) is older than git 2.38, the least WhaleShark works with.
 
 ```
 # on the server, as the login your provider gave you

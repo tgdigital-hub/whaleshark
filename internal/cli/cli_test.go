@@ -821,3 +821,12 @@ func TestTheProgramTypedAlone(t *testing.T) {
 		t.Errorf("a refused init: exit %d, %q, opened %v", exit, errw, opened.Command != nil)
 	}
 }
+
+func TestOldGit(t *testing.T) {
+	for line, old := range map[string]bool{"git version 2.37.9": true, "git version 2.34.1": true, "git version 1.9.0": true, "git version 2.38.0": false,
+		"git version 2.54.0 (a vendor's build)": false, "git version 3.0.1": false, "something else": true} {
+		if got := OldGit(line); got != old {
+			t.Errorf("%q: old is %v", line, got)
+		}
+	}
+}
