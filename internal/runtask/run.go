@@ -75,6 +75,9 @@ func run(c *contract.Call) (any, error) {
 			root := k.Platform.PathKey(c.Root)
 			_, err = contract.FreeSlots(k.Platform, func(o contract.Slot) bool { return o.Root == root && o.Run == id })
 		}
+		if cur, _ := k.Store.Current(c.Root); err == nil && cur == id {
+			err = k.Store.SetCurrent(c.Root, "") // the number is given again, and the person's pointer must not follow it
+		}
 		if err == nil {
 			err = k.Store.Remove(c.Root, id)
 		}

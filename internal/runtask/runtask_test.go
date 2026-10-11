@@ -523,6 +523,20 @@ func TestAParkedRunIsNamedToThePerson(t *testing.T) {
 	play(t, p.Command(scenario.Human, "status"), 0, "No run is open in this project", "whaleshark run new")
 }
 
+// A removed run's number is given to the next run. The person's pointer,
+// which named the removed one, does not follow it to a run they never chose.
+func TestRunRmClearsThePointerThatNamesIt(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	play(t, p.Command(scenario.Orch, "run", "new", "a shop", "--park"), 0, "Run r1 is open")
+	play(t, p.Command(scenario.Human, "run", "use", "r1"), 0, "where your commands go now")
+	play(t, p.Command(scenario.Human, "run", "rm", "r1"), 0, "removed")
+	play(t, p.Command(scenario.Orch, "run", "new", "another job", "--park"), 0, "Run r1 is open")
+	out, _ := p.Command(scenario.Human, "status").CombinedOutput()
+	if !strings.Contains(string(out), "open ones: r1.") || !strings.Contains(string(out), "whaleshark run use r1 --human") {
+		t.Errorf("the person's commands went to a run they never chose:\n%s", out)
+	}
+}
+
 // init by a person with no terminal and nothing on standard input, as a
 // script or another program runs it: the question about agent tools is put
 // to nobody. It is not printed, and init says that no tool was set up and
