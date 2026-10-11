@@ -1,15 +1,14 @@
 # WhaleShark on Linux: what is proven, and the list for the first real servers
 
-Two halves. The first runs by itself in containers and needs no server. The second needs three rented servers, a private network, a Cloudflare account with a domain, and a phone; it is written here as the script for that day and **has not been run**.
+Two halves. The first runs by itself in containers and needs no server. The second needs three rented servers (two to set up, one to be refused), a private network, a Cloudflare account with a domain, and a phone; it is written here as the script for that day and **has not been run**.
 
 ## What the containers found
 
-Run on a hosted Ubuntu machine on 10 October 2026. Each is a fault of the program or of its tests, found here and not mended here.
+Found on a hosted Ubuntu machine on 10 October 2026. Each was a fault of the program; each is mended, and the containers now prove the mended program as it is, with nothing put in its way.
 
-1. **On Ubuntu 22.04 the system's own git is too old for the tool.** It is git 2.34. `accept` and the overlap scan merge in git's store alone, which git can do from 2.38 on: there `accept` ends with git's usage text and collects nothing, the scan says "merge not checked" for every pair and misses a file against a folder, and the tests of both fail, with the scenarios of phase 2. Neither `init` nor `doctor` says a word about it. Ubuntu 22.04 is one of the three systems a server may be, and `server setup` installs exactly that git. Debian 12 (2.39), Ubuntu 24.04 (2.43) and Alpine 3.22 (2.49) pass everything. Until it is decided what Ubuntu 22.04 gets (a newer git, a refusal, or a slower way to merge), the container of that system does not run the tests that lean on git and says so in its first lines.
-2. **The worker's prompt names a browser that is not there.** For a server it says `"$PLAYWRIGHT_BROWSERS_PATH"/chromium-*/chrome-linux/chrome`. The pinned browser tooling unpacks to `chromium-*/chrome-linux64/chrome`, so the line as written ends with "not found" on all three systems. With the folder's real name everything after it holds, so the check runs the line that way and prints that it had to.
-
-3. **Worked out, not run: a long login name breaks the browser check.** The browser keeps a socket in the tab's temp folder, and the system holds a socket's path to 107 characters. A tab's temp folder on a server lies in the login's cache; with a login name of about 24 letters or more the path is too long and the browser ends with "Socket path too long", as it did here under a test's long folder name. `server add` takes names of up to 32.
+1. **On Ubuntu 22.04 the system's own git is too old for the tool.** It is git 2.34. `accept` and the overlap scan merge in git's store alone, which git can do from 2.38 on: there `accept` ended with git's usage text and collected nothing, the scan said "merge not checked" for every pair, and neither `init` nor `doctor` said a word about it. **Mended by saying so: git 2.38 is the least WhaleShark works with.** With an older git `init` (and `whaleshark` typed alone) sets nothing up and ends with 3 and one sentence that names the git it found and the one it needs; `doctor`, with `--server` too, has a problem row with its fix, in a folder that is not set up as well; and `server setup` refuses Ubuntu 22.04 before it changes anything and names the systems whose own git is new enough. **A server is Ubuntu 24.04 or Debian 12.** The scan no longer has a way of going on without the merge: a git that cannot do it ends the scan with git's own words. Debian 12 (2.39), Ubuntu 24.04 (2.43) and Alpine 3.22 (2.49) pass everything. The container of Ubuntu 22.04 stays, as the proof of the refusals.
+2. **The worker's prompt named a browser that is not there.** For a server it said `"$PLAYWRIGHT_BROWSERS_PATH"/chromium-*/chrome-linux/chrome`. The pinned browser tooling unpacks to `chromium-*/chrome-linux64/chrome`, so the line as written ended with "not found". **Mended:** the line says `chrome-linux*/chrome` and finds the browser under either name; the container runs it exactly as the prompt has it.
+3. **A long login name broke the browser check.** The browser keeps a socket in a folder of its own under the tab's temp folder, and the system holds a socket's whole path to 107 characters. A tab's temp folder on a server lay at `~/.cache/whaleshark/tmp/<number>`; with a login name of about 24 letters or more the path was too long and the browser ended with "Socket path too long". `server add` takes names of up to 32. Proven first in the containers with a login of 32 letters, whose temp folder had 71 characters and whose socket 116, then **mended:** on Linux the folder lies at `~/.cache/ws/<number>`, still one for each attempt, still closed to every other login, still removed with the tab, and short enough for the longest name. The containers run the prompt's command as that login too.
 
 ## 1. The half that runs in containers
 
@@ -18,9 +17,10 @@ Run on a hosted Ubuntu machine on 10 October 2026. Each is a fault of the progra
 | Container (its maker's official image) | Run as |
 |---|---|
 | `alpine:3.22` | a plain machine |
-| `debian:12`, `ubuntu:22.04`, `ubuntu:24.04` | a plain machine, and a server |
+| `debian:12`, `ubuntu:24.04` | a plain machine, and a server |
+| `ubuntu:22.04` | a machine whose own git is older than the program works with: the proof that it refuses |
 
-**Where it runs.** On a hosted Linux machine of the pipeline, as part of `go test ./...`: the plain part on every push, the server part on a branch whose name ends in `linux`, because it fetches a browser, Node and Claude Code three times over and takes minutes. The containers are given the smallest share of the processor, so the tests that run beside them keep the machine; the whole of it added nothing to the length of a hosted run, which waits for Windows. Anywhere else with Linux, Go and a running Docker:
+**Where it runs.** On a hosted Linux machine of the pipeline, as part of `go test ./...`: the plain part on every push, the server part on a branch whose name ends in `linux`, because it fetches a browser, Node and Claude Code twice over and takes minutes. The containers are given the smallest share of the processor, so the tests that run beside them keep the machine; the whole of it added nothing to the length of a hosted run, which waits for Windows. Anywhere else with Linux, Go and a running Docker:
 
 ```
 WHALESHARK_CONTAINERS=plain  go test -count=1 -v -run TestContainers ./test/platform/linux/
@@ -32,24 +32,27 @@ A container is handed this tree, the machine's own Go and modules and the progra
 ### What a plain container proves
 
 - The program file starts and answers on each system (`version`, `help`), built once, with no C library of its own.
-- With each system's own git: the tests of the overlap scan, of the copies of the code and of collecting work, and the scenarios of phase 2, which include two tasks changing one file. Not on Ubuntu 22.04: see the first finding.
+- With each system's own git: the tests of the overlap scan, of the copies of the code and of collecting work, and the scenarios of phase 2, which include two tasks changing one file.
+- On Ubuntu 22.04, and only this there: `init` in a fresh repository ends with 3, names git 2.34 and git 2.38 and sets nothing up; `doctor` there has the problem row with its fix.
 - A screenshot counts from the second its attempt began: a picture given the very instant of the start is taken by `report done`, and one given the instant before that second is refused. So the file system keeps a file's time at least to the second and never earlier than it was.
 
 ### What a container set up as a server proves
 
 The real `whaleshark server` command with the real script, as root, against the system's real package manager and the makers' real package sources. Nothing of the system is pretended except what the next table names.
 
-| Step | Proven on Debian 12, Ubuntu 22.04 and 24.04 |
+| Step | Proven on Debian 12 and Ubuntu 24.04 |
 |---|---|
 | `server setup --admin admin` | ends well from nothing: the system's packages, the administrator login with the caller's key and `sudo` without a password, automatic updates without restart, the program in `/usr/local/bin`, Claude Code from its maker's source after the fingerprint matched, Node at the pinned checksum, the shared browser with its system packages |
 | the same again | changes nothing |
 | what it left | the program root's and mode 755; the `sudo` line 440; the server's file root's and 644; everything under `/opt/whaleshark` root's and written by nobody else |
-| `server add --user robin`, twice | the login, its home closed to others, its block of ports in the server's file, in its slice's file and in the rule file; the second time nothing changes |
+| `server add --user robin`, twice | the login, its home closed to others, its block of ports in the server's file, in its slice's file and in the rule file; the second time nothing changes. Once more for a login whose name has 32 letters, the longest there is |
 | who may connect | with the rule file loaded by the real `nft`: a listener of `robin`'s in its block is reached by `robin` and by root, and refused to another login |
 | `init` | refused with `outside_home` in a folder outside the login's home; not so inside it |
 | `server upgrade` | a newer program file replaces the one in `/usr/local/bin`, root's and 755 |
-| the worker's screenshot command | the prompt's own line for a server, read from a real prompt and run by the work login with the browser's folder named as it really is (the second finding), saves a picture of 1280 by 900 with the browser's sandbox on and its profile in the attempt's own folder, and `report done` takes it |
+| the worker's screenshot command | the prompt's own line for a server, read from a real prompt and run as written by the work login, with a temp folder made as a tab's is, saves a picture of 1280 by 900 with the browser's sandbox on and its profile in the attempt's own folder, and `report done` takes it; the same as the login of 32 letters |
 | `doctor --server` | runs as root and as the work login; its rows are printed, not judged (see below). Rows that had only met stand-ins before and read "ok" against the real systems: automatic updates on and no restart by itself; the administrator has `sudo` and a key and has run no agent; the program file is root's; the shared browser takes a picture with its sandbox on; the page runs, signs in and refuses another site |
+
+On Ubuntu 22.04, made ready as a fresh server is: `server setup` is refused, says that the system's git is older than git 2.38 and that a server is Ubuntu 24.04 or Debian 12, and leaves no file, no folder and no login behind.
 
 ### What a container cannot prove
 
@@ -66,7 +69,7 @@ The real `whaleshark server` command with the real script, as root, against the 
 
 ## 2. The day there are servers: the script
 
-Not run. Each step says what must be seen. Do all of it on Ubuntu 24.04 first, then parts A and B again on Ubuntu 22.04 and on Debian 12. `robin` and `sam` are two work logins, `admin` the administrator; `$LO` stands for the IPv4 loopback address.
+Not run. Each step says what must be seen. Do all of it on Ubuntu 24.04 first, then parts A and B again on Debian 12; on a fresh Ubuntu 22.04 only step 3, which must be refused with nothing changed. `robin` and `sam` are two work logins, `admin` the administrator; `$LO` stands for the IPv4 loopback address.
 
 **Waiting for the owner's yes before this can begin:** a draft release with its signed list and its apt repository (the install steps fetch from it); the connector's version and the checksum of Cloudflare's package key written into the server script; the three servers, the private network, the Cloudflare account with a domain, an iPhone and an Android phone.
 

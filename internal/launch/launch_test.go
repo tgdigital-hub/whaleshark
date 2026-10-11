@@ -944,8 +944,13 @@ func TestOnAServer(t *testing.T) {
 				ports++
 			}
 		}
+		// In the login's cache: on Linux under a short name beside our folder there.
+		within := filepath.Join(dirs.Cache, "tmp")
+		if p.Kit.Platform.System() == "linux" {
+			within = filepath.Join(filepath.Dir(dirs.Cache), "ws")
+		}
 		info, err := os.Stat(tmp)
-		if err != nil || !info.IsDir() || filepath.Dir(tmp) != filepath.Join(dirs.Cache, "tmp") || temps[tmp] || ports != 1 ||
+		if err != nil || !info.IsDir() || filepath.Dir(tmp) != within || temps[tmp] || ports != 1 ||
 			!slices.Contains(saw, contract.EnvEvidence+"="+filepath.Join(dir, "attempts", id, "evidence")) ||
 			!slices.Contains(saw, contract.EnvBrowsers+"="+contract.ServerBrowsers) {
 			t.Errorf("the agent of %s saw (temp folder %q, %v):\n%s", id, tmp, err, strings.Join(saw, "\n"))
@@ -975,7 +980,8 @@ func TestOnAServer(t *testing.T) {
 	// Each attempt's temp folder is in the record and goes with its tab; the
 	// start that was refused left none, and a kept tab keeps its own.
 	has := func(path string) bool { _, err := os.Stat(path); return err == nil }
-	if all, _ := os.ReadDir(filepath.Join(dirs.Cache, "tmp")); len(all) != 3 || !temps[s.Attempts["R1.1"].Temp] || !temps[s.Attempts["R2.1"].Temp] {
+	made := filepath.Dir(s.Attempts["R1.1"].Temp)
+	if all, _ := os.ReadDir(made); len(all) != 3 || !temps[s.Attempts["R1.1"].Temp] || !temps[s.Attempts["R2.1"].Temp] {
 		t.Fatalf("%d temp folders for three attempts; recorded: %q, %q", len(all), s.Attempts["R1.1"].Temp, s.Attempts["R2.1"].Temp)
 	}
 	if out, exit := here(t, p, "stop", "R1"); exit != contract.ExitOK || has(s.Attempts["R1.1"].Temp) {
@@ -993,7 +999,7 @@ func TestOnAServer(t *testing.T) {
 		last = s.Tasks["R4"].Attempts
 	}
 	own, elsewhere := s.Attempts[last[0]].Temp, t.TempDir()
-	for _, other := range []string{elsewhere, filepath.Join(dirs.Cache, "tmp") + string(filepath.Separator) + "..", filepath.Join(dirs.Cache, "tmp"), ""} {
+	for _, other := range []string{elsewhere, made + string(filepath.Separator) + "..", made, filepath.Dir(made), ""} {
 		if DropTemp(p.Kit, &contract.Attempt{Temp: other}); !has(elsewhere) || !has(own) || !has(dirs.Cache) {
 			t.Fatalf("a folder that is no attempt's temp folder was removed for the record's word %q", other)
 		}
