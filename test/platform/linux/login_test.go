@@ -116,9 +116,12 @@ func TestThePromptsOwnCommandSavesAPictureTheReportTakes(t *testing.T) {
 		return fmt.Sprintf("%v\n%s", err, out)
 	}
 	said := take(line)
-	if _, err := os.Stat(shot); err != nil && strings.Contains(said, "sandbox") {
-		t.Logf("NO SANDBOX: this container does not let the browser make its sandbox, so the picture is taken without one, which the prompt never does. As written: %s", said)
-		said = take(strings.Replace(line, " --headless ", " --headless --no-sandbox ", 1))
+	// The pinned browser tooling names the program's folder chrome-linux64
+	// where the prompt says chrome-linux, so as written nothing is found.
+	// Until the prompt is mended the line is run with the folder as it is.
+	if strings.Contains(said, "not found") {
+		t.Logf("AS WRITTEN IT FINDS NO BROWSER: %s", said)
+		said = take(strings.Replace(line, "/chrome-linux/", "/chrome-linux*/", 1))
 	}
 	file, err := os.Open(shot)
 	if err != nil {

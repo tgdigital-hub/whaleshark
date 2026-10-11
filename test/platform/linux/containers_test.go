@@ -125,7 +125,6 @@ func TestContainers(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", image.name, err)
 			}
-			t.Error("a first run, to read what the containers print")
 		})
 	}
 }

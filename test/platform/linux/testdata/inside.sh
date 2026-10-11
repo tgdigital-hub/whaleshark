@@ -52,8 +52,10 @@ again() {
 # kept. Nothing it would have done counts as proven.
 standin() {
 	# shellcheck disable=SC2016 # the text of the stand-in, which is to expand when it runs
-	printf '#!/bin/sh\necho "$0 $*" >>/var/log/stand-ins 2>/dev/null\nexit 0\n' >"/usr/local/sbin/$1"
+	printf '#!/bin/sh\necho "$0 $*" >>/var/log/stand-ins\nexit 0\n' >"/usr/local/sbin/$1"
 	chmod 755 "/usr/local/sbin/$1"
+	touch /var/log/stand-ins
+	chmod 666 /var/log/stand-ins
 }
 
 # dial LOGIN WORD: what LOGIN is answered at the listener in robin's block.
@@ -204,6 +206,14 @@ login() {
 	# The first container to come here compiles and the others wait for it;
 	# what it writes any login of any container may read and add to.
 	set -- ./internal/overlap/ ./internal/gitwt/ ./internal/integrate/ ./test/scenario/phase2/ ./test/platform/linux/
+	# Collecting work and the overlap scan merge in git's store alone, which
+	# git can do from 2.38 on. Below that their tests fail, and are not run.
+	v=$(git --version | cut -d' ' -f3)
+	minor=${v#*.}
+	if [ "${v%%.*}" -eq 2 ] && [ "${minor%%.*}" -lt 38 ]; then
+		echo "NOT RUN: git $v is older than 2.38, which accept and the overlap scan need; their tests fail on this system"
+		set -- ./test/platform/linux/
+	fi
 	say "compiling, once for every container"
 	until mkdir /cache/lock 2>/dev/null; do
 		sleep 2

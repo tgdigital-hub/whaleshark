@@ -2,6 +2,13 @@
 
 Two halves. The first runs by itself in containers and needs no server. The second needs three rented servers, a private network, a Cloudflare account with a domain, and a phone; it is written here as the script for that day and **has not been run**.
 
+## What the containers found
+
+Run on a hosted Ubuntu machine on 10 October 2026. Each is a fault of the program or of its tests, found here and not mended here.
+
+1. **On Ubuntu 22.04 the system's own git is too old for the tool.** It is git 2.34. `accept` and the overlap scan merge in git's store alone, which git can do from 2.38 on: there `accept` ends with git's usage text and collects nothing, the scan says "merge not checked" for every pair and misses a file against a folder, and the tests of both fail, with the scenarios of phase 2. Neither `init` nor `doctor` says a word about it. Ubuntu 22.04 is one of the three systems a server may be, and `server setup` installs exactly that git. Debian 12 (2.39), Ubuntu 24.04 (2.43) and Alpine 3.22 (2.49) pass everything. Until it is decided what Ubuntu 22.04 gets (a newer git, a refusal, or a slower way to merge), the container of that system does not run the tests that lean on git and says so in its first lines.
+2. **The worker's prompt names a browser that is not there.** For a server it says `"$PLAYWRIGHT_BROWSERS_PATH"/chromium-*/chrome-linux/chrome`. The pinned browser tooling unpacks to `chromium-*/chrome-linux64/chrome`, so the line as written ends with "not found" on all three systems. With the folder's real name everything after it holds, so the check runs the line that way and prints that it had to.
+
 ## 1. The half that runs in containers
 
 `test/platform/linux/` holds it: one Go test that starts the containers, one script that runs inside each (`testdata/inside.sh`), and two checks a work login makes there.
@@ -23,7 +30,7 @@ A container is handed this tree, the machine's own Go and modules and the progra
 ### What a plain container proves
 
 - The program file starts and answers on each system (`version`, `help`), built once, with no C library of its own.
-- With each system's own git: the tests of the overlap scan, of the copies of the code and of collecting work, and the scenarios of phase 2, which include two tasks changing one file.
+- With each system's own git: the tests of the overlap scan, of the copies of the code and of collecting work, and the scenarios of phase 2, which include two tasks changing one file. Not on Ubuntu 22.04: see the first finding.
 - A screenshot counts from the second its attempt began: a picture given the very instant of the start is taken by `report done`, and one given the instant before that second is refused. So the file system keeps a file's time at least to the second and never earlier than it was.
 
 ### What a container set up as a server proves
@@ -39,8 +46,8 @@ The real `whaleshark server` command with the real script, as root, against the 
 | who may connect | with the rule file loaded by the real `nft`: a listener of `robin`'s in its block is reached by `robin` and by root, and refused to another login |
 | `init` | refused with `outside_home` in a folder outside the login's home; not so inside it |
 | `server upgrade` | a newer program file replaces the one in `/usr/local/bin`, root's and 755 |
-| the worker's screenshot command | the prompt's own line for a server, read from a real prompt and run as written by the work login, saves a picture of 1280 by 900 with its profile in the attempt's own folder, and `report done` takes it |
-| `doctor --server` | runs as root and as the work login; its rows are printed, not judged (see below) |
+| the worker's screenshot command | the prompt's own line for a server, read from a real prompt and run by the work login with the browser's folder named as it really is (the second finding), saves a picture of 1280 by 900 with the browser's sandbox on and its profile in the attempt's own folder, and `report done` takes it |
+| `doctor --server` | runs as root and as the work login; its rows are printed, not judged (see below). Rows that had only met stand-ins before and read "ok" against the real systems: automatic updates on and no restart by itself; the administrator has `sudo` and a key and has run no agent; the program file is root's; the shared browser takes a picture with its sandbox on; the page runs, signs in and refuses another site |
 
 ### What a container cannot prove
 
