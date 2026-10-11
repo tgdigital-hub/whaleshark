@@ -21,6 +21,9 @@ func refuse(code, format string, a ...any) *contract.Refusal {
 }
 
 func unusable(err error) *contract.Refusal {
+	if busy := new(contract.Refusal); errors.As(err, &busy) {
+		return busy // held open by another program: said as that, not as a broken record
+	}
 	r := &contract.Refusal{Exit: contract.ExitEnv, Code: "state_unreadable", Message: "The record cannot be read: " + err.Error() + "."}
 	if errors.Is(err, contract.ErrNewer) {
 		r.Code = "newer_state"
