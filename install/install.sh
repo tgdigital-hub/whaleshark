@@ -8,8 +8,9 @@
 #   sh install.sh --from DIR     the same checks on the release files in DIR
 #
 # A release is: whaleshark-<system>-<processor> for each system, SHA256SUMS
-# with a line for each of them, and SHA256SUMS.sig, made with
-# `ssh-keygen -Y sign -n file`. The release fills in the two lines below.
+# with a line for each of them and "# whaleshark <version>", and
+# SHA256SUMS.sig, made with `ssh-keygen -Y sign -n file`. The release fills
+# in the two lines below.
 set -eu
 
 VERSION=dev
@@ -74,6 +75,9 @@ say "$SIGNER" >"$work/signers"
 ssh-keygen -Y verify -f "$work/signers" -I release -n file \
 	-s "$work/SHA256SUMS.sig" <"$work/SHA256SUMS" >/dev/null 2>&1 ||
 	die "the list of checksums is not signed by the release key; nothing was installed"
+# An older release, rightly signed, must not pass for this one.
+[ "$VERSION" = dev ] || grep -qxF "# whaleshark $VERSION" "$work/SHA256SUMS" ||
+	die "the signed list is not version $VERSION's; nothing was installed"
 
 if command -v sha256sum >/dev/null; then
 	sum=$(sha256sum "$work/$file")
