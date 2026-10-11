@@ -78,10 +78,10 @@ The whole of A is done once with `install.sh` and once, on a second fresh machin
 |---|---|---|---|
 | 1 | server | `curl -fsSLO <draft>/install.sh`, then `sh install.sh` | the signature checked, the key's fingerprint printed and equal to the README's, the program in `~/.local/bin` |
 | 2 | server | the same with one byte of the fetched program changed | refused, nothing installed |
-| 3 | server | `sudo ~/.local/bin/whaleshark server setup --admin admin` | ends well; watch which hosts it speaks to: the system's package source, Claude Code's, nodejs.org, the browser tooling's registry and download host, and no other |
-| 4 | own computer | `ssh admin@<server> sudo whaleshark server harden` | the old doors closed, this session still open |
+| 3 | server | `sudo ~/.local/bin/whaleshark server setup --admin ops` | ends well; watch which hosts it speaks to: the system's package source, Claude Code's, nodejs.org, the browser tooling's registry and download host, and no other |
+| 4 | own computer | `ssh ops@<server> sudo whaleshark server harden` | the old doors closed, this session still open |
 | 5 | provider's console | `sudo whaleshark server harden` | refused, nothing changed |
-| 6 | own computer | `ssh admin@<server> sudo whaleshark server add --user robin`, then `--user sam --key sam.pub` | two blocks of ports, the keeper and the page of each switched on |
+| 6 | own computer | `ssh ops@<server> sudo whaleshark server add --user robin`, then `--user sam --key sam.pub` | two blocks of ports, the keeper and the page of each switched on |
 | 7 | server | each of 3, 4 and 6 again | nothing changes |
 | 8 | server | `sudo whaleshark doctor --server`, then as `robin` and as `sam` | no problem row. Read each row against the machine by hand once; first the rows the stand-ins could not answer: updates, the administrator's key, `sudo`, the port proof |
 | 9 | server | `ls -l` of `/etc/whaleshark`, `/etc/sudoers.d/whaleshark-admin`, `/usr/local/bin/whaleshark`, `/opt/whaleshark`, each home; as `robin`, try to write each | root's, nobody else writes, homes 700; with root's `umask` at 077 every login still reads the server's file |
