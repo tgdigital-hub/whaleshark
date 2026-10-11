@@ -262,6 +262,11 @@ func openIn(t *testing.T, dir string, env []string, argv ...string) *pane {
 		<-p.gone
 	})
 	if _, err := tty.Front(); errors.Is(err, contract.ErrCannotTell) {
+		// A passing test prints nothing on a hosted machine, so there a
+		// skip would read as proof: all three hosted systems can tell.
+		if os.Getenv("CI") != "" {
+			t.Fatal("this hosted machine cannot say which program is in front in a terminal")
+		}
 		t.Skip("NOT PROVEN HERE: this system cannot say which program is in front in a terminal")
 	}
 	return p
