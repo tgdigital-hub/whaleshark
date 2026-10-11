@@ -1,6 +1,7 @@
 package pty
 
 import (
+	"os"
 	"testing"
 	"time"
 	"unsafe"
@@ -79,12 +80,12 @@ func watch(t *testing.T, p contract.Pty) func() []int {
 // TestTheProgramInFrontOnWindows: a pane's shell is in front at its prompt,
 // a program typed into it while it runs, and the shell again after it.
 func TestTheProgramInFrontOnWindows(t *testing.T) {
-	p, err := Start(contract.PtySpec{Argv: shell, Cols: 80, Rows: 24})
+	p, err := Start(contract.PtySpec{Argv: shell, Dir: os.TempDir(), Env: os.Environ(), Cols: 80, Rows: 24})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer p.Close()
-	reader(p)
+	read := reader(p)
 	inFront := func(want string) {
 		t.Helper()
 		for deadline := time.Now().Add(20 * time.Second); ; time.Sleep(20 * time.Millisecond) {
@@ -92,7 +93,10 @@ func TestTheProgramInFrontOnWindows(t *testing.T) {
 			if err == nil && front == want {
 				return
 			} else if time.Now().After(deadline) {
-				t.Fatalf("in front %q, %v; want %q", front, err, want)
+				c := p.(*console)
+				first, all := c.sys.Tree(c.proc, c.job)
+				text, _ := read.seen("")
+				t.Fatalf("in front %q, %v; want %q; the job's first is %d of %+v; printed: %q", front, err, want, first, all, text)
 			}
 		}
 	}

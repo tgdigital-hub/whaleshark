@@ -120,7 +120,9 @@ func TestInstallFromTheWingetFiles(t *testing.T) {
 	t.Logf("FACT winget --version: %s", must(dist, "winget", "--version"))
 	t.Logf("FACT winget validate: %s", must(dist, "winget", "validate", "--manifest", files))
 	must(dist, "winget", "settings", "--enable", "LocalManifestFiles")
-	t.Cleanup(func() { run(dist, "winget", "uninstall", "--manifest", files, "--disable-interactivity") })
+	t.Cleanup(func() {
+		run(dist, "winget", "uninstall", "--manifest", files, "--disable-interactivity", "--accept-source-agreements")
+	})
 	t.Logf("FACT winget install: %s", must(dist, "winget", "install", "--manifest", files, "--disable-interactivity",
 		"--accept-source-agreements", "--accept-package-agreements"))
 	// winget puts a portable program's name into a folder of links: the
@@ -138,7 +140,7 @@ func TestInstallFromTheWingetFiles(t *testing.T) {
 	if said := must(dist, link, "version"); !strings.Contains(said, version) {
 		t.Errorf("the installed program says %q, not version %s", said, version)
 	}
-	t.Logf("FACT winget uninstall: %s", must(dist, "winget", "uninstall", "--manifest", files, "--disable-interactivity"))
+	t.Logf("FACT winget uninstall: %s", must(dist, "winget", "uninstall", "--manifest", files, "--disable-interactivity", "--accept-source-agreements"))
 	if fileIsThere(link) {
 		t.Errorf("%s is still there after the uninstall", link)
 	}

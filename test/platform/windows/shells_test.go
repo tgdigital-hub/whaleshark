@@ -3,6 +3,7 @@ package windows
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -89,8 +90,11 @@ func firstOf(env []string, name string) string {
 // for progress, as the prompt spells it on this system, into every shell
 // of this machine, and it must work in each: nobody knows which shell an
 // agent's tool types into, so on Windows the one line is written for cmd,
-// both PowerShells and git's bash alike. The same holds for a line the
-// tool hands on with words of its own in it, as a command to type next.
+// both PowerShells and git's bash alike, and it must still work as one
+// side of a pipe, which an agent is free to make of it. The same holds for
+// a line the tool hands on with words of its own in it. Elsewhere the line
+// is written for the POSIX shell, and a PowerShell there is not asked for
+// more than the plain line.
 func TestThePromptsOwnLineInEveryShell(t *testing.T) {
 	p := evening(t)
 	bin := strings.TrimPrefix(firstOf(p.Command(worker, "mail").Env, contract.EnvBin), contract.EnvBin+"=")
@@ -108,19 +112,38 @@ func TestThePromptsOwnLineInEveryShell(t *testing.T) {
 	if p.Kit.Platform.System() == "windows" && strings.HasPrefix(line, "&") {
 		t.Errorf("the program's path, %s, has no spelling every shell reads, so the line is PowerShell's alone: %s", bin, line)
 	}
+	windows := p.Kit.Platform.System() == "windows"
+	pct := func() int { s, _ := p.Record(); return s.Attempts[worker].Progress.Pct }
 	for i, sh := range shells(p.Kit) {
 		// Each shell is asked for a number of its own, so that one's success
 		// is not read as the next one's.
 		asked := strings.Replace(line, " 40 ", " 6"+string(rune('0'+i))+" ", 1)
 		out, err := typed(p, sh, asked)
-		s, _ := p.Record()
-		if s.Attempts[worker].Progress.Pct != 60+i || note(p) != "the prompt's own line" {
+		if pct() != 60+i || note(p) != "the prompt's own line" {
 			t.Errorf("the prompt's line did not work in %s\nline: %s\n%v %s", sh.name, asked, err, out)
+		}
+		if !windows && sh.dialect != contract.ShellPosix {
+			continue
+		}
+		piped := strings.Replace(line, " 40 ", " 8"+string(rune('0'+i))+" ", 1) + " | sort"
+		if out, err := typed(p, sh, piped); pct() != 80+i {
+			t.Errorf("the prompt's line as one side of a pipe did not work in %s\nline: %s\n%v %s", sh.name, piped, err, out)
 		}
 		text := "a line (handed on); with 'words' & <signs> of " + sh.name
 		handed := p.Kit.Platform.Quote("", []string{bin, "progress", "7" + string(rune('0'+i)), text})
 		if out, err := typed(p, sh, handed); note(p) != text {
 			t.Errorf("a line the tool hands on did not work in %s: the record holds %q\nline: %s\n%v %s", sh.name, note(p), handed, err, out)
+		}
+		// What each way of writing the program's path does in this shell,
+		// alone and before a pipe: the facts the one spelling was chosen by.
+		for j, way := range []string{strings.ReplaceAll(bin, `\`, "/"), strings.ReplaceAll(bin, `\`, `\\`), bin, `"` + bin + `"`} {
+			for k, pipe := range []string{"", " | sort"} {
+				n := 20 + 2*j + k
+				typed(p, sh, way+" progress "+strconv.Itoa(n)+" facts"+pipe)
+				if windows {
+					t.Logf("FACT in %s, %s progress ...%s: works=%v", sh.name, strings.Replace(way, bin[:max(strings.LastIndexAny(bin, `\/`), 0)], "<folder>", 1), pipe, pct() == n)
+				}
+			}
 		}
 	}
 }

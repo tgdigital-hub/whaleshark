@@ -139,7 +139,7 @@ func (c *console) Front() (string, error) {
 		next := -1
 		for i, m := range all {
 			// A child began after its parent: a number given out again is no child.
-			if shells[name] && i != at && m.parent == all[at].pid && m.born >= all[at].born && (next < 0 || m.born > all[next].born) {
+			if shells[name] && i != at && m.parent == all[at].pid && (m.born == 0 || m.born >= all[at].born) && (next < 0 || m.born > all[next].born) {
 				next = i
 			}
 		}

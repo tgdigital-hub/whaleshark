@@ -240,7 +240,7 @@ func TestQuoteCmd(t *testing.T) {
 
 // TestQuoteForEveryShell: with no shell named on Windows a line is spelled
 // once for cmd, both PowerShells and git's bash: the program bare with
-// forward slashes, plain words bare, any other word between double quotes.
+// its backslashes doubled, plain words bare, any other word between double quotes.
 // Where a word holds a sign the four do not read alike, or the program's
 // path cannot be written bare, the line is PowerShell's.
 func TestQuoteForEveryShell(t *testing.T) {
@@ -249,7 +249,7 @@ func TestQuoteForEveryShell(t *testing.T) {
 		argv []string
 		want string
 	}{
-		{[]string{`C:\tools\bin\whaleshark.exe`}, `C:/tools/bin/whaleshark.exe`},
+		{[]string{`C:\tools\bin\whaleshark.exe`}, `C:\\tools\\bin\\whaleshark.exe`},
 		{[]string{"whaleshark", "status", "--root", `D:\my work\site`, "--run", "r1"}, `whaleshark status --root "D:\my work\site" --run r1`},
 		{[]string{"whaleshark", "task", "add", "A", "Fix (the) search; now", "--after", "B,C", "--brief", "<file>", "--check", "go test ./... && go vet 'x' | cat ^ ~"},
 			`whaleshark task add A "Fix (the) search; now" --after "B,C" --brief "<file>" --check "go test ./... && go vet 'x' | cat ^ ~"`},

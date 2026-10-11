@@ -303,8 +303,12 @@ func TestTheKeeperAtLogOn(t *testing.T) {
 	}
 	t.Logf("FACT Windows starts at log-on, under the name %s: %s", name, line)
 	out, err = p.Command(scenario.Unbound, "init", "--remove", "--all").CombinedOutput()
-	if have, gone := platform.LogOn(name); have != "" || gone != nil || err != nil || !strings.HasPrefix(row(), "note") {
-		t.Errorf("after init --remove --all the list holds %q (%v); doctor says: %s\n%v %s", have, gone, row(), err, out)
+	if have, gone := platform.LogOn(name); have != "" || gone != nil || err != nil {
+		t.Errorf("after init --remove --all the list holds %q (%v)\n%v %s", have, gone, err, out)
+	}
+	// The project is out of the login's list with it; set up again, doctor speaks of it.
+	if out, err := p.Command(scenario.Unbound, "init", "--adopt").CombinedOutput(); err != nil || !strings.HasPrefix(row(), "note") {
+		t.Errorf("after init --remove --all doctor says: %s\n%v %s", row(), err, out)
 	}
 
 	login(t)

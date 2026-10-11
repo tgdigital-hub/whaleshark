@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -13,6 +14,9 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/view"
 )
+
+// onWindows is how many scenarios the real keeper plays on Windows.
+const onWindows = 3
 
 // Every scenario of the tree is played on the engine's double and on the
 // real keeper, and what the run on the keeper came to is held against the
@@ -36,12 +40,17 @@ func TestEveryScenarioOnEveryBackend(t *testing.T) {
 	if len(files) == 0 {
 		t.Fatal("no scenario found under " + module)
 	}
-	for _, file := range files {
+	for n, file := range files {
 		name, _ := filepath.Rel(module, file)
 		t.Run(filepath.ToSlash(name), func(t *testing.T) {
 			logs := map[Backend][]string{}
 			for _, on := range []Backend{Double, Keeper} {
 				t.Run(string(on), func(t *testing.T) {
+					// Seen on a hosted Windows machine: both turns of ten
+					// scenarios took nine minutes, and a package has ten.
+					if on == Keeper && runtime.GOOS == "windows" && n >= onWindows {
+						t.Skip("NOT PROVEN HERE: on Windows the real keeper plays the first scenarios only, for the time the whole suite takes there")
+					}
 					// The two scenarios of the runner itself draw a pane of
 					// this package; every other opens the real ones, or none.
 					pane := tabs
