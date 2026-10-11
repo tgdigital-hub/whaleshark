@@ -110,30 +110,35 @@ func (wd *world) children(prefix string) []string {
 // ran waits for a child the test has not yet seen whose line begins so.
 func (wd *world) ran(prefix string) string {
 	wd.t.Helper()
-	for end := time.Now().Add(4 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
+	line := ""
+	if !wd.until(4*time.Second, func() bool {
 		all := wd.children("")
-		for i := wd.next; i < len(all); i++ {
+		for i := wd.next; i < len(all) && line == ""; i++ {
 			if strings.HasPrefix(all[i], prefix) {
-				wd.next = i + 1
-				return all[i]
+				wd.next, line = i+1, all[i]
 			}
 		}
+		return line != ""
+	}) {
+		wd.t.Fatalf("no child was started with %q; the pane started:\n%s\nhas %d not ended, and shows:\n%s", prefix, strings.Join(wd.children(""), "\n"), wd.unended(), wd.screen())
 	}
-	wd.t.Fatalf("no child was started with %q; the pane started:\n%s\nand shows:\n%s", prefix, strings.Join(wd.children(""), "\n"), wd.screen())
-	return ""
+	return line
 }
 
 // asked waits for a call to the terminals the test has not yet seen that holds the words.
 func (wd *world) asked(words string) {
 	wd.t.Helper()
-	for end := time.Now().Add(4 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
+	if wd.until(4*time.Second, func() bool {
 		calls := wd.double.Calls()
 		for i := wd.nextCall; i < len(calls); i++ {
 			if strings.Contains(said(calls[i]), words) {
 				wd.nextCall = i + 1
-				return
+				return true
 			}
 		}
+		return false
+	}) {
+		return
 	}
 	wd.t.Fatalf("the terminals were never asked for %q:\n%+v", words, wd.double.Calls())
 }
@@ -173,10 +178,8 @@ func (wd *world) click(text string) {
 // spaces it ends in.
 func (wd *world) over(name string) {
 	wd.t.Helper()
-	for end := time.Now().Add(3 * time.Second); wd.s.Row(0) != " "+name; time.Sleep(5 * time.Millisecond) {
-		if time.Now().After(end) {
-			wd.t.Fatalf("the list %q never lay over the pane; it shows:\n%s", name, wd.screen())
-		}
+	if !wd.until(3*time.Second, func() bool { return wd.s.Row(0) == " "+name }) {
+		wd.t.Fatalf("the list %q never lay over the pane; it shows:\n%s", name, wd.screen())
 	}
 }
 
@@ -345,10 +348,8 @@ func TestTheButtonsOfTheFleet(t *testing.T) {
 	wd.click("[x]")
 	wd.ran("ui fleet --human")
 	wd.click("[show]")
-	for end := time.Now().Add(3 * time.Second); !wd.all(); time.Sleep(5 * time.Millisecond) {
-		if time.Now().After(end) {
-			t.Fatal("[show] never asked the builder for the cards that are done")
-		}
+	if !wd.until(3*time.Second, wd.all) {
+		t.Fatal("[show] never asked the builder for the cards that are done")
 	}
 	// A card's state word opens what can be done with that agent.
 	x, y, _ := wd.s.Find("check failed")
@@ -415,13 +416,12 @@ func TestTheTypingLineAndItsDrafts(t *testing.T) {
 	wd.ran(`set draft.q9 --file "small and large ones" --human`)
 	wd.shows("KEYS GO HERE", "> small and large ones")
 	dirs, _ := wd.sys.Dirs()
-	for end := time.Now().Add(3 * time.Second); ; time.Sleep(10 * time.Millisecond) {
-		var ui contract.UIFile
-		if contract.ReadVersioned(wd.sys.Read, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &ui); ui.Drafts["q9"] == "small and large ones" {
-			break
-		} else if time.Now().After(end) {
-			t.Fatalf("ui.json holds the drafts %v", ui.Drafts)
-		}
+	var ui contract.UIFile
+	if !wd.until(3*time.Second, func() bool {
+		contract.ReadVersioned(wd.sys.Read, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &ui)
+		return ui.Drafts["q9"] == "small and large ones"
+	}) {
+		t.Fatalf("ui.json holds the drafts %v", ui.Drafts)
 	}
 	if n := len(wd.children("answer")); n != 0 {
 		t.Fatalf("leaving the line answered: %v", wd.children("answer"))
@@ -460,10 +460,8 @@ func TestTheTypingLineAndItsDrafts(t *testing.T) {
 	wd.shows("answered on the page: approve · your draft: the totals are off", "answered: 1")
 	wd.click("[ dismiss ]")
 	wd.ran("set draft.n4 --human")
-	for end := time.Now().Add(3 * time.Second); strings.Contains(wd.screen(), "your draft"); time.Sleep(5 * time.Millisecond) {
-		if time.Now().After(end) {
-			t.Fatalf("the dismissed draft is still shown:\n%s", wd.screen())
-		}
+	if !wd.until(3*time.Second, func() bool { return !strings.Contains(wd.screen(), "your draft") }) {
+		t.Fatalf("the dismissed draft is still shown:\n%s", wd.screen())
 	}
 }
 
@@ -498,10 +496,8 @@ func TestAnAnswerSettlesAndCanBeUndone(t *testing.T) {
 	// Settled, it leaves the list and is one of the last answers, which can
 	// still be taken back until something has used it.
 	wd.clock.Store(int64(5 * time.Second))
-	for end := time.Now().Add(3 * time.Second); strings.Contains(wd.screen(), "sign-up page"); time.Sleep(5 * time.Millisecond) {
-		if time.Now().After(end) {
-			t.Fatalf("the settled item is still listed:\n%s", wd.screen())
-		}
+	if !wd.until(3*time.Second, func() bool { return !strings.Contains(wd.screen(), "sign-up page") }) {
+		t.Fatalf("the settled item is still listed:\n%s", wd.screen())
 	}
 	wd.key("u")
 	wd.ran("answer q7 --undo --human")
@@ -548,7 +544,9 @@ func TestABurstOfLettersAnswersNothing(t *testing.T) {
 	if n := len(wd.children("answer")); n > 2 || strings.Contains(wd.screen(), "other: >") {
 		t.Fatalf("a sentence went into the typing line: %v\n%s", wd.children("answer"), wd.screen())
 	}
-	// Stepping through the list is no sentence, and one key after a pause is a command.
+	// Stepping through the list is no sentence, and one key after a pause is
+	// a command: the pause is counted from when the pane drew the sentence.
+	wd.s.Settled(keyGap)
 	wd.s.Type("jj")
 	wd.shows("› ● price list")
 	wd.key("y")
@@ -603,16 +601,14 @@ func TestTheSweepIsAChildEveryFiveSeconds(t *testing.T) {
 		t.Errorf("two sweeps %v apart", apart)
 	}
 	wd.touch()
-	for end := time.Now().Add(3 * time.Second); ; time.Sleep(20 * time.Millisecond) {
+	var in contract.ViewInput
+	if !wd.until(3*time.Second, func() bool {
 		wd.mu.Lock()
-		in := wd.in
-		wd.mu.Unlock()
-		if in.Swept.Ran && in.Watched {
-			break
-		}
-		if time.Now().After(end) {
-			t.Fatalf("the builder was told %+v, watched %v", in.Swept, in.Watched)
-		}
+		defer wd.mu.Unlock()
+		in = wd.in
+		return in.Swept.Ran && in.Watched
+	}) {
+		t.Fatalf("the builder was told %+v, watched %v", in.Swept, in.Watched)
 	}
 }
 
