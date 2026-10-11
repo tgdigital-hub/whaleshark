@@ -75,9 +75,11 @@ func TestARecordAnotherProgramHoldsOpen(t *testing.T) {
 		busy  bool
 	}{{"None", true}, {"Read", true}, {"ReadWrite", true}, {"ReadWrite, Delete", false}} {
 		before, text := folder(t, run), fmt.Sprintf("held with leave %d", i)
+		// Made before the file is held: making a command reads the record.
+		cmd, again := p.Command(worker, "progress", "--json", "70", text), p.Command(worker, "progress", "71", text)
 		release := held(t, filepath.Join(run, "state.json"), c.share)
 		began := time.Now()
-		out, err := p.Command(worker, "progress", "--json", "70", text).CombinedOutput()
+		out, err := cmd.CombinedOutput()
 		took := time.Since(began).Round(100 * time.Millisecond)
 		release()
 		t.Logf("FACT held open with leave %q: the command took %v and ended: %v", c.share, took, err)
@@ -102,7 +104,7 @@ func TestARecordAnotherProgramHoldsOpen(t *testing.T) {
 				t.Errorf("leave %q: the refused command left %s behind", c.share, path)
 			}
 		}
-		if out, err := p.Command(worker, "progress", "71", text).CombinedOutput(); err != nil || note(p) != text {
+		if out, err := again.CombinedOutput(); err != nil || note(p) != text {
 			t.Errorf("leave %q, let go: the command should go through now: %v, the record holds %q\n%s", c.share, err, note(p), out)
 		}
 	}
