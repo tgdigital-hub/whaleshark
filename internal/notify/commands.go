@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -74,9 +75,18 @@ func (n Nudger) settings() (set settings, err error) {
 }
 
 // remember reads nudged.json, lets change alter it, and writes it back when
-// change says it did.
+// change says it did, under a lock of the file's own: of two programs at one
+// moment the second reads what the first wrote.
 func (n Nudger) remember(set settings, change func(*sentFile) bool) error {
 	file, sent := filepath.Join(set.dirs.State, "nudged.json"), sentFile{At: map[string]time.Time{}, Said: map[string][]string{}}
+	if err := os.MkdirAll(set.dirs.State, 0o700); err != nil {
+		return err
+	}
+	unlock, err := n.k.Platform.Lock(filepath.Join(set.dirs.State, "nudged.lock"), true)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	if err := contract.ReadVersioned(n.k.Platform.Read, file, contract.FileVersion, &sent); err != nil {
 		return err
 	}

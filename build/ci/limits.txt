@@ -102,8 +102,10 @@ lines 2285 view internal/view
 lines 550 question internal/question
 lines 380 mail internal/mail
 # notify: 10 more at the start of phase 3, to hand a nudge to a paired
-# phone; watch pays.
-lines 430 notify internal/notify
+# phone; watch pays. 10 more for a lock over nudged.json, so that two
+# programs at one moment say a thing once; it stood at its line. input,
+# built whole at 467, pays.
+lines 440 notify internal/notify
 # gitwt gives 60 at the start of phase 3: built whole at 886; and 100 at the
 # join of its first wave, to doctor: it stands at 889 with the fixes for
 # Windows in.
@@ -207,7 +209,7 @@ lines 720 pty internal/pty
 # pane to show the pasted text, and is pressed again while the agent shows
 # no start, took it to 564; input, built whole at 467, pays.
 lines 580 watch internal/watch
-lines 600 input internal/input
+lines 590 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore

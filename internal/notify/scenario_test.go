@@ -201,6 +201,60 @@ func TestTwoPassesAtOnceNudgeOnce(t *testing.T) {
 	e.want("sign-up page — needs you")
 }
 
+// meanwhile is the platform with another program at work at the moment
+// nudged.json has been read and is not yet written back. The other is given
+// a while to get through, which it does at once where nothing holds it; it
+// is waited for once the first has gone on.
+type meanwhile struct {
+	contract.Platform
+	other func() error
+	ended chan error
+}
+
+func (m *meanwhile) Read(path string) ([]byte, error) {
+	data, err := m.Platform.Read(path)
+	if other := m.other; other != nil && filepath.Base(path) == "nudged.json" {
+		m.other = nil
+		go func() { m.ended <- other() }()
+		select {
+		case err := <-m.ended:
+			m.ended <- err
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+	return data, err
+}
+
+// at runs two things at one moment: other begins when first has read what
+// was nudged about already, and both have ended when at returns.
+func (e *evening) at(first, other func() error) {
+	e.t.Helper()
+	m := &meanwhile{Platform: e.Kit.Platform, other: other, ended: make(chan error, 1)}
+	e.Kit.Platform = m
+	if err := first(); err != nil {
+		e.t.Fatal(err)
+	}
+	if err := <-m.ended; err != nil {
+		e.t.Fatal(err)
+	}
+	e.Kit.Platform = m.Platform
+}
+
+// Two passes at one moment both find the same news unsaid, and two commands
+// both find a task not nudged about for 30 seconds. Each is said once.
+func TestTwoAtOnceRememberOnce(t *testing.T) {
+	e := prepare(t, func(f *testkit.Fixture) {
+		t7 := f.State.Tasks["T7"]
+		t7.Status, t7.Failures, t7.SettledAt = contract.TaskFailed, contract.MaxFailures, f.Now
+	})
+	pass := func() error { return e.n.Items(e.Root, e.run, nil, e.now) }
+	e.at(pass, pass)
+	e.want("email sender — failed")
+	nudge := func() error { return e.n.Nudge(contract.Nudge{Title: "T8", Task: "T8"}) }
+	e.at(nudge, nudge)
+	e.want("email sender — failed", "T8")
+}
+
 func TestNextChannel(t *testing.T) {
 	for _, c := range []struct {
 		name          string
