@@ -268,6 +268,26 @@ func TestInitWithNoKeeperRunning(t *testing.T) {
 	}
 }
 
+// Below git 2.38 init sets nothing up, and says in one sentence which git
+// it found and which it needs.
+func TestInitRefusesAGitOlderThanItWorksWith(t *testing.T) {
+	p, bin := scenario.Prepare(t, nil, nil), t.TempDir()
+	name, text := "git", "#!/bin/sh\necho git version 2.34.1\n"
+	if runtime.GOOS == "windows" {
+		name, text = "git.bat", "@echo git version 2.34.1\r\n"
+	}
+	write(t, filepath.Join(bin, name), text)
+	if err := os.Chmod(filepath.Join(bin, name), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cmd := p.Command(scenario.Orch, "init", "--json")
+	cmd.Env = append(cmd.Env, "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	play(t, cmd, contract.ExitEnv, `"not_ready"`, "git version 2.34.1 is older than git 2.38, the least WhaleShark works with")
+	if _, err := os.Stat(filepath.Join(p.Root, contract.ProjectDir)); err == nil {
+		t.Error("init set the project up with a git it cannot work with")
+	}
+}
+
 func TestInitInTwoProjects(t *testing.T) {
 	p := scenario.Prepare(t, nil, nil)
 	home, _ := os.UserHomeDir()

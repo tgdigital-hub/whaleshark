@@ -282,7 +282,8 @@ func TestMovedAndNamed(t *testing.T) {
 }
 
 // A git without the batch gets one process a pair and the same answers; one
-// that cannot simulate a merge still says which files two tasks share.
+// that cannot simulate a merge is older than the tool works with, and its
+// scan ends with git's own words, never with half an answer.
 func TestOlderGit(t *testing.T) {
 	f := start(t, base)
 	f.task("T1", map[string]string{"alpha.txt": alpha(10), "docs": "a file\n"})
@@ -301,7 +302,9 @@ func TestOlderGit(t *testing.T) {
 	same(t, "found one pair at a time", f.scan(false), want...)
 	wipe()
 	simulation = []string{"merge-tree", "--no-such-option"}
-	same(t, "found by a git that cannot merge", f.scan(false), "same T1+T2 (merge not checked) alpha.txt", "same T2+T3 (merge not checked) beta.txt")
+	if found, err := f.o.Scan(context.Background(), f.root, f.state(), nil, false); err == nil || !strings.Contains(err.Error(), "merge-tree") {
+		t.Fatalf("a git that cannot merge in its store gave %v and found %v", err, found)
+	}
 }
 
 // A scan that is cut off says so, and a merge whose text ends early is not

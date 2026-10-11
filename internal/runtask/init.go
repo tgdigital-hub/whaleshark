@@ -130,6 +130,10 @@ func git(root string, args ...string) (string, error) {
 // project sets the project up, checks what it needs, and writes what was asked for.
 func (i *setting) project() error {
 	c, k, f := i.c, i.c.Kit, i.c.Flags
+	line, noGit := git(c.Root, "--version")
+	if noGit == nil && cli.OldGit(line) {
+		return refuse(contract.ExitEnv, "not_ready", line+" is older than git 2.38, the least WhaleShark works with: install a newer git, then run init again.")
+	}
 	if k.Platform.Synced(c.Root) {
 		if f["allow-synced"] == nil {
 			return refuse(contract.ExitEnv, "synced", c.Root+" is in a folder that is synced to other machines, which makes copies of the record. Move the project, or pass --allow-synced.")
@@ -199,7 +203,7 @@ func (i *setting) project() error {
 	default:
 		i.say("the engine is running")
 	}
-	if line, err := git(c.Root, "--version"); err != nil {
+	if noGit != nil {
 		i.Problems = append(i.Problems, "git is missing")
 	} else {
 		i.say("%s", line)

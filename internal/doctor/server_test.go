@@ -115,6 +115,7 @@ func server(t *testing.T, text string, root bool) *box {
 	b.said = map[string]string{
 		"ss -Hlnt":                       listen,
 		"apt-config dump":                "APT::Periodic::Unattended-Upgrade \"1\";\nUnattended-Upgrade::Automatic-Reboot \"false\";",
+		"git --version":                  "git version 2.39.5",
 		"stat -c %U %a " + self:          "root 755",
 		"stat -f":                        "ext2/ext3",
 		"dpkg -S":                        "whaleshark: " + self,
@@ -275,6 +276,7 @@ func TestEachFaultOfAWorkLoginIsNamed(t *testing.T) {
 		{"not listed", strings.Replace(file, "login.kim", "login.eve", 1), nil, problem, []string{"kim is not a work login", addCmd + "kim"}},
 		{"restart", file, func(b *box) { b.write(filepath.Join(b.sys, "var", "run", "reboot-required"), "") }, note, []string{"restart needed since " + time.Now().Format(time.DateOnly), "sudo reboot"}},
 		{"listener", file, func(b *box) { b.said["ss -Hlnt"] = listen + "\nLISTEN 0 511 *:8080 *:*" }, note, []string{"more than SSH may listen", "(1 in"}},
+		{"an old git", file, func(b *box) { b.said["git --version"] = "git version 2.34.1" }, problem, []string{"older than git 2.38", "git version 2.34.1", "Ubuntu 24.04 or Debian 12"}},
 		{"updates off", file, func(b *box) { b.said["apt-config dump"] = `APT::Periodic::Unattended-Upgrade "0";` }, problem, []string{"automatic security updates are off", setupCmd}},
 		{"restarts itself", file, func(b *box) { b.said["apt-config dump"] += "\n" + `Unattended-Upgrade::Automatic-Reboot "true";` }, problem, []string{"restart the machine by itself"}},
 		{"program writable", file, func(b *box) { b.said["stat -c %U %a "+self] = "root 775" }, problem, []string{"must be root's", "root 775"}},

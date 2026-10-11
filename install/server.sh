@@ -765,9 +765,11 @@ ID='' VERSION_ID=''
 # shellcheck disable=SC1090,SC1091
 [ ! -r "$R/etc/os-release" ] || . "$R/etc/os-release"
 case $ID:$VERSION_ID in
-ubuntu:22.04 | ubuntu:24.04 | debian:12) ;;
+ubuntu:24.04 | debian:12) ;;
 *)
-	say "server: this is for Ubuntu 22.04, Ubuntu 24.04 and Debian 12; nothing was changed" >&2
+	# The least git the program works with is 2.38; Ubuntu 22.04 carries 2.34.
+	[ "$ID:$VERSION_ID" != ubuntu:22.04 ] || say "server: the git of Ubuntu 22.04 is older than git 2.38, the least WhaleShark works with" >&2
+	say "server: this is for Ubuntu 24.04 and Debian 12, whose own git is new enough; nothing was changed" >&2
 	exit 3
 	;;
 esac

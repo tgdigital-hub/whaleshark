@@ -2,7 +2,6 @@ package doctor
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,6 +36,7 @@ func (e *exam) project() {
 	ours := k.Store.Dir(root, "")
 	if _, err := os.Stat(ours); err != nil {
 		e.say(note, initCmd, "%s is not set up as a project", root)
+		e.tool() // init refuses a git it cannot work with, and here is why
 		return
 	}
 	if k.Platform.Synced(root) {
@@ -64,26 +64,25 @@ func (e *exam) project() {
 	e.left(ours)
 }
 
-// oldGit reports whether git, by the line it prints of itself, is older
-// than 2.38, the first that merges without a working folder.
-func oldGit(line string) bool {
-	var major, minor int
-	fmt.Sscanf(line, "git version %d.%d", &major, &minor)
-	return major < 2 || major == 2 && minor < 38
+// tool is the row on git itself, and whether there is one to ask further.
+func (e *exam) tool() bool {
+	line, err := e.git("--version")
+	switch {
+	case err != nil:
+		e.say(problem, "", "git is missing")
+	case cli.OldGit(line):
+		e.say(problem, "install git 2.38 or newer", "%s is older than git 2.38, the least WhaleShark works with: no work can be accepted and no overlap is found", line)
+	default:
+		e.say(ok, "", "%s", line)
+	}
+	return err == nil
 }
 
 // code checks git and the repository: the worktrees, accepting several
 // tasks at once and the proof that a branch is merged all rest on them.
 func (e *exam) code() {
-	line, err := e.git("--version")
-	if err != nil {
-		e.say(problem, "", "git is missing")
+	if !e.tool() {
 		return
-	}
-	if oldGit(line) {
-		e.say(problem, "", "%s is older than 2.38: several tasks cannot be accepted at once and no branch is proven merged", line)
-	} else {
-		e.say(ok, "", "%s", line)
 	}
 	if _, err := e.git("rev-parse", "--git-dir"); err != nil {
 		e.say(note, "", "the project is no git repository: every task works in the project's own folder")

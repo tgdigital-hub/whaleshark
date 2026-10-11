@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
@@ -160,6 +161,9 @@ func (e *exam) network() {
 	out, _ = ask("apt-config", "dump")
 	e.hold(strings.Contains(out, `APT::Periodic::Unattended-Upgrade "1"`) && !strings.Contains(out, `Unattended-Upgrade::Automatic-Reboot "true"`), setupCmd,
 		"automatic security updates are on, and none restarts the machine by itself", "automatic security updates are off, or one may restart the machine by itself under every running agent")
+	out, _ = ask("git", "--version")
+	e.hold(!cli.OldGit(out), "", "this system's git is new enough: "+out,
+		"this system's git is older than git 2.38, the least WhaleShark works with: "+out+". A server is Ubuntu 24.04 or Debian 12, whose own git is new enough")
 	self, _ := e.k.Platform.SelfPath()
 	out, err = ask("stat", "-c", "%U %a", self)
 	owner, mode, _ := strings.Cut(out, " ")
