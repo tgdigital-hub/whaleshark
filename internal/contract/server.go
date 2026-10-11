@@ -115,7 +115,7 @@ func ReadServer(read func(path string) ([]byte, error)) (*Server, error) {
 		return nil, fmt.Errorf("%s: road %q is neither %s nor %s", ServerFile, s.Road, RoadTailscale, RoadCloudflare)
 	}
 	for name, p := range s.Login {
-		if !ServerPorts.holds(p.Ports) || (p.Ports-ServerPorts.Base)%BlockSize != 0 {
+		if !ServerPorts.Holds(p.Ports) || (p.Ports-ServerPorts.Base)%BlockSize != 0 {
 			return nil, fmt.Errorf("%s: the block of %s does not start at a block's first port", ServerFile, name)
 		}
 		for other, q := range s.Login {
@@ -127,7 +127,8 @@ func ReadServer(read func(path string) ([]byte, error)) (*Server, error) {
 	return s, nil
 }
 
-func (p Ports) holds(port int) bool { return port >= p.Base && port < p.Base+p.Count }
+// Holds says whether a port is one of the block's.
+func (p Ports) Holds(port int) bool { return port >= p.Base && port < p.Base+p.Count }
 
 // Block is the ports a login's tasks take their slots from: on a person's
 // own machine DefaultPorts, on a server the login's block without its last
@@ -165,7 +166,7 @@ func (s *Server) Cap(login string) int {
 
 // Free is the first port of the lowest block no login has, for server add.
 func (s *Server) Free() (ports int, ok bool) {
-	for ports = ServerPorts.Base; ServerPorts.holds(ports); ports += BlockSize {
+	for ports = ServerPorts.Base; ServerPorts.Holds(ports); ports += BlockSize {
 		taken := false
 		for _, p := range s.Login {
 			taken = taken || p.Ports == ports

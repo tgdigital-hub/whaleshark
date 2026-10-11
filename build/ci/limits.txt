@@ -153,7 +153,9 @@ lines 275 team internal/team
 # dash: 150 more at the start of phase 3. It is three passes through one
 # folder (the page, the phone, the tunnel), the kind of folder that ran over
 # in both phases before. screen, gitwt and window pay.
-lines 2060 dash internal/dash
+# It gives 15 to connect when two decisions of the third security review
+# are built: its own, the shut door that lets a pass through, cost nothing.
+lines 2045 dash internal/dash
 lines 350 push internal/push
 # connect and install: 30 and 20 of the engine's share (the clipboard lift,
 # the keeper's service entry), planned since the engine decision and put
@@ -162,8 +164,10 @@ lines 350 push internal/push
 # held to a code and a path before it reaches the terminal or the browser,
 # and a site's port that is taken on this computer is said once, by connect
 # and by ssh, in the place of two lines every five seconds; it stood one
-# line short of full. dashweb pays.
-lines 525 connect internal/connect
+# line short of full. dashweb pays. 15 more for a decision of that review:
+# only a port the tool gives a task is forwarded, and another is said once.
+# dash pays.
+lines 540 connect internal/connect
 # evidence gives 40 at the join of phase 3's first wave: built whole at 193.
 lines 210 evidence internal/evidence
 # dashweb gives 120 at the join of phase 3's first wave: the screens, the

@@ -271,6 +271,35 @@ func get(port int, host string) (string, error) {
 	return string(body), err
 }
 
+// slotPort is a port of the tool's own block that is free on both of this
+// machine's loopback addresses: where a task's site stands and where
+// connect opens it. strayPort is a free one of nobody's block.
+func slotPort(t *testing.T, hosts ...string) int {
+	t.Helper()
+next:
+	for port := contract.DefaultPorts.Base + 500 + os.Getpid()%400; contract.DefaultPorts.Holds(port); port++ {
+		for _, host := range hosts {
+			l, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
+			if err != nil {
+				continue next
+			}
+			l.Close()
+		}
+		return port
+	}
+	t.Skip("no port of the tool's block is free on this machine")
+	return 0
+}
+
+func strayPort(t *testing.T, host string) int {
+	t.Helper()
+	for {
+		if port := freePort(t, host); !contract.DefaultPorts.Holds(port) && !contract.ServerPorts.Holds(port) {
+			return port
+		}
+	}
+}
+
 func TestThePageAndTheSitesThroughOneConnection(t *testing.T) {
 	dir, c, out := login(t)
 	sock := filepath.Join(dir, "dash.sock")
@@ -284,7 +313,8 @@ func TestThePageAndTheSitesThroughOneConnection(t *testing.T) {
 	}
 
 	// The page on its socket file, and two sites on the server's side: one
-	// that becomes a live task's slot, and one that never is.
+	// that becomes a live task's slot, and one on a port of nobody's block,
+	// which the page names too, as a server that is not what it says would.
 	var mu sync.Mutex
 	var sites []int
 	var stall atomic.Bool
@@ -319,7 +349,7 @@ func TestThePageAndTheSitesThroughOneConnection(t *testing.T) {
 	// other one.
 	siteHost = "::1"
 	t.Cleanup(func() { siteHost = contract.Loopback })
-	slot, other := freePort(t, siteHost), freePort(t, siteHost)
+	slot, other := slotPort(t, siteHost, contract.Loopback), strayPort(t, siteHost)
 	site := func(port int, says string) {
 		listen("tcp", net.JoinHostPort(siteHost, strconv.Itoa(port)), http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, says) }))
 	}
@@ -366,17 +396,17 @@ func TestThePageAndTheSitesThroughOneConnection(t *testing.T) {
 		t.Fatal("a port is forwarded that the page never named")
 	}
 	mu.Lock()
-	sites = []int{slot}
+	sites = []int{other, slot}
 	mu.Unlock()
 	took := within(t, 10*time.Second, "the slot that started answering is not forwarded", is(slot, "a task's site"))
 	t.Logf("the slot was forwarded after %s", took.Round(100*time.Millisecond))
+	if said := fmt.Sprintf("the server names port %d as a running site", other); !closed(other) || strings.Count(out.String(), said) != 1 {
+		t.Fatalf("a port of nobody's block that the page named is forwarded, or not said once:\n%s", out)
+	}
 	mu.Lock()
 	sites = nil
 	mu.Unlock()
 	within(t, 10*time.Second, "the slot that left the answer is still forwarded", func() bool { return closed(slot) })
-	if !closed(other) {
-		t.Fatal("a port that is no slot was forwarded")
-	}
 	stop()
 	if !closed(pagePort) {
 		t.Fatal("the page's port is still forwarded after connect ended")
@@ -385,7 +415,7 @@ func TestThePageAndTheSitesThroughOneConnection(t *testing.T) {
 	// The link killed, and restored without a keypress.
 	tick = 200 * time.Millisecond
 	mu.Lock()
-	sites = []int{slot}
+	sites = []int{slot, other}
 	mu.Unlock()
 	stop = connect()
 	within(t, 15*time.Second, "the slot is not forwarded", is(slot, "a task's site"))
@@ -411,7 +441,45 @@ func TestThePageAndTheSitesThroughOneConnection(t *testing.T) {
 	t.Logf("after a pretended sleep the link was made anew in %s", took.Round(100*time.Millisecond))
 	stall.Store(false)
 	within(t, 15*time.Second, "the page did not come back after the sleep", is(pagePort, "the page"))
+	if !closed(other) {
+		t.Error("a port of nobody's block was forwarded when the link came back")
+	}
 	stop()
+}
+
+// A server that is not what it says can name any port as a running site.
+// Only a port the tool gives a task is opened on this computer; of the
+// others the first is said, once, and none is ever handed to ssh.
+func TestOnlyAPortOfTheToolsOwnIsForwarded(t *testing.T) {
+	dir, c, out := login(t)
+	if os.PathSeparator != '/' {
+		t.Skip("the ssh of this test is a shell script")
+	}
+	old := sshArgv
+	t.Cleanup(func() { sshArgv = old })
+	asked := filepath.Join(dir, "asked")
+	played := filepath.Join(dir, "ssh")
+	if err := os.WriteFile(played, []byte("#!/bin/sh\necho \"$@\" >> "+asked+"\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sshArgv = []string{played}
+	l := &link{c: c, target: "box", port: 7780, sites: map[int]bool{}, taken: map[int]bool{}}
+	strange := []int{-1, 0, 22, 80, 1023, 1024, 3000, 5432, 7780, 8080, 19999, 32000, 49152, 65535, 65536, 1 << 20}
+	for range 3 {
+		l.forward(context.Background(), slices.Concat(strange, []int{20000, 20999, 21000, 31999}))
+	}
+	data, _ := os.ReadFile(asked)
+	for _, port := range strange {
+		if l.sites[port] || l.taken[port] || strings.Contains(string(data), fmt.Sprintf(":%d:", port)) {
+			t.Errorf("port %d is forwarded or was handed to ssh", port)
+		}
+	}
+	if len(l.sites) != 4 || strings.Count(string(data), "\n") != 4 || strings.Count(out.String(), "a site is running: http://") != 4 {
+		t.Errorf("the four ports of the tool's own, forwarded once each: %v\n%s\n%s", l.sites, data, out)
+	}
+	if want := "the server names port -1 as a running site, which is no port this tool gives a task (20000 to 31999): such a port is not forwarded\n"; strings.Count(out.String(), want) != 1 || strings.Count(out.String(), "the server names") != 1 {
+		t.Errorf("the other ports are said once, in one line:\n%s", out)
+	}
 }
 
 // masterOf finds the master connection connect holds, by what it says of itself.

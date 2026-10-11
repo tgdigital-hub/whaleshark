@@ -161,7 +161,8 @@ func news(s *contract.State) (out []contract.Nudge) {
 
 // Items puts every item of a run that waits for the person in front of
 // them: it stamps each as shown, which only this does, and then nudges, so
-// an item is in the pane before its nudge. Do not disturb holds everything
+// an item is in the pane before its nudge, and of two passes at one moment
+// only the one that stamped it nudges. Do not disturb holds everything
 // but the urgent back, unstamped; when its end time has passed it is
 // switched off here and one nudge announces all that was held. What the
 // lead agent said unread is in the pane at once and is nudged about only
@@ -233,15 +234,23 @@ func (n Nudger) Items(root, run string, snap *contract.Snapshot, now time.Time) 
 	if len(due) == 0 {
 		return nil
 	}
+	// Another pass, a pane's sweep beside a command's, may have run since
+	// the record was read: only what this pass stamps is its to nudge about.
+	var mine []string
 	err = n.k.Store.Change(root, run, func(s *contract.State) error {
+		mine = nil
 		for _, it := range due {
-			if err := n.k.Rules.Shown(s, it.ID, now); err != nil {
+			if q := s.Questions[it.ID]; q == nil || !q.ShownAt.IsZero() {
+				continue
+			} else if err := n.k.Rules.Shown(s, it.ID, now); err != nil {
 				return err
 			}
+			mine = append(mine, it.ID)
 		}
 		return nil
 	})
-	if err != nil {
+	others := func(it contract.Item) bool { return !slices.Contains(mine, it.ID) }
+	if due, loud = slices.DeleteFunc(due, others), slices.DeleteFunc(loud, others); err != nil || len(due) == 0 {
 		return err
 	}
 	c := contract.Nudge{Root: root, Run: run}

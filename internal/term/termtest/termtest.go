@@ -24,6 +24,7 @@ type Screen struct {
 	x, y  int
 	sent  strings.Builder
 	drawn time.Time // when the program last wrote a text
+	typed time.Time // when the test last sent the program anything
 }
 
 func New(w, h int) *Screen {
@@ -115,8 +116,31 @@ func (s *Screen) Still(d time.Duration) {
 	}
 }
 
+// Settled is Still for the moment before a key: it first gives the program
+// up to four times d to draw after the last thing sent to it. A program
+// counts the time between two keys from when it took the first, which on a
+// busy machine is later than when the test sent it; what it drew since is
+// the sign that it took it. A key that changes nothing on the screen costs
+// the whole wait.
+func (s *Screen) Settled(d time.Duration) {
+	for start := time.Now(); time.Since(start) < 4*d; time.Sleep(5 * time.Millisecond) {
+		s.mu.Lock()
+		took := s.drawn.After(s.typed)
+		s.mu.Unlock()
+		if took {
+			break
+		}
+	}
+	s.Still(d)
+}
+
 // Type sends bytes exactly as a terminal would.
-func (s *Screen) Type(raw string) { io.WriteString(s.in, raw) }
+func (s *Screen) Type(raw string) {
+	s.mu.Lock()
+	s.typed = time.Now()
+	s.mu.Unlock()
+	io.WriteString(s.in, raw)
+}
 
 // Key presses one key, named as in term.Event. After a bare Escape it
 // waits, as a person does, so the next key is not taken for part of it.

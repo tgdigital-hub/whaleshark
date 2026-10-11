@@ -34,7 +34,8 @@ const (
 	keysLife  = 24 * time.Hour
 	skew      = time.Minute
 	// More than refusalsMost requests without a valid pass in a minute shut
-	// the door for shutFor, and the person is told for contract.ShutShown.
+	// the door for shutFor, to all but a pass that holds, and the person is
+	// told for contract.ShutShown.
 	refusalsMost = 20
 	shutFor      = time.Minute
 )
@@ -180,33 +181,30 @@ func (g *guard) check(r *http.Request, a contract.Access, now time.Time) (who st
 }
 
 // pass is the Cloudflare road's check of one request, before anything else
-// is read of it. Without this login's values, without the keys and while the
-// door is shut nothing passes: there is no way round the check.
+// is read of it. Without this login's values and without the keys nothing
+// passes: there is no way round the check. While the door is shut a request
+// is checked as ever and one whose pass holds still passes, so that nobody
+// keeps the person out by sending refusals; the rest are refused uncounted.
 func (s *server) pass(r *http.Request, srv *contract.Server, now time.Time) (who string, until time.Time, ok bool) {
-	s.mu.Lock()
-	shut := !s.shut.IsZero() && now.Sub(s.shut) < shutFor
-	s.mu.Unlock()
-	if shut {
-		return "", until, false
-	}
 	shape, why := "", "this login has no values for Cloudflare's road in the server's file"
 	if a, known := srv.Access(s.login); known {
 		who, until, shape, why = s.guard.check(r, a, now)
 	}
 	s.mu.Lock()
+	shut, shuts := !s.shut.IsZero() && now.Sub(s.shut) < shutFor, false
 	if shape != "" {
 		s.shape = shape
 	}
-	if why != "" {
+	if why != "" && !shut {
 		if s.why = why; now.Sub(s.minute) >= time.Minute {
 			s.minute, s.turned = now, 0
 		}
 		if s.turned++; s.turned > refusalsMost {
-			s.shut, s.turned, shut = now, 0, true
+			s.shut, s.turned, shuts = now, 0, true
 		}
 	}
 	s.mu.Unlock()
-	if shut {
+	if shuts {
 		s.shutNow(now)
 		s.wake()
 	}
