@@ -30,7 +30,8 @@ type Pane func(p *Project, name string, t *term.Term)
 // and how long a pane is given to show something. apart is the time a person
 // leaves before a key or a click: a pane takes keys that follow each other
 // faster for typing meant elsewhere, and refuses a click on a row that has
-// just moved.
+// just moved. The pane counts both from when it took the key or drew the
+// row, so the time is left after the pane has drawn, not after the step.
 const (
 	patience = 20 * time.Second
 	apart    = 450 * time.Millisecond
@@ -238,10 +239,10 @@ func (r *runner) step(kind, rest string) {
 			r.fail("the pane does not show %q:\n%s", text(rest), s.all())
 		}
 	case "key":
-		time.Sleep(apart)
+		r.on().Settled(apart)
 		r.on().Key(rest)
 	case "type":
-		time.Sleep(apart)
+		r.on().Settled(apart)
 		r.on().Type(text(rest))
 	case "expect-row":
 		if s := r.on(); !s.shows(text(rest)) {
