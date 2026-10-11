@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -262,13 +261,8 @@ func openIn(t *testing.T, dir string, env []string, argv ...string) *pane {
 		tty.Close()
 		<-p.gone
 	})
-	// On Windows these tests have never passed: until the program in front
-	// could be told there they were skipped, and at their first run on a
-	// hosted machine the fake agent was ready before its hooks had named
-	// its session. Whether that is the test's haste or the Watcher's is
-	// not known; the Watcher's Windows proof is the engine's table.
-	if _, err := tty.Front(); errors.Is(err, contract.ErrCannotTell) || runtime.GOOS == "windows" {
-		t.Skip("NOT PROVEN HERE: the Watcher against a real terminal has not passed on this system")
+	if _, err := tty.Front(); errors.Is(err, contract.ErrCannotTell) {
+		t.Skip("NOT PROVEN HERE: this system cannot say which program is in front in a terminal")
 	}
 	return p
 }
@@ -405,6 +399,20 @@ func (s *stand) heard() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return slices.Clone(s.hooks)
+}
+
+// named waits for a state that also carries the session. An agent's screen
+// can say it is ready before its first hook has named its session: the hook
+// is a program of its own, and where starting one is slow (Windows) the
+// screen is read first. The Watcher gives out both states; a test that
+// asks for the session waits for the second.
+func (s *stand) named(t *testing.T, status string, within time.Duration) State {
+	t.Helper()
+	for end := time.Now().Add(within); ; time.Sleep(10 * time.Millisecond) {
+		if st := s.reach(t, status, within); st.Session != "" || time.Now().After(end) {
+			return st
+		}
+	}
 }
 
 // reach waits until the last state given out is the one wanted.

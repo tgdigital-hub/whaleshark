@@ -59,7 +59,7 @@ func TestTheFakeAgentThroughEveryState(t *testing.T) {
 	if err := w.Ready(wait); err != nil {
 		t.Fatal(err)
 	}
-	if st := s.reach(t, idle, wait); st != (State{"claude", "the name", "session-one", "/work/here", idle}) {
+	if st := s.named(t, idle, wait); st != (State{"claude", "the name", "session-one", "/work/here", idle}) {
 		t.Fatalf("ready as %+v", st)
 	}
 
@@ -216,7 +216,7 @@ func TestCodexByItsHooks(t *testing.T) {
 	if err := w.Ready(wait); err != nil {
 		t.Fatal(err)
 	}
-	if st := s.reach(t, idle, wait); st.Agent != "codex" || st.Session != "session-one" {
+	if st := s.named(t, idle, wait); st.Agent != "codex" || st.Session != "session-one" {
 		t.Fatalf("ready as %+v", st)
 	}
 	if err := w.Prompt("say hello", wait); err != nil {
