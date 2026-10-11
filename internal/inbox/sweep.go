@@ -29,7 +29,12 @@ const (
 // since when no picture could be had and whether the person was told so.
 type stamp struct {
 	contract.Versioned
-	At   time.Time `json:"at"`
+	At time.Time `json:"at"`
+	// By is the version of the program that swept. Another version's
+	// sweep holds this one back from nothing: the first sweep by a new
+	// program is what tells of an upgrade, and a wait of the older program
+	// that is still running sweeps every five seconds for as long as it runs.
+	By   string    `json:"by,omitempty"`
 	Down time.Time `json:"down,omitzero"`
 	Told bool      `json:"told,omitempty"`
 }
@@ -72,7 +77,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	var last stamp
 	contract.ReadVersioned(k.Platform.Peek, filepath.Join(dir, stampFile), contract.FileVersion, &last)
 	swept := contract.Swept{Ran: !last.At.IsZero(), At: last.At}
-	if age := now.Sub(last.At); !always && age >= 0 && age < sweepEvery {
+	if age := now.Sub(last.At); !always && age >= 0 && age < sweepEvery && last.By == contract.Version {
 		return swept, nil, nil
 	}
 	s, err := k.Store.Read(root, run)
@@ -153,7 +158,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		changed = changed || err == nil
 	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
-		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now})
+		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now, By: contract.Version})
 	// The nudge pass, after every sweep: it also says what is no item, a
 	// task failed for good and the whole job finished.
 	k.Notifier.Items(root, run, snap, now)

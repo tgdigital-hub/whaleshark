@@ -1,8 +1,12 @@
 package phase3
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
@@ -20,6 +24,17 @@ func TestAnUpgradeDuringARun(t *testing.T) {
 	f.State.Run.Programs = []string{"0.4"}
 	p := scenario.Prepare(t, f, nil)
 	before, _ := p.Record()
+	// A wait of the older program that is still running has swept this
+	// very second, as it does every five. Its stamp must hold the new
+	// program back from nothing, or the upgrade is told only when that
+	// wait has run out.
+	stamp := filepath.Join(p.Kit.Store.Dir(p.Root, f.State.Run.ID), contract.SweepFile)
+	p.Clock(time.Second)
+	now, _ := os.ReadFile(os.Getenv(contract.EnvClock)) // the scenario's own clock, which its commands read
+	text, _ := json.Marshal(map[string]any{"version": contract.FileVersion, "at": strings.TrimSpace(string(now)), "by": "0.4"})
+	if err := os.WriteFile(stamp, text, 0o600); err != nil {
+		t.Fatal(err)
+	}
 	for range 2 {
 		if out, err := p.Command(scenario.Orch, "status").CombinedOutput(); err != nil {
 			t.Fatalf("status: %v\n%s", err, out)
