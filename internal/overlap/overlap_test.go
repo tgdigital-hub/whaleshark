@@ -26,6 +26,10 @@ import (
 // scan of it; with 2000 the scan must take less than three seconds.
 var files = flag.Int("files", 0, "time a scan of twenty tasks on a repository of this many files")
 
+// -tree DIR, with -files N, takes the first N files of a real project's
+// folder as they are, in the place of N small made-up ones.
+var realTree = flag.String("tree", "", "with -files: take the repository's files from this folder")
+
 func TestMain(m *testing.M) { scenario.Main(m) }
 
 // fix is a made-up project that is a real repository, with one open run
@@ -464,19 +468,46 @@ func TestTwenty(t *testing.T) {
 	if *files == 0 {
 		t.Skip("a measurement: run with -files 2000")
 	}
-	tree := map[string]string{}
-	for n := range *files {
-		tree[fmt.Sprintf("dir%02d/file%05d.txt", n%40, n)] = alpha()
+	tree, names := map[string]string{}, []string{}
+	for n := 0; n < *files && *realTree == ""; n++ {
+		names = append(names, fmt.Sprintf("dir%02d/file%05d.txt", n%40, n))
+		tree[names[n]] = alpha()
+	}
+	// A task's change of a file: a line of the made-up text, or a line
+	// added to a real file, the same line by every task that has the file.
+	edit := func(name string, line int) string {
+		if *realTree == "" {
+			return alpha(line)
+		}
+		return tree[name] + fmt.Sprintf("line %d, changed\n", line)
+	}
+	if *realTree != "" {
+		must(t, filepath.WalkDir(*realTree, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.Name() == ".git" || len(names) == *files {
+				return filepath.SkipDir
+			}
+			if d.Type().IsRegular() {
+				data, err := os.ReadFile(path)
+				rel, _ := filepath.Rel(*realTree, path)
+				names = append(names, filepath.ToSlash(rel))
+				tree[names[len(names)-1]] = string(data)
+				return err
+			}
+			return nil
+		}))
+		*files = len(names)
 	}
 	f := start(t, tree)
-	name := func(n int) string { return fmt.Sprintf("dir%02d/file%05d.txt", n%40, n) }
+	name := func(n int) string { return names[n] }
 	for i := range 20 {
 		change := map[string]string{}
 		for j := range 27 {
-			change[name((i*97+j*31+40)%*files)] = alpha(i%30 + 1)
+			n := name((i*97 + j*31 + 40) % *files)
+			change[n] = edit(n, i%30+1)
 		}
 		for j := range 3 {
-			change[name((i*7+j*13)%40)] = alpha((i+j)%30 + 1)
+			n := name((i*7 + j*13) % 40)
+			change[n] = edit(n, (i+j)%30+1)
 		}
 		f.task(fmt.Sprint("T", i+1), change)
 	}
