@@ -24,7 +24,7 @@ const (
 func (r *release) pack() error {
 	sums := map[string]string{}
 	list := "# whaleshark " + r.version + "\n"
-	for _, name := range append(names(), "install.sh") {
+	for _, name := range listed() {
 		data, err := os.ReadFile(filepath.Join(r.out, name))
 		if err != nil {
 			return err
@@ -48,6 +48,10 @@ func (r *release) pack() error {
 	}
 	return nil
 }
+
+// listed is every file the signed list names: the five programs, the
+// installer and the two texts of the licences.
+func listed() []string { return append(append(names(), "install.sh"), notices...) }
 
 func names() []string {
 	var all []string

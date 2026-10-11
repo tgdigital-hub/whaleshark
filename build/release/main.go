@@ -31,6 +31,7 @@ const (
 )
 
 var (
+	notices   = []string{"LICENSE", "NOTICE"}
 	targets   = []string{"darwin-arm64", "darwin-amd64", "linux-amd64", "linux-arm64", "windows-amd64"}
 	versionRE = regexp.MustCompile(`^\d+\.\d+\.\d+(-[0-9a-z.]+)?$`)
 	signerRE  = regexp.MustCompile(`^release namespaces="file" [a-z0-9@.-]+ [A-Za-z0-9+/=]+$`)
@@ -93,6 +94,16 @@ func run(args []string) error {
 	}
 	if err := r.put("install.sh", []byte(installer), 0o644); err != nil {
 		return err
+	}
+	// The licences of what is compiled into the program go with it.
+	for _, name := range notices {
+		data, err := os.ReadFile(filepath.Join(root, name))
+		if err == nil {
+			err = r.put(name, data, 0o644)
+		}
+		if err != nil {
+			return err
+		}
 	}
 	if err := r.compile(installer, server); err != nil {
 		return err

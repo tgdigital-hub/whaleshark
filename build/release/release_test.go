@@ -20,7 +20,7 @@ func made(t *testing.T) (*release, map[string]string) {
 	t.Helper()
 	r := &release{root: filepath.Join("..", ".."), out: t.TempDir(), version: "1.2.3-rc.1", site: "https://example.com/dl",
 		set: map[string]string{"signer": testSigner}, when: time.Unix(1700000000, 0).UTC()}
-	for _, name := range append(names(), "install.sh") {
+	for _, name := range listed() {
 		if err := r.put(name, []byte("the file "+name), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -46,8 +46,12 @@ func made(t *testing.T) (*release, map[string]string) {
 func TestTheListNamesItsVersionAndEveryFile(t *testing.T) {
 	_, files := made(t)
 	want := "# whaleshark 1.2.3-rc.1\n"
-	for _, name := range append(names(), "install.sh") {
+	for _, name := range listed() {
 		want += sum([]byte("the file "+name)) + "  " + name + "\n"
+	}
+	// The licences of what is compiled in go with every release.
+	if !strings.HasSuffix(want, "  LICENSE\n"+sum([]byte("the file NOTICE"))+"  NOTICE\n") {
+		t.Errorf("the list does not end with the two licence texts:\n%s", want)
 	}
 	if files["SHA256SUMS"] != want {
 		t.Errorf("the list is\n%s\nwant\n%s", files["SHA256SUMS"], want)
@@ -90,8 +94,8 @@ func TestTheFormulaAndWingetNameAddressAndChecksum(t *testing.T) {
 			t.Errorf("%s: its address or checksum is missing:\n%s", name, text)
 		}
 	}
-	if len(files) != 16 {
-		t.Errorf("%d files, want 16: six, the list, two packages, three of the index, one formula, three for winget", len(files))
+	if len(files) != 18 {
+		t.Errorf("%d files, want 18: six, the two licence texts, the list, two packages, three of the index, one formula, three for winget", len(files))
 	}
 }
 

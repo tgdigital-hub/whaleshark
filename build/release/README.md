@@ -12,7 +12,8 @@ It writes into `dist/` (or the folder `-out` names):
 |---|---|
 | `whaleshark-<system>-<processor>` | the program for five systems, built without debug symbols, with cgo off and with no path or name of the machine in it |
 | `install.sh` | the installer, with this version and the release key filled in |
-| `SHA256SUMS` | a first line `# whaleshark 1.2.3`, then the checksum of each of the six files above |
+| `LICENSE`, `NOTICE` | the licence, and the licences of the four modules compiled into the program, which ask to go with it |
+| `SHA256SUMS` | a first line `# whaleshark 1.2.3`, then the checksum of each of the eight files above. `install.sh` refuses a list whose first line names another version than its own |
 | `apt/` | a `.deb` for each of the two Linux files, and the index apt reads (`dists/stable/Release`) |
 | `brew/whaleshark.rb` | the Homebrew formula: each file's address and checksum |
 | `winget/` | the three files of a version in Windows' package list |
@@ -54,7 +55,7 @@ Neither private half is ever in the repository. `settings.txt` holds what is pub
 `.github/workflows/release.yml` does the above with no step written by anyone else.
 
 - **A dry run** starts by hand, or by itself when this folder or the workflow changes. It makes two keys inside the run, builds, signs, and on macOS, Linux and Windows builds again, holds the second build against the signed list, installs from those files (`install.sh`; `apt-get` on Linux; `brew` on macOS; by hand on Windows) and runs the program. Then it changes one byte of the program and sees it refused. It publishes nothing, and its keys end with it.
-- **A tag `v1.2.3`** does the same with the real keys, and then makes a draft release holding the five files, `install.sh`, the list and its signature, and `packages.tar.gz` (the `apt`, `brew` and `winget` folders with the signed index). A person publishes the draft.
+- **A tag `v1.2.3`** does the same with the real keys, and then makes a draft release holding the five files, `install.sh`, `LICENSE`, `NOTICE`, the list and its signature, and `packages.tar.gz` (the `apt`, `brew` and `winget` folders with the signed index). A person publishes the draft.
 
 The real keys are two secrets, `RELEASE_KEY` and `APT_KEY`, of an environment named `release`, which should let only tags through and ask a person each time. The job that reads them can write nothing to the repository; the job that writes the draft holds no key; no file passes between them, only the two signatures, and each job builds the files again and holds them against what was signed.
 

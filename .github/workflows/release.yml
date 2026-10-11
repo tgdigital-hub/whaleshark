@@ -215,7 +215,7 @@ jobs:
         run: |
           tar -czf packages.tar.gz -C dist apt brew winget
           gh release create "$TAG" --draft --verify-tag --title "$TAG" --notes "" \
-            dist/whaleshark-* dist/install.sh dist/SHA256SUMS dist/SHA256SUMS.sig packages.tar.gz
-          gh release download "$TAG" -D back -p 'whaleshark-*' -p install.sh -p 'SHA256SUMS*'
+            dist/whaleshark-* dist/install.sh dist/LICENSE dist/NOTICE dist/SHA256SUMS dist/SHA256SUMS.sig packages.tar.gz
+          gh release download "$TAG" -D back -p 'whaleshark-*' -p install.sh -p LICENSE -p NOTICE -p 'SHA256SUMS*'
           (cd back && sha256sum -c SHA256SUMS)
           cmp back/SHA256SUMS.sig dist/SHA256SUMS.sig
