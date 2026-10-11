@@ -3,9 +3,11 @@
 # The public half of the release key, as one allowed-signers line:
 #   release namespaces="file" ssh-ed25519 AAAA...
 # install.sh carries this line and checks the list of checksums against it.
-# The private half is never in the repository. Until a key is chosen the
-# line is empty, and a release is only made with -signer, as a dry run.
-signer
+# The private half is never in the repository: it is a secret of the
+# repository's environment "release", which only a tag reaches and a person
+# approves each time. A dry run signs with a key of its own, given with
+# -signer. The README prints this line and its fingerprint.
+signer release namespaces="file" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAASRVefb9n1zHgxy4uZYqS0BXTAiBpjYnXDNDa8q47Z
 
 # Cloudflare's connector, for a server's public name: its version, and the
 # SHA-256 of the key its packages are signed with, written in two halves

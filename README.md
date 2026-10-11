@@ -36,7 +36,7 @@ echo "deb [signed-by=/etc/apt/keyrings/whaleshark.asc] https://APT-ADDRESS stabl
 sudo apt-get update && sudo apt-get install whaleshark
 ```
 
-`APT-ADDRESS` is not chosen yet. Or, on any Linux: the `curl ... && sh install.sh` line above.
+`APT-ADDRESS` is not chosen yet, and neither is the key apt needs for its index: until both exist a release carries no apt repository, and these three lines stay as they will read. Or, on any Linux: the `curl ... && sh install.sh` line above.
 
 **Windows**
 
@@ -46,7 +46,18 @@ winget install whaleshark
 
 Until winget has the package, Windows has no install line: take `whaleshark-windows-amd64.exe` and the signed list from the release page, check them by hand (`ssh-keygen -Y verify` as `build/release/README.md` shows, then the file's checksum against the list), and put the file on your `PATH` as `whaleshark.exe`; or build it. Typed commands work in `cmd`, both PowerShells and git's bash.
 
-`install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks that the list is the one of its own version (its first line says which), checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it says so. It prints the key's fingerprint; compare it with the one printed here. *(The release key does not exist yet; its fingerprint goes here with the first release.)* There is no `curl ... | sudo sh` line anywhere in this project.
+`install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks that the list is the one of its own version (its first line says which), checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it says so. It prints the key's fingerprint; compare it with the one printed here:
+
+```
+SHA256:P0bN9YsEy+jMZIIPiVGKVIsbVEOi7FQ/W0k7iwRTlRE
+```
+
+The release key is an SSH key, and this is its public half as the one line `ssh-keygen -Y verify` wants in a file of allowed signers (`build/release/README.md` shows the whole check by hand):
+
+```
+release namespaces="file" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAASRVefb9n1zHgxy4uZYqS0BXTAiBpjYnXDNDa8q47Z
+```
+ There is no `curl ... | sudo sh` line anywhere in this project.
 
 **Then:** type `whaleshark` in your project, then your agent tool.
 
