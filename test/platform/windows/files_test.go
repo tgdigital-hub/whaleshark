@@ -63,14 +63,12 @@ func folder(t *testing.T, dir string) map[string]string {
 
 // TestARecordAnotherProgramHoldsOpen: while another program holds a run's
 // record open without leave to replace it, a command that would change the
-// run is refused with exit code 3 and leaves every file of the run as it
-// was; once the program lets go, the same command goes through. Where the
-// other program lets the record be read, the command waits its two seconds
-// and ends with state_busy. Where it gives no leave at all, the record
-// cannot even be read: the command ends at once with state_unreadable,
-// without the wait, which is not what the design asks for and is held here
-// as it is until it is mended. A program that gave leave to replace stands
-// in nobody's way.
+// run waits its two seconds, is refused with exit code 3 and state_busy,
+// and leaves every file of the run as it was; once the program lets go,
+// the same command goes through. That holds whether the other program lets
+// the record be read or gives no leave at all: the read waits as the
+// replace does (6.1, 6.9), and a record that is only held is never called
+// unreadable. A program that gave leave to replace stands in nobody's way.
 func TestARecordAnotherProgramHoldsOpen(t *testing.T) {
 	onlyWindows(t)
 	p := evening(t)
@@ -78,7 +76,7 @@ func TestARecordAnotherProgramHoldsOpen(t *testing.T) {
 	for i, c := range []struct {
 		share, code string
 		wait        time.Duration
-	}{{"None", "state_unreadable", 0}, {"Read", "state_busy", 2 * time.Second}, {"ReadWrite", "state_busy", 2 * time.Second}, {"ReadWrite, Delete", "", 0}} {
+	}{{"None", "state_busy", 2 * time.Second}, {"Read", "state_busy", 2 * time.Second}, {"ReadWrite", "state_busy", 2 * time.Second}, {"ReadWrite, Delete", "", 0}} {
 		before, text := folder(t, run), fmt.Sprintf("held with leave %d", i)
 		// Made before the file is held: making a command reads the record.
 		cmd, again := p.Command(worker, "progress", "--json", "70", text), p.Command(worker, "progress", "71", text)

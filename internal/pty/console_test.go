@@ -26,6 +26,7 @@ type fakeHost struct {
 	typed  *io.PipeReader
 	shown  *io.PipeWriter
 	closed []string
+	tree   []member // the job's processes; the first is the one started
 }
 
 func newHost(fail string) *fakeHost {
@@ -112,6 +113,15 @@ func (h *fakeHost) End(job uintptr) {
 	if job != 0 {
 		close(h.ended)
 	}
+}
+
+func (h *fakeHost) Tree(proc, job uintptr) (uint32, []member) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.tree) == 0 {
+		return 0, nil
+	}
+	return h.tree[0].pid, h.tree
 }
 
 func (h *fakeHost) Free(handles ...uintptr) {
@@ -247,5 +257,48 @@ func TestEnvBlock(t *testing.T) {
 	}
 	if got := envBlock([]string{"A=1", "B=😀"}); !slices.Equal(got, []uint16{'A', '=', '1', 0, 'B', '=', 0xD83D, 0xDE00, 0, 0}) {
 		t.Fatalf("got %v", got)
+	}
+}
+
+// TestTheProgramInFrontIsReadFromTheJob: the pane's first program is in
+// front until it is a shell with a child, then that child, and so on down;
+// of two children the one started last; a program that is no shell stands
+// for whatever it starts; a process that only carries an ended parent's
+// number, and began before the one that has it now, is nobody's child. A
+// job that lists nothing cannot tell, and neither can a closed terminal.
+func TestTheProgramInFrontIsReadFromTheJob(t *testing.T) {
+	h := newHost("")
+	p, err := startConsole(h, agent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := func(tree ...member) {
+		h.mu.Lock()
+		h.tree = tree
+		h.mu.Unlock()
+	}
+	if name, err := p.Front(); err == nil {
+		t.Errorf("a job that lists nothing named %q", name)
+	}
+	shell := member{pid: 40, parent: 4, name: "PowerShell.EXE", born: 100}
+	for _, c := range []struct {
+		want string
+		tree []member
+	}{
+		{"powershell", []member{shell}},
+		{"ping", []member{shell, {41, 40, "PING.EXE", 110}}},
+		{"claude", []member{shell, {41, 40, "ping.exe", 110}, {42, 40, "claude.exe", 120}}},
+		{"node", []member{shell, {43, 40, "cmd.exe", 130}, {44, 43, "node.exe", 131}, {45, 44, "bash.exe", 140}, {46, 45, "git.exe", 141}}},
+		{"powershell", []member{shell, {47, 40, "old.exe", 90}}},
+		{"claude", []member{{50, 4, "claude.exe", 100}, {51, 50, "bash.exe", 110}}},
+	} {
+		set(c.tree...)
+		if got, err := p.Front(); got != c.want || err != nil {
+			t.Errorf("in front %q, %v; want %q of %+v", got, err, c.want, c.tree)
+		}
+	}
+	p.Close()
+	if name, err := p.Front(); err == nil {
+		t.Errorf("a closed terminal named %q", name)
 	}
 }

@@ -10,3 +10,6 @@ func peer(fd uintptr) (int, error) {
 	}
 	return int(x.Uid), nil
 }
+
+// leaveConsole is for Windows alone: here a terminal is nobody's window.
+func leaveConsole() {}

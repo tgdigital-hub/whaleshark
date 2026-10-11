@@ -122,3 +122,26 @@ func TestGitAsItComesAndALongPath(t *testing.T) {
 		t.Errorf("git as it comes, a path of %d characters: refused=%v %s", len(file), refused, said)
 	}
 }
+
+// TestDoctorSaysWhatGitDoesWithALongPath: on Windows doctor has a row for
+// the setting git needs before it takes a path over 260 characters, with
+// the command that sets it, and says so once it is set. The tool sets
+// nothing in a person's git by itself.
+func TestDoctorSaysWhatGitDoesWithALongPath(t *testing.T) {
+	onlyWindows(t)
+	p := evening(t)
+	for _, set := range []string{"false", "true"} {
+		gitSays(t, "core.longpaths", set)
+		out, _ := p.Command(scenario.Unbound, "doctor").CombinedOutput()
+		row := ""
+		for _, l := range strings.Split(string(out), "\n") {
+			if strings.Contains(l, "260 characters") {
+				row = strings.TrimSpace(l)
+			}
+		}
+		t.Logf("FACT doctor, core.longpaths=%s: %s", set, row)
+		if fix := strings.Contains(row, "Fix: git config --global core.longpaths true"); row == "" || fix != (set == "false") || strings.HasPrefix(row, "ok") != (set == "true") {
+			t.Errorf("core.longpaths=%s: doctor's row is %q\n%s", set, row, out)
+		}
+	}
+}

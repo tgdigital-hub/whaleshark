@@ -15,30 +15,15 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/guide"
 )
 
-// The one command that takes a screenshot, as it must be spelled for each
-// shell of Windows to save the picture: the browser by its usual folder,
-// since it is on nobody's PATH; every variable in the shell's own spelling;
-// and, where the shell does not wait for a program with a window of its
-// own, a way to make it wait, so that the picture is there before the
-// worker reports. The words in braces are the variables' names.
-var browserLines = map[string]string{
-	"powershell": `& "$env:ProgramFiles\Google\Chrome\Application\chrome.exe" --headless --user-data-dir="$env:TEMP\whaleshark-browser-$env:{run}-$env:{attempt}" --screenshot="$env:{evidence}\page.png" --window-size=1280,900 "http://{loopback}:$env:PORT/" | Out-Null`,
-	"cmd":        `start "" /wait "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --headless --user-data-dir="%TEMP%\whaleshark-browser-%{run}%-%{attempt}%" --screenshot="%{evidence}%\page.png" --window-size=1280,900 "http://{loopback}:%PORT%/"`,
-	"git-bash":   `"$PROGRAMFILES/Google/Chrome/Application/chrome.exe" --headless --user-data-dir="$TEMP/whaleshark-browser-${run}-${attempt}" --screenshot="${evidence}/page.png" --window-size=1280,900 "http://{loopback}:$PORT/"`,
-}
-
 // TestTheBrowserLine runs the prompt's one command for a worker with no
-// browser tool, in every shell a worker can have on Windows: first as the
-// prompt writes it there, which saves no picture in any of them (the
-// browser is on no PATH, and the variables are spelled for a POSIX shell),
-// then as browserLines spells it, which must have saved a picture of the
-// worker's site by the time the line ends.
+// browser tool, as the prompt writes it on Windows, in every shell a
+// worker's tool can type into there (one line for both PowerShells and
+// git's bash, one for cmd): the line must have saved a
+// picture of the worker's site by the time it ends, in each of them, or a
+// report typed next would be refused. Then again on a PC with no Chrome,
+// where the line names Edge.
 func TestTheBrowserLine(t *testing.T) {
 	onlyWindows(t)
-	chrome := filepath.Join(os.Getenv("ProgramFiles"), "Google", "Chrome", "Application", "chrome.exe")
-	if _, err := os.Stat(chrome); err != nil {
-		missing(t, "Chrome at "+chrome)
-	}
 	p := evening(t)
 	site, err := net.Listen("tcp", contract.Loopback+":0")
 	if err != nil {
@@ -49,24 +34,21 @@ func TestTheBrowserLine(t *testing.T) {
 		fmt.Fprint(w, "<!doctype html><title>a worker's site</title><h1>a worker's site</h1>")
 	}))
 	_, port, _ := net.SplitHostPort(site.Addr().String())
-
-	var written string
-	for _, l := range strings.Split(guide.Browser(true, p.Kit.Platform.System(), false), "\n") {
-		if strings.Contains(l, "--headless") {
-			written = strings.TrimSpace(l)
+	// A PC with no Chrome: its folders are looked for where there is none.
+	noChrome := func(name string) string {
+		switch name {
+		case "LOCALAPPDATA":
+			return ""
+		case "ProgramFiles":
+			name = "ProgramFiles(x86)"
 		}
+		return os.Getenv(name)
 	}
-	if written == "" {
-		t.Fatal("the prompt's browser section has no command")
-	}
-	t.Logf("FACT the prompt's line on Windows: %s", written)
-	names := strings.NewReplacer("{run}", contract.EnvRun, "{attempt}", contract.EnvAttempt, "{evidence}", contract.EnvEvidence, "{loopback}", contract.Loopback)
-	for _, sh := range shells(p.Kit) {
-		must := browserLines[sh.name]
-		if must == "" {
-			must = browserLines["powershell"] // the newer PowerShell reads the older one's line
-		}
-		for i, line := range []string{written, names.Replace(must)} {
+	for _, pc := range []struct {
+		browser string
+		getenv  func(string) string
+	}{{"chrome.exe", os.Getenv}, {"msedge.exe", noChrome}} {
+		for _, sh := range shells(p.Kit) {
 			// Not the test's own temporary folder: a browser that is still
 			// closing would keep the test from clearing it away.
 			evidence, err := os.MkdirTemp("", "evidence")
@@ -74,18 +56,27 @@ func TestTheBrowserLine(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { os.RemoveAll(evidence) })
+			tab := []string{contract.EnvRun + "=r1", contract.EnvAttempt + "=" + worker + "-" + sh.name, contract.EnvEvidence + "=" + evidence, "PORT=" + port}
+			// The section's first line with the browser in it is for every
+			// shell but cmd, its second for cmd.
+			line := ""
+			for _, l := range strings.Split(guide.OnWindows(guide.Browser(true, "windows", false), p.Kit.Platform.Quote, tab, pc.getenv), "\n") {
+				if strings.Contains(l, "--headless") && (line == "" || sh.name == "cmd") {
+					line = strings.TrimSpace(l)
+				}
+			}
+			if !strings.Contains(line, pc.browser) {
+				missing(t, pc.browser+" in its usual folder (the prompt's line is: "+line+")")
+			}
 			saved := func() bool {
 				data, _ := os.ReadFile(filepath.Join(evidence, "page.png"))
 				return bytes.HasPrefix(data, []byte("\x89PNG"))
 			}
-			out, err := typed(p, sh, line, contract.EnvEvidence+"="+evidence, "PORT="+port)
+			out, err := typed(p, sh, line)
 			atOnce := saved()
-			inTheEnd := soon(10*time.Second, saved)
-			t.Logf("FACT the browser line in %s, %s: a picture when the line ended=%v, a picture in the end=%v",
-				sh.name, []string{"as the prompt writes it", "as it must be"}[i], atOnce, inTheEnd)
-			if (i == 1) != atOnce || (i == 1) != inTheEnd {
-				t.Errorf("%s, %s: a picture when the line ended=%v, in the end=%v\nline: %s\n%v %s",
-					sh.name, []string{"as the prompt writes it, which should save none", "as it must be, which should save one before it ends"}[i], atOnce, inTheEnd, line, err, out)
+			t.Logf("FACT the browser line in %s: a picture when the line ended=%v\n%s", sh.name, atOnce, line)
+			if !atOnce {
+				t.Errorf("%s: no picture when the line ended (one came later: %v)\nline: %s\n%v %s", sh.name, soon(10*time.Second, saved), line, err, out)
 			}
 		}
 	}

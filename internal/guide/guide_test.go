@@ -626,3 +626,43 @@ func TestThePromptOfABrowserCheck(t *testing.T) {
 		t.Errorf("the prompt with the section:\n%s", text)
 	}
 }
+
+// TestTheBrowserLineOnWindows: on Windows the one command names no
+// variable and no shell: the browser found in its usual folder (Chrome
+// first, Edge where there is none), the folders and the port of the tab
+// written out, and a wait for the picture. With no browser there is no
+// command; any other line of the section stays as it was.
+func TestTheBrowserLineOnWindows(t *testing.T) {
+	files := t.TempDir()
+	env := map[string]string{"ProgramFiles": files + `\pf`, "ProgramFiles(x86)": files + `\pf86`, "TEMP": `C:\Temp`}
+	// The folders are made under the names the function will ask for, on any system.
+	put := func(dir, file string) {
+		t.Helper()
+		if err := os.WriteFile(env[dir]+`\`+file, nil, 0o600); err != nil && os.MkdirAll(filepath.Dir(env[dir]+`\`+file), 0o700) == nil {
+			if err = os.WriteFile(env[dir]+`\`+file, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	quote := func(_ string, argv []string) string { return strings.Join(argv, " ") }
+	tab := []string{contract.EnvRun + "=r1", contract.EnvAttempt + "=T2.1", contract.EnvEvidence + `=D:\p\evidence`, "PORT=21000"}
+	section := Browser(true, "windows", false)
+	on := func() string { return OnWindows(section, quote, tab, func(name string) string { return env[name] }) }
+	if got := on(); strings.Contains(got, "--headless") || strings.Contains(got, "no browser tool") || !strings.Contains(got, "Never switch the browser's sandbox off.") ||
+		len(strings.Split(got, "\n")) != len(strings.Split(section, "\n"))-2 {
+		t.Errorf("with no browser on the PC:\n%s", got)
+	}
+	put("ProgramFiles(x86)", `Microsoft\Edge\Application\msedge.exe`)
+	want := ` --headless --user-data-dir=C:\Temp\whaleshark-browser-r1-T2.1 --screenshot=D:\p\evidence\page.png --window-size=1280,900 http://` + contract.Loopback + `:21000/ | sort` + "\n  In cmd, this one in its place:\n  start \"\" /wait "
+	if got := on(); !strings.Contains(got, "no browser tool, this one command takes a screenshot:\n  "+env["ProgramFiles(x86)"]+`\Microsoft\Edge\Application\msedge.exe`+want) {
+		t.Errorf("with Edge alone:\n%s", got)
+	}
+	put("ProgramFiles", `Google\Chrome\Application\chrome.exe`)
+	if got := on(); !strings.Contains(got, "\n  "+env["ProgramFiles"]+`\Google\Chrome\Application\chrome.exe`+want) || strings.Contains(got, "TMPDIR") {
+		t.Errorf("with Chrome:\n%s", got)
+	}
+	powershell := func(_ string, argv []string) string { return "& '" + strings.Join(argv, "' '") + "'" }
+	if got := OnWindows(section, powershell, tab, func(name string) string { return env[name] }); !strings.Contains(got, ":21000/' | Out-Null\n  In cmd") {
+		t.Errorf("a line only PowerShell reads must wait in PowerShell's way:\n%s", got)
+	}
+}

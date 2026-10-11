@@ -28,7 +28,7 @@ func (p *Project) keeper(socket, dir string) (stop func()) {
 	p.t.Helper()
 	var said bytes.Buffer
 	run := exec.Command(p.bin, "engine", "run")
-	run.Env = append(append(p.surroundings(), p.env...), "SHELL=/bin/sh", testkit.EnvScripts+"="+dir)
+	run.Env = append(append(p.surroundings(), p.env...), "SHELL="+p.shell(), testkit.EnvScripts+"="+dir)
 	run.Stdout, run.Stderr = &said, &said
 	p.must(run.Start())
 	p.t.Setenv(contract.EnvSocket, socket)
@@ -51,6 +51,14 @@ func (p *Project) keeper(socket, dir string) (stop func()) {
 	p.Kit.Terms = client
 	p.swap.Unlock()
 	return stop
+}
+
+// shell is the plain shell of this system, for a pane of the real keeper.
+func (p *Project) shell() string {
+	if p.Kit.Platform.System() == "windows" {
+		return "cmd.exe"
+	}
+	return "/bin/sh"
 }
 
 // onKeeper is what the runner asks of the real keeper beyond the interface.
@@ -142,7 +150,7 @@ func (k *onKeeper) Push(kind, pane string) {
 	switch event := hookFor[kind]; {
 	case kind == testkit.PushGone:
 		// An agent whose program ended took its pane with it already.
-		if err := p.Kit.Terms.Run(pane, []string{"/bin/sh"}); !errors.Is(err, contract.ErrNoPane) {
+		if err := p.Kit.Terms.Run(pane, []string{p.shell()}); !errors.Is(err, contract.ErrNoPane) {
 			p.must(err)
 		}
 	case kind == testkit.PushClosed:

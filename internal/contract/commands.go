@@ -137,9 +137,9 @@ func (c *Command) May(kind CallerKind, sub string) bool {
 // Commands is the command table, in the order help prints it.
 var Commands = []Command{
 	{Name: "init", Section: "setup", Phase: 1, Who: H | O | U, Exits: []int{0, 3},
-		Usage:   "init [--agent KIND,...] [--keys] [--print-block] [--remove [--all]] [--allow-synced] [--adopt]",
+		Usage:   "init [--agent KIND,...] [--keys] [--at-login] [--print-block] [--remove [--all]] [--allow-synced] [--adopt]",
 		Help:    "set this project up, check what it needs, and offer the rules for the lead agent",
-		Flags:   flags("agent=KIND,...", "keys", "print-block", "remove", "all", "allow-synced", "adopt!"),
+		Flags:   flags("agent=KIND,...", "keys", "at-login", "print-block", "remove", "all", "allow-synced", "adopt!"),
 		Example: "whaleshark init --agent claude"},
 	{Name: "doctor", Section: "setup", Phase: 2, Who: H | O | U, Exits: []int{0, 1},
 		Usage:   "doctor [--fix] [--server] [--notify]",

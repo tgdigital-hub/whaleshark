@@ -18,13 +18,15 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/guide"
+	"github.com/tgdigital-hub/whaleshark/internal/platform"
+	"github.com/tgdigital-hub/whaleshark/internal/restore"
 )
 
 const (
 	installedFile = contract.InstalledFile
 	excludeLine   = ".whaleshark/"
 
-	kindHook, kindBlock, kindKeys = "hook", "block", "keys"
+	kindHook, kindBlock, kindKeys, kindLogOn = "hook", "block", "keys", "logon"
 )
 
 // setting is one run of init: what it says, what still needs the person, and
@@ -237,6 +239,9 @@ func (i *setting) project() error {
 	if f["keys"] != nil && err == nil {
 		err = i.keys(person, reachable)
 	}
+	if f["at-login"] != nil && err == nil {
+		err = i.logOn(true)
+	}
 	if err != nil {
 		return err
 	}
@@ -357,11 +362,38 @@ func (i *setting) keys(person, reachable bool) error {
 	return err
 }
 
+// logOn has Windows start the keeper when the person logs on, or with on
+// false no longer: the one line restore.Service gives, in the login's own
+// list of what starts at log-on. Elsewhere it says who starts the keeper.
+func (i *setting) logOn(on bool) error {
+	p := i.c.Kit.Platform
+	self, err := p.SelfPath()
+	name, line := restore.Service(p.System(), self, os.Getenv)
+	switch {
+	case p.System() != "windows":
+		i.say("--at-login is for Windows: on a server its set-up starts the engine with the machine, and on a Mac the first `whaleshark open` does")
+		return nil
+	case err != nil:
+		return err
+	case !on:
+		i.say("the engine no longer starts when you log on")
+		return platform.SetLogOn(name, "")
+	}
+	if err = platform.SetLogOn(name, line); err == nil {
+		i.use(contract.InstalledEntry{Kind: kindLogOn})
+		i.say("the engine starts when you log on to Windows, from now on (undo: whaleshark init --remove --all)")
+	}
+	return err
+}
+
 // undo takes one thing init wrote for the whole login out again.
 func (i *setting) undo(e contract.InstalledEntry) error {
 	if e.Kind == kindKeys {
 		i.say("the shortcuts are out of the settings")
 		return i.c.Kit.Terms.SetKeys(nil)
+	}
+	if e.Kind == kindLogOn {
+		return i.logOn(false)
 	}
 	before, err := guide.Remove(i.c.Kit.Platform, e.File, e.Created)
 	if before == guide.Ours {
@@ -398,7 +430,7 @@ func (i *setting) remove() error {
 			case n < 0:
 			case i.login.Entries[n].Uses > 1 && !all:
 				i.login.Entries[n].Uses--
-				i.say("%s is still used by %d other projects; it stays", cmp.Or(e.File, "the shortcuts"), i.login.Entries[n].Uses)
+				i.say("%s is still used by %d other projects; it stays", cmp.Or(e.File, "the "+e.Kind), i.login.Entries[n].Uses)
 			default:
 				err = i.undo(i.login.Entries[n])
 				i.login.Entries = slices.Delete(i.login.Entries, n, n+1)

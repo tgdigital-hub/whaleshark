@@ -78,6 +78,11 @@ func (st *Store) load(dir, run string) (*contract.State, []byte, error) {
 		return nil, nil, contract.ErrNoRun
 	}
 	if err != nil {
+		// Under our lock only another program can hold the record: one that
+		// gives no leave to read it is waited for as a replace waits (6.9).
+		data, err = st.p.Read(filepath.Join(dir, stateFile))
+	}
+	if err != nil {
 		return nil, nil, err
 	}
 	s := new(contract.State)

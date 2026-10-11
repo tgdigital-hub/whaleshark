@@ -40,6 +40,7 @@ func engine(c *contract.Call) (any, error) {
 	}
 	switch c.Args[0] {
 	case "run":
+		leaveConsole()
 		k, err := open(c.Kit)
 		if err != nil {
 			return nil, refuse(contract.ExitEnv, "not_started", "The keeper did not start: "+err.Error()+".", "whaleshark engine status")

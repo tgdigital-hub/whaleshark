@@ -36,7 +36,13 @@ lines 3850 contract internal/contract cmd/whaleshark
 # Windows left it three lines over; pty pays. 20 more at the integration of
 # phase 3: a change found ahead of its notice is told once, which the hosted
 # Windows run needed, left it eight over; window pays.
-lines 1200 platform internal/platform
+# 100 more after the Windows proof: a line written once for cmd, both
+# PowerShells and git's bash, since nobody knows which of them an agent's
+# tool types into; a double quote spelled for cmd so that it arrives; a
+# path's short name; and the login's list of what Windows starts at log-on.
+# With main's own changes of the same day merged it stands at 1,305.
+# input and layout pay.
+lines 1310 platform internal/platform
 # cli: 40 more at the start of phase 2. Recording what the person does left
 # it four lines short of full, with three phases still to pass through it.
 # 30 more at the start of phase 3: the program typed alone sets a project up
@@ -47,12 +53,17 @@ lines 1200 platform internal/platform
 # place every command passes; it stood at 957. guide pays.
 # 5 more after the Linux proof: the least git the tool works with is told in
 # one place, for init and for doctor, and came here from doctor; overlap pays.
-lines 995 cli internal/cli
+# 5 more after the Windows proof: a record that is only held by another
+# program is said as busy, not as unreadable; it stands at 997. screen pays.
+lines 1000 cli internal/cli
 lines 1600 rules internal/rules
 lines 500 store internal/store
 # guide gives 40 after the real runs of phase 2, to cli and runtask: built
 # whole at 272, and its longest text is held to 150 lines by its own test.
-lines 310 guide internal/guide
+# 65 more after the Windows proof: the one command that takes a screenshot
+# is written out for Windows, with the browser found in its usual folder
+# and nothing in it that only one shell reads; it stands at 377. layout pays.
+lines 380 guide internal/guide
 # runtask: 100 more at the join of phase 1. init with its five forms, its
 # two records and exact removal was built at 1,036 with nothing left to cut
 # that the command set does not promise; inbox, built at a third of its
@@ -72,7 +83,10 @@ lines 310 guide internal/guide
 # 30 more at the wiring of phase 3: accept reads a browser check's pictures
 # again, and init on a server keeps a project inside the login's home; it
 # stood at 1,371. dashweb and window pay.
-lines 1405 runtask internal/runtask
+# 30 more after the Windows proof: init --at-login has Windows start the
+# keeper at log-on, and init --remove takes that out again; it stands at
+# 1,437. layout pays.
+lines 1440 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -83,7 +97,9 @@ lines 1405 runtask internal/runtask
 # 3: the login's other projects are counted again under a lock over the
 # login when a start is written, so the server's cap is exact; it stood at
 # its line. window pays.
-lines 1345 launch internal/launch
+# 5 more after the Windows proof: on Windows the browser line is written
+# out from the tab's own variables; it stands at 1,348. screen pays.
+lines 1350 launch internal/launch
 lines 165 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
 # half its line in phase 1 and keeps twice what its phase 2 package is
@@ -139,7 +155,10 @@ lines 855 overlap internal/overlap
 # harmless button twice with the session's own token, from the page's own
 # address and from another site's, where before it proved nothing a missing
 # token would not also have refused; it stood at 1,586. dashweb pays.
-lines 1610 doctor internal/doctor
+# 45 more after the Windows proof: three rows only Windows asks for, the
+# keeper at log-on, git's long paths and a program path every shell can
+# type; it stands at 1,652. input pays.
+lines 1655 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
@@ -204,16 +223,19 @@ lines 1090 install install
 # doctor, contract and launch, none added.
 # At the wiring of phase 3 dashweb and window give 60 each: 120 lines
 # moved to contract, runtask, launch and view, none added.
-lines 1490 screen internal/screen
+# screen gives 15 after the Windows proof, to cli, launch and guide.
+lines 1475 screen internal/screen
 lines 1820 keeper internal/keeper
-lines 900 layout internal/layout
+# layout gives 135 and input 120 after the Windows proof, to platform,
+# guide, runtask and doctor: both are built whole, at 763 and 467.
+lines 765 layout internal/layout
 # pty gives 50 to restore at the join of phase 2; it is built whole at 617.
 lines 720 pty internal/pty
 # watch: 30 more after the first real workers. An Enter that waits for the
 # pane to show the pasted text, and is pressed again while the agent shows
 # no start, took it to 564; input, built whole at 467, pays.
 lines 580 watch internal/watch
-lines 590 input internal/input
+lines 470 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore

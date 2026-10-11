@@ -49,7 +49,7 @@ word: it was refused, under that name. The `status` row holds the word the pane 
 | event `folder` | yes | yes | yes |
 | event `session` | yes | yes | yes |
 | event `tab-closed` | yes | yes | yes |
-| `status` of a pane with a shell at its prompt | idle | idle | quiet |
+| `status` of a pane with a shell at its prompt | idle | idle | idle |
 | `open`, the window | yes | yes | yes |
 | `hook state`, an agent's own word | yes | yes | yes |
 | all of the above again over `ssh` | yes | yes | not tried |
@@ -95,12 +95,15 @@ near side's surroundings and with no terminal, as a command typed after `ssh ser
 
 ## What is missing
 
-- **On Windows the keeper cannot tell which program is in front in a pane**: the system has
-  no such thing to ask. Seen here: a pane with a shell at its prompt reads `quiet` (it has
-  stopped printing), never `idle`, and so never `working` either. Following from the same
-  lack, by the code and not tried here: an agent a person starts by hand in a pane is not
-  known as an agent, only one the tool started; and a line for an agent is not held back
-  while the agent has another program in front of it.
+- **On Windows the program in front in a pane is worked out, not asked for**: the system has
+  no such thing. The keeper reads it from the pane's own processes: the pane's first program,
+  and from each shell on the way down the program that shell started last. Seen here: a pane
+  with a shell at its prompt reads `idle`. By the engine's own tests on the hosted machine, a
+  program typed into the shell is in front while it runs. By the code and not tried with a
+  real agent: an agent a person starts by hand is known by its program file's name, so one
+  that runs inside another program's file (a script run by `node.exe`) is not known as an
+  agent; and a program an agent itself starts is never taken to be in front of it, so a line
+  for that agent is not held back for it.
 - **Over ssh on Windows** was not tried: the test starts no `sshd` there.
 - **Both ends of the ssh are one machine.** A second computer, a slow or broken link, a
   connection that drops and comes back, and the window drawn through ssh's own terminal
@@ -112,7 +115,7 @@ near side's surroundings and with no terminal, as a command typed after `ssh ser
   started.
 - **Only what goes well.** Each row is the call doing its work once. The refusals (a pane that
   is not there, an agent at a question, a prompt that does not start) are tested with the
-  keeper and in the scenario suite, which does not start the real keeper on Windows.
+  keeper and in the scenario suite.
 - **Windows is the hosted machine's Windows Server.** No row has run on a Windows PC with a
   person at it.
 - **A pop-up's look and a sound** are not checked: only what `Notify` answers.

@@ -223,12 +223,47 @@ func cmdReads(t *testing.T, line string) []string {
 }
 
 func TestQuoteCmd(t *testing.T) {
-	if got, want := on("linux", nil).Quote(Cmd, []string{`C:\bin\ws.exe`, "50%", `say "hi"`}), `"C:\bin\ws.exe" "50"^%"" "say ""hi"""`; got != want {
+	if got, want := on("linux", nil).Quote(Cmd, []string{`C:\bin\ws.exe`, "50%", `say "hi"`}), `"C:\bin\ws.exe" "50"^%"" "say \"hi\^"^"`; got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
+	}
+	// After a quote inside a word cmd no longer counts itself between
+	// quotes: its signs there, and the word that follows, must stay whole.
+	after := []string{`a "b" & c | d > e ^ 100% (f) !g! \"h\" i\`, "next & word"}
+	if got := cmdReads(t, on("linux", nil).Quote(Cmd, after)); !reflect.DeepEqual(got, after) {
+		t.Errorf("the model read\n%q\nfrom\n%s", got, on("linux", nil).Quote(Cmd, after))
 	}
 	line := on("linux", nil).Quote(Cmd, hostile)
 	if got := cmdReads(t, line); !reflect.DeepEqual(got, hostile) {
 		t.Errorf("the model read\n%q\nfrom\n%s", got, line)
+	}
+}
+
+// TestQuoteForEveryShell: with no shell named on Windows a line is spelled
+// once for cmd, both PowerShells and git's bash: the program bare with
+// forward slashes, plain words bare, any other word between double quotes.
+// Where a word holds a sign the four do not read alike, or the program's
+// path cannot be written bare, the line is PowerShell's.
+func TestQuoteForEveryShell(t *testing.T) {
+	w := on(onWindows, nil)
+	for _, c := range []struct {
+		argv []string
+		want string
+	}{
+		{[]string{`C:\tools\bin\whaleshark.exe`}, `C:/tools/bin/whaleshark.exe`},
+		{[]string{"whaleshark", "status", "--root", `D:\my work\site`, "--run", "r1"}, `whaleshark status --root "D:\my work\site" --run r1`},
+		{[]string{"whaleshark", "task", "add", "A", "Fix (the) search; now", "--after", "B,C", "--brief", "<file>", "--check", "go test ./... && go vet 'x' | cat ^ ~"},
+			`whaleshark task add A "Fix (the) search; now" --after "B,C" --brief "<file>" --check "go test ./... && go vet 'x' | cat ^ ~"`},
+		{[]string{"whaleshark", ""}, `whaleshark ""`},
+	} {
+		if got := w.Quote("", c.argv); got != c.want {
+			t.Errorf("got  %s\nwant %s", got, c.want)
+		}
+	}
+	for _, argv := range [][]string{{`C:\Program Files\ws.exe`}, {`\\server\share\ws.exe`}, {"~/ws"}, {"ws", `say "hi"`}, {"ws", "$HOME"}, {"ws", "`x`"},
+		{"ws", "50%"}, {"ws", "hi!"}, {"ws", `C:\dir\`}, {"ws", `a\\b`}, {"ws", "two\nlines"}, {"ws", "a\u201cb"}} {
+		if got := w.Quote("", argv); !strings.HasPrefix(got, "& '") {
+			t.Errorf("%q has no spelling every shell reads alike, and was written %s", argv, got)
+		}
 	}
 }
 

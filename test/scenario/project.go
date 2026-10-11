@@ -185,8 +185,11 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 	store.Plug(p.Kit)
 	p.bin, _ = exec.LookPath("whaleshark")
 	p.must(os.MkdirAll(p.Root, 0o700))
-	if on == Keeper && p.Kit.Platform.System() == "windows" {
-		t.Skip("the keeper's terminals on Windows are proven on a real one, later")
+	// Seen on a hosted Windows machine: the real keeper with a fixture's
+	// twelve agents started at once had them all in time in one run and
+	// none in the next. Without a fixture it is played there.
+	if on == Keeper && f != nil && p.Kit.Platform.System() == "windows" {
+		t.Skip("NOT PROVEN HERE: on Windows a fixture's agents do not all start on the real keeper within the wait")
 	}
 	socket := filepath.Join(dir, "s")
 	if p.env = []string{contract.EnvSocket + "=" + socket}; on == Keeper && f == nil && len(scripts) == 0 {

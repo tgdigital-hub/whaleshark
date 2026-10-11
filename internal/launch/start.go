@@ -567,9 +567,13 @@ func (l *launcher) bring(task string) outcome {
 	if t.SyncBrief != "" {
 		sync, _ = k.Platform.Peek(filepath.Join(run, t.SyncBrief))
 	}
+	browser := guide.Browser(t.BrowserCheck, k.Platform.System(), l.server)
+	if k.Platform.System() == "windows" {
+		browser = guide.OnWindows(browser, k.Platform.Quote, env, os.Getenv)
+	}
 	text := guide.Prompt{Bin: k.Platform.Quote("", []string{l.self}), Run: c.Run, Task: task, Name: t.Name, Dir: folder,
 		Brief: filepath.Join(run, t.Brief), Result: filepath.Join(dir, "result.md"), Owns: t.Owns,
-		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync)), Browser: guide.Browser(t.BrowserCheck, k.Platform.System(), l.server)}.Text() + earlier(prev)
+		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync)), Browser: browser}.Text() + earlier(prev)
 	if err = os.WriteFile(prompt, []byte(text), 0o600); err == nil {
 		err = l.step(placed) // nothing is typed once the attempt was stopped or the person pressed Stop all
 	}
