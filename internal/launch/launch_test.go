@@ -1000,7 +1000,7 @@ func TestOnAServer(t *testing.T) {
 	}
 	own, elsewhere := s.Attempts[last[0]].Temp, t.TempDir()
 	for _, other := range []string{elsewhere, made + string(filepath.Separator) + "..", made, filepath.Dir(made), ""} {
-		if DropTemp(p.Kit, &contract.Attempt{Temp: other}); !has(elsewhere) || !has(own) || !has(dirs.Cache) {
+		if DropTemp(p.Kit, &contract.Attempt{Temp: other}); !has(elsewhere) || !has(own) || !has(made) {
 			t.Fatalf("a folder that is no attempt's temp folder was removed for the record's word %q", other)
 		}
 	}
