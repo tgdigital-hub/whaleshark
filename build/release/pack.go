@@ -17,6 +17,7 @@ const (
 	about   = "Runs a team of coding agents in terminal tabs"
 	contact = "WhaleShark <tgdigital-hub@users.noreply.github.com>"
 	winget  = "WhaleShark.WhaleShark"
+	aptKey  = "whaleshark.asc"
 )
 
 // pack writes the list of checksums and, from the same five files, what
@@ -92,6 +93,15 @@ func (r *release) apt() error {
 		if err := r.put("apt/dists/stable/"+listed, []byte(packages), 0o644); err != nil {
 			return err
 		}
+	}
+	// The public half of the key the index is signed with: the file a
+	// machine is given before its first install, at the repository's top.
+	key, err := os.ReadFile(filepath.Join(r.root, "build", "release", aptKey))
+	if err != nil {
+		return err
+	}
+	if err := r.put("apt/"+aptKey, key, 0o644); err != nil {
+		return err
 	}
 	return r.put("apt/dists/stable/Release", []byte(index), 0o644)
 }

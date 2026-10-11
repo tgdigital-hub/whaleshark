@@ -96,10 +96,17 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           if gpg --batch --list-secret-keys --with-colons | grep -q '^sec'; then
             gpg --batch --clearsign -o "$RUNNER_TEMP/InRelease" dist/apt/dists/stable/Release
-            gpg --batch --export > "$RUNNER_TEMP/apt.gpg"
+            gpg --batch --armor --export > "$RUNNER_TEMP/apt.asc"
+            # A tag's index is signed with the key whose public half the
+            # repository carries, and with no other.
+            fingerprint() { gpg --batch --show-keys --with-colons "$1" | awk -F: '$1 == "fpr" { print $10; exit }'; }
+            if [ "$GITHUB_REF_TYPE" = tag ] && [ "$(fingerprint "$RUNNER_TEMP/apt.asc")" != "$(fingerprint dist/apt/whaleshark.asc)" ]; then
+              echo "::error::The secret APT_KEY is not the key of build/release/whaleshark.asc."
+              exit 1
+            fi
             {
               echo "index=$(base64 -w0 "$RUNNER_TEMP/InRelease")"
-              echo "key=$(base64 -w0 "$RUNNER_TEMP/apt.gpg")"
+              echo "key=$(base64 -w0 "$RUNNER_TEMP/apt.asc")"
             } >> "$GITHUB_OUTPUT"
           else
             echo "::notice::There is no apt key: the apt index is not signed, and this release carries no apt folder."
@@ -142,7 +149,7 @@ jobs:
           echo "$SIG" | base64 -d > dist/SHA256SUMS.sig
           if [ -n "$INDEX" ]; then
             echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
-            echo "$KEY" | base64 -d > dist/apt/whaleshark.gpg
+            echo "$KEY" | base64 -d > dist/apt/whaleshark.asc
           fi
           mkdir site
           cp -R dist "site/$TAG"
@@ -169,8 +176,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           if [ -n "$INDEX" ]; then
-            sudo install -m 644 dist/apt/whaleshark.gpg /etc/apt/keyrings/whaleshark.gpg
-            echo "deb [signed-by=/etc/apt/keyrings/whaleshark.gpg] file://$PWD/dist/apt stable main" |
+            sudo install -m 644 dist/apt/whaleshark.asc /etc/apt/keyrings/whaleshark.asc
+            echo "deb [signed-by=/etc/apt/keyrings/whaleshark.asc] file://$PWD/dist/apt stable main" |
               sudo tee /etc/apt/sources.list.d/whaleshark.list
             sudo apt-get update -o Dir::Etc::sourcelist=sources.list.d/whaleshark.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
             sudo apt-get install -y whaleshark
@@ -238,7 +245,7 @@ jobs:
           echo "$SIG" | base64 -d > dist/SHA256SUMS.sig
           if [ -n "$INDEX" ]; then
             echo "$INDEX" | base64 -d > dist/apt/dists/stable/InRelease
-            echo "$KEY" | base64 -d > dist/apt/whaleshark.gpg
+            echo "$KEY" | base64 -d > dist/apt/whaleshark.asc
           fi
       - name: The draft, and its files fetched back and checked
         run: |

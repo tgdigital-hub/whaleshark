@@ -36,7 +36,7 @@ echo "deb [signed-by=/etc/apt/keyrings/whaleshark.asc] https://APT-ADDRESS stabl
 sudo apt-get update && sudo apt-get install whaleshark
 ```
 
-`APT-ADDRESS` is not chosen yet, and neither is the key apt needs for its index: until both exist a release carries no apt repository, and these three lines stay as they will read. Or, on any Linux: the `curl ... && sh install.sh` line above.
+`APT-ADDRESS` is not chosen yet: until the repository is served somewhere, these three lines stay as they will read, and a release carries the same folder, key and all, in its `packages.tar.gz`. The key's fingerprint is `F997 9264 BFC0 FF2F CD5D 803E 6472 B33B 2405 C475`; `gpg --show-keys whaleshark.asc` prints it. Or, on any Linux: the `curl ... && sh install.sh` line above.
 
 **Windows**
 

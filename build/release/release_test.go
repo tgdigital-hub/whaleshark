@@ -94,8 +94,8 @@ func TestTheFormulaAndWingetNameAddressAndChecksum(t *testing.T) {
 			t.Errorf("%s: its address or checksum is missing:\n%s", name, text)
 		}
 	}
-	if len(files) != 18 {
-		t.Errorf("%d files, want 18: six, the two licence texts, the list, two packages, three of the index, one formula, three for winget", len(files))
+	if len(files) != 19 {
+		t.Errorf("%d files, want 19: six, the two licence texts, the list, two packages, three of the index, the key apt is given, one formula, three for winget", len(files))
 	}
 }
 
