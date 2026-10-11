@@ -70,3 +70,6 @@ func shell(line string) *exec.Cmd {
 }
 
 func endTree(cmd *exec.Cmd) error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+
+// short is the path itself: only Windows keeps a second name without blanks.
+func short(path string) string { return path }

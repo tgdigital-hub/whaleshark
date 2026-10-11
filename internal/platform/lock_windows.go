@@ -107,3 +107,16 @@ func endTree(cmd *exec.Cmd) error {
 	// #nosec G204 -- a process number of our own child
 	return exec.Command("taskkill", "/T", "/F", "/PID", strconv.Itoa(cmd.Process.Pid)).Run()
 }
+
+// short is a path by the names without blanks that Windows keeps beside the
+// long ones on most disks; where it keeps none, the path as it is.
+func short(path string) string {
+	from, err := windows.UTF16PtrFromString(path)
+	buf := make([]uint16, 2*len(path)+windows.MAX_PATH)
+	if err == nil {
+		if n, _ := windows.GetShortPathName(from, &buf[0], uint32(len(buf))); n > 0 && int(n) < len(buf) {
+			return windows.UTF16ToString(buf[:n])
+		}
+	}
+	return path
+}

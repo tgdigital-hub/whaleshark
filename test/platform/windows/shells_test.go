@@ -17,6 +17,7 @@ var said = []struct{ name, text string }{
 	{"signs", `50% of $HOME & more | <in> ^up (x) ; !y! ~ * ? back\slash 'single' ` + "`tick`"},
 	{"letters", "café señor — ünï ✓"},
 	{"quotes", `she said "done" twice`},
+	{"quotes and signs", `a "b" & c | d > e ^ 100% (f) !g! \"h\" <i> end\`},
 }
 
 // note is what the record holds as the worker's last word.
@@ -30,13 +31,12 @@ func note(p *scenario.Project) string {
 
 // TestWorkerCommandsThroughEveryShell types a worker's command into every
 // shell of this machine, spelled for that shell by Quote, and reads what
-// reached the record. Every text must arrive as it was written, but the
-// one with double quotes in two shells: the PowerShell that comes with
-// Windows hands a program no double quote inside an argument, and the text
-// arrives without them; and Quote's spelling for cmd doubles the quote,
-// which the program's own start-up reads as the end of the argument, so
-// the command is refused as a usage error and changes nothing. Both are
-// why free text can come from a file. That way must work in every shell. On a hosted
+// reached the record: what arrives must be what was meant, sign for sign,
+// which is more than the line running. One limit stands, and is Windows'
+// own: the PowerShell that comes with Windows hands a program no double
+// quote inside an argument, so there a text with them arrives without
+// them (or, with a backslash before one, in pieces); that is why free
+// text can come from a file, which must work in every shell. On a hosted
 // Windows machine all four shells must be there.
 func TestWorkerCommandsThroughEveryShell(t *testing.T) {
 	p := evening(t)
@@ -53,10 +53,10 @@ func TestWorkerCommandsThroughEveryShell(t *testing.T) {
 			switch {
 			case got == s.text:
 				t.Logf("FACT %s, %s: arrived as written", sh.name, s.name)
-			case sh.name == "cmd" && s.name == "quotes" && got == before && strings.Contains(out, "Usage"):
-				t.Logf("FACT %s, %s: refused as a usage error, the record untouched (Quote's spelling of a double quote for cmd splits the argument)", sh.name, s.name)
 			case sh.name == "powershell" && got == strings.ReplaceAll(s.text, `"`, ""):
 				t.Logf("FACT %s, %s: arrived without its double quotes (the limit Quote names)", sh.name, s.name)
+			case sh.name == "powershell" && i == 4:
+				t.Logf("FACT %s, %s: the record holds %q (%q before): %v %s", sh.name, s.name, got, before, err, out)
 			default:
 				t.Errorf("%s, %s: the record holds %q, not %q\nline: %s\n%v %s", sh.name, s.name, got, s.text, line, err, out)
 			}
@@ -86,12 +86,11 @@ func firstOf(env []string, name string) string {
 }
 
 // TestThePromptsOwnLineInEveryShell types the line a worker's prompt gives
-// for progress, as the prompt spells it on this system, into every shell.
-// It must work in the shell the prompt is written for: PowerShell on
-// Windows, the POSIX shell elsewhere. On Windows the other two shells must
-// refuse it, cmd and git's bash, since the line begins with PowerShell's
-// call sign: an agent whose tool runs one of those cannot use the line as
-// it stands, and the day that changes this test must say so.
+// for progress, as the prompt spells it on this system, into every shell
+// of this machine, and it must work in each: nobody knows which shell an
+// agent's tool types into, so on Windows the one line is written for cmd,
+// both PowerShells and git's bash alike. The same holds for a line the
+// tool hands on with words of its own in it, as a command to type next.
 func TestThePromptsOwnLineInEveryShell(t *testing.T) {
 	p := evening(t)
 	bin := strings.TrimPrefix(firstOf(p.Command(worker, "mail").Env, contract.EnvBin), contract.EnvBin+"=")
@@ -105,9 +104,9 @@ func TestThePromptsOwnLineInEveryShell(t *testing.T) {
 	if line == "" {
 		t.Fatalf("the prompt has no line for progress:\n%s", prompt)
 	}
-	written := contract.ShellPosix
-	if p.Kit.Platform.System() == "windows" {
-		written = contract.ShellPowerShell
+	t.Logf("FACT the prompt's line: %s", line)
+	if p.Kit.Platform.System() == "windows" && strings.HasPrefix(line, "&") {
+		t.Errorf("the program's path, %s, has no spelling every shell reads, so the line is PowerShell's alone: %s", bin, line)
 	}
 	for i, sh := range shells(p.Kit) {
 		// Each shell is asked for a number of its own, so that one's success
@@ -115,13 +114,13 @@ func TestThePromptsOwnLineInEveryShell(t *testing.T) {
 		asked := strings.Replace(line, " 40 ", " 6"+string(rune('0'+i))+" ", 1)
 		out, err := typed(p, sh, asked)
 		s, _ := p.Record()
-		ok := s.Attempts[worker].Progress.Pct == 60+i && note(p) == "the prompt's own line"
-		t.Logf("FACT the prompt's line in %s: works=%v", sh.name, ok)
-		if !ok && sh.dialect == written {
-			t.Errorf("%s is the shell the prompt is written for, and its line did not work there\nline: %s\n%v %s", sh.name, asked, err, out)
+		if s.Attempts[worker].Progress.Pct != 60+i || note(p) != "the prompt's own line" {
+			t.Errorf("the prompt's line did not work in %s\nline: %s\n%v %s", sh.name, asked, err, out)
 		}
-		if ok && written == contract.ShellPowerShell && sh.dialect != written {
-			t.Errorf("%s took the line written for PowerShell: the page of facts says it does not\nline: %s", sh.name, asked)
+		text := "a line (handed on); with 'words' & <signs> of " + sh.name
+		handed := p.Kit.Platform.Quote("", []string{bin, "progress", "7" + string(rune('0'+i)), text})
+		if out, err := typed(p, sh, handed); note(p) != text {
+			t.Errorf("a line the tool hands on did not work in %s: the record holds %q\nline: %s\n%v %s", sh.name, note(p), handed, err, out)
 		}
 	}
 }

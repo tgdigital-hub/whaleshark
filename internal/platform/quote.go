@@ -14,13 +14,26 @@ const (
 	plain      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@%+=:,./-"
 )
 
+// everyShell is what cmd, both PowerShells and git's bash all take as it
+// stands; between double quotes they agree on everything but the signs in
+// notInQuotes, and on a backslash only before a character that is none.
+const (
+	everyShell  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_+=:./-"
+	notInQuotes = "\"$`%!\n\r\u201c\u201d\u201e"
+)
+
 // Quote joins arguments so that the shell hands each on unchanged and reads
-// none as its own; with no shell named it writes for this system's own.
-// Nothing carries a line break into cmd, and the PowerShell of Windows
-// itself drops an empty argument and the double quotes inside one.
+// none as its own. With no shell named on Windows, where nobody can know
+// which shell an agent's tool types into, it writes the one spelling all
+// four read, and only where there is none PowerShell's. Nothing carries a
+// line break into cmd, and the PowerShell of Windows itself drops an empty
+// argument and the double quotes inside one.
 func (s *System) Quote(dialect string, argv []string) string {
 	if dialect == "" {
 		if dialect = Posix; s.OS == onWindows {
+			if line, ok := forEveryShell(argv); ok {
+				return line
+			}
 			dialect = PowerShell
 		}
 	}
@@ -50,31 +63,71 @@ func (s *System) Quote(dialect string, argv []string) string {
 	return line
 }
 
+// forEveryShell spells a line once for every shell of Windows. The program
+// comes first and bare, since no two of them quote a command alike: with
+// forward slashes, and by its short name where its own has a blank. Every
+// other word is bare or between double quotes.
+func forEveryShell(argv []string) (string, bool) {
+	words := make([]string, len(argv))
+	for i, arg := range argv {
+		switch bare := strings.Trim(arg, everyShell) == "" && arg != ""; {
+		case i == 0:
+			if arg = strings.ReplaceAll(arg, `\`, "/"); strings.Trim(arg, everyShell) != "" {
+				arg = strings.ReplaceAll(short(argv[0]), `\`, "/")
+			}
+			// Two slashes begin another machine's folder, which cmd runs nothing from.
+			if arg == "" || strings.Trim(arg, everyShell+"~") != "" || strings.HasPrefix(arg, "//") || arg[0] == '~' {
+				return "", false
+			}
+			words[i] = arg
+		case bare:
+			words[i] = arg
+		case strings.ContainsAny(arg, notInQuotes) || strings.HasSuffix(arg, `\`) || strings.Contains(arg, `\\`):
+			return "", false
+		default:
+			words[i] = `"` + arg + `"`
+		}
+	}
+	return strings.Join(words, " "), true
+}
+
 // cmdWord quotes for two readers: cmd, which takes everything between double
 // quotes as it stands except a percent sign, and the program's own start-up
-// code, which splits the line again. A percent sign is put outside the quotes
-// with a caret, where it can no longer open a variable's name.
+// code, which splits the line again and reads a double quote only after a
+// backslash. cmd takes that quote for the end of its own, so from there on
+// every sign of cmd's, the quotes too, gets a caret, which cmd takes away. A
+// percent sign before that is put outside the quotes with a caret, where it
+// can no longer open a variable's name.
 func cmdWord(arg string) string {
 	var b strings.Builder
 	b.WriteByte('"')
-	slashes := 0
+	slashes, out := 0, false
 	for _, r := range arg {
-		switch r {
-		case '\\':
+		switch {
+		case r == '\\':
 			slashes++
-		case '"':
-			// Written twice, so that cmd still counts itself inside the quotes.
-			b.WriteString(strings.Repeat(`\`, slashes) + `"`)
-			slashes = 0
-		case '%':
+			b.WriteRune(r)
+			continue
+		case r == '"':
+			b.WriteString(strings.Repeat(`\`, slashes+1))
+			if out {
+				b.WriteByte('^')
+			}
+			out = true
+		case r == '%' && !out:
 			b.WriteString(strings.Repeat(`\`, slashes) + `"^%"`)
 			slashes = 0
 			continue
-		default:
-			slashes = 0
+		case out && strings.ContainsRune("%^&|<>()!", r):
+			b.WriteByte('^')
 		}
+		slashes = 0
 		b.WriteRune(r)
 	}
-	b.WriteString(strings.Repeat(`\`, slashes) + `"`)
+	b.WriteString(strings.Repeat(`\`, slashes))
+	if out {
+		b.WriteByte('^')
+	}
+	b.WriteByte('"')
 	return b.String()
 }
