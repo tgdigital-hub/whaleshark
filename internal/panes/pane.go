@@ -511,6 +511,7 @@ func (p *pane) ids() []string {
 // event takes a key, a click or a report from the terminal, and reports
 // false when the pane is to end.
 func (p *pane) event(ev term.Event) bool {
+	was := p.own
 	p.dirty, p.own = true, ev.Kind != term.Focus
 	switch ev.Kind {
 	case term.End:
@@ -522,7 +523,12 @@ func (p *pane) event(ev term.Event) bool {
 			p.move(1)
 		}
 	case term.Mouse:
-		p.mouse(ev)
+		// A report that draws nothing, the pointer moving or a button let
+		// go, is not what the next drawing comes from: the click guard
+		// would take a list that then moves by itself for the person's doing.
+		if p.mouse(ev); !p.dirty {
+			p.own = was
+		}
 	case term.KeyPress, term.Paste:
 		return p.key(ev)
 	}

@@ -576,6 +576,31 @@ func TestAClickJustAfterTheListMovedIsRefused(t *testing.T) {
 	wd.ran(`answer n4 --file "approve" --human`)
 }
 
+// The pointer on its way to a button is reported cell by cell, and such a
+// report draws nothing: a list that moves by itself meanwhile has still
+// moved by itself, and the click that follows is refused.
+func TestAClickAfterThePointerMovedAndTheListMovedIsRefused(t *testing.T) {
+	wd := start(t, actions, 104, 30, nil)
+	x, y, _ := wd.s.Find("[ Approve ]")
+	wd.settle()
+	// The pointer crosses two cells of an empty row; the pane is not asked
+	// anything meanwhile, which would have it draw.
+	wd.s.Type("\x1b[<35;50;25M\x1b[<35;51;25M")
+	wd.s.Still(clickWait)
+	wd.change(func(v *contract.View) {
+		v.Items = append([]contract.Item{{ID: "n9", Form: "choice", Look: contract.LookNeedsYou, Name: "help pages", Source: "a question from the worker",
+			Since: wd.fx.Now, Text: "Drop the old pages?", Buttons: []contract.Button{{Label: "Yes", Key: "y", Answer: "yes"}}}}, v.Items...)
+	})
+	wd.shows("Drop the old pages?")
+	// Where Approve stood there is now another item's typing line.
+	wd.s.Click(x, y)
+	wd.shows(movedSaid)
+	wd.settle()
+	if n := len(wd.children("answer")); n != 0 || strings.Contains(wd.screen(), "›") {
+		t.Fatalf("the refused click acted: %v\n%s", wd.children("answer"), wd.screen())
+	}
+}
+
 // The pane starts the sweep, a command, every five seconds, and so the age
 // line stops saying that nobody is watching.
 func TestTheSweepIsAChildEveryFiveSeconds(t *testing.T) {
