@@ -218,15 +218,19 @@ const (
 )
 
 // Now is the clock every command uses: the wall clock, or the time written
-// in the file EnvClock names.
+// in the file EnvClock names. A test replaces that file while commands read
+// it, and a read at that moment can fail, or find it empty or, on Windows,
+// missing: it is read again for half a second before the wall clock, which
+// is days away from a test's, is taken in its place.
 func Now() time.Time {
-	if path := os.Getenv(EnvClock); path != "" {
+	path := os.Getenv(EnvClock)
+	for wait := time.Millisecond; path != "" && wait <= 256*time.Millisecond; wait *= 2 {
 		// #nosec G703 -- the clock file of a scripted test, named by the login's own environment
-		if data, err := os.ReadFile(path); err == nil {
-			if t, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(string(data))); err == nil {
-				return t
-			}
+		data, err := os.ReadFile(path)
+		if t, bad := time.Parse(time.RFC3339Nano, strings.TrimSpace(string(data))); err == nil && bad == nil {
+			return t
 		}
+		time.Sleep(wait)
 	}
 	return time.Now()
 }

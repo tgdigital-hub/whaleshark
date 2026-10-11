@@ -79,6 +79,21 @@ func TestClockAndProjectFile(t *testing.T) {
 	if got := Now(); got.Format(time.TimeOnly) != "21:14:00" {
 		t.Errorf("the injected clock says %v", got)
 	}
+	// Read while the file is empty, as a read on Windows can find it when a
+	// test moves the clock at that moment: the time that comes is the file's,
+	// not the wall clock's. Seen on a hosted Windows machine: a blocked ask
+	// took the wall clock once, and its nine minutes were up.
+	os.WriteFile(clock, nil, 0o600)
+	time.AfterFunc(100*time.Millisecond, func() { os.WriteFile(clock, []byte("2026-10-08T21:20:00Z\n"), 0o600) })
+	if got := Now(); got.Format(time.TimeOnly) != "21:20:00" {
+		t.Errorf("read while it was being replaced, the injected clock says %v", got)
+	}
+	// A clock that is named and was never written is the wall clock.
+	t.Setenv(EnvClock, filepath.Join(t.TempDir(), "none"))
+	if at := time.Now(); Now().Before(at) {
+		t.Errorf("with no clock file the time is %v", Now())
+	}
+	t.Setenv(EnvClock, clock)
 
 	root := t.TempDir()
 	if p, err := ReadProjectFile(root); err != nil || p.Limits.Agents != 20 || p.Land.Who != ForHuman {

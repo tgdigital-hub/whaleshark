@@ -78,10 +78,8 @@ func TestTheSettingsAreLinesOfTheActionList(t *testing.T) {
 		_, y, ok := wd.s.Find("Colour scheme: " + name)
 		return ok && strings.HasSuffix(wd.s.Row(y), " now")
 	}
-	for end := time.Now().Add(3 * time.Second); !now("kelp") || now("reef"); time.Sleep(5 * time.Millisecond) {
-		if time.Now().After(end) {
-			t.Fatalf("the list does not say that kelp is the scheme now:\n%s", wd.screen())
-		}
+	if !wd.until(3*time.Second, func() bool { return now("kelp") && !now("reef") }) {
+		t.Fatalf("the list does not say that kelp is the scheme now:\n%s", wd.screen())
 	}
 	wd.s.Key("esc")
 

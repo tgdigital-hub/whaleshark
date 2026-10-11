@@ -88,14 +88,30 @@ func (Rules) Placed(s *contract.State, id string, p contract.Place, now time.Tim
 	return nil
 }
 
+// Working is the start saying that its agent has the prompt. The agent may
+// have said so first, with a command of its own (began): then nothing is left
+// to mark.
 func (Rules) Working(s *contract.State, id string, now time.Time) error {
+	if a, _, err := attempt(s, id); err == nil && a.State.Live() && a.State != contract.AttemptStarting {
+		return nil
+	}
 	a, _, err := starting(s, id, true)
 	if err != nil {
 		return err
 	}
-	setState(a, contract.AttemptWorking, now)
-	a.Seen = contract.AgentSeen{Status: contract.StatusWorking, At: now, Liveness: contract.Live, LastWorking: now}
+	began(a, now)
 	return nil
+}
+
+// began marks an attempt as at work. It is also called for an attempt's own
+// question or report that arrives while the attempt is still starting: its
+// agent has the prompt and was quicker with its first command than the start
+// is with the record, and "no longer active; stop" would be untrue.
+func began(a *contract.Attempt, now time.Time) {
+	if a.State == contract.AttemptStarting {
+		setState(a, contract.AttemptWorking, now)
+		a.Seen = contract.AgentSeen{Status: contract.StatusWorking, At: now, Liveness: contract.Live, LastWorking: now}
+	}
 }
 
 func (Rules) StartFailed(s *contract.State, id, why string, now time.Time) error {
@@ -174,11 +190,12 @@ func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, e
 		return reject(refused("bad_token", "The token does not match %s. Stop.", a.ID))
 	case a.Report != nil && a.Report.Outcome == outcome && (a.State == contract.AttemptReported || a.State == contract.AttemptFailed):
 		return true, nil, nil
-	case a.State != contract.AttemptWorking && a.State != contract.AttemptAsked:
+	case a.State != contract.AttemptStarting && a.State != contract.AttemptWorking && a.State != contract.AttemptAsked:
 		return reject(gone(a))
 	case outcome == outDone && t.BrowserCheck && !slices.ContainsFunc(evidence, func(e contract.EvidenceFile) bool { return e.Kind != "" && !e.At.Before(since) }):
 		return false, nil, refuse(contract.ExitFailed, "no_evidence", "%s needs a browser check: save a screenshot of it into $%s first, then report again.", t.ID, contract.EnvEvidence)
 	}
+	began(a, now)
 	a.Report = &contract.Report{Outcome: outcome, Summary: summary, At: now, Evidence: evidence}
 	if outcome == outFailed {
 		end(s, a, contract.AttemptFailed, contract.ExitReported, now)

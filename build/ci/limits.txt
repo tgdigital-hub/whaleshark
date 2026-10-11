@@ -240,14 +240,16 @@ lines 720 pty internal/pty
 # watch: 30 more after the first real workers. An Enter that waits for the
 # pane to show the pasted text, and is pressed again while the agent shows
 # no start, took it to 564; input, built whole at 467, pays.
-lines 580 watch internal/watch
+# 5 more for letting a pane come to rest before a text is typed, which took
+# it to 584; window, built at 271, pays.
+lines 585 watch internal/watch
 lines 470 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore
 # window gives 60 at the wiring of phase 3 and 20 at its integration, to
-# platform: built whole at 271.
-lines 330 window internal/window
+# platform, and 5 to watch: built whole at 271.
+lines 325 window internal/window
 lines 330 engine internal/engine
 lines 350 pick internal/pick
 # overlay gives 60 at the start of phase 3: built whole at 140; and 20 at

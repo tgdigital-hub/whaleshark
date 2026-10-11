@@ -140,6 +140,7 @@ func (w *Watcher) typed(text string, timeout time.Duration, enough func(State) b
 	}, strings.ReplaceAll(text, "\r\n", "\n"))
 	head := []rune(squeeze(text))
 	head = head[:min(len(head), 24)]
+	w.rest()
 	had, n := strings.Count(squeeze(w.p.Text()), string(head)), w.p.Count()
 	if marked {
 		text = pasteOpen + text + pasteClose
@@ -212,6 +213,24 @@ func squeeze(text string) string {
 		}
 		return r
 	}, text)
+}
+
+// rest lets a pane that is not at work come to rest before a text is typed:
+// what its program was still printing, of its start for one, would be taken
+// for the text's arrival, and the Enter would go while the paste is taken in.
+func (w *Watcher) rest() {
+	n, at := w.p.Count(), time.Now()
+	w.mu.Lock()
+	if n == w.n {
+		at = w.grew
+	}
+	busy := w.st.Status == contract.StatusWorking
+	w.mu.Unlock()
+	for end := time.Now().Add(arriveWait); !busy && time.Since(at) < stillAfter && time.Now().Before(end); time.Sleep(every / 4) {
+		if now := w.p.Count(); now != n {
+			n, at = now, time.Now()
+		}
+	}
 }
 
 // arrive waits until the pane shows the text just pasted: its beginning

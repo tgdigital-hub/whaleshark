@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -106,7 +105,7 @@ func TestTheFakeAgentThroughEveryState(t *testing.T) {
 	// screen is slow (Windows): nobody refuses a question they cannot see
 	// yet, and the Watcher knows a refusal by the question leaving a screen
 	// that showed it.
-	shown(t, p, "claude")
+	shown(t, p, w, "claude")
 	p.press("n")
 	s.reach(t, idle, wait)
 
@@ -326,6 +325,7 @@ type still struct {
 	mu     sync.Mutex
 	text   string
 	n      uint64
+	more   int // how often its program prints yet, once each time it is looked at
 	marked bool
 	typed  []string
 	onType func()
@@ -348,6 +348,9 @@ func (p *still) Text() string {
 func (p *still) Count() uint64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.more > 0 {
+		p.more, p.n = p.more-1, p.n+1
+	}
 	return p.n
 }
 
@@ -511,21 +514,16 @@ func TestTheEnterWaitsForTheText(t *testing.T) {
 // An agent that shows the text and still does not take its Enter gets
 // Enter again, and the text once.
 func TestEnterAgainForATextThatLiesThere(t *testing.T) {
-	// Seen on a hosted Windows machine, once in six runs: the text lay in
-	// the box, every Enter the Watcher presses had gone, and the agent of
-	// this test, which drops Enters by the clock, had taken none. Whether
-	// that is this agent's clock on a slow machine or an Enter lost in a
-	// pseudo-console is not known; the test beside it, of an agent that
-	// is only slow, has passed there every time.
-	if runtime.GOOS == "windows" {
-		t.Skip("NOT PROVEN HERE: an agent that drops Enters by the clock is not steady on a hosted Windows machine")
-	}
 	s := listen(t)
 	p := open(t, s.env("agent"), os.Args[0], "deaf")
 	w := s.watch(t, p, "claude")
 	if err := w.Ready(wait); err != nil {
 		t.Fatal(err)
 	}
+	// Enter is pressed again only for an agent whose hooks were heard, and
+	// the screen can say ready before the first one was: an agent typed at
+	// then gets one Enter, which this one drops.
+	s.named(t, idle, wait)
 	if err := w.Prompt("hello", wait); err != nil {
 		t.Fatalf("the prompt: %v\n%s", err, p.Text())
 	}
@@ -533,6 +531,34 @@ func TestEnterAgainForATextThatLiesThere(t *testing.T) {
 		t.Errorf("typed %q", got)
 	}
 	shows(t, p, "did: hello")
+}
+
+// An agent that says it has started while it still prints its start is not
+// typed at until the pane has come to rest: what it prints then would be
+// taken for the text's arrival, and the Enter would go while the paste is
+// still being taken in. Seen on a hosted Windows machine, where a pane's
+// output can come late: the start's last lines, then an Enter too early.
+func TestATextWaitsForAPaneAtRest(t *testing.T) {
+	p := &still{marked: true}
+	w := New(p, "claude", "", func(State) {})
+	defer w.Close()
+	p.show("> \n? for shortcuts")
+	w.Hook("SessionStart", "one", "")
+	p.mu.Lock()
+	p.more = 40
+	p.onType = func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if last := p.typed[len(p.typed)-1]; last == "\r" {
+			go w.Hook("UserPromptSubmit", "one", "")
+		} else if p.text, p.n = "> "+last+"\n? for shortcuts", p.n+1; p.more > 0 {
+			t.Errorf("the text was typed while the agent had %d lines of its start still to print", p.more)
+		}
+	}
+	p.mu.Unlock()
+	if err := w.Prompt("hello", wait); err != nil || len(p.typed) != 2 {
+		t.Errorf("a prompt for an agent that was still printing its start: %v, typed %q", err, p.typed)
+	}
 }
 
 // An agent that never takes the Enter: a few are pressed and no more, the

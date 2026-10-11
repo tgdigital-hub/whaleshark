@@ -85,6 +85,7 @@ type world struct {
 	in       contract.ViewInput
 	next     int // the children and the calls to the terminals a test has looked at
 	nextCall int
+	began    bool // the pane's loop runs and can be asked
 
 	mu   sync.Mutex
 	view contract.View
@@ -137,7 +138,44 @@ func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepa
 		wd.double.Close()
 	})
 	wd.shows("live · ")
+	wd.began = true
 	return wd
+}
+
+// until looks every few milliseconds whether a thing is so, and gives up
+// when it was not for the time of limit. That time is counted as the pane
+// counts it: it begins again for as long as a child the pane started has
+// still to end. The pane starts its children one after another, and the
+// sweep, which it starts by itself every five seconds, is one of them: what a
+// test asked for waits behind it, and how long a program takes to start and
+// to end is the machine's own affair. A pane whose child does not end is
+// given up on after a minute.
+func (wd *world) until(limit time.Duration, so func() bool) bool {
+	first := time.Now()
+	for end := first.Add(limit); !so(); time.Sleep(5 * time.Millisecond) {
+		if now := time.Now(); now.Before(end) {
+			continue
+		} else if now.Sub(first) > time.Minute || !wd.began || wd.unended() == 0 {
+			return so()
+		} else {
+			end = now.Add(limit)
+		}
+	}
+	return true
+}
+
+// unended asks the pane's loop how many children it started have still to
+// end. A loop that has ended, or gives no answer, has none.
+func (wd *world) unended() int {
+	n := make(chan int, 1)
+	go wd.p.tell(news{do: func() { n <- wd.p.waiting }})
+	select {
+	case waiting := <-n:
+		return waiting
+	case <-wd.p.bg.Done():
+	case <-time.After(10 * time.Second):
+	}
+	return 0
 }
 
 // touch replaces the record's file, as a command of ours does when it ends:
@@ -173,7 +211,7 @@ func (wd *world) within(d time.Duration, text string) bool {
 func (wd *world) shows(texts ...string) {
 	wd.t.Helper()
 	for _, text := range texts {
-		if !wd.within(3*time.Second, text) {
+		if !wd.until(3*time.Second, func() bool { _, _, ok := wd.s.Find(text); return ok }) {
 			wd.t.Fatalf("the pane never showed %q; it shows:\n%s", text, wd.screen())
 		}
 	}
@@ -436,10 +474,8 @@ func TestAnItemInsertedAboveTheSelectionDoesNotMoveIt(t *testing.T) {
 
 	// An item that leaves takes its selection with it; no other inherits it.
 	wd.change(func(v *contract.View) { v.Items = v.Items[:3] })
-	for at := time.Now(); strings.Contains(wd.screen(), "price list"); time.Sleep(5 * time.Millisecond) {
-		if time.Since(at) > 3*time.Second {
-			t.Fatal("the item never left")
-		}
+	if !wd.until(3*time.Second, func() bool { return !strings.Contains(wd.screen(), "price list") }) {
+		t.Fatal("the item never left")
 	}
 	wd.key("y")
 	wd.shows("KEYS GO HERE")

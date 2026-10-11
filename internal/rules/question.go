@@ -18,6 +18,9 @@ func question(s *contract.State, id string) (*contract.Question, error) {
 
 func (Rules) Ask(s *contract.State, id, text string, options []string, now time.Time) (string, error) {
 	a, t, err := attempt(s, id)
+	if err == nil {
+		began(a, now)
+	}
 	switch {
 	case err != nil:
 		return "", err

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -54,7 +55,18 @@ func holder(word, name string, args []string) (*exec.Cmd, func()) {
 	if err != nil {
 		panic(err) // a command that was just made has no standard input yet
 	}
+	// The pipe is kept for as long as the test's process lives. A test that
+	// keeps neither the command nor let has not let go, and a pipe nobody
+	// holds is closed by the garbage collector, at a moment of its own.
+	kept.Lock()
+	kept.pipes = append(kept.pipes, held)
+	kept.Unlock()
 	return cmd, func() { held.Close() }
+}
+
+var kept struct {
+	sync.Mutex
+	pipes []io.WriteCloser
 }
 
 // A test program that imports this package is the holder when it is

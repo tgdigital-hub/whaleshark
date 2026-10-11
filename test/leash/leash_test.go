@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -126,6 +127,53 @@ func TestAfterRunsWhenTheTestIsGone(t *testing.T) {
 	}
 	if said, _ := os.ReadFile(beat); string(said) != "ran" {
 		t.Errorf("the program did not run after the test let go: %q", said)
+	}
+}
+
+// A test that keeps neither the command nor let has not let go. Seen on a
+// hosted Windows machine: a keeper that a test had asked to be stopped once
+// the test was gone was stopped in the middle of it, when the garbage
+// collector took the pipe nobody held and closed it.
+func TestOnlyTheTestLetsGo(t *testing.T) {
+	beat := filepath.Join(t.TempDir(), "beat")
+	t.Setenv(beatEnv, beat)
+	t.Setenv(roleEnv, "once")
+	// As that test had it: the command is kept by nobody once it has started.
+	if end, _ := After(os.Args[0]); end.Start() != nil {
+		t.Fatal("the holder did not start")
+	}
+	kept.Lock()
+	pipe := kept.pipes[len(kept.pipes)-1]
+	kept.Unlock()
+	// The collector is run until it has taken something made after the
+	// command: what nobody held of the command it has taken by then too.
+	for range 3 {
+		taken := make(chan struct{})
+		runtime.SetFinalizer(new([64]byte), func(*[64]byte) { close(taken) })
+		for done := false; !done; {
+			runtime.GC()
+			select {
+			case <-taken:
+				done = true
+			default:
+				runtime.Gosched()
+			}
+		}
+	}
+	if _, err := pipe.Write([]byte{0}); err != nil {
+		t.Fatalf("the leash was let go though the test never did: %v", err)
+	}
+	if _, err := os.Stat(beat); err == nil {
+		t.Fatal("the program ran while the test still held the leash")
+	}
+	// Let go, the program runs, as ever.
+	pipe.Close()
+	for end := time.Now().Add(20 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		if said, _ := os.ReadFile(beat); string(said) == "ran" {
+			break
+		} else if time.Now().After(end) {
+			t.Fatal("the program did not run after the test let go")
+		}
 	}
 }
 

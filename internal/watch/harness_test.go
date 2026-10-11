@@ -123,7 +123,9 @@ func fakeAgent(mode string) {
 	}
 	fmt.Print("\x1b[?2004h")
 	draw("a fake agent", "> ", "  ? for shortcuts")
-	say("SessionStart")
+	// A key has the time it came at, from the moment the prompt is drawn:
+	// the first hook is a program of its own, and while it runs a key is
+	// not one that came when it has ended.
 	type stroke struct {
 		b  byte
 		at time.Time
@@ -134,6 +136,7 @@ func fakeAgent(mode string) {
 			strokes <- stroke{key(), time.Now()}
 		}
 	}()
+	say("SessionStart")
 	clean := strings.NewReplacer("\x1b[200~", "", "\x1b[201~", "")
 	var taken time.Time // when the last paste is taken in and shown
 	var show <-chan time.Time
@@ -407,15 +410,17 @@ func (s *stand) heard() []string {
 }
 
 // shown waits until the pane's screen shows the question of an agent's
-// kind, and then for a few of the Watcher's looks.
-func shown(t *testing.T, p *pane, agent string) {
+// kind, and has the Watcher look at that screen: its own next look is a
+// tenth of a second away on a machine that keeps time, and later on one
+// that does not.
+func shown(t *testing.T, p *pane, w *Watcher, agent string) {
 	t.Helper()
 	for end := time.Now().Add(wait); kinds[agent].read(p.Text(), true) != question; time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(end) {
 			t.Fatalf("the screen never showed the question:\n%s", p.Text())
 		}
 	}
-	time.Sleep(5 * every)
+	w.look(time.Now())
 }
 
 // named waits for a state that also carries the session. An agent's screen

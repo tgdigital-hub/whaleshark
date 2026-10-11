@@ -13,7 +13,8 @@
 # which gives the same bytes, and only the two signatures travel. So the job
 # that holds the keys can write nothing, and the job that can write the
 # draft holds no key. The keys are handed to one step, the last of their
-# job, and the right to write to one step, the last of its job.
+# job, and the right to write to one step, the last of its job. A tag must
+# name a commit of main: any other is refused before anything is built.
 name: release
 
 on:
@@ -60,6 +61,17 @@ jobs:
           git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
           git fetch -q --depth 1 origin "$GITHUB_SHA" || git fetch -q --depth 1 origin "$GITHUB_REF"
           git checkout -q FETCH_HEAD
+      - name: A tag names a commit of main, or nothing is built and nothing signed
+        id: tagmain
+        run: |
+          # A tag's run uses the workflow file of the commit the tag names:
+          # a tag set by mistake on a commit of some other branch would
+          # release that tree with that tree's pipeline. It is refused
+          # here, before anything of the commit runs.
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            git fetch -q origin main
+            git merge-base --is-ancestor HEAD FETCH_HEAD || { echo "::error::The tag names a commit that is not in the history of main."; exit 1; }
+          fi
       - name: The Go that go.mod names, and no other
         run: |
           command -v go || ls -d "$RUNNER_TOOL_CACHE"/go/*/*/bin | sort -V | tail -1 >> "$GITHUB_PATH"
