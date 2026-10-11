@@ -20,7 +20,10 @@ import (
 // every answer and, at the end, every event, without what differs from one
 // start of a keeper to the next: the time, the instance, a terminal's id.
 // What a pane's program is doing the keeper finds on a clock of its own, so
-// the word for it and the events that only bring it are left out too.
+// the word for it and the events that only bring it are left out too; and
+// so is the event that brings a session, which is the program's own word:
+// the agent run in a pane says it when it has got that far, before the
+// pane is closed or after, and on the double a run starts no program.
 func session(t *testing.T, terms contract.Terminals, root string) []string {
 	t.Helper()
 	var log []string
@@ -101,7 +104,7 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 					was = p.Terminal
 				}
 			}
-			if e.Kind != contract.EvState || e.Pane.Terminal != was {
+			if e.Kind != contract.EvSession && (e.Kind != contract.EvState || e.Pane.Terminal != was) {
 				log = append(log, fmt.Sprintf("event %s: %s", e.Kind, show(e.Pane)))
 			}
 			if contract.Apply(first, e); e.Seq < last.Seq {

@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
@@ -54,6 +55,7 @@ type Fake struct {
 	// Width is how many cells wide the double says every pane is.
 	Width int
 
+	agents             sync.WaitGroup // the fake agents that have not ended
 	mu                 sync.Mutex
 	listener           net.Listener
 	instance           int
@@ -103,19 +105,38 @@ func (f *Fake) Listen(path string) (err error) {
 }
 
 // Close stops the listener, every reader of events and every fake agent:
-// from then on the double is a keeper that is not running.
+// from then on the double is a keeper that is not running. It returns when
+// the agents and all they started have ended, as a pane's programs have
+// when the keeper has closed it: a command an agent was in the middle of
+// writes nothing into the project after that.
 func (f *Fake) Close() {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	f.closed = true
 	if f.listener != nil {
 		f.listener.Close()
 	}
 	f.cut()
+	var ended []int
 	for _, p := range f.panes {
+		if p.proc != nil {
+			ended = append(ended, p.proc.Process.Pid)
+		}
 		kill(p)
 	}
+	f.mu.Unlock()
+	left := make(chan struct{})
+	go func() { f.agents.Wait(); close(left) }()
+	select {
+	case <-left:
+	case <-time.After(endWait):
+	}
+	for end := time.Now().Add(endWait); slices.ContainsFunc(ended, func(pid int) bool { return !treeGone(pid) }) && time.Now().Before(end); {
+		time.Sleep(time.Millisecond)
+	}
 }
+
+// endWait is the longest Close waits for what it has ended to be gone.
+const endWait = 10 * time.Second
 
 // Load replaces the picture with a prepared one, such as a fixture's, and
 // numbers what is opened afterwards past every id of it.
@@ -180,7 +201,9 @@ func (f *Fake) change(kind, id string, quiet bool) {
 // Restart is the keeper started again with everything restored, as the
 // design promises: the same ids and each tab's variables, a new instance,
 // a new terminal in every pane, every reader of events cut off. An agent
-// that had a session is started again; any other pane is a bare shell.
+// that had a session is started again, at its prompt and with no script:
+// its conversation is behind it, and it plays nothing a second time when a
+// line is typed at it. Any other pane is a bare shell.
 func (f *Fake) Restart() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -194,7 +217,7 @@ func (f *Fake) Restart() {
 			p.rec.Agent, p.rec.Name, p.rec.Status = "", "", contract.StatusUnknown
 		} else {
 			p.rec.Status = contract.StatusIdle
-			f.launch(p, nil)
+			f.launch(p, nil, true)
 		}
 	}
 }
@@ -316,9 +339,11 @@ func (f *Fake) close(p *pane) {
 	f.refocus()
 }
 
+// kill ends a pane's agent with every command it started, as closing a
+// pane of the keeper ends all that runs in it.
 func kill(p *pane) {
 	if p.proc != nil {
-		p.proc.Process.Kill()
+		endTree(p.proc)
 		p.proc = nil
 	}
 }
@@ -326,7 +351,7 @@ func kill(p *pane) {
 // launch starts the fake agent in a pane with the variables of its tab, the
 // keeper's own, and of the test's surroundings what is not ours. What the
 // program prints is the pane's screen; when it ends, the agent has left.
-func (f *Fake) launch(p *pane, args []string) {
+func (f *Fake) launch(p *pane, args []string, again bool) {
 	program := os.Getenv(testkit.EnvAgent)
 	if program == "" {
 		return
@@ -344,7 +369,7 @@ func (f *Fake) launch(p *pane, args []string) {
 	}
 	script := ""
 	for _, kv := range f.env[p.rec.Tab] {
-		if attempt, ok := strings.CutPrefix(kv, contract.EnvAttempt+"="); ok {
+		if attempt, ok := strings.CutPrefix(kv, contract.EnvAttempt+"="); ok && !again {
 			script = f.scripts[attempt]
 		}
 	}
@@ -353,12 +378,12 @@ func (f *Fake) launch(p *pane, args []string) {
 	stdin, err := cmd.StdinPipe()
 	out, _ := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
-	if err != nil || cmd.Start() != nil {
+	if apart(cmd); err != nil || cmd.Start() != nil {
 		return
 	}
 	p.proc, p.stdin = cmd, stdin
 	screen := p.screen
-	go func() {
+	f.agents.Go(func() {
 		buf := make([]byte, 4096)
 		for {
 			n, err := out.Read(buf)
@@ -376,7 +401,7 @@ func (f *Fake) launch(p *pane, args []string) {
 			p.proc = nil
 			f.release(p)
 		}
-	}()
+	})
 }
 
 // serve answers the calls of one connection until it ends or asks for the events.
@@ -564,7 +589,7 @@ func (f *Fake) onPane(c contract.WireCall, p *pane) (r contract.WireReply, err e
 		f.nTerm++
 		p.rec.Agent, p.rec.Name, p.rec.Session, p.rec.Status = c.Kind, c.Name, "session-"+strconv.Itoa(f.nTerm), contract.StatusIdle
 		f.emit(contract.EvState, p.rec)
-		f.launch(p, c.Argv)
+		f.launch(p, c.Argv, false)
 	case contract.OpPrompt, contract.OpPoint:
 		text := Typed(c)
 		switch {

@@ -126,6 +126,15 @@ func main() {
 		fmt.Printf("fakeagent: whaleshark %s: %s%v\n", strings.Join(args, " "), out, err)
 		return string(out)
 	}
+	// git is one step of git's; a step that fails says why in the tab, where
+	// the scenario that then waits in vain for the report shows it.
+	git := func(args ...string) error {
+		out, err := exec.Command("git", args...).CombinedOutput()
+		if err != nil {
+			fmt.Printf("fakeagent: git %s: %s%v\n", strings.Join(args, " "), out, err)
+		}
+		return err
+	}
 	answer := ""
 	for _, step := range strings.Split(script, " | ") {
 		w := words(step)
@@ -184,12 +193,12 @@ func main() {
 				file.Close()
 			}
 		case "commit":
-			exec.Command("git", "add", "-A").Run()
-			exec.Command("git", "commit", "-q", "-m", "work of "+os.Getenv(contract.EnvAttempt)).Run()
+			git("add", "-A")
+			git("commit", "-q", "-m", "work of "+os.Getenv(contract.EnvAttempt))
 		case "merge":
 			// What a worker does with a sync brief: where the two sides clash,
 			// the lines of both are kept and git's marks taken out.
-			if exec.Command("git", "merge", "-q", "--no-edit", arg(1)).Run() != nil {
+			if git("merge", "-q", "--no-edit", arg(1)) != nil {
 				clashed, _ := exec.Command("git", "diff", "--name-only", "--diff-filter=U").Output()
 				for _, file := range strings.Fields(string(clashed)) {
 					data, _ := os.ReadFile(file)
@@ -201,8 +210,8 @@ func main() {
 					}
 					os.WriteFile(file, []byte(both.String()), 0o600)
 				}
-				exec.Command("git", "add", "-A").Run()
-				exec.Command("git", "commit", "-q", "--no-edit").Run()
+				git("add", "-A")
+				git("commit", "-q", "--no-edit")
 			}
 		default:
 			fmt.Println("fakeagent: unknown step:", step)
