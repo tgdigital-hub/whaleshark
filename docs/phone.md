@@ -73,7 +73,7 @@ Without a server, or beside it, `url` under `[notify]` in your own `config.toml`
 ## What cannot be held here, by design
 
 - On Cloudflare's road, whoever acts as a paired phone can send the lead agent a note, and a note is an instruction to an agent that runs as you. "The page cannot land or trust" is true of the page only.
-- On Tailscale's road every person's address is one name with another port, and a browser sends a name's cookies to every port. A co-worker's page receives your phone's cookie if your phone opens it; only the identity Tailscale reports and proven port rules keep it useless to them.
+- On Tailscale's road every person's address is one name with another port, and a browser sends a name's cookies to every port. A co-worker's page receives your phone's cookie if your phone opens it; only the identity Tailscale reports and proven port rules keep it useless to them. So do not open another person's address on your phone, and if you did, `whaleshark dash phone forget` that phone and pair it again.
 - Whoever can reach a door can keep its one pairing request busy. Five refusals slow the next.
 - More than twenty refused requests in a minute shut a Cloudflare door for a minute and raise an item. A request that carries your valid pass still goes through the shut door; whoever sends the refusals can keep the item on your screen, and no more.
 - A server you reach with `connect --terminals` can write your computer's clipboard at any moment.

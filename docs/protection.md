@@ -1,6 +1,6 @@
 # What an agent can and cannot do, and what is and is not protected
 
-Three security reviews have tried this program, each on one Mac. **None of it has been tried with a second login, on Linux or Windows, on a real server, from the public internet, or with a real phone.** What follows is what the program does, and what it cannot do for you.
+Four security reviews have tried this program, each on one Mac; the fourth also tried the release: its files, its installer, its packages and the hosted jobs that make it. **None of it has been tried with a second login, on Linux or Windows, on a real server, from the public internet, or with a real phone.** What follows is what the program does, and what it cannot do for you.
 
 ## The two limits
 
@@ -73,12 +73,17 @@ On your own computer the same holds with less to hold it: the agents run as you,
 | a hostile web page or link an agent opens | a browser profile of the task's own; narrow tokens; a protected main branch | a steered agent can do everything in the table above |
 | a hostile repository | settings that can run or reach something count only after `trust`; a record the login did not make is not used; paths are held inside the project; names and titles are shown with control characters removed | `trust` does not keep an agent the repository has steered from approving it; the approval is at least shown in red |
 | a compromised dependency | four modules, pinned with checksums; no code loaded at run time | the agent programs and, on a server, Node and Chromium are other people's software |
-| someone on the network | on a server only SSH answers, keys only; downloads are checked against a signed list | a flaw in SSH, Tailscale or Cloudflare themselves |
+| someone on the network | on a server only SSH answers, keys only; downloads are checked against a signed list, and the list says which version it is | a flaw in SSH, Tailscale or Cloudflare themselves. `install.sh` is the one file nothing checks before it runs: whoever can change the copy you fetch can change what it does, so check it by hand first where that matters (below). The apt index carries no end date: whoever serves the apt folder can go on serving an older one, rightly signed |
+| whoever takes over the maintainers' account at the git host, or gets hold of the release key | the key is a secret that one hosted job is handed, for a tag only and after a maintainer's approval each time; that job can write nothing, and the job that writes the release holds no key. Anyone can build a release again from its tag and compare the lists of checksums (`build/release/README.md`) | **a release a thief signed is a signed release.** A key cannot be taken back: the only remedy is a new key in a new `install.sh`, and a notice in the README. The program files carry no signature of Apple's or Microsoft's |
 | Cloudflare, or whoever takes over your Cloudflare account or its mailbox | pairing, which the account does not reach; routing in a root-owned file on the server | **against Cloudflare itself there is none**: it could do what a paired phone can |
 | a stolen phone or laptop | `dash phone forget`, `dash stop --forget`, removing the SSH key | until then the thief is you, for what that device could do |
 | a web page open in your own browser | the page has a host name of its own and accepts no other; every change needs the session's token and the page's own origin | |
 
 More of the same kind, for the page and the phone, is in [phone.md](phone.md); for a shared machine, in [server.md](server.md).
+
+## Checking a release by hand
+
+`install.sh` is named in the signed list like every other file of a release, so the one file that nothing checks before it runs can be checked by you: fetch `install.sh`, `SHA256SUMS` and `SHA256SUMS.sig` of one version, put the release key's line from the README into a file, and run `ssh-keygen -Y verify -f THAT-FILE -I release -n file -s SHA256SUMS.sig < SHA256SUMS`, then compare the checksum of `install.sh` with its line in the list. The fingerprint the script prints at the end proves nothing by itself: a changed script could print any.
 
 ## What the terminal engine holds
 

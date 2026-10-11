@@ -47,7 +47,7 @@ winget install whaleshark
 
 Until winget has the package, Windows has no install line: take `whaleshark-windows-amd64.exe` and the signed list from the release page, check them by hand (`ssh-keygen -Y verify` as `build/release/README.md` shows, then the file's checksum against the list), and put the file on your `PATH` as `whaleshark.exe`; or build it. Typed commands work in `cmd`, both PowerShells and git's bash.
 
-`install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks that the list is the one of its own version (its first line says which), checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it says so. It prints the key's fingerprint; compare it with the one printed here:
+`install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks that the list is the one of its own version (its first line says which), checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it says so. It prints the key's fingerprint; compare it with the one printed here (the script itself is the one file nothing checks before it runs; [docs/protection.md](docs/protection.md) shows how to check it by hand first):
 
 ```
 SHA256:P0bN9YsEy+jMZIIPiVGKVIsbVEOi7FQ/W0k7iwRTlRE
@@ -131,7 +131,7 @@ go test ./...
 
 ## Dependencies
 
-At most four modules, and no C compiler. A new one needs a written reason here. `NOTICE` carries their licences, and goes with every release beside `LICENSE`, both named in the signed list.
+At most four modules, and no C compiler. A new one needs a written reason here. `NOTICE` carries their licences, and goes with every release beside `LICENSE`, both named in the signed list; the Debian package holds both as its copyright file.
 
 | Module | Why |
 |---|---|
