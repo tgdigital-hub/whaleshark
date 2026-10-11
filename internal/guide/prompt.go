@@ -40,11 +40,12 @@ func (p Prompt) Text() string {
 
 // shots is the one command that takes a screenshot with no browser tool at
 // all, for each system: Chromium's own switches, with the place the browser
-// is usually found in. On a server it is the browser every login shares.
+// is usually found in. On a server it is the browser every login shares,
+// whose folder the browser tooling names chrome-linux or chrome-linux64.
 var shots = map[string]string{
 	"darwin":  `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`,
 	"linux":   `chromium`,
-	"server":  `"$` + contract.EnvBrowsers + `"/chromium-*/chrome-linux/chrome`,
+	"server":  `"$` + contract.EnvBrowsers + `"/chromium-*/chrome-linux*/chrome`,
 	"windows": `chrome.exe`,
 }
 
