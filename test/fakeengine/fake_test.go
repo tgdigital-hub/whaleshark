@@ -187,3 +187,83 @@ func TestTakesAPreparedPictureAndRestarts(t *testing.T) {
 		t.Errorf("a closed double answered: %v", err)
 	}
 }
+
+// beatFile names the file a command of the tests writes into for as long as
+// it lives.
+const beatFile = "FAKEENGINE_TEST_BEAT"
+
+// TestMain is also a command an agent of the tests runs in the place of
+// the real program: started as one, it says every few milliseconds that it
+// is still there, for half a minute at most.
+func TestMain(m *testing.M) {
+	if out := os.Getenv(beatFile); out != "" && len(os.Args) > 1 && os.Args[1] == "progress" {
+		for end := time.Now().Add(30 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
+			os.WriteFile(out, []byte(time.Now().String()), 0o600)
+		}
+		return
+	}
+	os.Exit(m.Run())
+}
+
+// A command an agent is in the middle of ends with the agent, and has ended
+// when Close returns: it writes nothing into a folder the test then removes.
+func TestClosingEndsWhatAnAgentStarted(t *testing.T) {
+	agent(t)
+	beat := filepath.Join(t.TempDir(), "beat")
+	t.Setenv(beatFile, beat)
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := listening(t)
+	f.Script("T1.1", "progress 50 half")
+	p, _ := f.TabCreate(t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1", contract.EnvBin + "=" + self})
+	if err := f.AgentStart("worker-one", "claude", p.ID, nil, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Prompt("worker-one", "Read and follow x", time.Second); err != nil {
+		t.Fatal(err)
+	}
+	until(t, "the agent's command at work", func() bool { _, err := os.Stat(beat); return err == nil })
+	f.Close()
+	was, _ := os.ReadFile(beat)
+	time.Sleep(300 * time.Millisecond)
+	if now, _ := os.ReadFile(beat); string(now) != string(was) {
+		t.Errorf("the command an agent started went on after Close: it wrote %s, then %s", was, now)
+	}
+}
+
+// An agent started again by a restart is at its prompt with its conversation
+// behind it: a line typed at it sets it to nothing it has done before.
+func TestARestartedAgentPlaysNothingAgain(t *testing.T) {
+	agent(t)
+	f := listening(t)
+	f.Script("T1.1", "write-result")
+	dir := t.TempDir()
+	result, prompt := filepath.Join(dir, "result.md"), "Read and follow "+filepath.Join(dir, "prompt.md")
+	p, _ := f.TabCreate(t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1"})
+	if err := f.AgentStart("worker-one", "claude", p.ID, nil, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Prompt("worker-one", prompt, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	until(t, "the agent's result", func() bool { _, err := os.Stat(result); return err == nil })
+	if err := os.Rename(result, result+".first"); err != nil {
+		t.Fatal(err)
+	}
+	f.Restart()
+	for _, line := range []string{prompt, "a second line"} {
+		if err := f.Prompt("worker-one", line, time.Second); err != nil {
+			t.Fatal(err)
+		}
+	}
+	until(t, "the second line taken", func() bool {
+		shown, _ := f.Screen(p.ID)
+		return strings.Contains(shown, "fakeagent: told: a second line")
+	})
+	time.Sleep(200 * time.Millisecond)
+	if _, err := os.Stat(result); err == nil {
+		t.Error("an agent started again by a restart played its script a second time")
+	}
+}
