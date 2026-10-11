@@ -1,6 +1,6 @@
 # A browser check
 
-**A browser check has been played by a scripted agent only.** No real agent has yet been given one. The one command below has been run by hand on one Mac and nowhere else.
+**A browser check has been done by a real agent once, on one Mac**: a small Claude Code worker served a one-page site on its port, took the picture with the one command below exactly as its prompt gave it, with a browser profile in a folder of its own, and `report done` and `accept` took it. On Linux and Windows the command has been run by tests only (see below), and no real agent has been given a browser check there.
 
 WhaleShark starts no browser and drives none. Agents have browser tools of their own. What the tool adds is the bookkeeping: a place for the proof, a rule that the proof must exist, and a way for you to see it.
 
