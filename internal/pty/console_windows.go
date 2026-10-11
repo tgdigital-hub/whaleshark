@@ -128,3 +128,43 @@ func (system) Free(handles ...uintptr) {
 		_ = windows.CloseHandle(windows.Handle(h))
 	}
 }
+
+// Tree asks the job for its processes' numbers and the system's own list of
+// all processes for each one's parent and file.
+func (system) Tree(proc, job uintptr) (first uint32, all []member) {
+	first, _ = windows.GetProcessId(windows.Handle(proc))
+	// The job's list as the system writes it: two counts, then the numbers.
+	var list struct {
+		assigned, n uint32
+		pids        [1024]uintptr
+	}
+	// #nosec G103 -- the system writes the list here, and no more than its size
+	_ = windows.QueryInformationJobObject(windows.Handle(job), windows.JobObjectBasicProcessIdList,
+		uintptr(unsafe.Pointer(&list)), uint32(unsafe.Sizeof(list)), nil)
+	in := map[uint32]bool{}
+	for _, pid := range list.pids[:min(int(list.n), len(list.pids))] {
+		in[uint32(pid)] = true // #nosec G115 -- a process's number fits in 32 bits
+	}
+	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return first, nil
+	}
+	defer windows.CloseHandle(snap)
+	var e windows.ProcessEntry32
+	e.Size = uint32(unsafe.Sizeof(e)) // #nosec G103 -- the size the system asks for
+	for err = windows.Process32First(snap, &e); err == nil; err = windows.Process32Next(snap, &e) {
+		if !in[e.ProcessID] {
+			continue
+		}
+		m := member{pid: e.ProcessID, parent: e.ParentProcessID, name: windows.UTF16ToString(e.ExeFile[:])}
+		if h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, e.ProcessID); err == nil {
+			var born, exit, kernel, user windows.Filetime
+			if windows.GetProcessTimes(h, &born, &exit, &kernel, &user) == nil {
+				m.born = born.Nanoseconds()
+			}
+			_ = windows.CloseHandle(h)
+		}
+		all = append(all, m)
+	}
+	return first, all
+}

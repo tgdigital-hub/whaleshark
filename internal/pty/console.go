@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"unicode/utf16"
@@ -32,7 +33,22 @@ type host interface {
 	// End ends every process of the job.
 	End(job uintptr)
 	Free(handles ...uintptr)
+	// Tree is every process of the job as it is now, and which of them is
+	// the one that was started.
+	Tree(proc, job uintptr) (first uint32, all []member)
 }
+
+// member is one process of a pane's job: its number and its parent's, its
+// file's name, and when it began.
+type member struct {
+	pid, parent uint32
+	name        string
+	born        int64
+}
+
+// shells are the programs a person types the next one into, by their
+// files' names: what such a one has started is in front of it.
+var shells = map[string]bool{"cmd": true, "powershell": true, "pwsh": true, "bash": true, "sh": true, "zsh": true, "fish": true, "nu": true}
 
 type console struct {
 	ending
@@ -100,8 +116,40 @@ func (c *console) Resize(cols, rows int) error {
 	return c.sys.Resize(c.pc, cols, rows)
 }
 
-// Front cannot be told: Windows has no program in front.
-func (*console) Front() (string, error) { return "", contract.ErrCannotTell }
+// Front is read from the pane's job, because Windows has no program in
+// front to ask for: the pane's first program, and from every shell on the
+// way down its youngest child. A program that is no shell stands for all it
+// starts, as on the other systems a program keeps its children in its own
+// group. So an agent's tools are never taken for a program in front of it;
+// and an agent that runs inside another program's file is known by that
+// file's name. The name is in small letters, without the ending.
+func (c *console) Front() (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.pc == 0 {
+		return "", os.ErrClosed // its handles may be another's by now
+	}
+	first, all := c.sys.Tree(c.proc, c.job)
+	at := slices.IndexFunc(all, func(m member) bool { return m.pid == first })
+	for range all {
+		if at < 0 {
+			break
+		}
+		name := strings.TrimSuffix(strings.ToLower(all[at].name), ".exe")
+		next := -1
+		for i, m := range all {
+			// A child began after its parent: a number given out again is no child.
+			if shells[name] && i != at && m.parent == all[at].pid && m.born >= all[at].born && (next < 0 || m.born > all[next].born) {
+				next = i
+			}
+		}
+		if next < 0 {
+			return name, nil
+		}
+		at = next
+	}
+	return "", contract.ErrCannotTell
+}
 
 func (c *console) Close() error {
 	c.close.Do(func() {

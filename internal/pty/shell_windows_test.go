@@ -2,6 +2,7 @@ package pty
 
 import (
 	"testing"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -73,4 +74,30 @@ func watch(t *testing.T, p contract.Pty) func() []int {
 		}
 		return left
 	}
+}
+
+// TestTheProgramInFrontOnWindows: a pane's shell is in front at its prompt,
+// a program typed into it while it runs, and the shell again after it.
+func TestTheProgramInFrontOnWindows(t *testing.T) {
+	p, err := Start(contract.PtySpec{Argv: shell, Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	reader(p)
+	inFront := func(want string) {
+		t.Helper()
+		for deadline := time.Now().Add(20 * time.Second); ; time.Sleep(20 * time.Millisecond) {
+			front, err := p.Front()
+			if err == nil && front == want {
+				return
+			} else if time.Now().After(deadline) {
+				t.Fatalf("in front %q, %v; want %q", front, err, want)
+			}
+		}
+	}
+	inFront("cmd")
+	type_(t, p, "ping -n 4 localhost >nul\r")
+	inFront("ping")
+	inFront("cmd")
 }
