@@ -1,0 +1,12 @@
+# A task whose result must be looked at in a browser, started on a server:
+# the worker's prompt and its tab are a server's. The checks of a work login
+# in a container begin here.
+server agents = 9 | [login.{me}] | ports = 27000
+agent A.1: hang
+
+file brief.md: Target: one page | Change: build it | Constraints: none | Ownership: your own file | Acceptance: it shows in a browser
+orch: init
+orch: run new "a page to look at"                   -> expect r1
+task A "Build the page" --name "the page" --check "test -f brief.md" --brief brief.md --browser-check
+orch: start A                                       -> expect "(A.1)"
+await: attempts A.1 working
