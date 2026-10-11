@@ -1,5 +1,6 @@
-// Package install holds the two shell scripts of the tool, compiled into
-// the program so that nothing which runs as root is fetched on its own.
+// Package install holds the two shell scripts of the tool. The server's is
+// compiled into the program, so that nothing which runs as root is fetched
+// on its own.
 //
 // Server is what `whaleshark server` runs as root, with sh reading it from
 // standard input and the program's own file named in contract.EnvBin:
@@ -29,7 +30,10 @@
 // Installer is install.sh, the one-line install for one login without
 // root: it fetches a release's file and its signed list, or takes them from
 // a folder (--from), checks both, and puts the file in place by renaming
-// it. A release gives it its version and the release key.
+// it. A release gives it its version and the release key. No command of
+// the program reads Installer, so the program file does not carry it: it
+// is here for this package's tests, and a person takes install.sh from a
+// release.
 package install
 
 import _ "embed"

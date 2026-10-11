@@ -45,7 +45,7 @@ command -v ssh-keygen >/dev/null || die "ssh-keygen is missing; it comes with Op
 case $(uname -s) in
 Darwin) os=darwin ;;
 Linux) os=linux ;;
-*) die "no release for $(uname -s); on Windows use winget" ;;
+*) die "no release for $(uname -s); on Windows take whaleshark-windows-amd64.exe from the release, or use winget once it lists the package" ;;
 esac
 case $(uname -m) in
 x86_64 | amd64) arch=amd64 ;;
