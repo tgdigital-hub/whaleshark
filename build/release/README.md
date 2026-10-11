@@ -14,7 +14,7 @@ It writes into `dist/` (or the folder `-out` names):
 | `install.sh` | the installer, with this version and the release key filled in |
 | `LICENSE`, `NOTICE` | the licence, and the licences of the four modules compiled into the program, which ask to go with it |
 | `SHA256SUMS` | a first line `# whaleshark 1.2.3`, then the checksum of each of the eight files above. `install.sh` refuses a list whose first line names another version than its own |
-| `apt/` | a `.deb` for each of the two Linux files, the index apt reads (`dists/stable/Release`), and `whaleshark.asc`, the public half of the key that index is signed with |
+| `apt/` | a `.deb` for each of the two Linux files, the index apt reads (`dists/stable/Release`), and `whaleshark.asc`, the public half of the key that index is signed with. A package holds the program and, as `/usr/share/doc/whaleshark/copyright`, the two licence texts; it brings no script that runs at an install |
 | `brew/whaleshark.rb` | the Homebrew formula: each file's address and checksum |
 | `winget/` | the three files of a version in Windows' package list |
 

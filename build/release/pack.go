@@ -72,17 +72,28 @@ func (r *release) apt() error {
 	version := strings.Replace(r.version, "-", "~", 1)
 	index := fmt.Sprintf("Origin: WhaleShark\nLabel: WhaleShark\nSuite: stable\nCodename: stable\nDate: %s\nArchitectures: amd64 arm64\nComponents: main\nSHA256:\n",
 		r.when.Format(time.RFC1123))
+	// A package says whose it is and under which licences, where Debian
+	// looks for it: the two texts every release carries, one after the other.
+	var rights []byte
+	for _, name := range notices {
+		text, err := os.ReadFile(filepath.Join(r.out, name))
+		if err != nil {
+			return err
+		}
+		rights = append(append(rights, text...), '\n')
+	}
 	for _, arch := range []string{"amd64", "arm64"} {
 		program, err := os.ReadFile(filepath.Join(r.out, "whaleshark-linux-"+arch))
 		if err != nil {
 			return err
 		}
 		control := fmt.Sprintf("Package: whaleshark\nVersion: %s\nArchitecture: %s\nMaintainer: %s\nInstalled-Size: %d\nRecommends: git\nSection: utils\nPriority: optional\nHomepage: %s\nDescription: %s\n",
-			version, arch, contact, (len(program)+1023)/1024, home, about)
+			version, arch, contact, (len(program)+len(rights)+1023)/1024, home, about)
 		deb := ar(r.when,
-			member{"debian-binary", []byte("2.0\n")},
-			member{"control.tar.gz", r.tgz("./control", 0o644, []byte(control))},
-			member{"data.tar.gz", r.tgz("./usr/bin/whaleshark", 0o755, program)})
+			member{"debian-binary", []byte("2.0\n"), 0},
+			member{"control.tar.gz", r.tgz(member{"./control", []byte(control), 0o644}), 0},
+			member{"data.tar.gz", r.tgz(member{"./usr/bin/whaleshark", program, 0o755},
+				member{"./usr/share/doc/whaleshark/copyright", rights, 0o644}), 0})
 		pool := "pool/whaleshark_" + version + "_" + arch + ".deb"
 		packages := fmt.Sprintf("%sFilename: %s\nSize: %d\nSHA256: %s\n", control, pool, len(deb), sum(deb))
 		listed := "main/binary-" + arch + "/Packages"
@@ -106,29 +117,38 @@ func (r *release) apt() error {
 	return r.put("apt/dists/stable/Release", []byte(index), 0o644)
 }
 
-// tgz is a gzipped tar archive of one file and the folders above it, all
-// root's and all of the release's time.
-func (r *release) tgz(name string, mode int64, body []byte) []byte {
+// tgz is a gzipped tar archive of the files and the folders above them,
+// each folder once and before what lies in it, all root's and all of the
+// release's time.
+func (r *release) tgz(files ...member) []byte {
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zw)
-	dirs := []string{"./"}
-	for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
-		dirs = slices.Insert(dirs, 1, "./"+dir+"/")
+	made := map[string]bool{}
+	for _, f := range files {
+		dirs := []string{"./"}
+		for dir := path.Dir(f.name); dir != "."; dir = path.Dir(dir) {
+			dirs = slices.Insert(dirs, 1, "./"+dir+"/")
+		}
+		for _, dir := range dirs {
+			if !made[dir] {
+				made[dir] = true
+				tw.WriteHeader(&tar.Header{Typeflag: tar.TypeDir, Name: dir, Mode: 0o755, ModTime: r.when, Uname: "root", Gname: "root", Format: tar.FormatUSTAR})
+			}
+		}
+		tw.WriteHeader(&tar.Header{Name: f.name, Mode: f.mode, Size: int64(len(f.data)), ModTime: r.when, Uname: "root", Gname: "root", Format: tar.FormatUSTAR})
+		tw.Write(f.data)
 	}
-	for _, dir := range dirs {
-		tw.WriteHeader(&tar.Header{Typeflag: tar.TypeDir, Name: dir, Mode: 0o755, ModTime: r.when, Uname: "root", Gname: "root", Format: tar.FormatUSTAR})
-	}
-	tw.WriteHeader(&tar.Header{Name: name, Mode: mode, Size: int64(len(body)), ModTime: r.when, Uname: "root", Gname: "root", Format: tar.FormatUSTAR})
-	tw.Write(body)
 	tw.Close()
 	zw.Close()
 	return buf.Bytes()
 }
 
+// member is one file of an archive; the librarian's format keeps no mode of ours.
 type member struct {
 	name string
 	data []byte
+	mode int64
 }
 
 // ar writes the archive format of the Unix librarian, which a Debian

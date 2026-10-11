@@ -70,6 +70,16 @@ func TestAPackageHoldsTheSameFileAndTheIndexNamesIt(t *testing.T) {
 		if program != "the file whaleshark-linux-"+arch || mode != 0o755 {
 			t.Errorf("%s: the package holds %q with mode %o", arch, program, mode)
 		}
+		// The licences go with the program inside the package too, where
+		// Debian looks for them, readable and not to be run.
+		rights, mode := untar(t, parts["data.tar.gz"], "./usr/share/doc/whaleshark/copyright")
+		if rights != "the file LICENSE\nthe file NOTICE\n" || mode != 0o644 {
+			t.Errorf("%s: the package's copyright file is %q with mode %o", arch, rights, mode)
+		}
+		// A package runs nothing of its own at an install: control is all it says.
+		if names := members(t, parts["control.tar.gz"]); len(names) != 2 || names[1] != "./control" {
+			t.Errorf("%s: beside control the package brings %q", arch, names)
+		}
 		control, _ := untar(t, parts["control.tar.gz"], "./control")
 		packages := files["apt/dists/stable/main/binary-"+arch+"/Packages"]
 		for _, line := range []string{control, "Version: 1.2.3~rc.1\n", "Architecture: " + arch + "\n", "SHA256: " + sum([]byte(deb)) + "\n"} {
@@ -141,6 +151,23 @@ func TestARunWithABadVersionOrKeyIsRefused(t *testing.T) {
 		if err := run(append(args, "-out", t.TempDir())); err == nil {
 			t.Errorf("%q was not refused", args)
 		}
+	}
+}
+
+// members is every name in a gzipped tar archive, in its order.
+func members(t *testing.T, data string) []string {
+	t.Helper()
+	zr, err := gzip.NewReader(bytes.NewBufferString(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for tr := tar.NewReader(zr); ; {
+		h, err := tr.Next()
+		if err != nil {
+			return names
+		}
+		names = append(names, h.Name)
 	}
 }
 
