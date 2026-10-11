@@ -11,8 +11,8 @@ It is one program file with its own terminal engine. There is no desktop app, no
 What has been tried, plainly:
 
 - The parts for one computer have been run from end to end **on macOS only**, by scripted scenarios and with real Claude Code agents on small tasks made for the try. Nobody has yet used it for real work.
-- **Nothing of the server, the page, the phone or the tunnel has met a real server, a real phone, a Tailscale network, a Cloudflare account or a phone maker's push service.** Those parts are written from their makers' manuals and held by tests on one Mac, with a stand-in for every program of a server. The page has been opened in one browser on that Mac. Expect them to need mending at their first real use.
-- It builds for Linux and Windows, and its tests are run on hosted machines of both. No person has used it on either, and nothing of it has run on a real Windows PC.
+- **Nothing of the server, the page, the phone or the tunnel has met a real server, a real phone, a Tailscale network, a Cloudflare account or a phone maker's push service.** The server's set-up has run from nothing in containers of Debian 12 and Ubuntu 24.04, against the systems' real package sources; what a container cannot hold (the services, the firewall, the walls between two logins) is held by tests with stand-ins, and both roads for a phone are written from their makers' manuals. The page has been opened in one browser on one Mac. Expect them to need mending at their first real use. [docs/platform/linux.md](docs/platform/linux.md) says what is proven and gives the list for the first real servers.
+- It builds for Linux and Windows, and every push runs its tests on hosted machines of both, with a proof of its own for each: [docs/platform/linux.md](docs/platform/linux.md), [docs/platform/windows.md](docs/platform/windows.md), and the engine call by call on all three systems in [docs/platform/engine-matrix.md](docs/platform/engine-matrix.md). No person has used it on either, **nothing of it has run on a real Windows PC**, and the Windows page lists what stays a limit there and the checklist for the first real one.
 - A browser check has been played by a scripted agent only.
 - A second kind of agent besides Claude Code is built from its maker's manual and has never been run.
 
@@ -44,9 +44,9 @@ sudo apt-get update && sudo apt-get install whaleshark
 winget install whaleshark
 ```
 
-Until winget has the package, Windows has no install line: take the Windows file from the release page, or build it.
+Until winget has the package, Windows has no install line: take `whaleshark-windows-amd64.exe` and the signed list from the release page, check them by hand (`ssh-keygen -Y verify` as `build/release/README.md` shows, then the file's checksum against the list), and put the file on your `PATH` as `whaleshark.exe`; or build it. Typed commands work in `cmd`, both PowerShells and git's bash.
 
-`install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it says so. It prints the key's fingerprint; compare it with the one printed here. *(The release key does not exist yet; its fingerprint goes here with the first release.)* There is no `curl ... | sudo sh` line anywhere in this project.
+`install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks that the list is the one of its own version (its first line says which), checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it says so. It prints the key's fingerprint; compare it with the one printed here. *(The release key does not exist yet; its fingerprint goes here with the first release.)* There is no `curl ... | sudo sh` line anywhere in this project.
 
 **Then:** type `whaleshark` in your project, then your agent tool.
 
@@ -57,6 +57,8 @@ claude              # in the window; it asks for its own sign-in
 ```
 
 `whaleshark` typed alone at the top of a git repository asks one question (which agent tools you use here), creates a private `.whaleshark` folder that git ignores, and opens the window: your tabs and panes in this terminal. Closing the window stops nothing. The lead agent finds its rules by itself and runs `whaleshark guide lead`; you tell it what you want.
+
+On Windows, `whaleshark init --at-login` has the engine started when you log on, so your tabs are there before you open the window: one line in your login's own list of what Windows starts at log-on, which needs no administrator, and which `whaleshark init --remove --all` takes out again. On a Mac the first `whaleshark open` starts the engine; on a server its set-up starts it with the machine.
 
 `whaleshark help` lists all 42 commands, `whaleshark help <command>` shows one in full, and `whaleshark doctor` checks an installation line by line, each line with its fix.
 
@@ -117,7 +119,7 @@ go test ./...
 
 ## Dependencies
 
-At most four modules, and no C compiler. A new one needs a written reason here. `NOTICE` carries their licences.
+At most four modules, and no C compiler. A new one needs a written reason here. `NOTICE` carries their licences, and goes with every release beside `LICENSE`, both named in the signed list.
 
 | Module | Why |
 |---|---|

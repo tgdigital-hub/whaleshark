@@ -31,7 +31,11 @@ A worker that has no browser tool is given one command in its prompt. On macOS i
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --user-data-dir="${TMPDIR:-$HOME/.cache}/whaleshark-browser-$WHALESHARK_RUN-$WHALESHARK_ATTEMPT" --screenshot="$WHALESHARK_EVIDENCE/page.png" --window-size=1280,900 "http://localhost:$PORT/"
 ```
 
-The prompt writes the loopback address as its four numbers where this page says `localhost`. On Linux the program named is `chromium`; on a server it is the Chromium that `server setup` installed, found through `$PLAYWRIGHT_BROWSERS_PATH`; on Windows it is `chrome.exe`. The Linux, server and Windows forms are written from memory and have never been run.
+The prompt writes the loopback address as its four numbers where this page says `localhost`.
+
+- **On a server** the program named is the Chromium that `server setup` installed, found through `$PLAYWRIGHT_BROWSERS_PATH`, and the profile lies in the tab's own temp folder. This form has been run as written, by a work login in containers of Debian 12 and Ubuntu 24.04, with the browser's sandbox on ([platform/linux.md](platform/linux.md)); never on a real server.
+- **On Windows** the line names no variable, because no two shells there spell one alike: the tool writes out the browser's file (Chrome in its usual folder, Edge where there is no Chrome), the profile folder, the evidence folder and the port, one line for both PowerShells and git's bash and a second for `cmd`. Both have saved a picture in all four shells on a hosted Windows machine ([platform/windows.md](platform/windows.md), finding 5); on a PC with neither browser in its usual folder the prompt offers no command.
+- **On any other Linux** the program named is `chromium`, as the system's package calls it. This form is written from memory and has never been run.
 
 ## The rule
 
@@ -50,7 +54,7 @@ A site that answers on the IPv6 loopback address only is not seen; `show` says s
 
 ## Treat the evidence as private
 
-A screenshot can show a secret (the worker's prompt does not warn it of that; your brief can), and a trace file from a browser tool can hold every request the page made, cookies included: **treat a trace file like a password.** Evidence lies in a folder only your login can read and is served only to a signed-in session.
+A screenshot can show a secret (the worker's prompt tells it never to take one that does; it is told, not held), and a trace file from a browser tool can hold every request the page made, cookies included: **treat a trace file like a password.** Evidence lies in a folder only your login can read and is served only to a signed-in session.
 
 ## What this does not give you
 

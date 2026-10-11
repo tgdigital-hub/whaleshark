@@ -75,7 +75,7 @@ Without a server, or beside it, `url` under `[notify]` in your own `config.toml`
 - On Cloudflare's road, whoever acts as a paired phone can send the lead agent a note, and a note is an instruction to an agent that runs as you. "The page cannot land or trust" is true of the page only.
 - On Tailscale's road every person's address is one name with another port, and a browser sends a name's cookies to every port. A co-worker's page receives your phone's cookie if your phone opens it; only the identity Tailscale reports and proven port rules keep it useless to them.
 - Whoever can reach a door can keep its one pairing request busy. Five refusals slow the next.
-- More than twenty refused requests in a minute shut a Cloudflare door for a minute, for you as well.
+- More than twenty refused requests in a minute shut a Cloudflare door for a minute and raise an item. A request that carries your valid pass still goes through the shut door; whoever sends the refusals can keep the item on your screen, and no more.
 - A server you reach with `connect --terminals` can write your computer's clipboard at any moment.
 - An unlocked stolen phone is you, for everything the page can do, until you `forget` it.
 - An agent of your own login can read the page's key, and so sign in or approve a phone as you ([protection.md](protection.md)).

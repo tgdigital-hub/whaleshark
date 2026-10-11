@@ -1,6 +1,6 @@
 # A server
 
-**Nothing on this page has met a real server.** The setup is written from the manuals of the systems it changes and tried by tests against stand-ins on one Mac. Read what each line does before you type it, and keep your provider's console within reach the first time.
+**Nothing on this page has met a real server.** `server setup`, `server add` and `server upgrade` have run from nothing in containers of Debian 12 and Ubuntu 24.04, against the systems' real package sources. What a container cannot hold has only met stand-ins: the services, `server harden`, the firewall, and above all the walls between two logins. [platform/linux.md](platform/linux.md) says which is which, and holds the list for the first real servers. Read what each line does before you type it, and keep your provider's console within reach the first time.
 
 A server lets agents work while your laptop is shut. WhaleShark has no accounts of its own: each person is a login of the operating system, and everything that must be kept apart (files, terminals, agents, sign-ins, the page) is kept apart by that.
 
@@ -55,7 +55,7 @@ whaleshark connect ana@SERVER                # the page, in your browser
 whaleshark connect ana@SERVER --terminals    # the window, in this terminal
 ```
 
-`connect` takes whatever you would give `ssh`. It keeps one SSH connection with agent forwarding off, opens the page signed in, forwards the site of each live task under its own port number so that a link an agent prints works as written, and makes the connection anew after sleep or a change of network. `--terminals` shows the server's tabs and panes; typing `ssh -t ana@SERVER whaleshark open` yourself does the same. On macOS, `--at-login` starts the page's connection when you log in and `--not-at-login` undoes it.
+`connect` takes whatever you would give `ssh`. It keeps one SSH connection with agent and X11 forwarding off, forwards only ports of the tool's own range (20000 to 31999) whatever the server names, opens the page signed in, forwards the site of each live task under its own port number so that a link an agent prints works as written, and makes the connection anew after sleep or a change of network. `--terminals` shows the server's tabs and panes; typing `ssh -t ana@SERVER whaleshark open` yourself does the same. On macOS, `--at-login` starts the page's connection when you log in and `--not-at-login` undoes it.
 
 Nothing on the server belongs to the connection. Agents, the lead agent and the page run under the login's own services whether anybody is connected or not.
 
