@@ -80,6 +80,12 @@ func openFiles() int {
 // keep runs the real keeper, `engine run`, in this process, for the login
 // in the folder of the socket, and reports on it until it has stopped.
 func keep() {
+	// The test holds the far end of standard input and never writes: its
+	// end is the end of the test's process, and of this keeper with it.
+	go func() {
+		_, _ = io.Copy(io.Discard, os.Stdin)
+		os.Exit(1)
+	}()
 	dir := filepath.Dir(os.Getenv(contract.EnvSocket))
 	sys := login(dir)
 	dirs, _ := sys.Dirs()

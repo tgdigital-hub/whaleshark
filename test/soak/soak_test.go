@@ -169,6 +169,12 @@ func TestTwentyPanesForAnHour(t *testing.T) {
 	kp := exec.Command(self) // #nosec G204 -- this test's own program
 	kp.Env = append(os.Environ(), envRole+"=keeper", contract.EnvSocket+"="+sock, "SHELL=/bin/sh", "HOME="+dir)
 	kp.Stderr = os.Stderr
+	// The keeper ends when this pipe does, which is when this process is
+	// gone however it went: an hour is long enough to be killed in, and the
+	// keeper would go on with twenty noisy panes.
+	if _, err = kp.StdinPipe(); err != nil {
+		t.Fatal(err)
+	}
 	if err = kp.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -300,10 +306,11 @@ func TestTwentyPanesForAnHour(t *testing.T) {
 		t.Fatalf("the keeper's process did not report after it stopped: %+v", final)
 	}
 	// One goroutine is left by design: `engine run` waits for a signal to
-	// the end of its process. Each other one is a fault.
+	// the end of its process. One more is this test's own, which waits for
+	// the end of the test's process. Each other one is a fault.
 	var left []string
 	for _, g := range strings.Split(final.Left, "\n\n") {
-		if strings.Contains(g, "\n#") && !strings.Contains(g, "keeper.engine.func") && !strings.Contains(g, "os/signal.") && !strings.Contains(g, "pprof.") {
+		if strings.Contains(g, "\n#") && !strings.Contains(g, "keeper.engine.func") && !strings.Contains(g, "os/signal.") && !strings.Contains(g, "pprof.") && !strings.Contains(g, "soak.keep.func1") {
 			left = append(left, g)
 		}
 	}

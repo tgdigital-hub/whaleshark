@@ -45,7 +45,11 @@ func TestMain(m *testing.M) {
 			os.Exit(1)
 		}
 		k.greeting = "a late keeper"
-		<-k.attached
+		select {
+		case <-k.attached:
+		case <-time.After(time.Minute): // the test that would attach is gone
+			os.Exit(1)
+		}
 		time.Sleep(100 * time.Millisecond)
 		k.hangUp()
 		os.Exit(0)

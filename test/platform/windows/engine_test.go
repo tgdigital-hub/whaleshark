@@ -17,6 +17,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/engine"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/restore"
+	"github.com/tgdigital-hub/whaleshark/test/leash"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
@@ -44,11 +45,11 @@ func login(t *testing.T) (dir string) {
 
 // keeper starts the real keeper in the login the surroundings name and
 // waits until it answers; what comes back stops it.
-func keeper(t *testing.T, start func() *exec.Cmd) (terms *engine.Client, stop func()) {
+func keeper(t *testing.T, start func() (*exec.Cmd, func())) (terms *engine.Client, stop func()) {
 	t.Helper()
 	k := system()
 	terms = engine.New(k)
-	run := start()
+	run, let := start()
 	var said bytes.Buffer
 	run.Stdout, run.Stderr = &said, &said
 	if err := run.Start(); err != nil {
@@ -66,7 +67,7 @@ func keeper(t *testing.T, start func() *exec.Cmd) (terms *engine.Client, stop fu
 		select {
 		case <-ended:
 		case <-time.After(20 * time.Second):
-			run.Process.Kill()
+			let()
 			t.Errorf("the keeper did not end when asked\n%s", &said)
 		}
 	}
@@ -219,7 +220,7 @@ func TestTheKeeperOnThisSystem(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	start := func() *exec.Cmd { return exec.Command(bin, "engine", "run") }
+	start := func() (*exec.Cmd, func()) { return leash.Command(bin, "engine", "run") }
 	terms, stop := keeper(t, start)
 	k := system()
 	dirs, err := k.Platform.Dirs()
@@ -313,7 +314,12 @@ func TestTheKeeperAtLogOn(t *testing.T) {
 
 	login(t)
 	// start gives the program a console of its own, as a log-on does.
-	terms, _ := keeper(t, func() *exec.Cmd { return p.Kit.Platform.Shell(`start "" ` + line) })
+	// Windows starts this keeper apart from everything, so no leash holds
+	// it: it is asked to end when the test's process is gone.
+	if end, _ := leash.After(bin, "engine", "stop"); end.Start() != nil {
+		t.Fatal("nothing would end the keeper if this test were killed")
+	}
+	terms, _ := keeper(t, func() (*exec.Cmd, func()) { return p.Kit.Platform.Shell(`start "" ` + line), func() {} })
 	status, _ := exec.Command(bin, "engine", "status").CombinedOutput()
 	_, pid, _ := strings.Cut(string(status), "pid ")
 	pid = strings.TrimFunc(strings.Fields(pid + " 0")[0], func(r rune) bool { return r < '0' || r > '9' })

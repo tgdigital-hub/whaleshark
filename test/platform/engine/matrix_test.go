@@ -31,6 +31,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/engine"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/pty"
+	"github.com/tgdigital-hub/whaleshark/test/leash"
 )
 
 const (
@@ -211,7 +212,7 @@ func column(t *testing.T) (cells map[string]string, system string) {
 	agent, _ := exec.LookPath("fakeagent")
 
 	var said bytes.Buffer
-	keeper := exec.Command(bin, "engine", "run")
+	keeper, let := leash.Command(bin, "engine", "run") // it ends with this test however the test ends
 	keeper.Stdout, keeper.Stderr = &said, &said
 	if err = keeper.Start(); err != nil {
 		t.Fatal(err)
@@ -219,7 +220,7 @@ func column(t *testing.T) (cells map[string]string, system string) {
 	// A stop ends every pane's program before the keeper ends, so nothing
 	// holds the login's folders when they are taken away.
 	stop := sync.OnceFunc(func() {
-		late := time.AfterFunc(patience, func() { keeper.Process.Kill() })
+		late := time.AfterFunc(patience, let)
 		terms.Call(context.Background(), contract.WireCall{Op: contract.OpStop})
 		keeper.Wait()
 		late.Stop()

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -18,6 +17,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/engine"
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
 	"github.com/tgdigital-hub/whaleshark/internal/restore"
+	"github.com/tgdigital-hub/whaleshark/test/leash"
 )
 
 // keeper starts the real keeper in the project's login, on a socket of its
@@ -27,14 +27,16 @@ import (
 func (p *Project) keeper(socket, dir string) (stop func()) {
 	p.t.Helper()
 	var said bytes.Buffer
-	run := exec.Command(p.bin, "engine", "run")
+	// On a leash: a test that is killed, runs out of time or panics stops
+	// nothing by its cleanups, and its keeper lived on with nobody's tabs.
+	run, let := leash.Command(p.bin, "engine", "run")
 	run.Env = append(append(p.surroundings(), p.env...), "SHELL="+p.shell(), testkit.EnvScripts+"="+dir)
 	run.Stdout, run.Stderr = &said, &said
 	p.must(run.Start())
 	p.t.Setenv(contract.EnvSocket, socket)
 	client := engine.New(p.Kit)
 	stop = sync.OnceFunc(func() {
-		ended := time.AfterFunc(patience, func() { run.Process.Kill() })
+		ended := time.AfterFunc(patience, let)
 		client.Call(context.Background(), contract.WireCall{Op: contract.OpStop})
 		run.Wait()
 		ended.Stop()
