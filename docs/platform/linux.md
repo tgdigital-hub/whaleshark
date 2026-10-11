@@ -9,6 +9,8 @@ Run on a hosted Ubuntu machine on 10 October 2026. Each is a fault of the progra
 1. **On Ubuntu 22.04 the system's own git is too old for the tool.** It is git 2.34. `accept` and the overlap scan merge in git's store alone, which git can do from 2.38 on: there `accept` ends with git's usage text and collects nothing, the scan says "merge not checked" for every pair and misses a file against a folder, and the tests of both fail, with the scenarios of phase 2. Neither `init` nor `doctor` says a word about it. Ubuntu 22.04 is one of the three systems a server may be, and `server setup` installs exactly that git. Debian 12 (2.39), Ubuntu 24.04 (2.43) and Alpine 3.22 (2.49) pass everything. Until it is decided what Ubuntu 22.04 gets (a newer git, a refusal, or a slower way to merge), the container of that system does not run the tests that lean on git and says so in its first lines.
 2. **The worker's prompt names a browser that is not there.** For a server it says `"$PLAYWRIGHT_BROWSERS_PATH"/chromium-*/chrome-linux/chrome`. The pinned browser tooling unpacks to `chromium-*/chrome-linux64/chrome`, so the line as written ends with "not found" on all three systems. With the folder's real name everything after it holds, so the check runs the line that way and prints that it had to.
 
+3. **Worked out, not run: a long login name breaks the browser check.** The browser keeps a socket in the tab's temp folder, and the system holds a socket's path to 107 characters. A tab's temp folder on a server lies in the login's cache; with a login name of about 24 letters or more the path is too long and the browser ends with "Socket path too long", as it did here under a test's long folder name. `server add` takes names of up to 32.
+
 ## 1. The half that runs in containers
 
 `test/platform/linux/` holds it: one Go test that starts the containers, one script that runs inside each (`testdata/inside.sh`), and two checks a work login makes there.
@@ -18,7 +20,7 @@ Run on a hosted Ubuntu machine on 10 October 2026. Each is a fault of the progra
 | `alpine:3.22` | a plain machine |
 | `debian:12`, `ubuntu:22.04`, `ubuntu:24.04` | a plain machine, and a server |
 
-**Where it runs.** On a hosted Linux machine of the pipeline, as part of `go test ./...`: the plain part on every push, the server part on a branch whose name ends in `linux`, because it fetches a browser, Node and Claude Code three times over and takes minutes. Anywhere else with Linux, Go and a running Docker:
+**Where it runs.** On a hosted Linux machine of the pipeline, as part of `go test ./...`: the plain part on every push, the server part on a branch whose name ends in `linux`, because it fetches a browser, Node and Claude Code three times over and takes minutes. The containers are given the smallest share of the processor, so the tests that run beside them keep the machine; the whole of it added nothing to the length of a hosted run, which waits for Windows. Anywhere else with Linux, Go and a running Docker:
 
 ```
 WHALESHARK_CONTAINERS=plain  go test -count=1 -v -run TestContainers ./test/platform/linux/
