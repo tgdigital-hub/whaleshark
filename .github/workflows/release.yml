@@ -12,7 +12,8 @@
 # one job to the next: every job builds the files again from the commit,
 # which gives the same bytes, and only the two signatures travel. So the job
 # that holds the keys can write nothing, and the job that can write the
-# draft holds no key.
+# draft holds no key. The keys are handed to one step, the last of their
+# job, and the right to write to one step, the last of its job.
 name: release
 
 on:
@@ -63,19 +64,13 @@ jobs:
         run: |
           command -v go || ls -d "$RUNNER_TOOL_CACHE"/go/*/*/bin | sort -V | tail -1 >> "$GITHUB_PATH"
           echo "GOTOOLCHAIN=go$(sed -n 's/^go //p' go.mod)" >> "$GITHUB_ENV"
-      - name: The keys
-        env:
-          RELEASE_KEY: ${{ secrets.RELEASE_KEY }}
-          APT_KEY: ${{ secrets.APT_KEY }}
+      - name: A dry run's keys, made here and thrown away with the run
         run: |
           umask 077
-          export GNUPGHOME="$RUNNER_TEMP/gnupg"
-          mkdir "$GNUPGHOME"
-          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            printf '%s\n' "$RELEASE_KEY" > "$RUNNER_TEMP/key"
-            [ -z "$APT_KEY" ] || printf '%s\n' "$APT_KEY" | gpg --batch --import
-          else
+          mkdir "$RUNNER_TEMP/gnupg"
+          echo "GNUPGHOME=$RUNNER_TEMP/gnupg" >> "$GITHUB_ENV"
+          if [ "$GITHUB_REF_TYPE" != tag ]; then
+            export GNUPGHOME="$RUNNER_TEMP/gnupg"
             ssh-keygen -q -t ed25519 -N '' -C '' -f "$RUNNER_TEMP/key"
             [ "$APT" = without ] || gpg --batch --passphrase '' --quick-generate-key 'a dry run' ed25519 sign never
             echo "SIGNER=release namespaces=\"file\" $(cut -d' ' -f1,2 "$RUNNER_TEMP/key.pub")" >> "$GITHUB_ENV"
@@ -84,7 +79,18 @@ jobs:
         run: go run ./build/release -version "${TAG#v}" ${SIGNER:+-signer "$SIGNER"}
       - name: Sign the list of checksums and the apt index
         id: sign
+        env:
+          RELEASE_KEY: ${{ secrets.RELEASE_KEY }}
+          APT_KEY: ${{ secrets.APT_KEY }}
         run: |
+          umask 077
+          # A tag's keys are taken only here, after everything that was
+          # fetched and built has run: nothing but the lines below runs
+          # while they are on this machine.
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            printf '%s\n' "$RELEASE_KEY" > "$RUNNER_TEMP/key"
+            [ -z "$APT_KEY" ] || printf '%s\n' "$APT_KEY" | gpg --batch --import
+          fi
           ssh-keygen -q -Y sign -f "$RUNNER_TEMP/key" -n file dist/SHA256SUMS
           # The signature must answer to the line install.sh carries.
           sed -n "s/^SIGNER='\(.*\)'$/\1/p" dist/install.sh > "$RUNNER_TEMP/signers"
@@ -220,8 +226,6 @@ jobs:
     permissions:
       contents: write
     env:
-      GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
       SIGNER: ${{ needs.sign.outputs.signer }}
       LIST: ${{ needs.sign.outputs.list }}
       SIG: ${{ needs.sign.outputs.sig }}
@@ -248,6 +252,10 @@ jobs:
             echo "$KEY" | base64 -d > dist/apt/whaleshark.asc
           fi
       - name: The draft, and its files fetched back and checked
+        # The one step that is handed the right to write.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           # Without an apt key the draft carries no apt folder: an index
           # nobody signed is not handed out.
@@ -262,4 +270,5 @@ jobs:
             dist/whaleshark-* dist/install.sh dist/LICENSE dist/NOTICE dist/SHA256SUMS dist/SHA256SUMS.sig packages.tar.gz
           gh release download "$TAG" -D back -p 'whaleshark-*' -p install.sh -p LICENSE -p NOTICE -p 'SHA256SUMS*'
           (cd back && sha256sum -c SHA256SUMS)
+          cmp back/SHA256SUMS dist/SHA256SUMS
           cmp back/SHA256SUMS.sig dist/SHA256SUMS.sig
