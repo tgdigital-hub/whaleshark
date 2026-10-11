@@ -325,6 +325,7 @@ type still struct {
 	mu     sync.Mutex
 	text   string
 	n      uint64
+	more   int // how often its program prints yet, once each time it is looked at
 	marked bool
 	typed  []string
 	onType func()
@@ -347,6 +348,9 @@ func (p *still) Text() string {
 func (p *still) Count() uint64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.more > 0 {
+		p.more, p.n = p.more-1, p.n+1
+	}
 	return p.n
 }
 
@@ -527,6 +531,34 @@ func TestEnterAgainForATextThatLiesThere(t *testing.T) {
 		t.Errorf("typed %q", got)
 	}
 	shows(t, p, "did: hello")
+}
+
+// An agent that says it has started while it still prints its start is not
+// typed at until the pane has come to rest: what it prints then would be
+// taken for the text's arrival, and the Enter would go while the paste is
+// still being taken in. Seen on a hosted Windows machine, where a pane's
+// output can come late: the start's last lines, then an Enter too early.
+func TestATextWaitsForAPaneAtRest(t *testing.T) {
+	p := &still{marked: true}
+	w := New(p, "claude", "", func(State) {})
+	defer w.Close()
+	p.show("> \n? for shortcuts")
+	w.Hook("SessionStart", "one", "")
+	p.mu.Lock()
+	p.more = 40
+	p.onType = func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if last := p.typed[len(p.typed)-1]; last == "\r" {
+			go w.Hook("UserPromptSubmit", "one", "")
+		} else if p.text, p.n = "> "+last+"\n? for shortcuts", p.n+1; p.more > 0 {
+			t.Errorf("the text was typed while the agent had %d lines of its start still to print", p.more)
+		}
+	}
+	p.mu.Unlock()
+	if err := w.Prompt("hello", wait); err != nil || len(p.typed) != 2 {
+		t.Errorf("a prompt for an agent that was still printing its start: %v, typed %q", err, p.typed)
+	}
 }
 
 // An agent that never takes the Enter: a few are pressed and no more, the

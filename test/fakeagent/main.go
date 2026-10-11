@@ -77,11 +77,20 @@ func main() {
 	} else if !real && len(os.Args) > 1 {
 		script = os.Args[1]
 	}
+	// An agent that is slow to take a paste in reads its keys from before it
+	// says that it has started: whoever hears that may type at once, and a
+	// key has the time it came at, not the time this program got round to it.
+	var first <-chan string
+	state, resumed := option("--state"), option("--resume") != ""
+	if after, slow := strings.CutPrefix(strings.Split(script, " | ")[0], "slow-paste "); slow && real && state == "" && !resumed {
+		seconds, _ := strconv.ParseFloat(after, 64)
+		first = slowPrompt(time.Duration(seconds * float64(time.Second)))
+	}
 	if real {
 		tell(started)
 	}
 	lines := bufio.NewScanner(os.Stdin)
-	if state, resumed := option("--state"), option("--resume") != ""; real && (state != "" || resumed) {
+	if real && (state != "" || resumed) {
 		// An agent of a prepared picture is in its state until it is told
 		// something, which sets it to work as it does a real one; one that
 		// was resumed is at its prompt, and plays no script a second time:
@@ -96,9 +105,8 @@ func main() {
 		forever()
 	}
 	prompt := ""
-	if after, slow := strings.CutPrefix(strings.Split(script, " | ")[0], "slow-paste "); slow && real {
-		seconds, _ := strconv.ParseFloat(after, 64)
-		prompt = slowPrompt(time.Duration(seconds * float64(time.Second)))
+	if first != nil {
+		prompt = <-first
 	} else if lines.Scan() {
 		prompt = lines.Text()
 	} else {
@@ -225,39 +233,45 @@ func main() {
 // slowPrompt reads the first prompt as an agent on a loaded machine does:
 // key by key, with a paste taken in and shown only a while after it came. An
 // Enter that comes before then is dropped, as the real agent drops it; one
-// in an empty box does nothing.
-func slowPrompt(after time.Duration) string {
+// in an empty box does nothing. It reads from now on, beside whatever else
+// the program does, and the prompt comes on the channel.
+func slowPrompt(after time.Duration) <-chan string {
 	fd := int(os.Stdin.Fd())
 	old, err := term.MakeRaw(fd)
 	if err != nil {
 		fmt.Println("fakeagent: no terminal to read keys from:", err)
 		os.Exit(3)
 	}
-	defer term.Restore(fd, old)
-	var text []byte
-	var last time.Time
-	for buf := make([]byte, 4096); ; {
-		n, err := os.Stdin.Read(buf)
-		if err != nil {
-			term.Restore(fd, old)
-			os.Exit(0)
-		}
-		now, had := time.Now(), len(text)
-		for _, b := range buf[:n] {
-			switch {
-			case b != '\r' && b != '\n':
-				text, last = append(text, b), now
-			case len(text) > 0 && now.Sub(last) >= after:
-				fmt.Print("fakeagent: took the prompt\r\n")
-				return string(text)
-			case len(text) > 0:
-				fmt.Print("fakeagent: an Enter came before the paste was taken in\r\n")
+	prompt := make(chan string, 1)
+	go func() {
+		var text []byte
+		var last time.Time
+		for buf := make([]byte, 4096); ; {
+			n, err := os.Stdin.Read(buf)
+			if err != nil {
+				term.Restore(fd, old)
+				os.Exit(0)
+			}
+			now, had := time.Now(), len(text)
+			for _, b := range buf[:n] {
+				switch {
+				case b != '\r' && b != '\n':
+					text, last = append(text, b), now
+				case len(text) > 0 && now.Sub(last) >= after:
+					fmt.Print("fakeagent: took the prompt\r\n")
+					term.Restore(fd, old)
+					prompt <- string(text)
+					return
+				case len(text) > 0:
+					fmt.Print("fakeagent: an Enter came before the paste was taken in\r\n")
+				}
+			}
+			if shown := string(text); len(text) > had {
+				time.AfterFunc(after, func() { fmt.Print("fakeagent: > " + shown + "\r\n") })
 			}
 		}
-		if shown := string(text); len(text) > had {
-			time.AfterFunc(after, func() { fmt.Print("fakeagent: > " + shown + "\r\n") })
-		}
-	}
+	}()
+	return prompt
 }
 
 // forever is an agent sitting at its prompt until its pane is closed.
