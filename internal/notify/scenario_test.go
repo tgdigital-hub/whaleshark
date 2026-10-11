@@ -170,6 +170,37 @@ func TestItemBeforeNudge(t *testing.T) {
 	}
 }
 
+// between is the record with another whole pass run between the moment a
+// pass has read it and the moment that pass goes on: a pane's sweep beside
+// a command's, each a program of its own.
+type between struct {
+	contract.Store
+	other func()
+}
+
+func (b *between) Read(root, run string) (*contract.State, error) {
+	s, err := b.Store.Read(root, run)
+	if other := b.other; other != nil {
+		b.other = nil
+		other()
+	}
+	return s, err
+}
+
+// Two passes at one moment both read an item as new. The person is nudged
+// about it once, by the pass that stamped it.
+func TestTwoPassesAtOnceNudgeOnce(t *testing.T) {
+	e := prepare(t, nil, "q7")
+	e.Kit.Store = &between{Store: e.Kit.Store, other: func() { e.pass(0) }}
+	e.pass(0)
+	e.want("sign-up page — needs you")
+	if !e.shown("q7") {
+		t.Fatal("the item is not stamped as shown")
+	}
+	e.pass(5 * time.Second)
+	e.want("sign-up page — needs you")
+}
+
 func TestNextChannel(t *testing.T) {
 	for _, c := range []struct {
 		name          string
