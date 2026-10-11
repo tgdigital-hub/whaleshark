@@ -15,6 +15,9 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/engine"
+	"github.com/tgdigital-hub/whaleshark/internal/platform"
+	"github.com/tgdigital-hub/whaleshark/internal/restore"
+	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
 // login is a made-up login of the test's own, with the socket where a real
@@ -261,34 +264,56 @@ func TestTheKeeperOnThisSystem(t *testing.T) {
 	}
 }
 
-// TestTheKeeperStartedByALogOnTask has Windows' own scheduler start the
-// keeper, from a task that is set to run when the person logs on, and then
-// asks that keeper for a pane as any other. The task is run by hand here: a
-// hosted machine has nobody who logs on. So this proves that a keeper
-// started that way, outside any program of ours, has working terminals; that
-// the task also fires at a real log-on is for the real machine.
-func TestTheKeeperStartedByALogOnTask(t *testing.T) {
+// TestTheKeeperAtLogOn has the tool itself set the keeper to start when the
+// person logs on, on a hosted machine, whose own list of start-up programs
+// this changes and puts back: `init --at-login` writes one line under one
+// name into the login's own list (the registry's Run key, which asks no
+// administrator), doctor says so, and `init --remove --all` takes it out
+// again, which doctor says too. In between, the line is started as Windows
+// starts it at log-on, with a console of its own and no terminal, and that
+// keeper is asked for a pane as any other. A hosted machine has nobody who
+// logs on: that Windows runs the line at a real log-on, and that no window
+// stays on the screen, is for the real machine.
+func TestTheKeeperAtLogOn(t *testing.T) {
 	onlyHosted(t)
-	dir := login(t)
+	p := evening(t)
 	bin, err := exec.LookPath("whaleshark")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A task has the person's own surroundings, so the made-up login's two
-	// folders are set by the file it runs.
-	file := filepath.Join(dir, "keeper.cmd")
-	os.WriteFile(file, []byte("@set APPDATA="+os.Getenv("APPDATA")+"\r\n@set LOCALAPPDATA="+os.Getenv("LOCALAPPDATA")+"\r\n@set SHELL=\r\n@\""+bin+"\" engine run\r\n"), 0o700)
-	const task = "WhaleSharkProofKeeper"
-	sch := func(args ...string) (string, error) {
-		out, err := exec.Command("schtasks", args...).CombinedOutput()
-		return string(bytes.TrimSpace(out)), err
+	name, want := restore.Service("windows", bin, os.Getenv)
+	t.Cleanup(func() { platform.SetLogOn(name, "") })
+	row := func() string {
+		out, _ := p.Command(scenario.Unbound, "doctor").CombinedOutput()
+		for _, l := range strings.Split(string(out), "\n") {
+			if strings.Contains(l, "when you log on") {
+				return strings.TrimSpace(l)
+			}
+		}
+		return "no row in: " + string(out)
 	}
-	if out, err := sch("/Create", "/F", "/TN", task, "/SC", "ONLOGON", "/TR", file); err != nil {
-		t.Fatalf("making the task: %v\n%s", err, out)
+	if have, err := platform.LogOn(name); have != "" || err != nil || !strings.HasPrefix(row(), "note") || !strings.Contains(row(), "Fix: whaleshark init --at-login") {
+		t.Errorf("before: the list holds %q (%v), and doctor says: %s", have, err, row())
 	}
-	t.Cleanup(func() { sch("/Delete", "/F", "/TN", task) })
-	terms, _ := keeper(t, func() *exec.Cmd { return exec.Command("schtasks", "/Run", "/TN", task) })
-	out, _ := sch("/Query", "/TN", task, "/V", "/FO", "LIST")
-	t.Logf("FACT the task as Windows has it:\n%s", out)
+	out, err := p.Command(scenario.Unbound, "init", "--at-login").CombinedOutput()
+	t.Logf("FACT init --at-login: %v\n%s", err, out)
+	line, err := platform.LogOn(name)
+	if line != want || err != nil || !strings.HasPrefix(row(), "ok") {
+		t.Fatalf("after init --at-login the list holds %q (%v), not %q; doctor says: %s", line, err, want, row())
+	}
+	t.Logf("FACT Windows starts at log-on, under the name %s: %s", name, line)
+	out, err = p.Command(scenario.Unbound, "init", "--remove", "--all").CombinedOutput()
+	if have, gone := platform.LogOn(name); have != "" || gone != nil || err != nil || !strings.HasPrefix(row(), "note") {
+		t.Errorf("after init --remove --all the list holds %q (%v); doctor says: %s\n%v %s", have, gone, row(), err, out)
+	}
+
+	login(t)
+	// start gives the program a console of its own, as a log-on does.
+	terms, _ := keeper(t, func() *exec.Cmd { return p.Kit.Platform.Shell(`start "" ` + line) })
+	status, _ := exec.Command(bin, "engine", "status").CombinedOutput()
+	_, pid, _ := strings.Cut(string(status), "pid ")
+	pid = strings.TrimFunc(strings.Fields(pid + " 0")[0], func(r rune) bool { return r < '0' || r > '9' })
+	shown, _ := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", "(Get-Process -Id "+pid+").MainWindowHandle").CombinedOutput()
+	t.Logf("FACT the keeper started that way is process %s, and the handle of a window of its own is: %s", pid, bytes.TrimSpace(shown))
 	proveAKeeper(t, terms)
 }

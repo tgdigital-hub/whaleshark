@@ -679,8 +679,13 @@ func TestServiceEntries(t *testing.T) {
 	if name, _ := restore.Service("linux", self, os.Getenv); name != contract.UnitKeeper {
 		t.Errorf("linux: the entry is called %s, and a server's set-up and doctor call it %s", name, contract.UnitKeeper)
 	}
-	if name, text := restore.Service("windows", self, os.Getenv); name != "" || text != "" {
-		t.Errorf("windows has an entry: %s", name)
+	// On Windows the entry is a name and a command line for the login's list
+	// of what starts at log-on; any other system has none.
+	if name, text := restore.Service("windows", `C:\tools\whaleshark.exe`, os.Getenv); name == "" || text != `"C:\tools\whaleshark.exe" engine run` {
+		t.Errorf("windows: the entry %q is %s", name, text)
+	}
+	if name, text := restore.Service("plan9", self, os.Getenv); name != "" || text != "" {
+		t.Errorf("plan9 has an entry: %s", name)
 	}
 
 	// The macOS entry read back as what it is: every value as it was given.

@@ -24,8 +24,13 @@ var carried = []string{"PATH", "SHELL", "LANG", "LC_ALL", "LC_CTYPE", "XDG_CONFI
 // dies; a keeper that was stopped by `engine stop` ended well and stays
 // stopped. On "darwin" the file goes into Library/LaunchAgents of the home
 // folder, on "linux" into systemd/user of the settings folder, where the
-// login's services also need leave to run with nobody logged in. Any other
-// system has no entry of ours and gets nothing.
+// login's services also need leave to run with nobody logged in. On
+// "windows" the entry is no file: it is a name and a command line in the
+// login's own list of what Windows starts at log-on (the registry's Run
+// key), the one form there that asks no administrator, opens no window of
+// a second program and sets no limit of its own on how long the keeper
+// runs; nothing starts a keeper again that died, until the next log-on or
+// the next `whaleshark open`. Any other system gets nothing.
 func Service(system, self string, getenv func(string) string) (name, text string) {
 	var b strings.Builder
 	switch system {
@@ -81,6 +86,9 @@ func Service(system, self string, getenv func(string) string) (name, text string
 		// own order; what is left after that is ended by the system.
 		b.WriteString("Restart=on-failure\nKillMode=mixed\n\n[Install]\nWantedBy=default.target\n")
 		return contract.UnitKeeper, b.String() // the one name a server's set-up and doctor know it by
+	}
+	if system == "windows" {
+		return label, `"` + self + `" engine run`
 	}
 	return "", ""
 }
