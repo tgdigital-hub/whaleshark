@@ -246,14 +246,15 @@ func column(t *testing.T) (cells map[string]string, system string) {
 			cells[name] = cell
 		}
 	}
-	pane := func(id string) contract.Pane {
-		s, _ := terms.Snapshot(ctx)
-		for _, p := range append(s.Panes, contract.Pane{}) {
-			if p.ID == id {
-				return p
+	pane := func(id string) (found contract.Pane) {
+		if s, _ := terms.Snapshot(ctx); s != nil {
+			for _, p := range s.Panes {
+				if p.ID == id {
+					found = p
+				}
 			}
 		}
-		return contract.Pane{}
+		return found
 	}
 	shows := func(id, text string) bool {
 		return until(func() bool { s, _ := terms.Screen(id); return strings.Contains(s, text) })
@@ -293,8 +294,11 @@ func column(t *testing.T) (cells map[string]string, system string) {
 	row("PaneFocus", err, to == sh.ID)
 	row("Swap", terms.Swap(a.ID, sh.ID))
 	row("Resize", terms.Resize(a.ID, contract.Right, 0.1))
-	// A shell at its prompt is at rest, by the program in front in its terminal.
-	row(rowShell, nil, rests(sh.ID))
+	// A shell at its prompt is at rest, by the program in front in its
+	// terminal. This cell is the word the pane reads: a system that cannot
+	// tell which program is in front has another.
+	rests(sh.ID)
+	cells[rowShell] = pane(sh.ID).Status
 	reason, _, err := terms.Notify("matrix", "with no window to show it", false)
 	row("Notify", err, reason == contract.NotifyNoWindow)
 

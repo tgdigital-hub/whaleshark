@@ -16,7 +16,7 @@ to the interface fails the test until it has a row.
 
 `yes`: the call was answered and what it should bring about was seen. `no: not seen`: it was
 answered, and what it should bring about did not come within ten seconds. `no:` with another
-word: it was refused, under that name.
+word: it was refused, under that name. The `status` row holds the word the pane read.
 
 | Call or event | macOS | Linux | Windows |
 |---|---|---|---|
@@ -49,7 +49,7 @@ word: it was refused, under that name.
 | event `folder` | yes | yes | yes |
 | event `session` | yes | yes | yes |
 | event `tab-closed` | yes | yes | yes |
-| `status` of a pane with a shell at its prompt | yes | yes | yes |
+| `status` of a pane with a shell at its prompt | idle | idle | quiet |
 | `open`, the window | yes | yes | yes |
 | `hook state`, an agent's own word | yes | yes | yes |
 | all of the above again over `ssh` | yes | yes | not tried |
@@ -82,7 +82,7 @@ One keeper, two tabs, an agent, a window, in this order.
 | `PaneClose` | that pane is gone |
 | `SetKeys` | the shortcut is in the settings file |
 | `TabClose` | the tab's panes are gone |
-| `status` | a pane whose shell is at its prompt reads idle |
+| `status` | the word a pane reads once its shell is at its prompt, waited for ten seconds |
 | an event | at least one of its kind came in the stream |
 
 ## Over ssh
@@ -95,6 +95,12 @@ near side's surroundings and with no terminal, as a command typed after `ssh ser
 
 ## What is missing
 
+- **On Windows the keeper cannot tell which program is in front in a pane**: the system has
+  no such thing to ask. Seen here: a pane with a shell at its prompt reads `quiet` (it has
+  stopped printing), never `idle`, and so never `working` either. Following from the same
+  lack, by the code and not tried here: an agent a person starts by hand in a pane is not
+  known as an agent, only one the tool started; and a line for an agent is not held back
+  while the agent has another program in front of it.
 - **Over ssh on Windows** was not tried: the test starts no `sshd` there.
 - **Both ends of the ssh are one machine.** A second computer, a slow or broken link, a
   connection that drops and comes back, and the window drawn through ssh's own terminal
