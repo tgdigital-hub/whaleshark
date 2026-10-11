@@ -9,19 +9,24 @@ import (
 	"time"
 )
 
-// The test program is three programs: the tests, a test that ends badly in
-// the way its surroundings name, and a program that lives until it is ended
-// and writes down, many times a second, that it still does.
+// The test program is four programs: the tests, a test that ends badly in
+// the way its surroundings name, a program that lives until it is ended
+// and writes down, ten times a second, that it still does, and one that
+// writes that down once and ends.
 const (
 	roleEnv = "WHALESHARK_TEST_LEASH_ROLE"
 	beatEnv = "WHALESHARK_TEST_LEASH_BEAT"
 )
 
 func TestMain(m *testing.M) {
+	if os.Getenv(roleEnv) == "once" {
+		_ = os.WriteFile(os.Getenv(beatEnv), []byte("ran"), 0o600)
+		os.Exit(0)
+	}
 	if os.Getenv(roleEnv) == "program" {
 		for n := 0; ; n++ {
 			_ = os.WriteFile(os.Getenv(beatEnv), []byte(strconv.Itoa(n)), 0o600)
-			time.Sleep(20 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 	os.Exit(m.Run())
@@ -100,21 +105,28 @@ func TestTheProgramEndsHoweverTheTestDoes(t *testing.T) {
 }
 
 // What a test cannot hold it can have asked to end: the program of After
-// runs once the test's process is gone, and not before.
+// runs once the test's process is gone or lets go, and not before; and the
+// holder ends when its program has.
 func TestAfterRunsWhenTheTestIsGone(t *testing.T) {
 	beat := filepath.Join(t.TempDir(), "beat")
 	t.Setenv(beatEnv, beat)
-	t.Setenv(roleEnv, "program")
+	t.Setenv(roleEnv, "once")
 	cmd, let := After(os.Args[0])
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { cmd.Process.Kill() })
-	if alive(beat) {
+	time.Sleep(300 * time.Millisecond)
+	if _, err := os.Stat(beat); err == nil {
 		t.Fatal("the program ran while the test still held the leash")
 	}
 	let()
-	await(t, beat, true, "after letting go")
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("the holder: %v", err)
+	}
+	if said, _ := os.ReadFile(beat); string(said) != "ran" {
+		t.Errorf("the program did not run after the test let go: %q", said)
+	}
 }
 
 // A test that ends well lets go itself, and Wait gives the program's end.

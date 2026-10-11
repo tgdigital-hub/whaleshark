@@ -75,7 +75,12 @@ func hold(atTheEnd bool, name string, args []string) int {
 	program.Stdout, program.Stderr = os.Stdout, os.Stderr
 	if atTheEnd {
 		_, _ = io.Copy(io.Discard, os.Stdin)
-		_ = program.Run()
+		// What is run at the end must end too: after a minute it is ended.
+		if program.Start() == nil {
+			late := time.AfterFunc(time.Minute, func() { _ = program.Process.Kill() })
+			_ = program.Wait()
+			late.Stop()
+		}
 		return 0
 	}
 	if err := program.Start(); err != nil {
