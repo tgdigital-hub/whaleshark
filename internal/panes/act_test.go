@@ -837,6 +837,15 @@ func TestSet(t *testing.T) {
 			t.Errorf("set %v: %v", args, err)
 		}
 	}
+	// "until" with no time, or with none that is one, is answered with the form it takes.
+	for _, args := range [][]string{{"dnd", "until"}, {"dnd", "until", "TIME"}, {"dnd", "until 25:00"}} {
+		if _, err := run(args...); exit(err) != contract.ExitUsage || !strings.Contains(err.Error(), "set dnd until 9:00") {
+			t.Errorf("set %v: %v", args, err)
+		}
+	}
+	if out, err := run("dnd", "until 21:30"); err != nil || !strings.Contains(out, "dnd: until 21:30") {
+		t.Errorf("set dnd with its time as one word: %q, %v", out, err)
+	}
 	// The engine's settings come with the engine.
 	for _, key := range contract.SettingKeys {
 		if _, err := run(key, "x"); err == nil || exit(err) == contract.ExitUsage || !strings.Contains(err.Error(), contract.ErrNotBuilt.Error()) {

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -578,7 +580,8 @@ func TestThePromptOfABrowserCheck(t *testing.T) {
 	for system, bin := range map[string]string{"darwin": "Google Chrome\"", "linux": "\n  chromium", "windows": "chrome.exe", "plan9": ""} {
 		got := Browser(true, system, false)
 		for _, want := range []string{"on $PORT, bound to " + contract.Loopback, "your own browser tool, without a screen",
-			".png files into $" + contract.EnvEvidence, "never the person's own browser profile", "Never switch the browser's sandbox off."} {
+			".png files into $" + contract.EnvEvidence, "never the person's own browser profile", "Never switch the browser's sandbox off.",
+			"Never take a screenshot that shows a secret"} {
 			if !strings.Contains(got, want) {
 				t.Errorf("%s: the section lacks %q:\n%s", system, want, got)
 			}
@@ -593,6 +596,29 @@ func TestThePromptOfABrowserCheck(t *testing.T) {
 	// On a server it is the browser every login shares, wherever the server runs.
 	if got := Browser(true, "linux", true); !strings.Contains(got, `"$`+contract.EnvBrowsers+`"/chromium-`) || strings.Contains(got, "\n  chromium ") {
 		t.Errorf("on a server:\n%s", got)
+	}
+	// The command as written finds the shared browser under either name the
+	// browser tooling gives its folder.
+	_, line, _ := strings.Cut(Browser(true, "linux", true), "this one command takes a screenshot:\n")
+	line, _, _ = strings.Cut(line, "\n")
+	for _, folder := range []string{"chrome-linux", "chrome-linux64"} {
+		if runtime.GOOS == "windows" {
+			break
+		}
+		shared, said := t.TempDir(), filepath.Join(t.TempDir(), "said")
+		file := filepath.Join(shared, "chromium-1248", folder, "chrome")
+		if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte("#!/bin/sh\necho \"$@\" >'"+said+"'\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command("sh", "-c", line)
+		cmd.Env = append(os.Environ(), contract.EnvBrowsers+"="+shared, "PORT=4000", contract.EnvEvidence+"=/e")
+		out, err := cmd.CombinedOutput()
+		if got, _ := os.ReadFile(said); err != nil || !strings.Contains(string(got), "--headless") || !strings.Contains(string(got), "--screenshot=/e/page.png") {
+			t.Errorf("with the browser in %s the command ran %q: %v\n%s", folder, got, err, out)
+		}
 	}
 	p := fullPrompt()
 	p.Browser = Browser(true, "linux", false)

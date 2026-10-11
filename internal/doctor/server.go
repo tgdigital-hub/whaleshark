@@ -127,7 +127,7 @@ func serve(c *contract.Call) (any, error) {
 	case !slices.Contains(strings.Split(c.Command.Usage[len("server "):], "|"), verb):
 		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "Say which: whaleshark " + c.Command.Usage + ".", Next: []string{"whaleshark help server"}}
 	case p.System() != "linux":
-		return no("not_linux", "", "A server is a Linux machine (Ubuntu or Debian); this is %s.", p.System())
+		return no("not_linux", "", "A server is a Linux machine (Ubuntu 24.04 or Debian 12); this is %s.", p.System())
 	case verb != "status" && !isRoot():
 		return no("not_root", "sudo whaleshark server "+verb, "server %s changes the machine and needs the administrator.", verb)
 	}

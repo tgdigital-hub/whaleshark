@@ -45,7 +45,9 @@ lines 1200 platform internal/platform
 # 20 more after the real runs of phase 2: a person whose commands go to no
 # run is told the open runs and the command that turns to one, in the one
 # place every command passes; it stood at 957. guide pays.
-lines 990 cli internal/cli
+# 5 more after the Linux proof: the least git the tool works with is told in
+# one place, for init and for doctor, and came here from doctor; overlap pays.
+lines 995 cli internal/cli
 lines 1600 rules internal/rules
 lines 500 store internal/store
 # guide gives 40 after the real runs of phase 2, to cli and runtask: built
@@ -116,7 +118,9 @@ lines 730 integrate internal/integrate
 # 50 more after the real runs of phase 2: sync sends the result of a worker
 # that has reported back with the brief and types the line that says so,
 # which was the dead end of both runs; it stood at 804. install pays.
-lines 860 overlap internal/overlap
+# 5 fewer after the Linux proof: the scan that went on without a merge, for
+# a git older than the tool works with, is gone; they go to cli.
+lines 855 overlap internal/overlap
 # doctor: its 30 of the engine's share (the keeper's rows, the paste line),
 # planned since the engine decision and kept out of this file until phase 2.
 # 180 more at the start of phase 3: fifteen rows of proof for a server, seven

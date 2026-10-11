@@ -18,7 +18,7 @@ What has been tried, plainly:
 
 ## Install
 
-Each system's package manager, or one line that needs none. All of them carry the same signed file.
+Each system's package manager, or one line that needs none. All of them carry the same signed file. WhaleShark works with git 2.38 or newer; with an older one `init` sets nothing up and says so, and `whaleshark doctor` has the row.
 
 **macOS**
 
@@ -64,7 +64,7 @@ The first worker started in a project you have never opened in Claude Code stops
 
 ## A server for several people
 
-One Linux machine (Ubuntu 22.04, Ubuntu 24.04 or Debian 12), one install, a login of the operating system for each person, and one administrator login that runs no agents. Five lines, and no shorter form: three on the server as the login your provider gave you, two **from your own computer**.
+One Linux machine (Ubuntu 24.04 or Debian 12), one install, a login of the operating system for each person, and one administrator login that runs no agents. Five lines, and no shorter form: three on the server as the login your provider gave you, two **from your own computer**.
 
 ```
 # on the server
