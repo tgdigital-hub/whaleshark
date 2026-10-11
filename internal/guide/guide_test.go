@@ -653,7 +653,7 @@ func TestTheBrowserLineOnWindows(t *testing.T) {
 		t.Errorf("with no browser on the PC:\n%s", got)
 	}
 	put("ProgramFiles(x86)", `Microsoft\Edge\Application\msedge.exe`)
-	want := ` --headless --user-data-dir=C:\Temp\whaleshark-browser-r1-T2.1 --screenshot=D:\p\evidence\page.png --window-size=1280,900 http://` + contract.Loopback + `:21000/ | sort` + "\n"
+	want := ` --headless --user-data-dir=C:\Temp\whaleshark-browser-r1-T2.1 --screenshot=D:\p\evidence\page.png --window-size=1280,900 http://` + contract.Loopback + `:21000/ | sort` + "\n  In cmd, this one in its place:\n  start \"\" /wait "
 	if got := on(); !strings.Contains(got, "no browser tool, this one command takes a screenshot:\n  "+env["ProgramFiles(x86)"]+`\Microsoft\Edge\Application\msedge.exe`+want) {
 		t.Errorf("with Edge alone:\n%s", got)
 	}
@@ -662,7 +662,7 @@ func TestTheBrowserLineOnWindows(t *testing.T) {
 		t.Errorf("with Chrome:\n%s", got)
 	}
 	powershell := func(_ string, argv []string) string { return "& '" + strings.Join(argv, "' '") + "'" }
-	if got := OnWindows(section, powershell, tab, func(name string) string { return env[name] }); !strings.Contains(got, ":21000/' | Out-Null\n") {
+	if got := OnWindows(section, powershell, tab, func(name string) string { return env[name] }); !strings.Contains(got, ":21000/' | Out-Null\n  In cmd") {
 		t.Errorf("a line only PowerShell reads must wait in PowerShell's way:\n%s", got)
 	}
 }

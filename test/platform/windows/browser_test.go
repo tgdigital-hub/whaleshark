@@ -17,7 +17,8 @@ import (
 
 // TestTheBrowserLine runs the prompt's one command for a worker with no
 // browser tool, as the prompt writes it on Windows, in every shell a
-// worker's tool can type into there: the one line must have saved a
+// worker's tool can type into there (one line for both PowerShells and
+// git's bash, one for cmd): the line must have saved a
 // picture of the worker's site by the time it ends, in each of them, or a
 // report typed next would be refused. Then again on a PC with no Chrome,
 // where the line names Edge.
@@ -56,9 +57,11 @@ func TestTheBrowserLine(t *testing.T) {
 			}
 			t.Cleanup(func() { os.RemoveAll(evidence) })
 			tab := []string{contract.EnvRun + "=r1", contract.EnvAttempt + "=" + worker + "-" + sh.name, contract.EnvEvidence + "=" + evidence, "PORT=" + port}
+			// The section's first line with the browser in it is for every
+			// shell but cmd, its second for cmd.
 			line := ""
 			for _, l := range strings.Split(guide.OnWindows(guide.Browser(true, "windows", false), p.Kit.Platform.Quote, tab, pc.getenv), "\n") {
-				if strings.Contains(l, "--headless") {
+				if strings.Contains(l, "--headless") && (line == "" || sh.name == "cmd") {
 					line = strings.TrimSpace(l)
 				}
 			}

@@ -307,7 +307,7 @@ func TestTheKeeperAtLogOn(t *testing.T) {
 		t.Errorf("after init --remove --all the list holds %q (%v)\n%v %s", have, gone, err, out)
 	}
 	// The project is out of the login's list with it; set up again, doctor speaks of it.
-	if out, err := p.Command(scenario.Unbound, "init", "--adopt").CombinedOutput(); err != nil || !strings.HasPrefix(row(), "note") {
+	if out, err := p.Command(scenario.Human, "init", "--adopt").CombinedOutput(); err != nil || !strings.HasPrefix(row(), "note") {
 		t.Errorf("after init --remove --all doctor says: %s\n%v %s", row(), err, out)
 	}
 

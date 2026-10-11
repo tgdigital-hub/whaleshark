@@ -64,25 +64,25 @@ func (s *System) Quote(dialect string, argv []string) string {
 }
 
 // forEveryShell spells a line once for every shell of Windows. The program
-// comes first and bare, since no two of them quote a command alike: by its
-// short name where its own has a blank, and with every backslash written
-// twice, which git's bash reads as one and Windows takes as one. Forward
-// slashes would do too, until the line is one side of a pipe, where cmd
-// reads the first of them as the start of a switch. Every other word is
-// bare or between double quotes.
+// comes first and bare, since no two of them quote a command alike: with
+// forward slashes, and by its short name where its own has a blank. Every
+// other word is bare or between double quotes. Seen on a hosted Windows
+// machine: all four read such a line, and one of them not as one side of a
+// pipe, where cmd takes the path's first slash for a switch; a backslash,
+// single or doubled, is lost on the way into git's bash.
 func forEveryShell(argv []string) (string, bool) {
 	words := make([]string, len(argv))
 	for i, arg := range argv {
 		switch bare := strings.Trim(arg, everyShell) == "" && arg != ""; {
 		case i == 0:
-			if strings.Trim(arg, everyShell+`\`) != "" {
-				arg = short(arg)
+			if arg = strings.ReplaceAll(arg, `\`, "/"); strings.Trim(arg, everyShell) != "" {
+				arg = strings.ReplaceAll(short(argv[0]), `\`, "/")
 			}
 			// Two slashes begin another machine's folder, which cmd runs nothing from.
-			if arg == "" || strings.Trim(arg, everyShell+`\~`) != "" || strings.HasPrefix(arg, `\\`) || strings.HasPrefix(arg, "//") || arg[0] == '~' {
+			if arg == "" || strings.Trim(arg, everyShell+"~") != "" || strings.HasPrefix(arg, "//") || arg[0] == '~' {
 				return "", false
 			}
-			words[i] = strings.ReplaceAll(arg, `\`, `\\`)
+			words[i] = arg
 		case bare:
 			words[i] = arg
 		case strings.ContainsAny(arg, notInQuotes) || strings.HasSuffix(arg, `\`) || strings.Contains(arg, `\\`):
