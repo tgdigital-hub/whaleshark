@@ -1,0 +1,50 @@
+# The long test of the engine on a hosted Linux machine: twenty panes of
+# noisy programs under the real keeper, with a window that is typed in,
+# resized and switched between tabs, for as long as it is asked (an hour
+# unless another length is given). It starts by hand, or by itself when the
+# test or this file changes; no push of anything else waits an hour for it.
+# A hosted machine is small and shared, so its figures say that nothing is
+# lost and nothing grows, not how fast a person's own machine is.
+#
+# No step here is written by anyone else (see gate.yml).
+name: soak
+
+on:
+  push:
+    branches: ['**']
+    paths: ['test/soak/**', '.github/workflows/soak.yml']
+  workflow_dispatch:
+    inputs:
+      length:
+        description: how long, as Go writes a length of time
+        default: 1h
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  GOTOOLCHAIN: auto
+
+jobs:
+  soak:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Fetch this commit
+        run: |
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch -q --depth 1 origin "$GITHUB_SHA" || git fetch -q --depth 1 origin "$GITHUB_REF"
+          git checkout -q FETCH_HEAD
+      - name: The Go that go.mod names
+        run: go version
+      - name: The machine
+        run: nproc; free -m; uptime
+      - name: Twenty panes for the length asked
+        env:
+          WHALESHARK_SOAK: ${{ inputs.length || '1h' }}
+        run: go test ./test/soak -count=1 -timeout 140m -v
