@@ -18,7 +18,6 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
-	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/term/termtest"
 	"github.com/tgdigital-hub/whaleshark/internal/view"
 )
@@ -139,9 +138,10 @@ func (wd *world) asked(words string) {
 	wd.t.Fatalf("the terminals were never asked for %q:\n%+v", words, wd.double.Calls())
 }
 
-// keyGap is the time a test leaves before a key that is a command. It is
-// well over burstGap, because the pane counts from when it takes a key, and
-// on a busy machine that is some time after the test sent it.
+// keyGap is the time a test leaves before a key that is a command: over
+// burstGap, and left after the pane has drawn what the last key did, since
+// the pane counts from when it takes a key, and on a busy machine that is
+// some time after the test sent it.
 const keyGap = burstGap + 150*time.Millisecond
 
 // settle waits as a person does before a click: until the rows have stood
@@ -152,7 +152,7 @@ func (wd *world) settle() { wd.s.Still(clickWait + 50*time.Millisecond) }
 // last that the typing guard does not take them for a sentence.
 func (wd *world) key(names ...string) {
 	for _, name := range names {
-		time.Sleep(keyGap)
+		wd.s.Settled(keyGap)
 		wd.s.Key(name)
 	}
 }
@@ -407,7 +407,7 @@ func TestTheTypingLineAndItsDrafts(t *testing.T) {
 	// Pasted text goes nowhere while no line is open.
 	wd.s.Paste("yes\r")
 	wd.key("o")
-	time.Sleep(keyGap)
+	wd.s.Settled(keyGap)
 	wd.s.Type("small and ")
 	wd.s.Paste("large\nones")
 	wd.shows("> small and large ones")
@@ -440,7 +440,7 @@ func TestTheTypingLineAndItsDrafts(t *testing.T) {
 	wd.shows("other: >")
 	wd.s.Key("enter")
 	wd.shows("nothing is typed yet")
-	time.Sleep(keyGap)
+	wd.s.Settled(keyGap)
 	wd.s.Type("ask the shop owner")
 	wd.s.Key("enter")
 	wd.ran(`answer q7 --file "other: ask the shop owner" --human`)
@@ -526,7 +526,7 @@ func TestABurstOfLettersAnswersNothing(t *testing.T) {
 	wd := start(t, actions, 120, 24, nil)
 	wd.s.Type("\x1b[I")
 	wd.shows("› ▲ sign-up page")
-	time.Sleep(keyGap)
+	wd.s.Settled(keyGap)
 	wd.s.Type("yes do that, and stop the rest\r")
 	wd.shows(typingSaid)
 	time.Sleep(500 * time.Millisecond)
@@ -542,7 +542,7 @@ func TestABurstOfLettersAnswersNothing(t *testing.T) {
 	}
 	// A sentence that begins with the key for the typing line types nothing
 	// into it, and its Enter sends nothing.
-	time.Sleep(keyGap)
+	wd.s.Settled(keyGap)
 	wd.s.Type("ok then\r")
 	time.Sleep(keyGap + 500*time.Millisecond)
 	if n := len(wd.children("answer")); n > 2 || strings.Contains(wd.screen(), "other: >") {
@@ -737,7 +737,8 @@ func TestAPaneLeavesWhenItsProgramIsReplaced(t *testing.T) {
 	home := t.TempDir()
 	k := contract.NewKit()
 	k.Platform, k.Store = system(home, nil), reader{dir: home, state: &fx.State, reads: new(atomic.Int32), fails: new(atomic.Bool)}
-	p := newPane(actions, termtest.New(100, 20).Term, k, home, "", func() time.Time { return fx.Now })
+	s := termtest.New(100, 20)
+	p := newPane(actions, s.Term, k, home, "", func() time.Time { return fx.Now })
 	self, _ := os.Executable()
 	p.self, p.make = filepath.Join(home, filepath.Base(self)), func(contract.ViewInput) contract.View { return *fx.Views[contract.Human] }
 	if err := os.Link(self, p.self); err != nil {
@@ -746,14 +747,13 @@ func TestAPaneLeavesWhenItsProgramIsReplaced(t *testing.T) {
 	}
 	left := make(chan bool)
 	go func() { left <- p.loop() }()
-	post := func(ev term.Event) { p.t.Post(ev) }
-	post(term.Event{Kind: term.Focus, Focused: true})
-	time.Sleep(keyGap)
-	post(term.Event{Kind: term.KeyPress, Key: "j", Rune: 'j'})
-	time.Sleep(keyGap)
-	post(term.Event{Kind: term.KeyPress, Key: "o", Rune: 'o'})
-	time.Sleep(keyGap)
-	post(term.Event{Kind: term.Paste, Text: "three sizes"})
+	s.Type("\x1b[I")
+	for _, key := range []string{"j", "o"} {
+		s.Settled(keyGap)
+		s.Key(key)
+	}
+	s.Settled(keyGap)
+	s.Paste("three sizes")
 	time.Sleep(100 * time.Millisecond)
 	later := time.Now().Add(time.Hour)
 	if err := os.Chtimes(p.self, later, later); err != nil {
