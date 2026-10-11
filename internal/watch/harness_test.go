@@ -406,6 +406,18 @@ func (s *stand) heard() []string {
 	return slices.Clone(s.hooks)
 }
 
+// shown waits until the pane's screen shows the question of an agent's
+// kind, and then for a few of the Watcher's looks.
+func shown(t *testing.T, p *pane, agent string) {
+	t.Helper()
+	for end := time.Now().Add(wait); kinds[agent].read(p.Text(), true) != question; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(end) {
+			t.Fatalf("the screen never showed the question:\n%s", p.Text())
+		}
+	}
+	time.Sleep(5 * every)
+}
+
 // named waits for a state that also carries the session. An agent's screen
 // can say it is ready before its first hook has named its session: the hook
 // is a program of its own, and where starting one is slow (Windows) the

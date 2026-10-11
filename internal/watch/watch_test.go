@@ -101,6 +101,11 @@ func TestTheFakeAgentThroughEveryState(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.reach(t, blocked, wait)
+	// The hook can tell of the question before the screen shows it, where a
+	// screen is slow (Windows): nobody refuses a question they cannot see
+	// yet, and the Watcher knows a refusal by the question leaving a screen
+	// that showed it.
+	shown(t, p, "claude")
 	p.press("n")
 	s.reach(t, idle, wait)
 
