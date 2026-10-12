@@ -5,6 +5,7 @@ package cli
 import (
 	"cmp"
 	"fmt"
+	"os"
 	"runtime/debug"
 	"strings"
 
@@ -13,11 +14,6 @@ import (
 
 // Version is the version of the program; a release build sets it.
 var Version = "dev"
-
-// Phase 6 owes here: help set --json with each key's value now
-// (contract.Current) and what an agent may do with it (Key.Agent);
-// contract.ReportLine as the last lines of help; version's line of a newer
-// release (contract.VersionLine).
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
@@ -43,18 +39,25 @@ var exits = map[int]string{
 
 // row is one command as help --json prints it: the table itself.
 type row struct {
-	Name    string         `json:"name"`
-	Section string         `json:"section"`
-	Phase   int            `json:"phase"`
-	Built   bool           `json:"built"`
-	Who     []string       `json:"who"`
-	Usage   string         `json:"usage"`
-	Help    string         `json:"help"`
-	Exits   []int          `json:"exits"`
-	Flags   []flagRow      `json:"flags,omitempty"`
-	Subs    []flagRow      `json:"subs,omitempty"`
-	Example string         `json:"example,omitempty"`
-	Keys    []contract.Key `json:"keys,omitempty"` // of set: every setting that has a row of the screen
+	Name    string    `json:"name"`
+	Section string    `json:"section"`
+	Phase   int       `json:"phase"`
+	Built   bool      `json:"built"`
+	Who     []string  `json:"who"`
+	Usage   string    `json:"usage"`
+	Help    string    `json:"help"`
+	Exits   []int     `json:"exits"`
+	Flags   []flagRow `json:"flags,omitempty"`
+	Subs    []flagRow `json:"subs,omitempty"`
+	Example string    `json:"example,omitempty"`
+	Keys    []keyRow  `json:"keys,omitempty"` // of set: every setting that has a row of the screen
+}
+
+// keyRow is a setting, its value now, and what `set` does with it for an agent.
+type keyRow struct {
+	contract.Key
+	Now   string `json:"now"`
+	Agent string `json:"agent"`
 }
 
 // flagRow is a flag, or a form of a command with callers of its own.
@@ -118,7 +121,8 @@ func help(c *contract.Call) (any, error) {
 			}
 			fmt.Fprintf(c.Out, "  %-9s %s%s\n", rows[i].Name, rows[i].Help, built)
 		}
-		return map[string]any{"commands": rows}, nil
+		fmt.Fprintf(c.Out, "\n%s\n", contract.ReportLine)
+		return map[string]any{"commands": rows, "report": contract.ReportLine}, nil
 	}
 	cmd := contract.Find(c.Args[0])
 	if cmd == nil {
@@ -157,10 +161,14 @@ func help(c *contract.Call) (any, error) {
 	if r.Example != "" {
 		line("Example:", r.Example)
 	}
+	dirs, err := c.Kit.Platform.Dirs()
 	for _, k := range contract.Keys {
 		if cmd.Name == "set" && k.Section != "" {
 			fmt.Fprintf(c.Out, "  %-30s %-24s %s\n", k.Name, cmp.Or(k.Values, k.Kind), k.Label)
-			r.Keys = append(r.Keys, k)
+			r.Keys = append(r.Keys, keyRow{Key: k, Agent: k.Agent()})
+			if err == nil { // with no login's folders nothing is read
+				r.Keys[len(r.Keys)-1].Now = contract.Current(c.Kit.Platform, dirs, k.Name)
+			}
 		}
 	}
 	if !r.Built {
@@ -179,6 +187,7 @@ func version(c *contract.Call) (any, error) {
 		Version string `json:"version"`
 		Build   string `json:"build"`
 		Engine  string `json:"engine"`
+		Newer   string `json:"newer,omitempty"`
 	}{Version: Version, Build: "unknown"}
 	if info, ok := debug.ReadBuildInfo(); ok {
 		v.Build = info.GoVersion
@@ -193,5 +202,14 @@ func version(c *contract.Call) (any, error) {
 		v.Engine, seen = h, h
 	}
 	fmt.Fprintf(c.Out, "whaleshark %s (%s)\nengine %s\n", v.Version, v.Build, Plain(seen))
+	// Where this copy lies says whether Homebrew upgrades it.
+	exe, _ := os.Executable()
+	brew := strings.Contains(strings.ToLower(exe), "brew") || strings.Contains(exe, "/Cellar/")
+	upgrade := map[bool]string{true: "brew upgrade whaleshark", false: "upgrade it the way you installed it"}[brew]
+	if dirs, err := c.Kit.Platform.Dirs(); err == nil {
+		if v.Newer = contract.VersionLine(contract.ReadVersion(c.Kit.Platform.Peek, dirs.State).Seen, Version, upgrade); v.Newer != "" {
+			fmt.Fprintln(c.Out, v.Newer)
+		}
+	}
 	return v, nil
 }

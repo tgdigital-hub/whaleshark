@@ -209,12 +209,14 @@ func (r Rules) Synced(s *contract.State, task, brief string, now time.Time) (int
 	switch {
 	case err != nil:
 		return 0, err
-	case t.Worktree == nil:
+	case t.Worktree == nil && t.Fleet == "":
 		return 0, refused("no_worktree", "%s has no copy of the code of its own, so there is nothing to bring up to date.", t.ID)
 	case t.Status == contract.TaskDone || t.Status == contract.TaskCancelled:
 		return 0, refused("settled", "%s is %s.", t.ID, t.Status)
 	}
-	t.Synced, t.SyncBrief = t.Synced+1, brief
+	if t.Synced++; t.Fleet == "" {
+		t.SyncBrief = brief
+	}
 	return t.Synced, nil
 }
 
