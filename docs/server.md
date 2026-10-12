@@ -83,4 +83,4 @@ There is no command that undoes `server setup`. What it and `server add` wrote: 
 
 ## A stolen laptop
 
-Until you remove its key, whoever holds your laptop is you. Protect the SSH key with a passphrase or a hardware key. To end it: delete the key's line from `~/.ssh/authorized_keys` in your login on the server (and in the administrator's, if it held that key too), run `whaleshark dash stop --forget` there, which signs every browser and phone out, and, where you use Tailscale, remove the laptop from your network in Tailscale's admin pages.
+Until you remove its key, whoever holds your laptop is you. Protect the SSH key with a passphrase or a hardware key. To end it: delete the key's line from `~/.ssh/authorized_keys` in your login on the server (and in the administrator's, if it held that key too), run `whaleshark dash stop --forget` there, which signs every browser and phone out.

@@ -108,16 +108,13 @@ func TestTheServerCommandRunsTheScriptCompiledIn(t *testing.T) {
 		}
 		asked("systemctl --user -M " + name + "@ enable -q --now " + contract.UnitKeeper)
 	}
-	door := "http://" + contract.Loopback + ":" + strconv.Itoa(r.Door("ana"))
-	if r, _ = must("phone", "--user=ana"); r.Login["ana"].Phone != servePorts[0] || r.Road != contract.RoadTailscale {
-		t.Errorf("after phone: %+v", r)
+	if _, said, err := run("phone", "--user=ana", "--name=ws1.example.com", "--aud=0a1b2c3d", "--email=ana@example.com"); err == nil || !strings.Contains(err.Error(), "no tunnel") {
+		t.Errorf("a public name before the tunnel: %v\n%s", err, said)
 	}
-	asked("tailscale serve --bg --https=" + strconv.Itoa(servePorts[0]) + " " + door)
 
 	// doctor --server, asking the same stand-ins, finds the script's work.
 	e, _ := b.doctor("server")
-	for _, words := range [][]string{{"SSH takes keys only"}, {"firewall refuses everything from outside but SSH"},
-		{"Tailscale forwards port", "to the door of ana"}, {"no door for a phone is set up for ben"}} {
+	for _, words := range [][]string{{"SSH takes keys only"}, {"firewall refuses everything from outside but SSH"}, {"no way in for a phone"}} {
 		if l := e.line(words...); l == nil || l.Mark == problem {
 			t.Errorf("doctor --server does not find %q as the script left it:\n%s", words, e.text())
 		}
@@ -139,12 +136,8 @@ func TestTheServerCommandRunsTheScriptCompiledIn(t *testing.T) {
 		t.Errorf("after the upgrade the program in place is %q", got)
 	}
 	asked("systemctl --user -M ben@ restart " + contract.UnitDash)
-	if r, _ = must("phone", "--user=ana", "--off="); r.Login["ana"].Phone != 0 || r.Road != "" {
-		t.Errorf("after the phone was taken off: %+v", r)
-	}
-	asked("tailscale serve --https=" + strconv.Itoa(servePorts[0]) + " off")
 
-	// The other way in. The command hands the script the team and each
+	// The way in for phones. The command hands the script the team and each
 	// person's name, door and tag; doctor --server then finds the connector,
 	// its credential and the routing file as the script left them, and no
 	// certificate of the account anywhere under the root.

@@ -11,12 +11,11 @@
 // whether or not a browser is connected, and that is all it does when
 // nobody is looking. While the person has phone access on, on a server
 // whose administrator set it up, it also listens on one loopback port of the
-// login's own block, the door: the private network's own program hands a
-// phone's connection to it and says who is calling, or Cloudflare's does,
-// with a signed pass that the door checks itself on every request. A phone
-// is paired once, by a number the person approves where they are signed in
-// already (on the page, in a pane, or with `dash phone approve`), and is then
-// shown the same page in one column.
+// login's own block, the door: Cloudflare's connector hands a phone's
+// connection to it with a signed pass, which the door checks itself on
+// every request. A phone is paired once, by a number the person approves
+// where they are signed in already (on the page, in a pane, or with `dash
+// phone approve`), and is then shown the same page in one column.
 //
 // A server that holds a connection open and says a line when something
 // changed is the ordinary shape of a live page (the HTML standard's
@@ -47,8 +46,7 @@ import (
 
 const startWait, startStep = 10 * time.Second, 50 * time.Millisecond
 
-// Phase 6 owes here: first, with the road: the door believes no header. Then
-// the interface for apps under contract.APIv1, a session by
+// Phase 6 owes here: the interface for apps under contract.APIv1, a session by
 // contract.HeaderApp, and the pairing code (contract.PairCode, Phones.Code).
 
 // Plug binds dash.

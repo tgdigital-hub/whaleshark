@@ -185,7 +185,7 @@ func (e *exam) network() {
 	out, _ = ask("ufw", "status", "verbose")
 	var extra []string
 	for _, line := range strings.Split(out, "\n") {
-		if f := strings.Fields(line); strings.Contains(line, "ALLOW") && !slices.Contains([]string{port, port + "/tcp", "OpenSSH"}, f[0]) && !strings.Contains(line, "tailscale0") {
+		if f := strings.Fields(line); strings.Contains(line, "ALLOW") && !slices.Contains([]string{port, port + "/tcp", "OpenSSH"}, f[0]) {
 			extra = append(extra, f[0])
 		}
 	}
@@ -441,49 +441,26 @@ func (e *exam) page() {
 	e.hold(foreign >= 400, "", "the page is running, signs in, and refuses a change asked for by another site", "the page did not refuse a change asked for by another site")
 }
 
-// road is the way in for a phone: Tailscale's forwarding to each login's
-// door or Cloudflare's tunnel, and for a login itself what stands behind
-// its door.
+// road is the way in for a phone: Cloudflare's tunnel, and for a login
+// itself what stands behind its door.
 func (e *exam) road(r *record, names []string) {
 	switch {
 	case len(names) == 0:
 		return
 	case r.Road == "":
-		e.say(note, phoneCmd+names[0], "no way in for a phone is set up on this server")
+		e.say(note, tunnelCmd+"NAME", "no way in for a phone is set up on this server")
 		return
-	case r.Road == contract.RoadCloudflare:
-		e.tunnel(r, names)
-	default:
-		e.forwarding(r, names)
 	}
+	e.tunnel(r, names)
 	if phones, _ := contract.ReadPhones(e.k.Platform.Peek, e.dirs.State); isRoot() || !phones.On {
 		return
 	}
 	door := net.JoinHostPort(contract.Loopback, strconv.Itoa(r.Door(names[0])))
 	if conn, err := net.DialTimeout("tcp", door, time.Second); err != nil {
 		e.say(problem, "whaleshark dash start", "phone access is on and nothing listens at your door %s", door)
-	} else if conn.Close(); r.Road == contract.RoadCloudflare {
-		e.pass(r, names[0], door)
-	} else if r.Rules != contract.RulesProven {
-		e.say(note, proveCmd, "your door %s is open, and the port rules are not proven: pairing and the session are the only wall between another login and your page", door)
 	} else {
-		e.say(ok, "", "your door %s is open, and only you and the system reach it", door)
-	}
-}
-
-func (e *exam) forwarding(r *record, names []string) {
-	out, err := ask("tailscale", "serve", "status")
-	for _, name := range names {
-		door, port := net.JoinHostPort(contract.Loopback, strconv.Itoa(r.Door(name))), r.Login[name].Phone
-		switch {
-		case port == 0:
-			e.say(note, phoneCmd+name, "no door for a phone is set up for %s", name)
-		case err != nil:
-			e.say(note, proveCmd, "Tailscale's forwarding could not be read here: %s", out)
-		default:
-			e.hold(strings.Contains(out, door) && (port == servePorts[0] || strings.Contains(out, ":"+strconv.Itoa(port))), phoneCmd+name, // the usual port is not printed
-				fmt.Sprintf("Tailscale forwards port %d to the door of %s, %s", port, name, door), fmt.Sprintf("Tailscale does not forward port %d to the door of %s, %s", port, name, door))
-		}
+		conn.Close()
+		e.pass(r, names[0], door)
 	}
 }
 

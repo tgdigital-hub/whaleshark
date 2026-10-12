@@ -58,13 +58,11 @@ const (
 
 var file = ports(`version = 1
 agents = 20
-road = "tailscale"
 rules = "proven"
 admin = "admin"
 
 [login.kim]
 ports = 31000
-phone = 443
 
 [login.ana]
 ports = 30000
@@ -126,7 +124,6 @@ func server(t *testing.T, text string, root bool) *box {
 		"systemctl --user is-enabled":    "enabled",
 		"git config --global user.name":  "Kim Example",
 		"git config --global user.email": "kim@example.com",
-		"tailscale serve status":         "https://box.example.ts.net (tailnet only)\n|-- / proxy http://" + contract.Loopback + ports(":31999"),
 		"sshd -T":                        "port 22\n" + strings.Join(inForce, "\n") + "\nmaxsessions 10",
 		"ufw status verbose":             "Status: active\nDefault: deny (incoming), allow (outgoing), disabled (routed)\n\n22/tcp ALLOW IN Anywhere\n22/tcp (v6) ALLOW IN Anywhere (v6)",
 		"sudo -n -l -U admin":            "User admin may run the following commands on box:\n    (ALL : ALL) NOPASSWD: ALL",
@@ -221,17 +218,6 @@ func (b *box) page(signsIn, refuses bool) string {
 	return socket
 }
 
-// door listens where kim's phones come in and switches phone access on.
-func (b *box) door() {
-	b.Helper()
-	l, err := net.Listen("tcp", net.JoinHostPort(contract.Loopback, strconv.Itoa(kimAt+contract.BlockSize-1)))
-	if err != nil {
-		b.Fatal(err)
-	}
-	b.Cleanup(func() { l.Close() })
-	b.phones()
-}
-
 func (b *box) phones() {
 	b.Helper()
 	if err := contract.ChangePhones(b.k.Platform, func(p *contract.Phones) error { p.On = true; return nil }); err != nil {
@@ -242,7 +228,6 @@ func (b *box) phones() {
 // A server set up as the design says passes every row of a work login.
 func TestAWorkLoginOnAHealthyServer(t *testing.T) {
 	b := server(t, file, false)
-	b.door()
 	e, exit := b.doctor("server")
 	if exit != 0 || e.Problems != 0 {
 		t.Fatalf("exit %d, %d problems:\n%s", exit, e.Problems, e.text())
@@ -252,11 +237,11 @@ func TestAWorkLoginOnAHealthyServer(t *testing.T) {
 		{"home folder", "yours alone"}, {"temp files go to", "inside your own folders"}, {"tabs' temp folders lie in", "yours alone"}, {ports("ports 31000 to 31999"), "yours alone"},
 		{"engine is kept alive without a session"}, {"Claude is probably signed in"}, {"git commits as Kim Example"},
 		{"up to 20 agents; 15625 MB"}, {"shared browser took a picture"}, {"page's socket", "yours alone"}, {"page is running, signs in, and refuses"},
-		{"Tailscale forwards port 443 to the door of kim"}, {"door", ports("31999 is open"), "only you and the system"},
 	} {
 		b.want(e, ok, words...)
 	}
 	b.want(e, note, "processes hidden from you: true")
+	b.want(e, note, "no way in for a phone", tunnelCmd+"NAME")
 	if e.line("door of ana") != nil || e.line("SSH takes keys") != nil {
 		t.Errorf("a work login was shown the machine's or a neighbour's rows:\n%s", e.text())
 	}
@@ -314,12 +299,7 @@ func TestEachFaultOfAWorkLoginIsNamed(t *testing.T) {
 		{"page socket open", file, func(b *box) { os.Chmod(b.page(true, true), 0o666) }, problem, []string{"the page's socket", "open to another login"}},
 		{"no sign-in", file, func(b *box) { b.page(false, true) }, problem, []string{"signing in to the page does not work"}},
 		{"foreign origin", file, func(b *box) { b.page(true, false) }, problem, []string{"did not refuse a change asked for by another site"}},
-		{"no road", strings.Replace(file, `road = "tailscale"`, "", 1), nil, note, []string{"no way in for a phone", phoneCmd + "kim"}},
-		{"no door", strings.Replace(file, "phone = 443", "", 1), nil, note, []string{"no door for a phone is set up for kim", phoneCmd + "kim"}},
-		{"no forwarding", file, func(b *box) { b.said["tailscale serve status"] = "No serve config" }, problem, []string{"does not forward port 443 to the door of kim", phoneCmd + "kim"}},
-		{"forwarding unread", file, func(b *box) { b.said["tailscale serve status"] = "!access denied" }, note, []string{"forwarding could not be read", "access denied", proveCmd}},
-		{"door shut", file, func(b *box) { b.phones() }, problem, []string{"phone access is on and nothing listens at your door", "whaleshark dash start"}},
-		{"door open, rules unproven", strings.Replace(file, "proven", "unproven", 1), func(b *box) { b.door() }, note, []string{ports("31999 is open"), "the only wall", proveCmd}},
+		{"a road that is not offered", strings.Replace(file, "agents = 20", `road = "carrier-pigeon"`, 1), nil, problem, []string{"server's file cannot be used", `road "carrier-pigeon"`, tunnelCmd + "NAME"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := server(t, c.file, false)
@@ -346,14 +326,13 @@ func TestRootOnAHealthyServerProvesThePortRules(t *testing.T) {
 	for _, words := range [][]string{
 		{"firewall refuses everything from outside but SSH"}, {"SSH takes keys only"}, {"administrator login admin has sudo and a key"},
 		{"work login kim has no sudo"}, {"work login ana has no sudo"}, {"port block of kim is its alone"}, {"port block of ana is its alone"},
-		{"server's file now says the port rules are proven"}, {"Tailscale forwards port 443 to the door of kim"},
+		{"server's file now says the port rules are proven"},
 	} {
 		b.want(e, ok, words...)
 	}
-	b.want(e, note, "no door for a phone is set up for ana")
 	b.want(e, note, "each work login runs")
 	r, err := readRecord(os.ReadFile)
-	if err != nil || r.Rules != contract.RulesProven || r.Admin != "admin" || r.Login["kim"].Phone != 443 || r.Login["ana"].Ports != anaAt || r.Road != contract.RoadTailscale {
+	if err != nil || r.Rules != contract.RulesProven || r.Admin != "admin" || r.Login["kim"].Ports != kimAt || r.Login["ana"].Ports != anaAt || r.Road != "" {
 		t.Errorf("the file after the proof: %+v %v", r, err)
 	}
 	probes := 0
@@ -487,7 +466,7 @@ func (b *box) serve(args ...string) (*record, *contract.Refusal, []string) {
 	return result.(*record), nil, handed
 }
 
-// The server command from nothing: setup, two people, a phone each, and
+// The server command from nothing: setup, two people, the tunnel, and
 // what the script is handed each time; the file is the contract's own.
 func TestTheServerCommandWritesTheFileAndHandsTheScriptItsPart(t *testing.T) {
 	b := server(t, "", true)
@@ -528,20 +507,7 @@ func TestTheServerCommandWritesTheFileAndHandsTheScriptItsPart(t *testing.T) {
 	if r := step("setup,boss,,", "setup"); r.Admin != "boss" || len(r.Login) != 2 {
 		t.Errorf("setup run again lost something: %+v", r)
 	}
-	if r := step("phone,kim,443,21999,,", "phone", "--user=kim"); r.Road != contract.RoadTailscale || r.Login["kim"].Phone != 443 {
-		t.Errorf("after the first phone: %+v", r)
-	}
-	if r := step("phone,ana,8443,22999,,", "phone", "--user=ana"); r.Login["ana"].Phone != 8443 {
-		t.Errorf("after the second phone: %+v", r)
-	}
-	step("phone,kim,443,21999,,", "phone", "--user=kim")
-	if r := step("phone,kim,443,21999,off,", "phone", "--user=kim", "--off="); r.Login["kim"].Phone != 0 || r.Road != contract.RoadTailscale {
-		t.Errorf("after one phone was taken off: %+v", r)
-	}
-	if r := step("phone,ana,8443,22999,off,", "phone", "--user=ana", "--off="); r.Road != "" {
-		t.Errorf("after the last phone was taken off: %+v", r)
-	}
-	// The other way in: the tunnel, a person's three values, and back.
+	// The way in for phones: the tunnel, a person's three values, and back.
 	if r := step("tunnel,myteam,,", "tunnel", "--team=myteam"); r.Road != contract.RoadCloudflare || r.Team != "myteam" {
 		t.Errorf("after the tunnel: %+v", r)
 	}
@@ -568,9 +534,9 @@ func TestTheServerCommandWritesTheFileAndHandsTheScriptItsPart(t *testing.T) {
 // What the server command refuses, with the file left as it was and the
 // script not started.
 func TestTheServerCommandRefuses(t *testing.T) {
-	full := "version = 1\nadmin = \"admin\"\nroad = \"tailscale\"\n"
+	full := "version = 1\nadmin = \"admin\"\n"
 	for i := 0; i < 11; i++ {
-		full += fmt.Sprintf("[login.w%d]\nports = %d\nphone = %d\n", i, 21000+1000*i, append(servePorts, make([]int, 8)...)[i])
+		full += fmt.Sprintf("[login.w%d]\nports = %d\n", i, 21000+1000*i)
 	}
 	for _, c := range []struct {
 		name, file string
@@ -592,9 +558,9 @@ func TestTheServerCommandRefuses(t *testing.T) {
 		{"harden as a work login", file, func(b *box) { b.Setenv("SUDO_USER", "kim") }, []string{"harden"}, "not_admin", contract.ExitEnv},
 		{"a twelfth login", full, nil, []string{"add", "--user=eve"}, "full", contract.ExitEnv},
 		{"a phone for nobody", file, nil, []string{"phone", "--user=eve"}, "no_login", contract.ExitEnv},
-		{"a fourth phone", full, nil, []string{"phone", "--user=w5"}, "road_full", contract.ExitEnv},
-		{"a public name without a tunnel", file, nil, []string{"phone", "--user=kim", "--name=ws1.example.com"}, "no_tunnel", contract.ExitEnv},
-		{"a tunnel beside Tailscale", file, nil, []string{"tunnel", "--team=myteam"}, "road_taken", contract.ExitEnv},
+		{"a phone without a tunnel", file, nil, []string{"phone", "--user=kim"}, "no_tunnel", contract.ExitEnv},
+		{"a public name without a tunnel", file, nil, []string{"phone", "--user=kim", "--name=ws1.example.com", "--aud=0a1b2c3d", "--email=kim@example.com"}, "no_tunnel", contract.ExitEnv},
+		{"a phone taken off without a tunnel", file, nil, []string{"phone", "--user=kim", "--off="}, "no_tunnel", contract.ExitEnv},
 		{"a tunnel for no team", tunnelFile[:strings.Index(tunnelFile, "road")], nil, []string{"tunnel"}, "bad_team", contract.ExitEnv},
 		{"a team that is an address", tunnelFile, nil, []string{"tunnel", "--team=myteam.cloudflareaccess.com"}, "bad_team", contract.ExitEnv},
 		{"no name on the Cloudflare way", tunnelFile, nil, []string{"phone", "--user=ana"}, "bad_name", contract.ExitEnv},

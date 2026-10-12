@@ -31,18 +31,12 @@ const (
 	EnvBrowsers    = "PLAYWRIGHT_BROWSERS_PATH"
 )
 
-// Phase 6 owes here: the Tailscale road leaves, in the one commit that
-// takes it out of the whole tree: RoadTailscale, HeaderTailscale, Identity and
-// Person.Phone go from this file, with their cases in phase3_test.go, and
-// ReadServer names the road it refuses and the line `sudo whaleshark server
-// tunnel --team NAME`. Road stays a setting with one value.
-//
-// The two roads a phone can come in by, of which a server names one or none,
-// and what is known of the two port rules that keep a login's block its own:
+// The road a phone can come in by, which a server names or leaves empty: a
+// setting with one value, so that a second road is a second word here. And
+// what is known of the two port rules that keep a login's block its own:
 // doctor --server proves them as a second login and is the one that may
 // write "proven".
 const (
-	RoadTailscale  = "tailscale"
 	RoadCloudflare = "cloudflare"
 
 	RulesProven   = "proven"
@@ -65,8 +59,8 @@ type Server struct {
 	Versioned
 	// Agents is the most agents one login may run at once.
 	Agents int `toml:"agents"`
-	// Road is how phones reach the page: RoadTailscale, RoadCloudflare or
-	// empty for no phone. Team is the team name at Cloudflare.
+	// Road is how phones reach the page: RoadCloudflare or empty for no
+	// phone. Team is the team name at Cloudflare.
 	Road  string `toml:"road"`
 	Team  string `toml:"team"`
 	Rules string `toml:"rules"`
@@ -77,14 +71,12 @@ type Server struct {
 }
 
 // Person is one work login's share of the machine. Ports is the first port
-// of its block. Phone is the port Tailscale answers at for this person's
-// phone, 0 for none. Name, Aud and Email are the Cloudflare road's: the
-// public name, the tag of this person's Access application and the
-// addresses its rule admits.
+// of its block. Name, Aud and Email are the Cloudflare road's: the public
+// name, the tag of this person's Access application and the addresses its
+// rule admits.
 type Person struct {
 	Ports  int      `toml:"ports"`
 	Agents int      `toml:"agents"`
-	Phone  int      `toml:"phone"`
 	Name   string   `toml:"name"`
 	Aud    string   `toml:"aud"`
 	Email  []string `toml:"email"`
@@ -100,9 +92,10 @@ var Me = func() string {
 }
 
 // ReadServer reads the server's file. It returns nil and no error on a
-// machine that has none. A file that is newer, cannot be read as written, or
-// gives two logins the same port is an error, and its caller then treats the
-// machine as a server it knows nothing about: no phone's door, no start.
+// machine that has none. A file that is newer, cannot be read as written,
+// names a road that is not offered, or gives two logins the same port is an
+// error, and its caller then treats the machine as a server it knows
+// nothing about: no phone's door, no start.
 func ReadServer(read func(path string) ([]byte, error)) (*Server, error) {
 	data, err := read(ServerFile)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -119,8 +112,8 @@ func ReadServer(read func(path string) ([]byte, error)) (*Server, error) {
 		return nil, ErrNewer
 	case s.Version < 1:
 		return nil, fmt.Errorf("%s: it carries no version", ServerFile)
-	case !slices.Contains([]string{"", RoadTailscale, RoadCloudflare}, s.Road):
-		return nil, fmt.Errorf("%s: road %q is neither %s nor %s", ServerFile, s.Road, RoadTailscale, RoadCloudflare)
+	case s.Road != "" && s.Road != RoadCloudflare:
+		return nil, fmt.Errorf("%s: road %q is not offered, only %s: sudo whaleshark server tunnel --team NAME", ServerFile, s.Road, RoadCloudflare)
 	}
 	for name, p := range s.Login {
 		if !ServerPorts.Holds(p.Ports) || (p.Ports-ServerPorts.Base)%BlockSize != 0 {
@@ -210,25 +203,9 @@ func (s *Server) Access(login string) (a Access, ok bool) {
 	return a, a.Team != "" && a.Name != "" && a.Aud != "" && len(a.Email) > 0
 }
 
-// The header each road puts on a request to a phone's door. Tailscale's is
-// its word for who is calling and is believed only because nothing but the
-// system and the login itself can connect to the door; Cloudflare's is a
-// signed token, which the page checks itself and takes nobody's word for.
-const (
-	HeaderTailscale = "Tailscale-User-Login"
-	HeaderAccess    = "Cf-Access-Jwt-Assertion"
-)
-
-// Identity is who a road's header names as the caller at a phone's door, the
-// one place that reads it. It is empty where the road gives none: a device
-// with a tag on Tailscale, and always on the Cloudflare road, where the
-// identity is the checked token's subject and never a header's word.
-func Identity(road string, header func(name string) string) string {
-	if road == RoadTailscale {
-		return strings.TrimSpace(header(HeaderTailscale))
-	}
-	return ""
-}
+// HeaderAccess is the header Cloudflare puts on a request to a phone's door:
+// a signed token, which the page checks itself and takes nobody's word for.
+const HeaderAccess = "Cf-Access-Jwt-Assertion"
 
 // Phones is phones.json in the login's state folder: whether the door for
 // phones is open, and the phones this login has paired.

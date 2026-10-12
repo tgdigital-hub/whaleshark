@@ -18,8 +18,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 6 owes here: first, with the road: its rows, ports and refusals leave.
-// Then a tool's rank and what its test saw (Tool.Rank, Tool.Facts; doctor
+// Phase 6 owes here: a tool's rank and what its test saw (Tool.Rank, Tool.Facts; doctor
 // --try writes Tool.Tried); Kit.Notice, the one request a day, never on a
 // server; contract.ReportLine as the last line; server status's line of a
 // newer release.

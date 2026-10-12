@@ -1,6 +1,6 @@
 # The page and the phone
 
-**Nothing on this page has met a real phone, a Tailscale network, a Cloudflare account or a phone maker's push service.** The page has been opened in one browser on one Mac. Both roads for a phone are written from their makers' manuals and tried by tests.
+**Nothing on this page has met a real phone, a Cloudflare account or a phone maker's push service.** The page has been opened in one browser on one Mac. The road for a phone is written from its maker's manuals and tried by tests. **A phone reaches the page at a public name behind Cloudflare's login, so the login screen can be found from the internet;** on a laptop the page is reached over SSH and by nothing else.
 
 ## The page
 
@@ -8,37 +8,32 @@
 
 The page shows what the panes show: what waits for you, the team, the plan, the messages, each task with its screenshots. Its buttons answer an item, accept or send back a result, start or stop a task, send a note, and press Stop all, Resume, Catch me up, Do not disturb and Mute. The page can never land work on your branch, approve a project's settings (`trust`), delete or cancel anything, or answer an agent's own prompt; those stay typed commands.
 
-## A phone: two roads, one per server
+## A phone: one road, through Cloudflare
 
-There is no app. The phone's browser opens the same page, laid out in one column. It needs a server; a single computer has no page for a phone. The server's administrator chooses the road.
+There is no app. The phone's browser opens the same page, laid out in one column. It needs a server; a single computer has no page for a phone. It also needs a domain on a Cloudflare account of your own, with Cloudflare's login service (Access): with no domain there is no phone. This is the one road offered for now.
 
-| | Tailscale | Cloudflare |
-|---|---|---|
-| you need | a Tailscale network with HTTPS certificates switched on; Tailscale on the server and on each phone | a domain on a Cloudflare account of your own, with Cloudflare's login service (Access) |
-| where the page can be found | nowhere outside your private network | at a public name; anyone can reach Cloudflare's login screen for it |
-| who can read what passes | nobody between phone and server | **Cloudflare**, screenshots included |
-| how the page knows who calls | the identity Tailscale reports, which the page has to believe | a pass Cloudflare signs, which the page checks itself on every request |
-| people a machine | three | eleven |
-| a program on the server that is not ours | Tailscale, which you install | Cloudflare's connector, which `server tunnel` installs |
+What the road means:
 
-**Tailscale.** Install Tailscale on the server yourself and sign it in; WhaleShark never installs or calls it for anything else. Then, as the administrator:
+| | |
+|---|---|
+| where the page can be found | at a public name. Anyone on the internet can reach Cloudflare's login screen for it; the page itself answers only behind that login, a pass it checks, and a paired phone |
+| who can read what passes | **Cloudflare**, screenshots included |
+| how the page knows who calls | a pass Cloudflare signs, which the page checks itself on every request; it takes nobody's word for it |
+| people a machine | eleven, each with a public name of their own |
+| a program on the server that is not ours | Cloudflare's connector, which `server tunnel` installs |
 
-```
-sudo whaleshark server phone --user ana
-```
-
-**Cloudflare.** As the administrator, once for the machine, then for each person an Access application of their own whose rule admits that person's email addresses and nobody else's:
+As the administrator, once for the machine, then for each person an Access application of their own whose rule admits that person's email addresses and nobody else's:
 
 ```
 sudo whaleshark server tunnel --team TEAM
 sudo whaleshark server phone --user ana --name ws1.example.com --aud TAG --email ADDRESS
 ```
 
-`TEAM` is the first part of your `TEAM.cloudflareaccess.com`, and `TAG` is the tag Cloudflare gives that person's application. `server tunnel` says first that it installs a program that keeps a connection open to somebody else's network, and shows one link of Cloudflare's to open. The routing lives in a file on the server that belongs to root, so the Cloudflare account cannot send a name to another port. A request without Cloudflare's pass, or with one for another person or another application, gets an empty refusal; with Cloudflare's keys out of reach everything is refused. *In the code as it stands the connector's version and key are not pinned yet, and `server tunnel` refuses to install it; a release fills both in.*
+`TEAM` is the first part of your `TEAM.cloudflareaccess.com`, and `TAG` is the tag Cloudflare gives that person's application. `server tunnel` says first that it installs a program that keeps a connection open to somebody else's network, and shows one link of Cloudflare's to open. `server phone` without a tunnel is refused and names `server tunnel`. The routing lives in a file on the server that belongs to root, so the Cloudflare account cannot send a name to another port. A request without Cloudflare's pass, or with one for another person or another application, gets an empty refusal; with Cloudflare's keys out of reach everything is refused. *In the code as it stands the connector's version and key are not pinned yet, and `server tunnel` refuses to install it; a release fills both in.*
 
-Choosing Cloudflare means trusting Cloudflare: on this road it could do what a paired phone can. Put a second step on your Cloudflare login and on the mailbox it uses; whoever takes either over can show a false page under your name to catch an approval.
+This road means trusting Cloudflare: it could do what a paired phone can. Put a second step on your Cloudflare login and on the mailbox it uses; whoever takes either over can show a false page under your name to catch an approval.
 
-`--off` on either command takes the door away. Switching roads means pairing every phone again.
+`--off` on either command takes the door away; `server tunnel --off` takes every person's with it. A server's file that names any other road is refused when it is read, with the line to type.
 
 ## Pairing a phone
 
@@ -72,10 +67,9 @@ Without a server, or beside it, `url` under `[notify]` in your own `config.toml`
 
 ## What cannot be held here, by design
 
-- On Cloudflare's road, whoever acts as a paired phone can send the lead agent a note, and a note is an instruction to an agent that runs as you. "The page cannot land or trust" is true of the page only.
-- On Tailscale's road every person's address is one name with another port, and a browser sends a name's cookies to every port. A co-worker's page receives your phone's cookie if your phone opens it; only the identity Tailscale reports and proven port rules keep it useless to them. So do not open another person's address on your phone, and if you did, `whaleshark dash phone forget` that phone and pair it again.
+- Whoever acts as a paired phone can send the lead agent a note, and a note is an instruction to an agent that runs as you. "The page cannot land or trust" is true of the page only.
 - Whoever can reach a door can keep its one pairing request busy. Five refusals slow the next.
-- More than twenty refused requests in a minute shut a Cloudflare door for a minute and raise an item. A request that carries your valid pass still goes through the shut door; whoever sends the refusals can keep the item on your screen, and no more.
+- More than twenty refused requests in a minute shut a door for a minute and raise an item. A request that carries your valid pass still goes through the shut door; whoever sends the refusals can keep the item on your screen, and no more.
 - A server you reach with `connect --terminals` can write your computer's clipboard at any moment.
 - An unlocked stolen phone is you, for everything the page can do, until you `forget` it.
 - An agent of your own login can read the page's key, and so sign in or approve a phone as you ([protection.md](protection.md)).
