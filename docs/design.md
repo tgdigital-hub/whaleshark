@@ -6,6 +6,10 @@ A short note for someone about to read the code. The README says what has and ha
 
 One lead agent talks to you. It plans the work as tasks, each with a brief and a check, and hands each to a worker: another agent, in a terminal tab of its own. WhaleShark is the record between them. A worker reaches the lead agent only through four commands (report, progress, ask, mail), and the lead agent sees a worker only through the tool. Nothing is finished until `accept` has run the task's check.
 
+The lead agent is called the orchestrator, and its tab is named so. With Fleet Mode on there is one level more: the orchestrator's tasks are groups of work, each placed in a fleet; a fleet is a job of its own inside the orchestrator's, led by a fleet leader that is the lead agent of that job and a worker of the orchestrator's. So a leader plans, starts and checks its workers with the same commands and the same record, one level down, and a question climbs one level at a time. A fleet ends with its work unless the person saved it by name with what it works on (`run fleet`); a saved fleet is a line in the project's own folder and nothing else until work is placed in it. Fleets are not walled apart: what keeps two of them from undoing each other is the scan for work on the same file, the sync that follows it, and the check on the merged work.
+
+Every agent tool is a description: the command that starts it, how it names a model, what its screen shows at rest and at work, whose hooks it reads, and the file it reads when it starts. Into that file `init` writes a short block that says how the team is built and which guide an agent reads for its part.
+
 ## One program, one table
 
 Everything is one program file, `whaleshark`. Its 42 commands are rows of one table in `internal/contract/`: the name, who may call it, its flags, its exit codes, an example. Help, validation and the caller rules are all read from that table, so they cannot drift apart. An error names the command to run next.

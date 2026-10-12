@@ -403,36 +403,36 @@ func TestAFleetIsSavedWithWhatItWorksOn(t *testing.T) {
 	write(t, filepath.Join(p.Root, "b.md"), briefText)
 	orch(0, "run", "fleet")("No fleet is saved here")
 	// Saved with no job open and Fleet Mode off: it says what is still missing.
-	orch(0, "run", "fleet", "ops  portal", "everything of the ops portal: its pages and its API")(`The fleet "ops portal" is saved`, "It stays when its work is done", "Fleet Mode is off")
+	orch(0, "run", "fleet", "shop  front", "everything of the shop front: its pages and its checkout")(`The fleet "shop front" is saved`, "It stays when its work is done", "Fleet Mode is off")
 	fleetsOn(t, p)
-	orch(0, "run", "fleet", "Inbound Portal", "the inbound portal:\n what customers send in")(`"Inbound Portal" is saved · the inbound portal: what customers send in`)
+	orch(0, "run", "fleet", "Parcel Desk", "the parcel desk:\n what customers send in")(`"Parcel Desk" is saved · the parcel desk: what customers send in`)
 	for _, bad := range [][]string{{"--oops", "x"}, {"one two three four", "x"}, {"a name of twenty-five chars", "x"}, {"ok", strings.Repeat("long ", 50)}} {
 		play(t, p.Command(scenario.Orch, append([]string{"run", "fleet", "--"}, bad...)...), 2, "at most three words")
 	}
 	orch(4, "run", "fleet", "admin")("No fleet \"admin\" is saved here")
-	orch(0, "run", "fleet")("Inbound Portal · saved · the inbound portal", "ops portal · saved · everything of the ops portal")
+	orch(0, "run", "fleet")("Parcel Desk · saved · the parcel desk", "shop front · saved · everything of the shop front")
 
 	orch(0, "run", "new", "the portals")("Run r1 is open")
-	orch(0, "status")("saved fleet ops portal · no work now · everything of the ops portal", "saved fleet Inbound Portal · no work now")
-	orch(0, "guide", "lead")("## Fleets the person keeps here", "- ops portal: everything of the ops portal: its pages and its API", "- Inbound Portal: the inbound portal")
+	orch(0, "status")("saved fleet shop front · no work now · everything of the shop front", "saved fleet Parcel Desk · no work now")
+	orch(0, "guide", "lead")("## Fleets the person keeps here", "- shop front: everything of the shop front: its pages and its checkout", "- Parcel Desk: the parcel desk")
 	// Work for a saved fleet joins it however the name is typed; a name that
 	// fits none makes a fleet on the spot.
-	orch(0, "task", "add", "G1", "ten things", "--brief", "b.md", "--check", "none", "--fleet", "OPS portal")("G1")
+	orch(0, "task", "add", "G1", "ten things", "--brief", "b.md", "--check", "none", "--fleet", "SHOP front")("G1")
 	orch(0, "task", "add", "G2", "one thing", "--brief", "b.md", "--check", "none", "--fleet", "price list")("G2")
-	if s, _ := p.Record(); s.Tasks["G1"].Fleet != "ops portal" || s.Tasks["G2"].Fleet != "price list" {
+	if s, _ := p.Record(); s.Tasks["G1"].Fleet != "shop front" || s.Tasks["G2"].Fleet != "price list" {
 		t.Fatalf("the groups are in %q and %q", s.Tasks["G1"].Fleet, s.Tasks["G2"].Fleet)
 	}
 	// What it works on can be said anew; the job's end leaves it saved.
-	orch(0, "run", "fleet", "OPS PORTAL", "the ops portal and its reports")(`The fleet "ops portal" is saved · the ops portal and its reports`)
+	orch(0, "run", "fleet", "SHOP FRONT", "the shop front and its reports")(`The fleet "shop front" is saved · the shop front and its reports`)
 	orch(0, "task", "cancel", "G1")()
 	orch(0, "task", "cancel", "G2")()
 	orch(0, "run", "close", "--abandon")()
-	orch(0, "run", "fleet")("ops portal · saved · the ops portal and its reports", "Inbound Portal · saved")
+	orch(0, "run", "fleet")("shop front · saved · the shop front and its reports", "Parcel Desk · saved")
 	if out := orch(0, "run", "fleet")(); strings.Contains(out, "price list") {
 		t.Errorf("a fleet nobody saved is listed:\n%s", out)
 	}
-	orch(0, "run", "fleet", "inbound portal", "--forget")(`The fleet "Inbound Portal" is saved no longer`)
-	if out := orch(0, "run", "fleet")("ops portal"); strings.Contains(out, "Inbound") {
+	orch(0, "run", "fleet", "parcel desk", "--forget")(`The fleet "Parcel Desk" is saved no longer`)
+	if out := orch(0, "run", "fleet")("shop front"); strings.Contains(out, "Parcel") {
 		t.Errorf("a forgotten fleet is listed:\n%s", out)
 	}
 	// A file that came with somebody else's folder names no fleet that is none.

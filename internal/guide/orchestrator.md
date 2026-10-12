@@ -37,8 +37,8 @@ Write it for a leader who will split it: say what must be true at the end, not w
 A group not yet started is changed with `whaleshark task edit`, dropped with `whaleshark task cancel`.
 
 ## Which fleet a piece of work goes to
-The person keeps fleets by name. "Create a fleet for the ops portal" is:
-    whaleshark run fleet "ops portal" "everything of the ops portal: its pages and its API"
+The person keeps fleets by name. "Create a fleet for the shop front" is:
+    whaleshark run fleet "shop front" "everything of the shop front: its pages and its checkout"
 A saved fleet stays when its work is done; `status` and the end of this guide list each with what
 it works on. Saving one needs no job; placing work does, so with none open: `whaleshark run new`
 first. When work arrives, ask yourself first which fleet it belongs to:
