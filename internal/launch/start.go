@@ -82,9 +82,10 @@ type launcher struct {
 }
 
 func live(s *contract.State) (n int) {
+	seen := map[string]bool{} // a leader with two groups is two attempts in one pane, and one agent
 	for _, a := range s.Attempts {
-		if a.State.Live() {
-			n++
+		if p := a.Place.Pane; a.State.Live() && !seen[p] {
+			n, seen[p] = n+1, p != ""
 		}
 	}
 	return n
@@ -480,7 +481,7 @@ func (l *launcher) bring(task string) outcome {
 	// is not wired in is refused before anything exists.
 	tool, wired := contract.FindTool(l.tools, agent.Kind)
 	if !wired || !tool.Found() {
-		return fail(refuse(contract.ExitRefused, "no_tool", "No agent tool %.20q is wired in here: its description or its program is missing.", agent.Kind))
+		return fail(refuse(contract.ExitRefused, "no_tool", "%s", contract.NotWired(agent.Kind)))
 	}
 	// A conversation is continued by the tool that held it, under the id
 	// the keeper reported; one that could be read as an option is nobody's.
@@ -679,14 +680,27 @@ func (l *launcher) bring(task string) outcome {
 		} else {
 			low, err = l.fleetRun(t.Fleet)
 		}
+		var found []string // the tabs the leader before opened for its workers
 		if err == nil {
 			err = l.step(low, func(up, low *contract.State) error {
 				branch := ""
 				if in := low.Run.Integration; in != nil {
 					branch = in.Branch
 				}
+				for _, a := range low.Attempts {
+					if a.Place.OpenedByUs && a.Place.Tab != "" {
+						found = append(found, a.Place.Tab)
+					}
+				}
 				return k.Rules.Lead(up, low, id, contract.Binding{Pane: pane.ID, Workspace: pane.Workspace}, branch, contract.Now())
 			})
+		}
+		// They are the new leader's now, to prompt, stop and close; a tab
+		// that is gone is nobody's.
+		for _, tab := range found {
+			if err == nil {
+				k.Terms.TabGive(tab, pane.ID)
+			}
 		}
 	}
 	free()

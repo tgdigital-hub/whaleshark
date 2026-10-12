@@ -94,7 +94,7 @@ func try(c *contract.Call, name string) (any, error) {
 	t, wired := contract.FindTool(tools, name)
 	if err != nil || !wired || !t.Found() {
 		return nil, &contract.Refusal{Exit: contract.ExitFailed, Code: "no_tool",
-			Message: fmt.Sprintf("No agent tool %.20q is wired in here: its description or its program is missing.", name)}
+			Message: contract.NotWired(name)}
 	}
 	tr, err := Try(c.Kit, t, tryWait)
 	saw := ""

@@ -126,6 +126,12 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 	fence("tab-close of the lead agent's tab", contract.WireCall{Op: contract.OpTabClose, Tab: "t1"})
 	fence("tab-focus", contract.WireCall{Op: contract.OpTabFocus, Tab: "t1"})
 	fence("tab-close of its own tab", contract.WireCall{Op: contract.OpTabClose, Tab: own.Tab})
+	// A tab is given by the lead agent's pane or the person, never taken.
+	fence("tab-give of a person's tab to itself", contract.WireCall{Op: contract.OpTabGive, Tab: "t2", Target: "p3"})
+	say("tab-give a tab that is not there", terms.TabGive("t9", "p3"))
+	say("tab-give to a pane that is not there", terms.TabGive("t2", "p9"))
+	say("tab-give", terms.TabGive("t2", "p3"))
+	fence("tab-close of a tab it was given", contract.WireCall{Op: contract.OpTabClose, Tab: "t2"})
 	say("tab-close", terms.TabClose("t3"))
 	last, err := terms.Snapshot(ctx)
 	picture("snapshot", last, err)

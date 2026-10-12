@@ -88,10 +88,36 @@ func TestTheFenceAroundAnAgentsPane(t *testing.T) {
 			}
 		}
 	}
+	// A tab changes hands by tab-give alone, and that is the lead agent's
+	// pane's or the person's to call: a leader cannot give itself a
+	// neighbour's tab, and a worker cannot give at all, its own tab neither.
+	for who, call := range map[string]contract.WireCall{
+		"a leader giving itself another leader's tab": {Op: contract.OpTabGive, Tab: others.Tab, Target: "p1", From: "p1"},
+		"a leader giving itself a person's tab":       {Op: contract.OpTabGive, Tab: "t2", Target: "p1", From: "p1"},
+		"a worker giving its own tab to itself":       {Op: contract.OpTabGive, Tab: others.Tab, Target: others.ID, From: others.ID},
+		"a worker giving its tab to another leader":   {Op: contract.OpTabGive, Tab: others.Tab, Target: "p1", From: others.ID},
+	} {
+		if reply := c.call(call); !strings.Contains(reply.Message, fence) {
+			t.Errorf("%s: %+v", who, reply)
+		}
+	}
 	if !r.locked(func() bool {
-		return r.k.panes["p2"].argv == nil && r.k.panes[others.ID].rec.Name == "its worker" && r.k.panes[leads.ID].rec.Name == "second leader" && r.k.panes[taken.ID] != nil
+		return r.k.panes["p2"].argv == nil && r.k.panes[others.ID].rec.Name == "its worker" && r.k.panes[leads.ID].rec.Name == "second leader" && r.k.panes[taken.ID] != nil &&
+			r.k.opened[others.Tab] == leads.ID && r.k.opened["t2"] == ""
 	}) {
 		t.Error("a refused call changed something")
+	}
+	// The lead agent's pane hands the second leader's worker to the first: a
+	// leader started again. From then on it is the first's to prompt and
+	// close, and no longer the second's.
+	if reply := c.call(contract.WireCall{Op: contract.OpTabGive, Tab: others.Tab, Target: "p1", From: "p2"}); reply.Err != "" {
+		t.Fatalf("tab-give from the lead agent's pane: %+v", reply)
+	}
+	if reply := c.call(contract.WireCall{Op: contract.OpTabClose, Tab: others.Tab, From: leads.ID}); !strings.Contains(reply.Message, fence) {
+		t.Errorf("the leader before closed a tab that was given away: %+v", reply)
+	}
+	if reply := c.call(contract.WireCall{Op: contract.OpTabClose, Tab: others.Tab, From: "p1"}); reply.Err != "" {
+		t.Errorf("a tab it was given: %+v", reply)
 	}
 
 	hook("UserPromptSubmit", "--dangerously-skip-permissions")

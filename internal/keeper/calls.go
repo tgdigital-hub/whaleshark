@@ -253,11 +253,14 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			k.changed()
 		}
 		r.Text = k.focus
-	case contract.OpTabRename, contract.OpTabFocus, contract.OpTabClose:
-		if tab == nil {
+	case contract.OpTabRename, contract.OpTabFocus, contract.OpTabClose, contract.OpTabGive:
+		if tab == nil || c.Op == contract.OpTabGive && k.panes[c.Target] == nil {
 			return r, nil, contract.ErrNoPane
 		}
 		switch c.Op {
+		case contract.OpTabGive:
+			k.opened[c.Tab] = c.Target
+			k.saved()
 		case contract.OpTabRename:
 			tab.Label = c.Label
 			for _, id := range tab.Panes() {

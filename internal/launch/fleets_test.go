@@ -243,7 +243,8 @@ func play(t *testing.T, on scenario.Backend) []string {
 	}
 
 	// Stop all from the job reaches its fleets, and resume wakes them.
-	m.do(scenario.Human, 0, []string{"Paused."}, "", "pause")
+	// Billing's leader holds two groups and is one agent of the six.
+	m.do(scenario.Human, 0, []string{"Paused. 6 agents stop"}, "", "pause")
 	for _, run := range []string{"r1", "r2", "r3", "r4"} {
 		if m.read(run).Run.Paused == nil {
 			t.Fatalf("run %s is not paused with its job", run)
@@ -446,5 +447,21 @@ func TestGroupsStartedSideBySide(t *testing.T) {
 	}
 	if runs, _ := m.p.Kit.Store.Runs(m.p.Root); len(runs) != 4 {
 		t.Fatalf("the runs are %v: one for the job and one a fleet", runs)
+	}
+}
+
+// A leader that holds two groups is two live attempts in one pane and one
+// agent: a server's cap and Stop all's count take it once. An attempt that
+// has no pane yet is each its own.
+func TestALeaderWithTwoGroupsIsOneAgent(t *testing.T) {
+	at := func(pane string, state contract.AttemptState) *contract.Attempt {
+		return &contract.Attempt{State: state, Place: contract.Place{Pane: pane}}
+	}
+	s := &contract.State{Attempts: map[string]*contract.Attempt{
+		"G1.1": at("p4", contract.AttemptWorking), "G5.1": at("p4", contract.AttemptWorking), "G2.1": at("p5", contract.AttemptWorking),
+		"G3.1": at("", contract.AttemptStarting), "G4.1": at("", contract.AttemptStarting), "G6.1": at("p4", contract.AttemptExited),
+	}}
+	if n := live(s); n != 4 {
+		t.Errorf("%d agents counted, expected 4", n)
 	}
 }

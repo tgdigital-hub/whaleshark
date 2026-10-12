@@ -117,6 +117,7 @@ const (
 	OpTabRename  = "tab-rename"
 	OpTabFocus   = "tab-focus"
 	OpTabClose   = "tab-close"
+	OpTabGive    = "tab-give"
 	OpAgentStart = "agent-start"
 	OpPrompt     = "prompt"
 	OpPoint      = "point"
@@ -146,10 +147,12 @@ const (
 // four of them such a pane may still make about a tab it opened itself with
 // OpTabCreate, which is how a fleet leader starts, prompts and closes its
 // own workers; the record of who opened a tab ends when anyone else runs a
-// program or starts an agent there.
+// program or starts an agent there. OpTabGive names another pane as a tab's
+// opener, for a leader that takes a fleet over: fenced and in no way
+// through, so no agent's pane gives itself or a neighbour anything.
 var (
 	Fenced = []string{OpPrompt, OpRun, OpAgentStart, OpTabFocus, OpPaneFocus,
-		OpPaneClose, OpTabClose, OpSetKeys, OpOverlay, OpDock}
+		OpPaneClose, OpTabClose, OpTabGive, OpSetKeys, OpOverlay, OpDock}
 	OwnTab = []string{OpAgentStart, OpPrompt, OpTabClose, OpPaneClose}
 )
 

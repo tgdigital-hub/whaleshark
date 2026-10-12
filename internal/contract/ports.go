@@ -212,6 +212,9 @@ type Terminals interface {
 	TabRename(tab, label string) error
 	TabFocus(tab string) error
 	TabClose(tab string) error
+	// TabGive makes pane the one that opened tab, as if it had: what a
+	// leader started again may then do with the tabs of the leader before.
+	TabGive(tab, pane string) error
 	AgentStart(name, kind, pane string, args []string, timeout time.Duration) error
 	// Prompt delivers an agent's first prompt and waits until it is working.
 	Prompt(name, text string, timeout time.Duration) error
@@ -512,6 +515,7 @@ func (NoTerminals) TabCreate(string, string, []string) (Pane, error)    { return
 func (NoTerminals) TabRename(string, string) error                      { return ErrNotBuilt }
 func (NoTerminals) TabFocus(string) error                               { return ErrNotBuilt }
 func (NoTerminals) TabClose(string) error                               { return ErrNotBuilt }
+func (NoTerminals) TabGive(string, string) error                        { return ErrNotBuilt }
 func (NoTerminals) Prompt(string, string, time.Duration) error          { return ErrNotBuilt }
 func (NoTerminals) Point(string, Pointer, string) error                 { return ErrNotBuilt }
 func (NoTerminals) Run(string, []string) error                          { return ErrNotBuilt }

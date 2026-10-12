@@ -93,12 +93,15 @@ func pause(c *contract.Call) (any, error) {
 			if err != nil {
 				return err
 			}
+			seen := map[string]bool{} // a leader with two groups is one agent
 			for _, a := range s.Attempts {
+				p := a.Place.Pane
 				switch {
-				case !a.State.Live() || a.State == contract.AttemptStarting: // a start gives up by itself
+				case !a.State.Live() || a.State == contract.AttemptStarting || seen[p]: // a start gives up by itself
 				case a.Gated:
-					held++
+					held, seen[p] = held+1, p != ""
 				default:
+					seen[p] = p != ""
 					running = append(running, s.Tasks[a.Task].Name)
 				}
 			}

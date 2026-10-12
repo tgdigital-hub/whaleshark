@@ -102,10 +102,10 @@ orch: wait --ack last --timeout 10                  -> expect exited G2
 orch: start G2 --retry                              -> expect "(G2.2)"
 as-worker G2.2: wait --timeout 10                   -> expect done S1
 as-worker G2.2: accept S1                           -> expect "S1 is done, checked"
-# What the leader before it started is not the new leader's to close: the
-# keeper lets a tab be closed from the pane that opened it. It is told so.
-as-worker G2.2: close S1                            -> expect "kept: the tab of search box" "the leader before you opened it"
-as-worker G2.2: stop S2                             -> expect "its tab: left open" "the leader before you opened it"
+# What the leader before it started is the new leader's now: the start
+# handed it the tabs, so it closes and stops them as its own.
+as-worker G2.2: close S1                            -> expect "search box"
+as-worker G2.2: stop S2                             -> expect "S2"
 
 # Stop all reaches the job and every fleet's run; nothing starts while it
 # holds, and resume wakes them all.

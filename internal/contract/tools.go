@@ -265,3 +265,8 @@ func replaceFile(p Files, path string, data []byte) error {
 	}
 	return p.Replace(tmp.Name(), path)
 }
+
+// NotWired is what a start and "Try it" say of a tool that cannot be started.
+func NotWired(name string) string {
+	return fmt.Sprintf("No agent tool %.20q is wired in here: its description or its program is missing.", name)
+}

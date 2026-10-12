@@ -547,11 +547,13 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 			r.Text = contract.NotifyShown
 		}
 	case contract.OpSetKeys, contract.OpOverlay:
-	case contract.OpTabRename, contract.OpTabFocus, contract.OpTabClose:
-		if len(tab) == 0 {
+	case contract.OpTabRename, contract.OpTabFocus, contract.OpTabClose, contract.OpTabGive:
+		if len(tab) == 0 || c.Op == contract.OpTabGive && f.pane(c.Target) == nil {
 			return r, contract.ErrNoPane
 		}
 		switch c.Op {
+		case contract.OpTabGive:
+			f.opened[c.Tab] = c.Target
 		case contract.OpTabRename:
 			for _, q := range tab {
 				q.rec.Label = c.Label
