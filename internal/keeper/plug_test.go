@@ -67,9 +67,8 @@ func TestTheKeysAreWrittenAsAskedAndTheCommandKeyIsTheEngines(t *testing.T) {
 	w.types("x" + cmd + "\x1b[D")
 	r.until("the keys back on the left", func() bool { return r.focused() == "p1" })
 	r.got("p2", "x")
-	if got := r.program("p1").got(); !strings.HasSuffix(got, "\x1b[O\x1b[I") {
-		t.Errorf("the pane that got the keys back was typed %q", got)
-	}
+	// The pane is told a moment after the keys are its own again.
+	r.until("the pane that got the keys back to be told", func() bool { return strings.HasSuffix(r.program("p1").got(), "\x1b[O\x1b[I") })
 	// A new tab, the one before it, and its number; the command key twice is the key.
 	w.types(cmd + "t")
 	r.until("the keys in the new tab", func() bool { return r.focused() == "p3" })
