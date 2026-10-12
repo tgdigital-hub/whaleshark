@@ -46,7 +46,7 @@ func task(c *contract.Call) (any, error) {
 	}
 	var t contract.Task
 	var ready []string
-	err = change(c, c.Run, sub, func(s *contract.State) error {
+	apply := func(s *contract.State) error {
 		found, err := k.Rules.FindTask(s, args[0])
 		if err != nil {
 			return err
@@ -81,7 +81,29 @@ func task(c *contract.Call) (any, error) {
 		}
 		t = *found
 		return err
-	})
+	}
+	// Dropping a fleet's last group gives the fleet up: its run is closed in
+	// the same step, which refuses while an agent of the fleet lives.
+	fleet := ""
+	if s, err := k.Store.Read(c.Root, c.Run); sub == "cancel" && err == nil {
+		if g, _ := k.Rules.FindTask(s, args[0]); g != nil && s.Run.Fleets[g.Fleet] != nil && s.Run.Fleets[g.Fleet].EndedAt.IsZero() {
+			fleet = s.Run.Fleets[g.Fleet].Run
+		}
+	}
+	if fleet == "" {
+		err = change(c, c.Run, sub, apply)
+	} else {
+		err = k.Store.Both(c.Root, c.Run, fleet, func(up, low *contract.State) error {
+			err := k.Rules.Allowed(up, c.Caller, c.Command.Name, sub)
+			if err == nil {
+				err = apply(up)
+			}
+			if r := new(*contract.Refusal); err == nil && errors.As(k.Rules.Ended(up, low, true, c.Now), r) && (*r).Code != "open_group" {
+				err = *r
+			}
+			return err
+		})
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +121,8 @@ func task(c *contract.Call) (any, error) {
 var headings = []string{"Target", "Change", "Constraints", "Ownership", "Acceptance"}
 
 // brief reads the file --brief names and holds it to the five headings. A
-// heading may carry the marks of a title before it.
+// heading may carry the marks of a title before it. A sync brief is the
+// tool's own text, which a fleet's leader hands to a worker as it stands.
 func brief(c *contract.Call) ([]byte, error) {
 	data, err := os.ReadFile(last(c, "brief"))
 	if err == nil {
@@ -107,6 +130,8 @@ func brief(c *contract.Call) ([]byte, error) {
 	}
 	if err != nil {
 		return nil, usage(c, "--brief: %v.", err)
+	} else if strings.HasPrefix(string(data), "----- sync brief") {
+		return data, nil
 	}
 	missing := slices.Clone(headings)
 	for line := range strings.Lines(string(data)) {
@@ -153,7 +178,7 @@ func ids(c *contract.Call, s *contract.State) ([]string, error) {
 
 func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 	k, f := c.Kit, c.Flags
-	t := contract.Task{ID: id, Title: title, Name: last(c, "name"), Check: last(c, "check"), Placement: contract.PlaceWorktree,
+	t := contract.Task{ID: id, Title: title, Name: last(c, "name"), Check: last(c, "check"), Placement: contract.PlaceWorktree, Fleet: last(c, "fleet"),
 		Agent: last(c, "agent"), Model: last(c, "model"), BrowserCheck: f["browser-check"] != nil, Owns: contract.List(f["owns"]...)}
 	err := cmp.Or(cli.Valid("id", id, ""), cli.Valid("title", title, ""))
 	switch {
@@ -163,8 +188,8 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		return nil, usage(c, "A task needs its brief: --brief FILE.")
 	case f["check"] == nil:
 		return nil, usage(c, "A task needs a check: --check with a command, or the word none.")
-	case f["shared"] != nil && f["cwd"] != nil:
-		return nil, usage(c, "--shared and --cwd cannot both be given.")
+	case len(f["shared"])+len(f["cwd"])+len(f["fleet"]) > 1:
+		return nil, usage(c, "Only one of --shared, --cwd and --fleet can be given.")
 	case f["cwd"] != nil:
 		t.Placement = contract.PlaceCwd + last(c, "cwd")
 	case f["shared"] != nil:

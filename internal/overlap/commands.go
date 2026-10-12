@@ -26,9 +26,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 5 owes here: the branches of an orchestrator's fleets are scanned
-// against each other and against the collected work, as tasks' are.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	o := scanner{k}
@@ -161,9 +158,16 @@ func (o scanner) sync(c *contract.Call) (any, error) {
 	}
 	k := c.Kit
 	t, err := k.Rules.FindTask(s, c.Args[0])
-	if err == nil {
+	// A group's copy is its fleet's branch: its leader has a worker of the
+	// fleet merge the collected work in, and nothing is counted on the group.
+	branch := ""
+	if f := s.Run.Fleets[cmp.Or(t, &contract.Task{}).Fleet]; f != nil && t.SettledAt.IsZero() {
+		branch = f.Branch
+	} else if err == nil {
 		// Asked of the copy just read, so a refusal comes before any git.
-		_, err = k.Rules.Synced(s, t.ID, "", c.Now)
+		if _, err = k.Rules.Synced(s, t.ID, "", c.Now); err == nil {
+			branch = t.Worktree.Branch
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -172,9 +176,9 @@ func (o scanner) sync(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	tip, head := g.tip, g.at[t.Worktree.Branch]
+	tip, head := g.tip, g.at[branch]
 	if head == "" {
-		return nil, fmt.Errorf("the branch %s of %s is gone", t.Worktree.Branch, t.ID)
+		return nil, fmt.Errorf("the branch %s of %s is gone", branch, t.ID)
 	}
 	count, err := g.git(c.Root, "", "rev-list", "--count", head+".."+tip)
 	if err == nil {
@@ -198,7 +202,7 @@ func (o scanner) sync(c *contract.Call) (any, error) {
 	var unread []int
 	err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
 		err := k.Rules.Allowed(s, c.Caller, c.Command.Name, "")
-		if err == nil {
+		if err == nil && t.Fleet == "" {
 			out.Times, err = k.Rules.Synced(s, t.ID, out.Brief, c.Now)
 		}
 		if err == nil {

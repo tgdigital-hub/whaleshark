@@ -1,6 +1,7 @@
 package integrate
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -127,13 +128,16 @@ func conflict(task string, files []string) *contract.Refusal {
 }
 
 func (g integrator) Prepare(root string, s *contract.State, task string) (contract.Checked, error) {
-	dir := folder(root, s, task)
-	if s.Run.Integration == nil || dir == "" {
+	dir, t := folder(root, s, task), s.Tasks[task]
+	if s.Run.Integration == nil || dir == "" && (t == nil || s.Run.Fleets[t.Fleet] == nil) {
 		return contract.Checked{}, nil
 	}
 	tip, err := tipOf(root, s)
 	if err != nil {
 		return contract.Checked{}, err
+	}
+	if dir == "" {
+		return g.group(root, s, t, tip)
 	}
 	// What is checked is what is collected, so nothing may wait beside it.
 	waiting, err := git(dir, "status", "--porcelain")
@@ -163,6 +167,33 @@ func (g integrator) Prepare(root string, s *contract.State, task string) (contra
 		_, err = git(dir, "merge", "--quiet", "--ff-only", c.OID)
 	}
 	return c, err
+}
+
+// group merges a fleet's branch as it stands with the collected work, in a commit that keeps
+// its tasks' commits and carries the group's trailer, and puts it into the run's own copy.
+func (g integrator) group(root string, s *contract.State, t *contract.Task, tip string) (contract.Checked, error) {
+	head, err := at(root, ref(s.Run.Fleets[t.Fleet].Branch))
+	if err != nil {
+		return contract.Checked{}, refuse(contract.ExitRefused, "no_branch", "The branch of fleet "+t.Fleet+" is gone.")
+	}
+	made := collected(root, s, t.ID, head, tip)
+	if made == "" {
+		tree, clash, err := simulate(root, tip, head)
+		if err == nil && len(clash) > 0 {
+			err = conflict(t.ID, clash)
+		}
+		if err == nil {
+			made, err = commit(root, tree, t.ID+": "+t.Title+"\n\n"+trailer+": "+s.Run.ID+"/"+t.ID, tip, head)
+		}
+		if err != nil {
+			return contract.Checked{}, err
+		}
+	}
+	dir, err := g.scratch(root, s)
+	if err == nil {
+		err = g.place(root, s, dir, made)
+	}
+	return contract.Checked{Dir: dir, OID: made, Tip: tip}, err
 }
 
 func (g integrator) PrepareAll(root string, s *contract.State, tasks []string) ([]contract.Checked, error) {
@@ -244,9 +275,11 @@ func (g integrator) Collect(root string, s *contract.State, task string, c contr
 			parents = append(parents, base)
 		}
 	}
-	made, err := commit(root, c.OID+"^{tree}", t.ID+": "+t.Title+"\n\n"+trailer+": "+s.Run.ID+"/"+t.ID, parents...)
-	if err != nil {
-		return "", err
+	made := c.OID // a group's merge is made already: only the branch moves
+	if t.Fleet == "" {
+		if made, err = commit(root, c.OID+"^{tree}", t.ID+": "+t.Title+"\n\n"+trailer+": "+s.Run.ID+"/"+t.ID, parents...); err != nil {
+			return "", err
+		}
 	}
 	// Git moves the branch only from the commit the check was run on top of.
 	if _, err := git(root, "update-ref", ref(in.Branch), made, c.Tip); err != nil {
@@ -265,8 +298,12 @@ func (g integrator) Diff(root string, s *contract.State, task string, stat bool)
 		args = append(args, "--stat")
 	}
 	switch own := folder(root, s, task); {
+	case t.Accepted != nil && t.Accepted.Commit != "" && t.Fleet != "":
+		args = append(args, t.Accepted.Commit+"^1", t.Accepted.Commit) // of a group's merge, what it brought
 	case t.Accepted != nil && t.Accepted.Commit != "":
 		args = append(args, t.Accepted.Commit+"^!")
+	case in != nil && s.Run.Fleets[t.Fleet] != nil:
+		args = append(args, "--merge-base", in.Tip, ref(s.Run.Fleets[t.Fleet].Branch))
 	case in != nil && own != "":
 		args, dir = append(args, "--merge-base", in.Tip), own
 	case in != nil && t.Worktree != nil:
@@ -303,6 +340,9 @@ func (g integrator) Drop(root string, s *contract.State) (kept string, err error
 		git(root, "update-ref", "-d", ref(in.Branch), in.Landed)
 	} else if s.Run.Base != nil && s.Run.Base.OID != "" {
 		git(root, "update-ref", "-d", ref(in.Branch), s.Run.Base.OID)
+	}
+	if up, err := g.k.Store.Read(root, cmp.Or(s.Run.Parent, &contract.Twin{}).Run); err == nil && up.Run.Integration != nil && within(root, ref(in.Branch), ref(up.Run.Integration.Branch)) {
+		git(root, "update-ref", "-d", ref(in.Branch)) // a fleet's branch goes once the orchestrator's collected work holds all of it
 	}
 	if _, err := at(root, ref(in.Branch)); err == nil {
 		kept = in.Branch

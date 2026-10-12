@@ -1,5 +1,5 @@
-// Package integrate is the run's integration branch: where accepted work is
-// collected, one commit a task, and how it reaches the main branch.
+// Package integrate is the run's integration branch: where accepted work is collected,
+// one commit a task and one merge a fleet's group, and how it reaches the main branch.
 //
 // It puts a contract.Integrator into the kit and binds one command, land. It
 // writes nothing into a run's record but through the rules: the caller hands
@@ -24,10 +24,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
-
-// Phase 5 owes here: a group is collected as a merge of its fleet's branch
-// (Fleet.Branch) that keeps its tasks' commits and carries the group's
-// trailer, and is checked on the merged work.
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {

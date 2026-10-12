@@ -1,6 +1,7 @@
 package inbox
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"maps"
@@ -23,6 +24,7 @@ const (
 	// A scan after a report may take scanWait; the deep one, every scanEvery
 	// while a copy of the code is at work, deepWait.
 	scanWait, deepWait, scanEvery = 3 * time.Second, 30 * time.Second, 5 * time.Minute
+	leaderGone                    = 2 * time.Minute // as long as agents take to come back after the keeper was started again
 )
 
 // stamp is sweep.at: when the run was last held against the picture, and
@@ -37,6 +39,7 @@ type stamp struct {
 	By   string    `json:"by,omitempty"`
 	Down time.Time `json:"down,omitzero"`
 	Told bool      `json:"told,omitempty"`
+	Gone time.Time `json:"gone,omitzero"` // since when a leader that holds no group has had no agent in its pane
 }
 
 type sweeper struct{ k *contract.Kit }
@@ -157,8 +160,12 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		})
 		changed = changed || err == nil
 	}
+	if s.Run.ClosedAt.IsZero() {
+		last.Gone = sw.leaders(root, s, l, last.Gone)
+		sw.pairs(root, s, l)
+	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
-		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now, By: contract.Version})
+		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now, By: contract.Version, Gone: last.Gone})
 	// The nudge pass, after every sweep: it also says what is no item, a
 	// task failed for good and the whole job finished.
 	k.Notifier.Items(root, run, snap, now)
@@ -242,4 +249,72 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 		s.Run.Terms.SeenAt = l.now
 	}
 	return changed, todo
+}
+
+// leaders is the sweep's row for a leader whose end no attempt shows: its fleet's pane has had no
+// agent for leaderGone. The fleet ends where its every group is settled, and else is parked.
+func (sw sweeper) leaders(root string, s *contract.State, l *look, since time.Time) (gone time.Time) {
+	for name, f := range s.Run.Fleets {
+		if p := l.panes[f.Pane]; f.Pane == "" || p != nil && p.Agent != "" {
+			continue
+		}
+		if gone = cmp.Or(since, l.now); l.now.Sub(gone) < leaderGone {
+			continue
+		}
+		sw.k.Store.Both(root, s.Run.ID, f.Run, func(up, low *contract.State) error {
+			if at := up.Run.Fleets[name]; at.Pane == f.Pane && sw.k.Rules.Ended(up, low, false, l.now) != nil {
+				at.Pane, at.Tab = "", ""
+				sw.k.Rules.Raise(up, contract.Event{Kind: "exited", Text: "the leader of " + name + " has ended, and no agent is in its tab; its fleet is parked"}, l.now)
+			}
+			return nil
+		})
+	}
+	return gone
+}
+
+// pairs finishes what lies in two runs, an orchestrator's and a fleet's: a
+// settled answer goes down, and a twin a kill wrote the upper half of gets its
+// lower one. It is tried on what was read, and written only where that changed.
+// Whoever rests while its answer has come down is pointed at it.
+func (sw sweeper) pairs(root string, s *contract.State, l *look) {
+	mend := func(up, low *contract.State) (changed bool, down []string) {
+		for id, q := range up.Questions {
+			if q.Down == nil || q.Down.Run != low.Run.ID || low.Questions[q.Down.ID] == nil {
+				continue
+			}
+			if low.Questions[q.Down.ID].Up == nil && q.State == contract.QuestionOpen {
+				_, err := sw.k.Rules.Twin(up, low, q.Down.ID, l.now)
+				changed = changed || err == nil
+			}
+			if done, _ := sw.k.Rules.Down(up, low, id, l.now); done {
+				changed, down = true, append(down, q.Down.ID)
+			}
+		}
+		return changed, down
+	}
+	pair := func(up, low string) {
+		a, err := sw.k.Store.Read(root, up)
+		b, lost := sw.k.Store.Read(root, low)
+		if err != nil || lost != nil {
+			return
+		}
+		changed, down := mend(a, b)
+		if o := b.Run.Orchestrator; changed && o != nil && sw.k.Store.Both(root, up, low, func(up, low *contract.State) error { mend(up, low); return nil }) == nil {
+			for _, id := range down {
+				pane, text, arg := o.Pane, contract.PointAnswer, ""
+				if q := b.Questions[id]; q.Kind == contract.KindAsk && b.Attempts[q.Attempt] != nil {
+					pane, text, arg = b.Attempts[q.Attempt].Place.Pane, contract.PointAnswered, id
+				}
+				if resting(l.panes[pane]) {
+					sw.k.Terms.Point(pane, text, arg)
+				}
+			}
+		}
+	}
+	if p := s.Run.Parent; p != nil {
+		pair(p.Run, s.Run.ID)
+	}
+	for _, f := range s.Run.Fleets {
+		pair(s.Run.ID, f.Run)
+	}
 }

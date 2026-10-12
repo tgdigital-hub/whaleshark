@@ -11,12 +11,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 5 owes here: task add --fleet; run new writing the run's Mode from
-// the person's setting and calling the kit's Panes, as run takeover does; a
-// fleet's run ended with its last group; init asking with the wired tools;
-// and the kit's ProjectSet, which writes one key into whaleshark.toml and
-// keeps the rest of the file.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("init", setUp)
@@ -24,6 +18,9 @@ func Plug(k *contract.Kit) {
 	k.Handle("task", task)
 	k.Handle("accept", accept)
 	k.Handle("trust", trust)
+	k.ProjectSet = func(root string, key *contract.Key, value string) error {
+		return projectSet(k.Platform, root, key, value)
+	}
 }
 
 // refuse is a refusal with the commands to run next.
