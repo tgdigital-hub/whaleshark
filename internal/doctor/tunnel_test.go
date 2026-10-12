@@ -17,7 +17,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// A server whose phones come in by Cloudflare: kim has a public name, ana
+// A server with a way in for phones: kim has a public name, ana
 // has none yet.
 var tunnelFile = ports(`version = 1
 agents = 20
@@ -138,7 +138,7 @@ func TestRootOnAHealthyTunnel(t *testing.T) {
 		b.want(e, ok, words...)
 	}
 	b.want(e, note, "no public name is set up for ana", phoneCmd+"ana")
-	if e.line("older than nine months") != nil || e.line("Tailscale") != nil {
+	if e.line("older than nine months") != nil {
 		t.Errorf("a line that does not belong here:\n%s", e.text())
 	}
 	var probes []string
@@ -250,6 +250,14 @@ func TestAWorkLoginBehindTheTunnel(t *testing.T) {
 			t.Errorf("asked beyond this machine without a yes: %s", line)
 		}
 	}
+}
+
+// Phone access on with nothing at the door is a problem with its fix.
+func TestADoorNobodyListensAtIsNamed(t *testing.T) {
+	b := tunnelled(t, false)
+	b.phones()
+	e, _ := b.doctor("server")
+	b.want(e, problem, "phone access is on and nothing listens at your door", "whaleshark dash start")
 }
 
 // What a door on the Cloudflare way must never do, and what the two

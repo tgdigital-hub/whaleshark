@@ -27,16 +27,16 @@ func TestWrongCodesNeverKeepTheRightOneOut(t *testing.T) {
 	b.refused("that code a second time", b.ask("GET", contract.RouteIn+"?code="+right, nil, nil), http.StatusForbidden)
 }
 
-// A number belongs to whoever asked for it. A co-worker on the same private
-// network asks at this person's door, gets a number and the secret that goes
-// with it, and plants that secret in the person's own phone, which a page on
-// another port of the same name can do. The person's phone must not then show
-// the co-worker's number as its own, for the person to approve.
+// A number belongs to whoever asked for it. Somebody else the login's rule
+// admits asks at this person's door, gets a number and the secret that goes
+// with it, and plants that secret in the person's own phone. The person's
+// phone must not then show the other's number as its own, for the person to
+// approve.
 func TestANumberIsShownOnlyToWhoAskedForIt(t *testing.T) {
-	b := house(t, contract.RulesProven)
-	theirs := &phone{b: b, who: "kim@example.org"}
+	b := house(t)
+	theirs := &phone{b: b, who: kim}
 	number := theirs.knock()
-	mine := &phone{b: b, who: robin, cookie: theirs.cookie}
+	mine := &phone{b: b, who: subject, cookie: theirs.cookie}
 	w := mine.ask("GET", contract.RoutePair, nil, nil)
 	if w.Code == http.StatusOK || strings.Contains(w.Body.String(), number[:3]+" "+number[3:]) {
 		t.Fatalf("the person's phone, carrying another's secret, was shown that one's number: %d %s", w.Code, w.Body)

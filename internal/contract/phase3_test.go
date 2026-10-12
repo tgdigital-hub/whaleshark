@@ -81,9 +81,9 @@ func TestServerFile(t *testing.T) {
 	if _, ok := s.Access("ana"); ok {
 		t.Error("ana has no name, tag or address, and her door would answer")
 	}
-	tailscale, _ := ReadServer(file(strings.Replace(twoPeople, "cloudflare", "tailscale", 1)))
-	if _, ok := tailscale.Access("kai"); ok {
-		t.Error("on the other road a person has values for Cloudflare")
+	roadless, _ := ReadServer(file(strings.Replace(twoPeople, `road = "cloudflare"`, "", 1)))
+	if _, ok := roadless.Access("kai"); ok || roadless == nil {
+		t.Error("with no road a person has values for Cloudflare")
 	}
 	full := &Server{Login: map[string]Person{}}
 	for port := ServerPorts.Base; ServerPorts.Holds(port); port += BlockSize {
@@ -95,8 +95,9 @@ func TestServerFile(t *testing.T) {
 }
 
 // A server's file that cannot be taken as written is an error and never a
-// machine with no server: a newer one, a road nobody knows, a block that
-// starts between two blocks or outside the range, two logins on one block.
+// machine with no server: a newer one, a road that is not offered, which is
+// named with the line to type, a block that starts between two blocks or
+// outside the range, two logins on one block.
 func TestServerFileRefused(t *testing.T) {
 	for name, text := range map[string]string{
 		"newer":       strings.Replace(twoPeople, "version = 1", "version = 2", 1),
@@ -110,22 +111,8 @@ func TestServerFileRefused(t *testing.T) {
 			t.Errorf("%s: read as %+v", name, s)
 		} else if name == "newer" && !errors.Is(err, ErrNewer) {
 			t.Errorf("a newer file: %v", err)
-		}
-	}
-}
-
-// Who is calling at a phone's door is the road's word on Tailscale and
-// never a header's on any other road.
-func TestIdentity(t *testing.T) {
-	header := func(name string) string {
-		return map[string]string{HeaderTailscale: " kai@example.org ", HeaderAccess: "a.b.c"}[name]
-	}
-	if got := Identity(RoadTailscale, header); got != "kai@example.org" {
-		t.Errorf("Tailscale named %q", got)
-	}
-	for _, road := range []string{RoadCloudflare, "", "other"} {
-		if got := Identity(road, header); got != "" {
-			t.Errorf("on road %q a header named %q", road, got)
+		} else if name == "road" && !(strings.Contains(err.Error(), `"carrier-pigeon"`) && strings.Contains(err.Error(), "sudo whaleshark server tunnel --team NAME")) {
+			t.Errorf("another road: %v", err)
 		}
 	}
 }

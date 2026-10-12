@@ -149,7 +149,6 @@ func TestASecondRunChangesNothing(t *testing.T) {
 		{"SUDO_USER=boss", "harden", "boss"},
 		{"add", "ana", "21000", "", "boss"},
 		{"add", "ben", "22000", "", "boss"},
-		{"phone", "ana", "8443", "21999", ""},
 		{"tunnel", "team"},
 		{"public", "ben", "22999", "ws2.example.com", "0a1b"},
 		{"public", "ben", "22999", "", "", "off"},
@@ -207,7 +206,6 @@ func TestASecondRunChangesNothing(t *testing.T) {
 		"loginctl enable-linger ana",
 		"systemctl --user -M ana@ enable -q --now " + contract.UnitKeeper,
 		"systemctl --user -M ben@ enable -q --now " + contract.UnitDash,
-		"tailscale serve --bg --https=8443 http://" + contract.Loopback + ":21999",
 	} {
 		if !strings.Contains(log, call) {
 			t.Errorf("the system was never asked for %q:\n%s", call, log)
@@ -226,10 +224,8 @@ func TestASecondRunChangesNothing(t *testing.T) {
 		t.Errorf("status with a restart wanted says\n%s", out)
 	}
 
-	m.ok("phone", "ana", "8443", "21999", "off")
-	if !strings.HasSuffix(m.read(m.fake, "log"), "tailscale serve --https=8443 off\n") {
-		t.Errorf("the phone's door was not closed:\n%s", m.read(m.fake, "log"))
-	}
+	// The step of a road that is no longer offered is no step of the script.
+	m.refused(1, "phone", "ana", "8443", "21999", "")
 }
 
 // A file that is not a public key stops setup and add before anything is

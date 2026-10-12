@@ -107,12 +107,12 @@ func values(t *testing.T, team, name, aud string, email ...string) {
 	}
 }
 
-// tunnel is the evening on a server of Cloudflare's road: robin has a public
-// name, a tag and an address, is signed in on the laptop's road and has
-// phone access on, and Cloudflare publishes one key.
+// tunnel is the evening on a server: robin has a public name, a tag and an
+// address, is signed in on the laptop's road and has phone access on, and
+// Cloudflare publishes one key.
 func tunnel(t *testing.T) (*browser, *cloudflare) {
 	t.Helper()
-	aServer(t, contract.RoadCloudflare, contract.RulesUnproven, 0)
+	aServer(t)
 	values(t, team, public, tag, robin)
 	b := evening(t).signIn()
 	dashweb.Plug(b.p.Kit)
@@ -469,9 +469,9 @@ func TestTheLiveConnectionEndsWithItsPass(t *testing.T) {
 }
 
 // The door on its real port, as Cloudflare's connector reaches it, and the
-// words of `dash phone on` on this road.
+// words of `dash phone on`.
 func TestCloudflaresDoorOnItsRealPort(t *testing.T) {
-	door := aServer(t, contract.RoadCloudflare, contract.RulesProven, 0)
+	door := aServer(t)
 	b := login(t, nil)
 	dashweb.Plug(b.p.Kit)
 	dirs := short(t, b.p)
@@ -490,7 +490,7 @@ func TestCloudflaresDoorOnItsRealPort(t *testing.T) {
 	go func() { ended <- serve(b.p.Kit, dirs) }()
 	until(t, "the server answering", func() bool { _, ok := ask(b.p.Kit, dirs, "status"); return ok })
 	said, got, err := word("phone", "on")
-	if err != nil || !got.On || got.Name != public || got.Port != 0 || !strings.Contains(said, "https://"+public+"/\n") || strings.Contains(said, "private network") {
+	if err != nil || !got.On || got.Name != public || !strings.Contains(said, "https://"+public+"/\n") {
 		t.Fatalf("dash phone on: %v %+v %s", err, got, said)
 	}
 	knock := func(pass string) (*http.Response, string) {

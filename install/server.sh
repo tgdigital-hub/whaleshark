@@ -5,7 +5,6 @@
 #   setup   ADMIN [KEYFILE]
 #   harden  ADMIN
 #   add     LOGIN PORTS [KEYFILE] ADMIN
-#   phone   LOGIN PHONE DOOR [off]
 #   tunnel  TEAM [off]
 #   public  LOGIN DOOR NAME TAG [off]
 #   upgrade
@@ -13,11 +12,11 @@
 #
 # The program has checked each word and names its own file in
 # WHALESHARK_BIN. ADMIN is the administrator login, PORTS the first port of
-# a login's block, DOOR its last, PHONE the port Tailscale answers at; an
-# empty KEYFILE stands for none. tunnel and public are the Cloudflare way:
-# TEAM is the team's name there, and public is server phone on that way,
-# with a person's public NAME and the TAG of their Access application. The
-# program alone writes server.toml.
+# a login's block, DOOR its last; an empty KEYFILE stands for none. tunnel
+# and public are the way in for phones, through Cloudflare: TEAM is the
+# team's name there, and public is server phone, with a person's public NAME
+# and the TAG of their Access application. The program alone writes
+# server.toml.
 #
 # It ends with 0, with 1 when a step failed (it says which), with 3 when
 # this is not root or not a system it knows. Every step first looks whether
@@ -402,9 +401,8 @@ harden() {
 }
 
 # walls: who may connect to a login's block on this machine: that login and
-# the system, which is how Tailscale hands a phone's connection to the page.
-# Cloudflare's connector reaches the door of a login with a public name and
-# no other port of any block.
+# the system. Cloudflare's connector reaches the door of a login with a
+# public name and no other port of any block.
 walls() {
 	doing="keeping each login's ports its own"
 	cuid=$(id -u "$TUNNEL" 2>/dev/null) || cuid=
@@ -498,31 +496,6 @@ EOF
 	say "  git config --global user.name \"...\""
 	say "  git config --global user.email \"...\""
 	say "  a GitHub token that reaches only their own repositories and cannot push to main"
-}
-
-# The administrator runs Tailscale's own command for one person; people
-# never set Tailscale up themselves, and this script never installs it.
-phone() {
-	login=${1:-} phone=${2:-} door=${3:-} off=${4:-}
-	name "the work login" "$login"
-	number "$phone" || die "$phone is not a port"
-	number "$door" || die "$door is not a port"
-	command -v tailscale >/dev/null ||
-		die "Tailscale is not on this machine, and WhaleShark does not install it: use its maker's own line, sign the machine in, then run this again"
-	tailscale status >/dev/null 2>&1 || die "Tailscale is not signed in on this machine: sudo tailscale up"
-	doing="setting the door for the phone of $login"
-	if [ -n "$off" ]; then
-		! tailscale serve status 2>/dev/null | grep -q "proxy http://$LO:$door\$" ||
-			tailscale serve --https="$phone" off
-		say "$login has no door for a phone any more."
-		return 0
-	fi
-	tailscale status --json | grep -q '"CertDomains": *\[' ||
-		die "the private network hands out no certificates yet. Its owner switches on MagicDNS and HTTPS certificates in Tailscale's admin page; that publishes this machine's name and the network's name in a public list, so name the machine after nobody. Nothing was changed"
-	tailscale serve status 2>/dev/null | grep -q "proxy http://$LO:$door\$" ||
-		tailscale serve --bg --https="$phone" "http://$LO:$door"
-	say "The door for the phone of $login answers at port $phone of this machine's Tailscale name."
-	say "Next, as $login: whaleshark dash phone on"
 }
 
 # Cloudflare's connector from Cloudflare's own signed package source, at the
@@ -676,7 +649,7 @@ EOF
 	say "whoever takes either gets as far as the pairing of a phone."
 }
 
-# public: server phone on the Cloudflare way. A name is made at Cloudflare
+# public: server phone. A name is made at Cloudflare
 # only once the login was shown again, and the rule only once the name is.
 public() {
 	login=${1:-} door=${2:-} host=${3:-} aud=${4:-} off=${5:-}
@@ -802,6 +775,6 @@ trap leave EXIT
 trap 'exit 1' HUP INT TERM
 
 case $verb in
-setup | harden | add | phone | tunnel | public | upgrade) "$verb" "$@" ;;
+setup | harden | add | tunnel | public | upgrade) "$verb" "$@" ;;
 *) die "there is no server $verb" ;;
 esac

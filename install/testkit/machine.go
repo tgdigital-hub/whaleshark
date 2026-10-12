@@ -134,14 +134,6 @@ sha256sum) echo "$FAKE_SUM  $1" ;;
 uname) echo x86_64 ;;
 runuser) shift 3; exec "$@" ;;
 loginctl) mkdir -p "$ROOT/var/lib/systemd/linger"; : >"$ROOT/var/lib/systemd/linger/$2"; log "$@" ;;
-tailscale)
-	case "$*" in
-	"status --json") echo '  "CertDomains": [' ;;
-	status) ;;
-	"serve status") cat "$F/serve" 2>/dev/null ;;
-	*off) : >"$F/serve"; log "$@" ;;
-	*) echo "|-- / proxy $last" >"$F/serve"; log "$@" ;;
-	esac ;;
 pgrep) exit 1 ;;
 visudo) ;;
 *) log "$@" ;;
@@ -203,7 +195,7 @@ func New(t testing.TB, script string) *Machine {
 	}
 	write(filepath.Join(bin, "fake"), fakes, 0o755)
 	for _, name := range strings.Fields(`id useradd getent groupadd dpkg apt-get systemctl ufw sshd ps sudo curl gpg
-		sha256sum uname runuser loginctl tailscale pgrep chown visudo nft sysctl mount apparmor_parser tar npm playwright
+		sha256sum uname runuser loginctl pgrep chown visudo nft sysctl mount apparmor_parser tar npm playwright
 		userdel apt-mark apt-cache stat cloudflared`) {
 		if err := os.Symlink("fake", filepath.Join(bin, name)); err != nil {
 			t.Fatal(err)

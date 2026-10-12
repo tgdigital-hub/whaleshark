@@ -2,6 +2,7 @@ package dash
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -18,37 +19,38 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/dashweb"
 )
 
 // The attacks of the design's page table on the phone's rows, each refused.
-// No phone and no private network exist here: a request is handed to the
-// door as the network's own program would hand it over, with its header
-// saying who is calling.
+// No phone and no tunnel exist here: a request is handed to the door as
+// Cloudflare's connector would hand it over, with a pass that names the
+// caller. named is who the road says robin's own phone is; kim is a second
+// caller the same login's rule admits.
 const (
-	outside = "https://harbour.example-net.ts.net:8443"
-	robin   = "robin@example.org"
+	robin = "robin@example.org"
+	named = robin + " " + subject
+	kim   = "subject-of-kim"
 )
 
 var numberRE = regexp.MustCompile(`<p class="number">(\d{3}) (\d{3})</p>`)
 
 // aServer makes this machine a server for the test: a file of its own with
-// one login, robin, whose block has a door, and whose phone the
-// administrator gave a port outside.
-func aServer(t *testing.T, road, rules string, phone int) (door int) {
+// one login, robin, whose block has a door, on Cloudflare's road. What the
+// administrator sets for robin there is written by values.
+func aServer(t *testing.T) (door int) {
 	t.Helper()
 	me, file := contract.Me, contract.ServerFile
 	t.Cleanup(func() { contract.Me, contract.ServerFile = me, file })
 	contract.Me, contract.ServerFile = func() string { return "robin" }, filepath.Join(t.TempDir(), "server.toml")
-	// A block whose door nobody listens on now: a test may open it for real.
-	base := contract.ServerPorts.Base
-	for ; base < contract.ServerPorts.Base+contract.ServerPorts.Count-contract.BlockSize; base += contract.BlockSize {
-		if l, err := net.Listen("tcp4", net.JoinHostPort(contract.Loopback, strconv.Itoa(base+contract.BlockSize-1))); err == nil {
-			l.Close()
-			break
-		}
+	// A block that is this test's alone: it may open the door for real.
+	base, release, err := testkit.Block()
+	if err != nil {
+		t.Fatal(err)
 	}
-	text := fmt.Sprintf("version = %d\nroad = %q\nrules = %q\n[login.robin]\nports = %d\nphone = %d\n", contract.FileVersion, road, rules, base, phone)
+	t.Cleanup(release)
+	text := fmt.Sprintf("version = %d\nroad = %q\n[login.robin]\nports = %d\n", contract.FileVersion, contract.RoadCloudflare, base)
 	if err := os.WriteFile(contract.ServerFile, []byte(text), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -63,19 +65,17 @@ func access(t *testing.T, k *contract.Kit, on bool) {
 	}
 }
 
-// house is the evening on a server of the Tailscale road, with the real
-// screens, the person signed in on the laptop's road and phone access on.
-func house(t *testing.T, rules string) *browser {
+// house is the evening on a server, with the real screens, the person
+// signed in on the laptop's road and phone access on.
+func house(t *testing.T) *browser {
 	t.Helper()
-	aServer(t, contract.RoadTailscale, rules, 8443)
-	b := evening(t).signIn()
-	dashweb.Plug(b.p.Kit)
-	access(t, b.p.Kit, true)
+	b, _ := tunnel(t)
 	return b
 }
 
-// phone is one phone's browser before the door. On Cloudflare's road it
-// asks under host, the person's public name, and carries pass.
+// phone is one phone's browser before the door. It asks under host, the
+// person's public name unless a test says another, and carries pass; where
+// a test gives none, a pass as Cloudflare makes one for the subject who.
 type phone struct {
 	b          *browser
 	who        string
@@ -84,16 +84,16 @@ type phone struct {
 	host, pass string
 }
 
-// ask hands the door one request as the private network's program would.
+// ask hands the door one request as Cloudflare's connector would.
 func (p *phone) ask(method, path string, form url.Values, change func(*http.Request)) *httptest.ResponseRecorder {
 	p.b.t.Helper()
 	var body io.Reader
 	if form != nil {
 		body = strings.NewReader(form.Encode())
 	}
-	at := outside
-	if p.host != "" {
-		at = "https://" + p.host
+	at, pass := "https://"+cmp.Or(p.host, public), p.pass
+	if pass == "" && p.who != "" {
+		pass = signed(cloud(), heading, set("sub", p.who))
 	}
 	r := httptest.NewRequest(method, at+path, body)
 	if r.Header.Set("User-Agent", p.agent); method == http.MethodPost {
@@ -101,11 +101,8 @@ func (p *phone) ask(method, path string, form url.Values, change func(*http.Requ
 		r.Header.Set("Origin", at)
 		r.Header.Set("Referer", at+contract.RouteTeam)
 	}
-	if p.who != "" {
-		r.Header.Set(contract.HeaderTailscale, p.who)
-	}
-	if p.pass != "" {
-		r.Header.Set(contract.HeaderAccess, p.pass)
+	if pass != "" {
+		r.Header.Set(contract.HeaderAccess, pass)
 	}
 	for _, c := range p.cookie {
 		r.AddCookie(c)
@@ -164,10 +161,10 @@ func listOf(t *testing.T, b *browser) contract.Phones {
 
 // A phone that is not his: nothing is shown to a phone that is not paired
 // but a number, under one address, whatever it asks for; with phone access
-// off, or on Cloudflare's road without its pass, the door answers nothing.
+// off, or without the person's values, the door answers nothing.
 func TestAnUnpairedPhoneSeesANumberAndNothingElse(t *testing.T) {
-	b := house(t, contract.RulesProven)
-	p := &phone{b: b, who: robin}
+	b := house(t)
+	p := &phone{b: b, who: subject}
 	access(t, b.p.Kit, false)
 	if w := p.ask("GET", contract.RoutePair, nil, nil); w.Code != http.StatusForbidden || w.Body.Len() != 0 {
 		t.Fatalf("with phone access off the door answered %d %q", w.Code, w.Body)
@@ -209,26 +206,26 @@ func TestAnUnpairedPhoneSeesANumberAndNothingElse(t *testing.T) {
 	b.refused("the pairing address on the laptop's road", b.ask("GET", contract.RoutePair, nil, nil), http.StatusNotFound)
 	b.refused("the nudge's address on the laptop's road", b.ask("GET", contract.RoutePush, nil, nil), http.StatusNotFound)
 
-	// Another site's request, and a road that is not Tailscale's.
+	// Another site's request, and a login the administrator set no values for.
 	b.refused("a request from elsewhere", p.ask("GET", contract.RoutePair, nil, func(r *http.Request) { r.Header.Set("Origin", "https://elsewhere.example") }), http.StatusForbidden)
 	b.refused("a way of asking the door does not know", p.ask("PUT", contract.RoutePair, nil, nil), http.StatusMethodNotAllowed)
-	aServer(t, contract.RoadCloudflare, contract.RulesProven, 0)
+	aServer(t)
 	if w := p.ask("GET", contract.RoutePair, nil, nil); w.Code != http.StatusForbidden || w.Body.Len() != 0 {
-		t.Errorf("on the other road the door answered %d %q", w.Code, w.Body)
+		t.Errorf("without the person's values the door answered %d %q", w.Code, w.Body)
 	}
 }
 
 // One request at a time, gone after two minutes, slowed after five
 // refusals: a second phone is shown no number while the first is open.
 func TestASecondPairingRequestIsRefused(t *testing.T) {
-	b := house(t, contract.RulesProven)
-	first, second := &phone{b: b, who: robin}, &phone{b: b, who: "kim@example.org"}
+	b := house(t)
+	first, second := &phone{b: b, who: subject}, &phone{b: b, who: kim}
 	number := first.knock()
 	w := second.ask("GET", contract.RoutePair, nil, nil)
 	if w.Code != http.StatusTooManyRequests || numberRE.MatchString(w.Body.String()) || len(w.Result().Cookies()) != 0 {
 		t.Fatalf("a second phone while one asks: %d %s", w.Code, w.Body)
 	}
-	if page := b.ask("GET", contract.RouteTeam, nil, nil).Body.String(); !strings.Contains(page, "A phone wants to connect: "+number[:3]+" "+number[3:]+" · "+robin+" · a browser") {
+	if page := b.ask("GET", contract.RouteTeam, nil, nil).Body.String(); !strings.Contains(page, "A phone wants to connect: "+number[:3]+" "+number[3:]+" · "+named+" · a browser") {
 		t.Errorf("the laptop's page does not show the phone that asks:\n%s", page)
 	}
 	// Two minutes on the number is gone: from the laptop's page, for the
@@ -244,7 +241,7 @@ func TestASecondPairingRequestIsRefused(t *testing.T) {
 	}
 	// Five refusals, and the sixth request waits.
 	for i := range slowFrom {
-		p := &phone{b: b, who: robin}
+		p := &phone{b: b, who: subject}
 		b.refused("refusing", b.decide(p.knock(), "refuse"), http.StatusSeeOther)
 		if w := p.ask("GET", contract.RoutePair, nil, nil); w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "refused or ran out") {
 			t.Fatalf("refused phone %d was answered %d %s", i, w.Code, w.Body)
@@ -263,16 +260,16 @@ func TestASecondPairingRequestIsRefused(t *testing.T) {
 // Pairing is approved by the person where they are signed in already, and
 // by nobody else: not by the phone that asks, not by a paired phone, not by
 // an old number. The record holds the hash of the phone's secret and who
-// the road named; the page then says what the road could not promise.
+// the road named.
 func TestPairingIsApprovedWhereThePersonIsSignedIn(t *testing.T) {
-	b := house(t, contract.RulesUnproven)
-	p := b.paired(robin)
+	b := house(t)
+	p := b.paired(subject)
 	list := listOf(t, b)
 	if len(list.Paired) != 1 {
 		t.Fatalf("paired: %+v", list.Paired)
 	}
 	rec := list.Paired[0]
-	if rec.ID != "ph1" || rec.Name != "iPhone" || rec.Identity != robin || rec.Session != contract.TokenHash(p.cookie[0].Value) || rec.PairedAt.IsZero() || rec.Push != nil {
+	if rec.ID != "ph1" || rec.Name != "iPhone" || rec.Identity != named || rec.Session != contract.TokenHash(p.cookie[0].Value) || rec.PairedAt.IsZero() || rec.Push != nil {
 		t.Errorf("the record of a paired phone: %+v", rec)
 	}
 	if data, _ := os.ReadFile(filepath.Join(b.s.dirs.State, "phones.json")); bytes.Contains(data, []byte(p.cookie[0].Value)) {
@@ -285,23 +282,16 @@ func TestPairingIsApprovedWhereThePersonIsSignedIn(t *testing.T) {
 	if text := page.Body.String(); page.Code != http.StatusOK || !strings.Contains(text, " phone\">") || !strings.Contains(text, "sign-up page") || strings.Contains(text, "A paired phone") {
 		t.Fatalf("a paired phone's page: %d %.300s", page.Code, text)
 	}
-	if text := b.ask("GET", contract.RouteTeam, nil, nil).Body.String(); !strings.Contains(text, "A paired phone: iPhone · "+robin) ||
+	if text := b.ask("GET", contract.RouteTeam, nil, nil).Body.String(); !strings.Contains(text, "A paired phone: iPhone · "+named) ||
 		!strings.Contains(text, `action="/do/forget-phone"><input type="hidden" name="t" value="`+b.token()+`"><input type="hidden" name="id" value="ph1">`) {
 		t.Errorf("the laptop's page does not list the paired phone with its button:\n%s", text)
 	}
 
-	// A second phone asks, with no name from the road.
-	q := &phone{b: b}
+	// A second phone asks.
+	q := &phone{b: b, who: subject}
 	number := q.knock()
-	text := q.ask("GET", contract.RoutePair, nil, nil).Body.String()
-	item := b.ask("GET", contract.RouteTeam, nil, nil).Body.String()
-	for _, want := range []string{"names nobody for this phone", "port rules are unproven"} {
-		if !strings.Contains(text, want) || !strings.Contains(item, want) {
-			t.Errorf("neither the phone nor the item says %q", want)
-		}
-	}
-	if !strings.Contains(item, "· nobody named · a browser") {
-		t.Errorf("the item of a phone nobody names:\n%s", item)
+	if item := b.ask("GET", contract.RouteTeam, nil, nil).Body.String(); !strings.Contains(item, "· "+named+" · a browser") {
+		t.Errorf("the item of the phone that asks:\n%s", item)
 	}
 	press := func(by *phone, token string) *httptest.ResponseRecorder {
 		return by.ask("POST", contract.RouteDo+"phone-yes", url.Values{contract.FieldToken: {token}, "id": {"pair" + number}}, nil)
@@ -314,20 +304,20 @@ func TestPairingIsApprovedWhereThePersonIsSignedIn(t *testing.T) {
 		t.Fatal("a phone was paired by somebody who may not")
 	}
 	b.refused("approving", b.decide(number, "approve"), http.StatusSeeOther)
-	if list = listOf(t, b); len(list.Paired) != 2 || list.Paired[1].ID != "ph2" || list.Paired[1].Identity != "" || list.Paired[1].Name != "a browser" {
+	if list = listOf(t, b); len(list.Paired) != 2 || list.Paired[1].ID != "ph2" || list.Paired[1].Identity != named || list.Paired[1].Name != "a browser" {
 		t.Errorf("the second phone: %+v", list.Paired)
 	}
 	b.refused("the number a second time", b.decide(number, "approve"), http.StatusConflict)
 }
 
 // The session is tied to who the road said was calling when the phone was
-// paired, and is refused under any other; each road's cookie is nobody's on
-// the other; forgetting a phone ends its session at once, and one left
-// alone for thirty days has run out.
+// paired, and is refused under any other and under none; each road's cookie
+// is nobody's on the other; forgetting a phone ends its session at once, and
+// one left alone for thirty days has run out.
 func TestASessionUnderAnotherIdentityIsRefused(t *testing.T) {
-	b := house(t, contract.RulesProven)
-	p, alone := b.paired(robin), b.paired("")
-	for who, of := range map[string]*phone{"kim@example.org": p, "": p, robin: alone} {
+	b := house(t)
+	p, alone := b.paired(subject), b.paired(kim)
+	for who, of := range map[string]*phone{kim: p, "": p, subject: alone} {
 		thief := &phone{b: b, who: who, cookie: of.cookie}
 		w := thief.ask("GET", contract.RouteTeam, nil, nil)
 		if text := w.Body.String(); w.Code != http.StatusForbidden || strings.Contains(text, "sign-up page") || numberRE.MatchString(text) {
@@ -339,9 +329,9 @@ func TestASessionUnderAnotherIdentityIsRefused(t *testing.T) {
 		t.Fatal("a refused phone stopped all work")
 	}
 	if w := alone.ask("GET", contract.RouteTeam, nil, nil); w.Code != http.StatusOK {
-		t.Errorf("a phone nobody named, under no name: %d", w.Code)
+		t.Errorf("the second phone under its own name: %d", w.Code)
 	}
-	b.refused("the laptop's cookie at the door", (&phone{b: b, who: robin, cookie: b.cookie}).ask("GET", contract.RouteTeam, nil, nil), http.StatusSeeOther)
+	b.refused("the laptop's cookie at the door", (&phone{b: b, who: subject, cookie: b.cookie}).ask("GET", contract.RouteTeam, nil, nil), http.StatusSeeOther)
 	b.refused("the phone's cookie on the laptop's road", (&browser{t: t, s: b.s, cookie: p.cookie}).ask("GET", contract.RouteTeam, nil, nil), http.StatusForbidden)
 
 	// In use, the session is marked as seen and its cookie given a new end.
@@ -374,8 +364,8 @@ func TestASessionUnderAnotherIdentityIsRefused(t *testing.T) {
 // stands at the foot of its page as plain text. Its cookies are sent over
 // HTTPS alone.
 func TestAPhonesButtonIsThePhones(t *testing.T) {
-	b := house(t, contract.RulesProven)
-	p := b.paired(robin)
+	b := house(t)
+	p := b.paired(subject)
 	b.s.k.Terms = screens{b.s.k.Terms, "one\x1b[31m two\x07\n<b>three</b>"}
 	s, _ := b.p.Record()
 	if s.Run.Orchestrator == nil {
@@ -405,8 +395,8 @@ func TestAPhonesButtonIsThePhones(t *testing.T) {
 // key, and what the phone then hands over is stored as given, in that
 // phone's own record; with no key nothing is taken.
 func TestWhatAPhoneHandsOverForItsNudges(t *testing.T) {
-	b := house(t, contract.RulesProven)
-	p, other := b.paired(robin), b.paired(robin)
+	b := house(t)
+	p, other := b.paired(subject), b.paired(subject)
 	key := "BK-the-public-half"
 	b.s.k.PushKey = func() string { return key }
 	hand := func(token string, fields ...string) *httptest.ResponseRecorder {
@@ -442,7 +432,9 @@ func TestWhatAPhoneHandsOverForItsNudges(t *testing.T) {
 // only while phone access is on, and no other address; `dash phone` is the
 // switch, the list and the way to forget.
 func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
-	door := aServer(t, contract.RoadTailscale, contract.RulesProven, 8443)
+	door := aServer(t)
+	values(t, team, public, tag, robin)
+	publish(t)
 	b := login(t, nil)
 	dashweb.Plug(b.p.Kit)
 	dirs := short(t, b.p)
@@ -469,7 +461,8 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 	number := "" // what the phone that knocked last was shown
 	knock := func() (int, error) {
 		req, _ := http.NewRequest("GET", "http://"+at+contract.RoutePair, nil)
-		req.Host = strings.TrimPrefix(outside, "https://")
+		req.Host = public
+		req.Header.Set(contract.HeaderAccess, signed(cloud(), heading, nil))
 		resp, err := (&http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{DisableKeepAlives: true}}).Do(req)
 		if err != nil {
 			return 0, err
@@ -487,7 +480,7 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 		t.Fatal("the door is open before anybody switched phone access on")
 	}
 	said, got, err := word("phone", "on")
-	if err != nil || !got.On || got.Port != 8443 || !strings.Contains(said, ":8443/") {
+	if err != nil || !got.On || got.Name != public || !strings.Contains(said, "https://"+public+"/\n") {
 		t.Fatalf("dash phone on: %v %+v %s", err, got, said)
 	}
 	if st, _ := ask(b.p.Kit, dirs, "status"); st.Door != door || !st.Running {
@@ -507,7 +500,7 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 		return list
 	}
 	if said, got, err := word("phone", "list"); err != nil || got.Asking == nil || got.Asking.Number != spaced ||
-		!strings.Contains(said, "A phone asks to be paired: "+spaced+" · nobody named") || !strings.Contains(said, "> whaleshark dash phone approve "+number) {
+		!strings.Contains(said, "A phone asks to be paired: "+spaced+" · "+named) || !strings.Contains(said, "> whaleshark dash phone approve "+number) {
 		t.Fatalf("dash phone list with a phone asking: %v %+v\n%s", err, got, said)
 	}
 	other := "000000"
@@ -538,12 +531,12 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 		t.Fatalf("dash phone forget: %v %s", err, said)
 	}
 	if err := contract.ChangePhones(b.p.Kit.Platform, func(list *contract.Phones) error {
-		list.Paired = append(list.Paired, contract.Phone{ID: "ph1", Name: "iPhone", Identity: robin, Session: "x", Push: &contract.PushTo{Auth: "secret-of-the-nudge"}})
+		list.Paired = append(list.Paired, contract.Phone{ID: "ph1", Name: "iPhone", Identity: named, Session: "x", Push: &contract.PushTo{Auth: "secret-of-the-nudge"}})
 		return nil
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if said, got, err = word("phone", "list"); err != nil || len(got.Phones) != 1 || !got.Phones[0].Nudges || !strings.Contains(said, "ph1  iPhone  "+robin) || strings.Contains(said, "secret") {
+	if said, got, err = word("phone", "list"); err != nil || len(got.Phones) != 1 || !got.Phones[0].Nudges || !strings.Contains(said, "ph1  iPhone  "+named) || strings.Contains(said, "secret") {
 		t.Errorf("dash phone list: %v %+v %s", err, got, said)
 	}
 	for _, bad := range [][]string{{"phone"}, {"phone", "open"}, {"phone", "forget"}, {"phone", "on", "now"}} {
@@ -563,10 +556,10 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 	if code, err := knock(); err == nil {
 		t.Errorf("with phone access off the door answered %d", code)
 	}
-	// A login the administrator gave no port for a phone has no door to open.
-	aServer(t, contract.RoadTailscale, contract.RulesProven, 0)
+	// A login the administrator gave no public name has no door to open.
+	aServer(t)
 	if _, _, err := word("phone", "on"); err == nil || err.(*contract.Refusal).Code != "no_door" || listOf(t, b).On {
-		t.Errorf("dash phone on with no port outside: %v", err)
+		t.Errorf("dash phone on with no public name: %v", err)
 	}
 	if _, _, err := word("stop"); err != nil {
 		t.Fatal(err)
@@ -579,10 +572,10 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 // The evening on a phone: the same screen as the laptop's, from the same
 // view, with nothing in another order.
 func TestTheEveningOnAPhone(t *testing.T) {
-	b := house(t, contract.RulesProven)
+	b := house(t)
 	rows := regexp.MustCompile(` id="([ic]-[^"]+)"`)
 	wide := rows.FindAllString(b.ask("GET", contract.RouteTeam, nil, nil).Body.String(), -1)
-	p := b.paired(robin)
+	p := b.paired(subject)
 	narrow := rows.FindAllString(p.ask("GET", contract.RouteTeam, nil, nil).Body.String(), -1)
 	if len(wide) < 10 || strings.Join(wide, "") != strings.Join(narrow, "") {
 		t.Errorf("the rows of the laptop's page %v\nand of the phone's %v", wide, narrow)
@@ -592,11 +585,13 @@ func TestTheEveningOnAPhone(t *testing.T) {
 // A login with no open run can still pair a phone: the request is the one
 // item of its laptop's page, and the phone is then shown the same nothing.
 func TestPairingNeedsNoOpenRun(t *testing.T) {
-	aServer(t, contract.RoadTailscale, contract.RulesProven, 8443)
+	aServer(t)
+	values(t, team, public, tag, robin)
+	publish(t)
 	b := login(t, nil).signIn()
 	dashweb.Plug(b.p.Kit)
 	access(t, b.p.Kit, true)
-	p := &phone{b: b, who: robin}
+	p := &phone{b: b, who: subject}
 	number := p.knock()
 	if text := b.ask("GET", contract.RouteTeam, nil, nil).Body.String(); !strings.Contains(text, "A phone wants to connect: "+number[:3]) || !strings.Contains(text, `action="`+contract.RouteDo+`phone-yes"`) {
 		t.Fatalf("the laptop's page with no run:\n%s", text)

@@ -5,11 +5,11 @@
 // Server is what `whaleshark server` runs as root, with sh reading it from
 // standard input and the program's own file named in contract.EnvBin:
 // `sh -s -- setup ADMIN [KEYFILE]`, `harden ADMIN`,
-// `add LOGIN PORTS [KEYFILE] ADMIN`, `phone LOGIN PHONE DOOR [off]`,
-// `tunnel TEAM [off]`, `public LOGIN DOOR NAME TAG [off]`, `upgrade`,
-// `status`. ADMIN is the administrator login, PORTS the first port of the
-// login's block, DOOR its last, PHONE the port Tailscale answers at; an
-// empty KEYFILE stands for none. tunnel and public are the Cloudflare way:
+// `add LOGIN PORTS [KEYFILE] ADMIN`, `tunnel TEAM [off]`,
+// `public LOGIN DOOR NAME TAG [off]`, `upgrade`, `status`. ADMIN is the
+// administrator login, PORTS the first port of the login's block, DOOR its
+// last; an empty KEYFILE stands for none. tunnel and public are the way in
+// for phones, through Cloudflare:
 // the connector from Cloudflare's signed package source under a login of
 // its own, and a person's public name led to that login's door and nowhere
 // else. A release gives the script the connector's version and the
@@ -26,10 +26,6 @@
 // program file to that: setup does not copy it and upgrade asks the
 // package manager for the new one. Otherwise upgrade puts the file it was
 // started from in place, which install.sh has checked.
-//
-// Phase 6 owes here: the Tailscale road leaves the server's script (its
-// `phone` step and the PHONE port), in the one commit that takes it out of
-// the whole tree.
 //
 // Installer is install.sh, the one-line install for one login without
 // root: it fetches a release's file and its signed list, or takes them from
