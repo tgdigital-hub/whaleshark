@@ -46,6 +46,12 @@ type Store interface {
 	SetCurrent(root, run string) error
 	// Remove deletes a closed run's folder.
 	Remove(root, run string) error
+	// Both is Change for two runs of one project under its one lock: an
+	// orchestrator's run, up, and a fleet's, low. Nobody reads or writes
+	// either between the two loads and the two saves, and up is saved first.
+	// A program killed between the saves leaves up changed and low not: what
+	// lies in both (a question and its twin) is finished by the next sweep.
+	Both(root, up, low string, fn func(up, low *State) error) error
 }
 
 // Snapshot is the terminals' picture of every pane at one moment. Instance is
@@ -76,6 +82,9 @@ type Pane struct {
 	// Ours marks a pane program of our own, which the keeper started from
 	// its list of arguments; no program can set it from inside a pane.
 	Ours bool `json:"ours,omitempty"`
+	// Dock is true for the one pane of the dock: the left section's place,
+	// which is in no tab (Tab is empty) and shows beside every tab.
+	Dock bool `json:"dock,omitempty"`
 }
 
 // What an agent is doing. An agent that has finished is idle. Busy and
@@ -167,6 +176,18 @@ var (
 	ErrPromptStalled     = errors.New("agent_prompt_stalled")
 	ErrNoPane            = errors.New("no such pane or agent")
 	ErrEngineUnreachable = errors.New("the engine is not running")
+	// ErrDock: the call would close, split, swap, zoom or start a program
+	// in the dock, which runs the left section and nothing else.
+	ErrDock = errors.New("the left section's place is the engine's")
+)
+
+// What Dock is told: DockKeys gives the dock the keys, DockBack gives them
+// back to the pane that had them, and DockFold folds the dock to its rail or
+// opens it again.
+const (
+	DockKeys = "keys"
+	DockBack = "back"
+	DockFold = "fold"
 )
 
 // The directions of Split, Resize and PaneFocus, and what Notify answers.
@@ -227,6 +248,11 @@ type Terminals interface {
 	// Overlay runs a program in a pane drawn over the tab until it ends; w
 	// and h are shares of the window, or cells above 1.
 	Overlay(argv []string, w, h float64) error
+	// Dock moves the keys to or from the dock, or folds it: the Dock words.
+	// Everything else of the dock the keeper does alone: it starts
+	// `ui run side` there and starts it again, draws the place while that
+	// program is not up, and reads its side and width from the settings.
+	Dock(what string) error
 }
 
 // Dirs are the login's three folders of ours.
@@ -476,6 +502,9 @@ func (NoStore) Change(string, string, func(*State) error) error { return ErrNotB
 func (NoStore) Append(string, string, []Event) error            { return ErrNotBuilt }
 func (NoStore) SetCurrent(string, string) error                 { return ErrNotBuilt }
 func (NoStore) Remove(string, string) error                     { return ErrNotBuilt }
+func (NoStore) Both(string, string, string, func(up, low *State) error) error {
+	return ErrNotBuilt
+}
 
 func (NoTerminals) Version() (string, error)                            { return "", ErrNotBuilt }
 func (NoTerminals) Snapshot(context.Context) (*Snapshot, error)         { return nil, ErrNotBuilt }
@@ -502,6 +531,7 @@ func (NoTerminals) AgentStart(string, string, string, []string, time.Duration) e
 	return ErrNotBuilt
 }
 func (NoTerminals) Overlay([]string, float64, float64) error { return ErrNotBuilt }
+func (NoTerminals) Dock(string) error                        { return ErrNotBuilt }
 
 func (NoPlatform) Dirs() (Dirs, error)                   { return Dirs{}, ErrNotBuilt }
 func (NoPlatform) Lock(string, bool) (func(), error)     { return nil, ErrNotBuilt }

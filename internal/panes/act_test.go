@@ -835,7 +835,7 @@ func TestSet(t *testing.T) {
 		t.Errorf("ui.json holds %+v", ui)
 	}
 	cfg := person(d.k, dirs)
-	if cfg.UI.Theme != "paper" || cfg.UI.Actions != "top" || cfg.Nudge.Sound || cfg.Nudge.Phone || !cfg.Nudge.Popup || cfg.UI.SettleSeconds != 4 ||
+	if cfg.UI.Theme != "paper" || cfg.Panes.Actions != "top" || cfg.Nudge.Sound || cfg.Nudge.Phone || !cfg.Nudge.Popup || cfg.UI.SettleSeconds != 4 ||
 		cfg.Notify.URL != "http://localhost/nudge" {
 		t.Errorf("config.toml holds %+v", cfg)
 	}
@@ -867,10 +867,17 @@ func TestSet(t *testing.T) {
 	if out, err := run("dnd", "until 21:30"); err != nil || !strings.Contains(out, "dnd: until 21:30") {
 		t.Errorf("set dnd with its time as one word: %q, %v", out, err)
 	}
-	// The engine's settings come with the engine.
+	// Every other key of the contract's table is set in its own file: the
+	// engine's in settings.toml, and a value outside its key is a usage error.
+	if out, err := run("keys.style", "mac"); err != nil || !strings.Contains(out, "keys.style: mac") {
+		t.Errorf("set keys.style: %q, %v", out, err)
+	}
+	if s, err := contract.ReadSettings(d.k.Platform.Read, dirs); err != nil || s.Keys.Style != "mac" || s.Side.Width != contract.SideWidth {
+		t.Errorf("settings.toml holds %+v, %v", s, err)
+	}
 	for _, key := range contract.SettingKeys {
-		if _, err := run(key, "x"); err == nil || exit(err) == contract.ExitUsage || !strings.Contains(err.Error(), contract.ErrNotBuilt.Error()) {
-			t.Errorf("set %s: %v", key, err)
+		if _, err := run(key, "x\ny"); exit(err) != contract.ExitUsage && exit(err) != contract.ExitRefused {
+			t.Errorf("set %s to a value it cannot have: %v", key, err)
 		}
 	}
 }

@@ -385,7 +385,7 @@ func (p *pane) load() {
 	keys, _ := contract.ReadSettings(p.k.Platform.Peek, dirs)
 	p.command = keys.Keys.Command
 	p.cfg = person(p.k, dirs)
-	if p.above = p.cfg.UI.Actions == "top"; p.cfg.UI.Theme != p.chosen {
+	if p.above = p.cfg.Panes.Actions == "top"; p.cfg.UI.Theme != p.chosen {
 		p.chosen, p.scheme = p.cfg.UI.Theme, theme.Get(p.cfg.UI.Theme)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
@@ -330,7 +331,8 @@ func plant(t *testing.T, file string, version int) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data = bytes.Replace(data, []byte(`"version": 1`), []byte(`"version": `+strconv.Itoa(version)), 1)
+	head := regexp.MustCompile(`"version": \d+`).ReplaceAll(data[:min(len(data), 40)], []byte(`"version": `+strconv.Itoa(version)))
+	data = append(head, data[min(len(data), 40):]...)
 	if err := os.WriteFile(file, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -399,7 +401,7 @@ func TestVersionRule(t *testing.T) {
 	if err := st.Change(root, "r2", func(*contract.State) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	kept, _ := os.ReadFile(filepath.Join(st.Dir(root, "r2"), "state.v0.json"))
+	kept, _ := os.ReadFile(filepath.Join(st.Dir(root, "r2"), "state.v"+strconv.Itoa(contract.StateVersion-1)+".json"))
 	if s, err := st.Read(root, "r2"); err != nil || s.Version != contract.StateVersion || !bytes.Equal(kept, older) {
 		t.Fatalf("the upgrade: %v, old file kept: %v", err, bytes.Equal(kept, older))
 	}
@@ -485,6 +487,17 @@ func TestLoadedValuesPassTheValidator(t *testing.T) {
 		"an attempt of a bad task":      func(s *contract.State) { s.Attempts["T7.1"].Task = "T7;x" },
 		"an item of a bad attempt":      func(s *contract.State) { s.Questions["q1"] = &contract.Question{ID: "q1", Attempt: "T7"} },
 		"another run's record":          func(s *contract.State) { s.Run.ID = "r2" },
+		"a fleet named as an option":    func(s *contract.State) { s.Tasks["T7"].Fleet = "--x" },
+		"a fleet of four words":         func(s *contract.State) { s.Run.Fleets = map[string]*contract.Fleet{"a b c d": {Run: "r2"}} },
+		"a fleet whose run climbs":      func(s *contract.State) { s.Run.Fleets = map[string]*contract.Fleet{"billing": {Run: "../r2"}} },
+		"a fleet's tool with a space": func(s *contract.State) {
+			s.Run.Fleets = map[string]*contract.Fleet{"billing": {Run: "r2", Tool: "x y"}}
+		},
+		"a parent that climbs":         func(s *contract.State) { s.Run.Parent = &contract.Twin{Run: "..", Fleet: "billing"} },
+		"an attempt that leads a path": func(s *contract.State) { s.Attempts["T7.1"].Leads = "a/b" },
+		"a twin that climbs": func(s *contract.State) {
+			s.Questions["q1"] = &contract.Question{ID: "q1", Up: &contract.Twin{Run: "r1", ID: "../q"}}
+		},
 	} {
 		s := new(contract.State)
 		if err := json.Unmarshal(good, s); err != nil {
@@ -749,5 +762,98 @@ func TestReadersDoNotStarveAWriter(t *testing.T) {
 	// machine loaded far beyond its cores, where 100 ms did not.
 	if took > changes*time.Second {
 		t.Errorf("a change waited %v on average behind readers", took/changes)
+	}
+}
+
+// Two runs of one project are changed as one step (design 19.1): a function
+// that fails writes neither, both are saved when it does not, and each is
+// upgraded as a single run would be.
+func TestBothRunsUnderOneLock(t *testing.T) {
+	st, root := project(t, "r1", "r2")
+	plant(t, filepath.Join(st.Dir(root, "r2"), stateFile), contract.StateVersion-1)
+	failed := errors.New("no")
+	err := st.Both(root, "r1", "r2", func(up, low *contract.State) error {
+		up.Run.Mode, low.Run.Parent = contract.ModeFleets, &contract.Twin{Run: "r1", Fleet: "billing"}
+		return failed
+	})
+	if s, _ := st.Read(root, "r1"); err != failed || s.Run.Mode != "" {
+		t.Fatalf("a refused change was written: %v", err)
+	}
+	if err := st.Both(root, "r1", "r2", func(up, low *contract.State) error {
+		up.Run.Mode, low.Run.Parent = contract.ModeFleets, &contract.Twin{Run: "r1", Fleet: "billing"}
+		up.Run.Fleets = map[string]*contract.Fleet{"billing": {Run: low.Run.ID, Tool: "codex"}}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	up, _ := st.Read(root, "r1")
+	low, err := st.Read(root, "r2")
+	if err != nil || up.Run.Fleets["billing"].Run != "r2" || low.Run.Parent.Fleet != "billing" || low.Version != contract.StateVersion {
+		t.Fatalf("after the change: %+v %+v %v", up.Run.Fleets, low.Run.Parent, err)
+	}
+	if _, err := os.Stat(filepath.Join(st.Dir(root, "r2"), "state.v"+strconv.Itoa(contract.StateVersion-1)+".json")); err != nil {
+		t.Errorf("the older file of the lower run was not kept: %v", err)
+	}
+	if err := st.Both(root, "r1", "r9", func(_, _ *contract.State) error { return nil }); !errors.Is(err, contract.ErrNoRun) {
+		t.Errorf("a fleet's run that is not there: %v", err)
+	}
+	if err := st.Both(root, "r1", "../r2", func(_, _ *contract.State) error { return nil }); err == nil {
+		t.Error("a run's name that is a path was taken")
+	}
+}
+
+// Twenty agents of four fleets and their orchestrator write under the
+// project's one lock: every write waits its turn in one line, and the line
+// must stay short. Each of twenty writers changes its fleet's run fifteen
+// times, every fifth time with the orchestrator's run in the same step,
+// while eight readers never pause.
+func TestTwentyAgentsOfFourFleetsUnderOneLock(t *testing.T) {
+	st, root := project(t, "r1", "r2", "r3", "r4", "r5")
+	stop, readers := make(chan struct{}), sync.WaitGroup{}
+	for range 8 {
+		readers.Go(func() {
+			for i := 0; ; i++ {
+				select {
+				case <-stop:
+					return
+				default:
+					st.Read(root, "r"+strconv.Itoa(1+i%5))
+				}
+			}
+		})
+	}
+	var writers sync.WaitGroup
+	var worst atomic.Int64
+	began := time.Now()
+	for w := range 20 {
+		writers.Go(func() {
+			low := "r" + strconv.Itoa(2+w%4)
+			for i := range 15 {
+				at := time.Now()
+				var err error
+				if note := strconv.Itoa(w*100 + i); i%5 == 4 {
+					err = st.Both(root, "r1", low, func(up, down *contract.State) error {
+						up.Run.Objective, down.Run.Objective = note, note
+						return nil
+					})
+				} else {
+					err = st.Change(root, low, func(s *contract.State) error { s.Run.Objective = note; return nil })
+				}
+				if took := time.Since(at); err != nil {
+					t.Error(err)
+				} else if took.Nanoseconds() > worst.Load() {
+					worst.Store(took.Nanoseconds())
+				}
+			}
+		})
+	}
+	writers.Wait()
+	close(stop)
+	readers.Wait()
+	took, slowest := time.Since(began), time.Duration(worst.Load())
+	t.Logf("300 writes by twenty writers beside eight readers: %v in all, %v a write, the slowest %v", took.Round(time.Millisecond),
+		(took / 300).Round(time.Microsecond), slowest.Round(time.Millisecond))
+	if slowest > 5*time.Second {
+		t.Errorf("a write waited %v for its turn", slowest)
 	}
 }

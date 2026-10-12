@@ -5,8 +5,12 @@ package contract
 
 import "time"
 
-// StateVersion is raised by every change to the shape of state.json.
-const StateVersion = 1
+// StateVersion is raised by every change to the shape of state.json. 2 is
+// phase 5: a run's mode, parent and fleets, a task's fleet, an attempt's
+// leads, a question's two twins. Each is empty in a file of version 1, which
+// is read as it stands and written back as 2 by the first change, under the
+// lock, with the older file kept beside it.
+const StateVersion = 2
 
 // State is state.json, the one authoritative record of a run.
 type State struct {
@@ -47,6 +51,40 @@ type Run struct {
 	// Programs is every version of the program that has swept this run: one
 	// more while the run is open is an upgrade, and raises "upgraded" once.
 	Programs []string `json:"programs,omitempty"`
+	// Mode is empty, or ModeFleets on an orchestrator's run: written by run
+	// new from the person's setting of that moment and never changed. Fleets
+	// are that run's fleets by name. Parent is set on a fleet's own run.
+	Mode   string            `json:"mode,omitempty"`
+	Fleets map[string]*Fleet `json:"fleets,omitempty"`
+	Parent *Twin             `json:"parent,omitempty"`
+}
+
+// ModeFleets is the mode of a run whose tasks are groups handed to fleets.
+const ModeFleets = "fleets"
+
+// Fleet is one fleet of an orchestrator's run: the run that is the fleet,
+// its leader's tool and model, the leader's pane and tab while one lives,
+// the branch its work is collected on, and the groups handed to it. A fleet
+// whose leader has ended while its run is open is parked.
+type Fleet struct {
+	Run     string    `json:"run"`
+	Tool    string    `json:"tool"`
+	Model   string    `json:"model,omitempty"`
+	Pane    string    `json:"pane,omitempty"`
+	Tab     string    `json:"tab,omitempty"`
+	Branch  string    `json:"branch,omitempty"`
+	Since   time.Time `json:"since"`
+	Groups  []string  `json:"groups,omitempty"`
+	EndedAt time.Time `json:"ended_at,omitzero"`
+}
+
+// Twin names the other half of something that lies in two runs of one
+// project: on a fleet's run, the orchestrator's run and the fleet's name
+// there; on a question, the run and the id of the question it became.
+type Twin struct {
+	Run   string `json:"run"`
+	ID    string `json:"id,omitempty"`
+	Fleet string `json:"fleet,omitempty"`
 }
 
 // ScanSeen is the overlap scan as the record knows it: Due since a report
@@ -124,6 +162,7 @@ type Task struct {
 	Check        string     `json:"check"`
 	BrowserCheck bool       `json:"browser_check,omitempty"`
 	Placement    string     `json:"placement"`
+	Fleet        string     `json:"fleet,omitempty"` // a group's fleet: Placement is then PlaceFleet
 	Agent        string     `json:"agent,omitempty"`
 	Model        string     `json:"model,omitempty"`
 	Status       TaskStatus `json:"status"`
@@ -142,11 +181,14 @@ type Task struct {
 	SettledAt time.Time `json:"settled_at,omitzero"`
 }
 
-// The three placements; a folder given with --cwd is PlaceCwd followed by it.
+// The placements; a folder given with --cwd is PlaceCwd followed by it. A
+// task placed in a fleet is a group: it has no folder of its own, and its
+// work is the fleet's branch.
 const (
 	PlaceWorktree = "worktree"
 	PlaceShared   = "shared"
 	PlaceCwd      = "cwd:"
+	PlaceFleet    = "fleet"
 	CheckNone     = "none"
 )
 
@@ -223,6 +265,10 @@ type Attempt struct {
 	BackAt     time.Time    `json:"back_at,omitzero"` // when its result was last sent back
 	EndedAt    time.Time    `json:"ended_at,omitzero"`
 	Temp       string       `json:"temp,omitempty"` // on a server, the temp folder of its own that start made
+	// Leads is the fleet's run this attempt is the leader of. Several live
+	// attempts of one orchestrator's run can share a place and a Leads: one
+	// leader, several groups.
+	Leads string `json:"leads,omitempty"`
 }
 
 // Agent is the program in the attempt's pane. Name is what the keeper knows it by and
@@ -425,6 +471,10 @@ type Question struct {
 	SettlesAt  time.Time `json:"settles_at,omitzero"`
 	UsedAt     time.Time `json:"used_at,omitzero"`
 	Earlier    []Undone  `json:"earlier,omitempty"`
+	// Up, on a fleet's question, is the question it became in the
+	// orchestrator's run; Down, on that one, is the way back.
+	Up   *Twin `json:"up,omitempty"`
+	Down *Twin `json:"down,omitempty"`
 }
 
 // Origin is the kind of caller that did something and where the command says

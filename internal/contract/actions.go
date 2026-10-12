@@ -1,9 +1,13 @@
 package contract
 
+import "slices"
+
 // Action is one row of the action table: the only things a click or a key in
 // a pane, or a button on the page, may run. Run is the command line, with
 // {id}, {task}, {file}, {name}, {key} and {value} filled in from the view
-// model and a private temp file; empty means only the screen changes. How is
+// model and a private temp file; empty means only the screen changes. A row
+// of the left section is about one run of one project among several: what
+// it runs gets --root and --run of that row (SideRow) added. How is
 // one of the How constants. Key is the single key in our panes and Prefix the
 // key after the command key that works from anywhere.
 type Action struct {
@@ -57,6 +61,31 @@ var Actions = []Action{
 	{ID: "forget-phone", Label: "Forget a phone", Run: []string{"dash", "phone", "forget", "{id}"}, How: HowChild},
 	{ID: "phone-yes", Label: "Approve a phone", Run: []string{"dash", "phone", "approve", "{id}"}, How: HowChild},
 	{ID: "phone-no", Label: "Refuse a phone", Run: []string{"dash", "phone", "refuse", "{id}"}, How: HowChild},
+}
+
+// SideActions are the rows phase 5 adds: what the left section offers on a
+// row's mark and at its foot. A fleet is parked and written to through its
+// group. The three keys after the command key that go with the last three
+// (s, g and b) are the engine's own and not among the seven init --keys
+// writes. The list of every action shows these rows once its pane can run
+// them; until then they are in no list.
+var SideActions = []Action{
+	{ID: "park", Label: "Park the fleet", Run: []string{"stop", "{task}", "--human"}, How: HowChild, Confirm: true},
+	{ID: "note-leader", Label: "Send its leader a note", Run: []string{"tell", "{task}", "--file", "{file}", "--human"}, How: HowChild},
+	{ID: "settings", Label: "The settings screen", Run: []string{"ui", "settings"}, How: HowScreen},
+	{ID: "side-keys", Label: "Go to the left section", How: HowScreen},
+	{ID: "side-fold", Label: "Fold the left section", How: HowScreen},
+	{ID: "workspace", Label: "Open a project", How: HowScreen},
+}
+
+// FindAction is a row of either table by its id.
+func FindAction(id string) (Action, bool) {
+	for _, a := range slices.Concat(Actions, SideActions) {
+		if a.ID == id {
+			return a, true
+		}
+	}
+	return Action{}, false
 }
 
 // Never lists what neither the panes nor the page may ever run.

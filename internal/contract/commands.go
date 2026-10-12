@@ -14,7 +14,36 @@ const (
 	Orchestrator CallerKind = "orchestrator"
 	Unbound      CallerKind = "unbound"
 	Human        CallerKind = "human"
+	// Leader is a fleet leader: the attempt of a group in the orchestrator's
+	// run, calling from the pane its fleet's run records as its lead
+	// agent's. Its report, progress and mail are a worker's and go up, to
+	// the run its attempt is of; with any other command it is this kind and
+	// addresses its fleet's run, where it may what an orchestrator may but
+	// for LeaderNever. Its workers know it as their orchestrator.
+	Leader CallerKind = "leader"
 )
+
+// LeaderNever is what a leader is refused (exit 5, RefusedLeader): a command,
+// one form of it, or a command with one flag. It lands nothing, makes and
+// ends no run, hands nothing to a fleet (two levels, never three), answers
+// nothing in the person's name, and asks the orchestrator with need, whose
+// answer its wait hands it, not with ask, which would keep it from waiting
+// on its fleet.
+var LeaderNever = []string{"land", "run new", "run close", "run rm", "run takeover", "task --fleet", "answer --relayed", "ask"}
+
+// The refusals of Fleet Mode, all exit 5.
+const (
+	RefusedLeader    = "fleet_leader"
+	RefusedNotFleets = "not_fleets"
+	LimitLeaders     = "limit_leaders"
+	LimitFleet       = "limit_fleet"
+	LimitTotal       = "limit_total"
+)
+
+// MaxDepth is the deepest an agent that starts agents may be: EnvDepth is 1
+// in a worker's and a leader's tab and 2 in a tab of a leader's worker. start
+// refuses at 2, and at 1 for every caller but a leader.
+const MaxDepth = 2
 
 // Caller is who is calling: the kind, the pane if any, the attempt for
 // a worker, and for a human where the command says it came from. A worker is
@@ -130,8 +159,21 @@ func (c *Command) May(kind CallerKind, sub string) bool {
 		return who&O != 0
 	case Human:
 		return who&(O|H) != 0
+	case Leader:
+		return who&(O|W) != 0 && !slices.Contains(LeaderNever, c.Name) && !slices.Contains(LeaderNever, c.Name+" "+sub)
 	}
 	return who&U != 0
+}
+
+// LeaderMay is May for a leader whose command line is known: has reports
+// whether a flag was given.
+func (c *Command) LeaderMay(sub string, has func(flag string) bool) bool {
+	for _, never := range LeaderNever {
+		if name, flag, ok := strings.Cut(never, " --"); ok && name == c.Name && has(flag) {
+			return false
+		}
+	}
+	return c.May(Leader, sub)
 }
 
 // Commands is the command table, in the order help prints it.
@@ -147,7 +189,7 @@ var Commands = []Command{
 		Flags:   flags("fix", "server@3", "notify"),
 		Example: "whaleshark doctor --server"},
 	{Name: "guide", Section: "setup", Phase: 1, Who: all, Exits: []int{0},
-		Usage: "guide [worker|lead]", Help: "the guide that matches this version",
+		Usage: "guide [worker|lead|leader]", Help: "the guide that matches this version",
 		Example: "whaleshark guide lead"},
 	{Name: "trust", Section: "setup", Phase: 2, Who: H, Exits: []int{0, 1},
 		Usage: "trust", Help: "show what the project's settings would run or reach, and approve it",
@@ -174,8 +216,8 @@ var Commands = []Command{
 		Flags:   flags("admin=NAME", "admin-key=FILE", "user=NAME", "key=FILE", "off", "name=NAME", "aud=TAG", "email=LIST", "team=NAME"),
 		Example: "sudo whaleshark server add --user ana --key ana.pub"},
 	{Name: "ui", Section: "setup", Phase: 1, Who: H | O | U, Exits: []int{0, 3},
-		Usage:   "ui [close] / ui fleet|actions [on|off] / ui menu / ui run <pane>",
-		Help:    "open or close the fleet pane and the action pane in the lead agent's tab",
+		Usage:   "ui [close] / ui fleet|actions [on|off] / ui settings / ui menu / ui run <pane>",
+		Help:    "open or close the fleet pane and the action pane in the lead agent's tab, or open the settings screen",
 		Example: "whaleshark ui fleet off"},
 	{Name: "open", Section: "setup", Phase: PhaseE, Who: H | U, Exits: []int{0, 3},
 		Usage: "open", Help: "the window: your tabs and panes in this terminal; closing it stops nothing",
@@ -183,8 +225,9 @@ var Commands = []Command{
 	{Name: "engine", Section: "setup", Phase: PhaseE, Who: H | U, Exits: []int{0, 3},
 		Usage: "engine run|stop|status", Help: "the keeper that holds every pane's terminal for this login: run it, stop it, see it",
 		Example: "whaleshark engine status"},
-	{Name: "set", Section: "setup", Phase: 1, Who: H | U, Exits: []int{0, 2},
-		Usage: "set <key> <value>", Help: "your own settings: theme, dnd, mute, nudge.sound, nudge.popup, nudge.phone, actions, fleet.width",
+	{Name: "set", Section: "setup", Phase: 1, Who: H | U, Exits: []int{0, 2, 5},
+		Usage: "set <key> <value> [--project]", Help: "change a setting; every one is a key here and a row of the settings screen",
+		Flags:   flags("project!"),
 		Example: "whaleshark set theme kelp"},
 	{Name: "hook", Section: "setup", Phase: 1, Who: all, Exits: []int{0},
 		Usage: "hook statusline / hook gate [kind] / hook state <event>", Help: "run by an agent's own harness, never typed",
@@ -197,9 +240,9 @@ var Commands = []Command{
 		Subs:    []Sub{{Name: "new", Who: O | H | U}, {Name: "takeover", Who: O | H | U}, {Name: "use", Who: O | H | U}, {Name: "list", Who: O | H | U}, {Name: "show", Who: O | H | U}, {Name: "rm", Who: O | H | U}},
 		Example: "whaleshark run close"},
 	{Name: "task", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 2, 4, 5},
-		Usage:   `task add <id> "<title>" --brief FILE --check CMD|none [--name "<up to three words>"] [--after A,B] [--owns PATTERN,...] [--shared | --cwd DIR] [--agent KIND] [--model M] [--browser-check] / task edit <id> [--brief FILE] [--check CMD|none] [--owns ...] [--after ...] / task cancel <id> / task reset <id>`,
+		Usage:   `task add <id> "<title>" --brief FILE --check CMD|none [--name "<up to three words>"] [--after A,B] [--owns PATTERN,...] [--shared | --cwd DIR | --fleet NAME] [--agent KIND] [--model M] [--browser-check] / task edit <id> [--brief FILE] [--check CMD|none] [--owns ...] [--after ...] / task cancel <id> / task reset <id>`,
 		Help:    "add a task with its brief and its check, change it, cancel it or reset it",
-		Flags:   flags("brief=FILE", "check=CMD|none", "name=NAME", "after=A,B", "owns=PATTERN,...", "shared", "cwd=DIR", "agent=KIND", "model=M", "browser-check"),
+		Flags:   flags("brief=FILE", "check=CMD|none", "name=NAME", "after=A,B", "owns=PATTERN,...", "shared", "cwd=DIR", "fleet=NAME", "agent=KIND", "model=M", "browser-check"),
 		Example: `whaleshark task add T3 "url parser" --brief b/T3.md --after T1 --owns 'src/url/**' --check 'make test-url'`},
 	{Name: "start", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 1, 3, 5},
 		Usage:   "start <task>... | --ready [--retry] [--resume] [--agent KIND] [--model M] [--allow-overlap]",
@@ -263,10 +306,12 @@ var Commands = []Command{
 		Example: `whaleshark team run "site review" --goal "the checkout pages"`},
 
 	{Name: "report", Section: "worker", Phase: 1, Who: W, Exits: []int{0, 1, 5},
-		Usage: `report done|failed "<summary>"`, Help: "say that the task is finished, or that it could not be",
+		Usage: `report done|failed "<summary>" [--task ID]`, Help: "say that the task is finished, or that it could not be",
+		Flags:   flags("task=ID"),
 		Example: `whaleshark report done "Parser handles IPv6; 41 tests pass."`},
 	{Name: "progress", Section: "worker", Phase: 1, Who: W, Exits: []int{0, 5},
-		Usage: `progress <0-100> "<note>"`, Help: "note how far the work is",
+		Usage: `progress <0-100> "<note>" [--task ID]`, Help: "note how far the work is",
+		Flags:   flags("task=ID"),
 		Example: `whaleshark progress 40 "tests written"`},
 	{Name: "ask", Section: "worker", Phase: 1, Who: W, Exits: []int{0, 4, 5, 75},
 		Usage:   `ask "<question>" [--options a,b] [--timeout SEC] / ask --resume <qid>`,

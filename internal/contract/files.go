@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -66,24 +67,7 @@ func WriteVersioned(p Files, path string, max int, v any) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(tmp.Name())
-	if _, err = tmp.Write(append(data, '\n')); err == nil {
-		err = tmp.Sync()
-	}
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		return err
-	}
-	return p.Replace(tmp.Name(), path)
+	return replaceFile(p, path, append(data, '\n'))
 }
 
 // Projects is projects.json in the login's state folder: the project folders
@@ -315,14 +299,20 @@ type UIFile struct {
 	Versioned
 	FleetPane   string `json:"fleet_pane,omitempty"`
 	ActionsPane string `json:"actions_pane,omitempty"`
-	// FleetWidth is the fleet's width in cells as last seen.
-	FleetWidth int               `json:"fleet_width,omitempty"`
-	Folded     bool              `json:"folded,omitempty"`
-	DND        bool              `json:"dnd,omitempty"`
-	DNDUntil   time.Time         `json:"dnd_until,omitzero"`
-	Mute       bool              `json:"mute,omitempty"`
-	Drafts     map[string]string `json:"drafts,omitempty"`
-	LastHere   time.Time         `json:"last_here,omitzero"`
+	// FleetWidth is the fleet's width in cells as last seen, and FleetHeight
+	// its height in rows where it lies at the bottom.
+	FleetWidth  int               `json:"fleet_width,omitempty"`
+	FleetHeight int               `json:"fleet_height,omitempty"`
+	Folded      bool              `json:"folded,omitempty"`
+	DND         bool              `json:"dnd,omitempty"`
+	DNDUntil    time.Time         `json:"dnd_until,omitzero"`
+	Mute        bool              `json:"mute,omitempty"`
+	Drafts      map[string]string `json:"drafts,omitempty"`
+	// Changed names the settings that run a program and were changed since
+	// the person last saw their section of the settings screen: every
+	// screen carries one line in the warning colour while it holds any.
+	Changed  []string  `json:"changed,omitempty"`
+	LastHere time.Time `json:"last_here,omitzero"`
 }
 
 // CtxFile is the file CtxPath names: how full an agent's context is, as its own
@@ -383,10 +373,35 @@ type InstalledEntry struct {
 // PersonConfig is config.toml in the login's settings folder.
 type PersonConfig struct {
 	UI struct {
-		Theme         string `toml:"theme"`
-		Actions       string `toml:"actions"`
+		Theme string `toml:"theme"`
+		// Actions is where the action pane lay before it could be switched
+		// off: a file that says nothing under [panes] is read by it, and
+		// nothing writes it any more.
+		Actions       string `toml:"actions,omitempty"`
 		SettleSeconds int    `toml:"settle_seconds"`
+		// Marks is "auto" or "plain"; the variable of PlainMarks still wins.
+		Marks string `toml:"marks"`
 	} `toml:"ui"`
+	// Panes is where the two panes of ours open by themselves: the fleet
+	// "right", "left", "bottom" or "off", the action pane "bottom", "top" or
+	// "off". The left section's own place is the engine's (Settings.Side).
+	Panes struct {
+		Fleet   string `toml:"fleet"`
+		Actions string `toml:"actions"`
+	} `toml:"panes"`
+	// Fleets is Fleet Mode: whether a new job is a run of fleets, the three
+	// limits (Unlimited holds no line), and the tools of a leader and of a
+	// worker nobody named one for; a worker's "leader" is its leader's.
+	// They are the person's and are read at every start: no project's file
+	// holds them or can raise them.
+	Fleets struct {
+		Mode    string `toml:"mode"`
+		Leaders int    `toml:"leaders"`
+		Agents  int    `toml:"agents"`
+		Total   int    `toml:"total"`
+		Leader  string `toml:"leader"`
+		Worker  string `toml:"worker"`
+	} `toml:"fleets"`
 	Nudge struct {
 		Sound       bool `toml:"sound"`
 		Popup       bool `toml:"popup"`
@@ -418,18 +433,33 @@ func ReadPerson(read func(path string) ([]byte, error), configDir string) (Perso
 	if errors.Is(err, fs.ErrNotExist) {
 		return c, nil
 	}
+	c.UI.Actions, c.Panes.Actions = "", ""
 	if err == nil {
 		err = toml.Unmarshal(data, &c)
 	}
+	if c.Panes.Actions == "" {
+		c.Panes.Actions = cmp.Or(c.UI.Actions, Bottom)
+	}
+	c.UI.Actions = ""
 	return c, err
 }
+
+// Unlimited is a limit of Fleet Mode that holds no line; the machine's and a
+// server's still do. FleetWorkerLeader is the worker's tool that is its leader's.
+const (
+	Unlimited         = 0
+	FleetWorkerLeader = "leader"
+	On, Off           = "on", "off"
+)
 
 // PersonDefaults is a PersonConfig with every default filled in.
 func PersonDefaults() PersonConfig {
 	var c PersonConfig
-	c.UI.Theme = "reef"
-	c.UI.Actions = "bottom"
+	c.UI.Theme, c.UI.Marks = "reef", "auto"
 	c.UI.SettleSeconds = 4
+	c.Panes.Fleet, c.Panes.Actions = Right, Bottom
+	c.Fleets.Mode, c.Fleets.Leaders, c.Fleets.Agents, c.Fleets.Total = Off, 4, 8, 20
+	c.Fleets.Leader, c.Fleets.Worker = DefaultTool, FleetWorkerLeader
 	c.Nudge.Sound, c.Nudge.Popup, c.Nudge.Phone = true, true, true
 	c.Nudge.LeadMinutes = 10
 	return c

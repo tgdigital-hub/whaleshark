@@ -106,6 +106,45 @@ type Rules interface {
 	// its brief; sync then sends the brief with Tell. A task synced twice
 	// is the one to accept next.
 	Synced(s *State, task, brief string, now time.Time) (times int, err error)
+
+	// 19.1 Fleets. up is an orchestrator's run and low one of its fleets'
+	// runs; a caller changes the two with Store.Both. A group is a task of
+	// up whose Fleet is set: AddTask places it (in a run of ModeFleets only,
+	// and there every task is one), Start, Report, Reject, Stop and the
+	// rest move it as they move any task.
+	//
+	// Room refuses a start the person's limits leave no room for. fleets is
+	// every fleet's run of up, by the fleet's name. With an empty worker it
+	// is asked for a group of up placed in fleet: a living leader takes it
+	// and nothing is counted; else a new leader is one more of
+	// limits.Leaders (LimitLeaders) and of limits.Total (LimitTotal). With a
+	// worker it is asked for that task of the fleet's own run: one more of
+	// limits.Agents, the leader not counted (LimitFleet), and of the total.
+	// cap is what a server still leaves the login, 0 for no server.
+	Room(up *State, fleets map[string]*State, fleet, worker string, limits PersonConfig, cap int) error
+	// Lead makes a group's attempt in up the leader of low: it writes the
+	// attempt's Leads, low's Parent and up's entry of the fleet with by as
+	// the leader's pane, and binds low to that pane as Takeover does. For a
+	// fleet that has a living leader by is empty: the attempt takes that
+	// leader's place. A fleet whose leader had ended is taken over the same way.
+	Lead(up, low *State, attempt string, by Binding, branch string, now time.Time) error
+	// Park stops a fleet whose leader holds no other open group: every live
+	// attempt of low is stopped and its task ready again, as Stop does one,
+	// and the fleet's entry loses its pane. tabs are theirs to close.
+	Park(up, low *State, group string, now time.Time) (tabs []string, err error)
+	// Ended closes a fleet's run with its last group settled, as CloseRun
+	// does, and stamps the fleet's entry in up.
+	Ended(up, low *State, abandon bool, now time.Time) error
+	// Twin hands a question or an item of low up one level: it is then for
+	// the orchestrator, and a twin of it is made in up (Up here, Down
+	// there), holding the group if the first held its task, urgent if the
+	// first was. escalate in a fleet calls it, and need from a leader.
+	Twin(up, low *State, id string, now time.Time) (twin string, err error)
+	// Down copies the settled answer of a twin in up to its other half in
+	// low, answered by "orchestrator" or by the person's own origin, and
+	// uses the twin; done is false where there was nothing to copy. answer
+	// on a twin calls it, and the sweep of either run for a pair a kill left apart.
+	Down(up, low *State, twin string, now time.Time) (done bool, err error)
 }
 
 // TaskEdit is what task edit may replace; a nil field is left as it is.

@@ -62,7 +62,17 @@ type Kit struct {
 	AgentSettings AgentSettings
 	Sweeper       Sweeper
 	// View builds the one view model; the view package puts the builder here.
+	// Side builds the left section's, from every project of the login.
 	View func(ViewInput) *View
+	Side func(SideInput) *Side
+	// ProjectSet writes one key of Keys into a project's whaleshark.toml and
+	// leaves the rest of the file as it stands; Set calls it.
+	ProjectSet func(root string, key *Key, value string) error
+	// Panes opens, closes or moves the two panes of ours in the tab of the
+	// lead agent's pane as the person's layout says: run new and run
+	// takeover call it when they bind a pane, and set after a layout key. A
+	// keeper out of reach is no error.
+	Panes func(k *Kit, pane string) error
 	// SyncText words a sync brief; the guides put theirs here.
 	SyncText func(SyncBrief) string
 	// Page draws one screen of the page and Asset hands out one of its fixed
@@ -91,7 +101,7 @@ func NewKit() *Kit {
 		Store: NoStore{}, Terms: NoTerminals{}, Pty: NoPty, Platform: NoPlatform{}, Placement: NoPlacement{},
 		Integrator: NoIntegrator{}, Overlap: NoOverlap{}, Notifier: NoNotifier{},
 		Evidence: NoEvidence{}, AgentSettings: NoAgentSettings{}, Sweeper: NoSweeper{},
-		View: noView, SyncText: noSyncText, Page: noPage, Asset: noAsset, Push: noPush, PushKey: func() string { return "" }, Main: listOnly, handlers: map[string]Handler{},
+		View: noView, Side: noSide, ProjectSet: noProjectSet, Panes: func(*Kit, string) error { return nil }, SyncText: noSyncText, Page: noPage, Asset: noAsset, Push: noPush, PushKey: func() string { return "" }, Main: listOnly, handlers: map[string]Handler{},
 	}
 }
 

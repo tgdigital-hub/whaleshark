@@ -131,6 +131,7 @@ const (
 	OpNotify     = "notify"
 	OpSetKeys    = "set-keys"
 	OpOverlay    = "overlay"
+	OpDock       = "dock"
 	OpAttach     = "attach"
 	OpWindowSize = "window-size"
 	OpHook       = "hook"
@@ -217,7 +218,7 @@ var ErrWireVersion = errors.New("restart needed")
 
 // wireErrors are the errors that keep their identity across the socket.
 var wireErrors = []error{ErrAgentNotReady, ErrAgentBlocked, ErrPromptStalled, ErrNoPane,
-	ErrEngineUnreachable, ErrNotBuilt, ErrCannotTell, ErrWireVersion, ErrFrame}
+	ErrEngineUnreachable, ErrNotBuilt, ErrCannotTell, ErrWireVersion, ErrFrame, ErrDock}
 
 // ErrCode is the name an error travels under in WireReply.Err: its own text for
 // an error callers tell apart, "failed" for any other, empty for none.
@@ -270,10 +271,17 @@ type Settings struct {
 	// Shell is what a new pane starts; empty is the login's own shell.
 	Shell     []string   `toml:"shell"`
 	Shortcuts []KeyEntry `toml:"shortcut"`
+	// Side is the left section's dock: at which edge of the window it
+	// stands, Left or Right, and its width in cells, SideMin to SideMax. It
+	// has no off. A drag of its edge writes Width.
+	Side struct {
+		Place string `toml:"place"`
+		Width int    `toml:"width"`
+	} `toml:"side"`
 }
 
 // SettingKeys are the names `set` takes for the engine's settings.
-var SettingKeys = []string{"keys.command", "keys.style", "scrollback.lines", "scrollback.keep", "clipboard.programs", "shell"}
+var SettingKeys = []string{"keys.command", "keys.style", "scrollback.lines", "scrollback.keep", "clipboard.programs", "shell", "side.place", "side.width"}
 
 // SettingsPath is the settings file.
 func SettingsPath(d Dirs) string { return filepath.Join(d.Config, "settings.toml") }
@@ -286,6 +294,7 @@ func ReadSettings(read func(string) ([]byte, error), d Dirs) (Settings, error) {
 	s.Keys.Command, s.Keys.Style = "ctrl+space", "auto"
 	s.Scrollback.Lines, s.Scrollback.Keep = 5000, 2000
 	s.Clipboard.Programs = "ask"
+	s.Side.Place, s.Side.Width = Left, SideWidth
 	data, err := read(SettingsPath(d))
 	if errors.Is(err, fs.ErrNotExist) {
 		return s, nil

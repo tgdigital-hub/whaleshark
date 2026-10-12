@@ -8,10 +8,10 @@ $ whaleshark     # as a program
   dash      the page's server for this login, and its door for phones  (not built yet)
   connect   from your own computer: keep one connection to the server for the page and the terminals  (not built yet)
   server    for the administrator, with sudo, on the server: set it up, add people, upgrade  (not built yet)
-  ui        open or close the fleet pane and the action pane in the lead agent's tab  (not built yet)
+  ui        open or close the fleet pane and the action pane in the lead agent's tab, or open the settings screen  (not built yet)
   open      the window: your tabs and panes in this terminal; closing it stops nothing  (not built yet)
   engine    the keeper that holds every pane's terminal for this login: run it, stop it, see it  (not built yet)
-  set       your own settings: theme, dnd, mute, nudge.sound, nudge.popup, nudge.phone, actions, fleet.width  (not built yet)
+  set       change a setting; every one is a key here and a row of the settings screen  (not built yet)
   hook      run by an agent's own harness, never typed  (not built yet)
   run       start, list, show, switch, close or delete a run, or bind it to this pane  (not built yet)
   task      add a task with its brief and its check, change it, cancel it or reset it  (not built yet)
@@ -131,10 +131,11 @@ Not built yet: it comes with phase 1.
 exit 0
 
 $ whaleshark help report    # as a worker
-whaleshark report done|failed "<summary>"
+whaleshark report done|failed "<summary>" [--task ID]
   say that the task is finished, or that it could not be
 
 For:      a worker
+Flags:    --task ID
 Always:   --json, --run ID, --root DIR, --help, --file PATH
 Exits:    0 done, 1 failed, 5 refused
 Example:  whaleshark report done "Parser handles IPv6; 41 tests pass."

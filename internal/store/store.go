@@ -202,14 +202,45 @@ func (st *Store) Change(root, run string, fn func(*contract.State) error) error 
 		if err := fn(s); err != nil {
 			return err
 		}
-		if s.Version < contract.StateVersion {
-			// The first write over an older file leaves that file beside it.
-			if err := st.write(dir, fmt.Sprintf("state.v%d.json", s.Version), old); err != nil {
-				return err
-			}
-			s.Version = contract.StateVersion
+		return st.put(dir, s, old)
+	})
+}
+
+// put saves a changed record. The first write over a file of an older
+// version leaves that file beside it.
+func (st *Store) put(dir string, s *contract.State, old []byte) error {
+	if s.Version < contract.StateVersion {
+		if err := st.write(dir, fmt.Sprintf("state.v%d.json", s.Version), old); err != nil {
+			return err
 		}
-		return st.save(dir, s, old)
+		s.Version = contract.StateVersion
+	}
+	return st.save(dir, s, old)
+}
+
+// Both changes an orchestrator's run and one of its fleets' under the
+// project's one lock, the upper saved first (19.1).
+func (st *Store) Both(root, up, low string, fn func(up, low *contract.State) error) error {
+	if err := cli.Valid("id", low, ""); err != nil {
+		return err
+	}
+	return st.locked(root, up, true, func(dir string) error {
+		under := st.Dir(root, low)
+		a, was, err := st.load(dir, up)
+		if err != nil {
+			return refused(err)
+		}
+		b, wasLow, err := st.load(under, low)
+		if err != nil {
+			return refused(err)
+		}
+		if err := fn(a, b); err != nil {
+			return err
+		}
+		if err := st.put(dir, a, was); err != nil {
+			return err
+		}
+		return st.put(under, b, wasLow)
 	})
 }
 

@@ -241,7 +241,7 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 		err = split(fleet, "right", math.Round(1000*(1-min(max(share, 0.1), 0.9)))/1000, fl.pane)
 	}
 	if err == nil && wantActions && !ac.open {
-		side := map[bool]string{true: contract.Up, false: contract.Down}[person(k, dirs).UI.Actions == "top"]
+		side := map[bool]string{true: contract.Up, false: contract.Down}[person(k, dirs).Panes.Actions == "top"]
 		// A pane opened anew has its whole share, whatever the last one was left at.
 		err, ui.Folded = split(actions, side, talkShare, ac.pane), false
 	}

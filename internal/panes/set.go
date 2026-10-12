@@ -42,7 +42,7 @@ func set(c *contract.Call) (any, error) {
 		return nil, err
 	}
 	cfg := person(k, dirs)
-	side := cfg.UI.Actions
+	side := cfg.Panes.Actions
 	draft, isDraft := strings.CutPrefix(key, "draft.")
 	var names []string
 	for _, s := range theme.Schemes {
@@ -55,7 +55,7 @@ func set(c *contract.Call) (any, error) {
 	case key == "theme":
 		return bad("No colour scheme is called %q: there are %s.", value, strings.Join(names, ", "))
 	case key == "actions" && (value == "top" || value == "bottom"):
-		cfg.UI.Actions = value
+		cfg.Panes.Actions = value
 	case key == "actions":
 		return bad("The action pane lies at the top or at the bottom.")
 	case key == "nudge.sound":
@@ -97,10 +97,14 @@ func set(c *contract.Call) (any, error) {
 			ui.Drafts = map[string]string{}
 		}
 		ui.Drafts[draft] = value
-	case slices.Contains(contract.SettingKeys, key):
-		return nil, &contract.Refusal{Exit: contract.ExitFailed, Code: "not_built", Message: key + " is a setting of the engine: " + contract.ErrNotBuilt.Error() + "."}
 	default:
-		return bad("There is no setting %q. The settings: %s.", key, c.Command.Help[strings.Index(c.Command.Help, ":")+2:])
+		// Every other key of the contract's table is set in its own file.
+		// Phase 5 owes: a layout key moves the open panes at once (Kit.Panes).
+		if value, err = contract.Set(c, key, value); err != nil {
+			return nil, err
+		}
+		fmt.Fprintln(c.Out, key+": "+value)
+		return map[string]string{"key": key, "value": value}, nil
 	}
 	if onOff != nil && value != "on" && value != "off" && value != "toggle" {
 		return bad("%s is on or off.", key)

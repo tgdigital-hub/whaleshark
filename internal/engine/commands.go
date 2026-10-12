@@ -194,6 +194,10 @@ func (c *Client) AgentStart(name, kind, pane string, args []string, timeout time
 	return c.do(contract.WireCall{Op: contract.OpAgentStart, Name: name, Kind: kind, Pane: pane, Argv: args, Millis: timeout.Milliseconds()})
 }
 
+func (c *Client) Dock(what string) error {
+	return c.do(contract.WireCall{Op: contract.OpDock, Dir: what})
+}
+
 func (c *Client) Prompt(name, text string, timeout time.Duration) error {
 	return c.do(contract.WireCall{Op: contract.OpPrompt, Name: name, Text: text, Millis: timeout.Milliseconds()})
 }

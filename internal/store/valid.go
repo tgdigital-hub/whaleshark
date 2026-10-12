@@ -39,6 +39,20 @@ func valid(s *contract.State, run string) (err error) {
 	if o := s.Run.Orchestrator; o != nil {
 		may("pane", o.Pane)
 	}
+	// A fleet's name becomes a tab's label and its tool a program's name.
+	if up := s.Run.Parent; up != nil {
+		must("id", up.Run)
+		must("name", up.Fleet)
+	}
+	for name, f := range s.Run.Fleets {
+		if filed("fleet", name, f != nil); f != nil {
+			must("name", name)
+			must("id", f.Run)
+			may("agent", f.Tool)
+			may("pane", f.Pane)
+			must("id", f.Groups...)
+		}
+	}
 	for id, t := range s.Tasks {
 		if filed("task", id, t != nil && t.ID == id); t == nil {
 			continue
@@ -50,6 +64,7 @@ func valid(s *contract.State, run string) (err error) {
 		must("path", t.Owns...)
 		may("title", t.Title)
 		may("agent", t.Agent)
+		may("name", t.Fleet)
 		if dir, ok := strings.CutPrefix(t.Placement, contract.PlaceCwd); ok {
 			must("path", dir)
 		}
@@ -62,6 +77,7 @@ func valid(s *contract.State, run string) (err error) {
 		must("id", a.Task)
 		may("agent", a.Agent.Kind, a.Agent.Name)
 		may("pane", a.Place.Pane)
+		may("id", a.Leads)
 	}
 	for id, q := range s.Questions {
 		if filed("item", id, q != nil && q.ID == id); q == nil {
@@ -70,6 +86,11 @@ func valid(s *contract.State, run string) (err error) {
 		must("id", id)
 		may("id", q.Task)
 		may("attempt", q.Attempt)
+		for _, twin := range []*contract.Twin{q.Up, q.Down} {
+			if twin != nil {
+				must("id", twin.Run, twin.ID)
+			}
+		}
 	}
 	return err
 }

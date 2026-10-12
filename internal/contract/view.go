@@ -129,6 +129,11 @@ type ViewInput struct {
 	// Notes are what only the screen that asks knows about its own sources,
 	// such as "slow updates"; they follow the builder's own on the age line.
 	Notes []string
+	// Fleets is, for an orchestrator's run, each fleet's own run by the
+	// fleet's name; Person holds the limits; Tools is what Tools returned.
+	Fleets map[string]*State
+	Person PersonConfig
+	Tools  []Tool
 }
 
 // View is the one description of the screen. The panes, the plain text, the
@@ -157,6 +162,47 @@ type View struct {
 	Lines []string `json:"lines,omitempty"`
 	Strip Strip    `json:"strip"`
 	Fresh Fresh    `json:"fresh"`
+	// Mode is the run's. In a run of ModeFleets a card is a fleet (its
+	// Fleet is set) and Limits is the one line of the limits. Tools is every
+	// wired tool where there is more than one: the guides end with them.
+	Mode   string     `json:"mode,omitempty"`
+	Limits *FleetRoom `json:"limits,omitempty"`
+	Tools  []ToolLine `json:"tools,omitempty"`
+}
+
+// FleetRoom is how much of the limits is in use: "3 of 4 leaders · 15 of 20
+// agents". A limit of Unlimited is printed as that word.
+type FleetRoom struct {
+	Leaders    int `json:"leaders"`
+	LeadersMax int `json:"leaders_max"`
+	Agents     int `json:"agents"`
+	AgentsMax  int `json:"agents_max"`
+}
+
+// ToolLine is one wired tool as a lead agent is told it: what it can tell
+// of its states, whether Stop all holds it, and what the person says it suits.
+type ToolLine struct {
+	Name   string `json:"name"`
+	Exact  bool   `json:"exact"`
+	Held   bool   `json:"held"`
+	Proven bool   `json:"proven"`
+	Suits  string `json:"suits,omitempty"`
+}
+
+// FleetCard is what a card says when it is a fleet: the fleet's run, its
+// agents of its limit (the leader not counted), its groups that are open and
+// those to check, its tasks done of all, and whether it is parked. The
+// card's Name is the fleet's, its Agent the leader's tool, its Task the
+// group that needs something first, its Tab the leader's.
+type FleetCard struct {
+	Run     string `json:"run"`
+	Agents  int    `json:"agents"`
+	Limit   int    `json:"limit"`
+	Groups  int    `json:"groups"`
+	ToCheck int    `json:"to_check,omitempty"`
+	Done    int    `json:"done"`
+	Of      int    `json:"of"`
+	Parked  bool   `json:"parked,omitempty"`
 }
 
 // Counts are the figures of the headers and the last lines.
@@ -205,12 +251,13 @@ type Card struct {
 	News     string `json:"news"`
 	// Clash is the other task that changes the same file, and whether the
 	// two changes would conflict or only meet.
-	Clash   *Clash   `json:"clash,omitempty"`
-	Tab     string   `json:"tab,omitempty"`
-	Try     int      `json:"try"`
-	Agent   string   `json:"agent,omitempty"`
-	Next    []string `json:"next,omitempty"`    // the lines this caller may run, as plain text shows them after ">"
-	Actions []string `json:"actions,omitempty"` // ids of the action table offered on this card
+	Clash   *Clash     `json:"clash,omitempty"`
+	Tab     string     `json:"tab,omitempty"`
+	Try     int        `json:"try"`
+	Agent   string     `json:"agent,omitempty"`
+	Next    []string   `json:"next,omitempty"`    // the lines this caller may run, as plain text shows them after ">"
+	Actions []string   `json:"actions,omitempty"` // ids of the action table offered on this card
+	Fleet   *FleetCard `json:"fleet,omitempty"`
 }
 
 type Clash struct {
@@ -227,6 +274,9 @@ type Item struct {
 	Look Look   `json:"look"`
 	Task string `json:"task,omitempty"`
 	Name string `json:"name,omitempty"`
+	// Fleet is the fleet an item climbed from: every screen titles it
+	// "billing › refund flow".
+	Fleet string `json:"fleet,omitempty"`
 	// Source says who is asking, in the words every screen uses: "a question
 	// from the worker", "sign-off asked by the lead agent".
 	Source string    `json:"source"`

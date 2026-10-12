@@ -246,6 +246,9 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		r.Text, r.Delivery = k.notify(c)
 	case contract.OpSetKeys:
 		err = k.setKeys(c.Keys)
+	case contract.OpDock:
+		// Phase 5 owes the dock: see this folder's commands.go.
+		err = contract.ErrNotBuilt
 	default:
 		err = fmt.Errorf("the keeper has no call %q", c.Op)
 	}

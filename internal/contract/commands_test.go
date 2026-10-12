@@ -120,7 +120,7 @@ func TestCallers(t *testing.T) {
 
 func TestActions(t *testing.T) {
 	prefixes := map[string]bool{}
-	for _, a := range Actions {
+	for _, a := range slices.Concat(Actions, SideActions) {
 		if a.Prefix != "" {
 			prefixes[a.Prefix] = true
 		}
