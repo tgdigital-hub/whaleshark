@@ -180,6 +180,11 @@ func TestAPaneOverTheTab(t *testing.T) {
 	if env := r.program("p2").spec.Env; value(env, contract.EnvActivePane) != "p1" {
 		t.Errorf("the program over the tab is not told the pane with the keys: %q", env)
 	}
+	// It is in no tab: asked for the keys as a pane of a tab is, it is left
+	// as it is and the keeper goes on.
+	if reply := c.call(contract.WireCall{Op: contract.OpPaneFocus, Pane: "p2"}); reply.Err != "" || reply.Text != "p1" {
+		t.Errorf("pane-focus on the pane over the tab: %+v", reply)
+	}
 	w.click(x+2, y+2)
 	r.program("p2").Close()
 	r.until("the pane over the tab to go", func() bool { return r.locked(func() bool { return r.k.over == nil && len(r.k.panes) == 1 }) })

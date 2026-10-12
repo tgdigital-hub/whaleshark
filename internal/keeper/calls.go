@@ -218,9 +218,9 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		if c.Dir != "" {
 			to = k.lay.Beside(c.Pane, c.Dir)
 		}
-		if to != "" {
+		if t := k.lay.Of(to); t != nil { // a pane in no tab, drawn over one, takes no keys this way
 			k.lay.Focus(to)
-			k.lay.Show(k.lay.Of(to).ID)
+			k.lay.Show(t.ID)
 			k.lay.Dock.Keys, k.lay.Dock.Open = false, false
 			k.changed()
 		}
