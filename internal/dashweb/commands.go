@@ -31,6 +31,7 @@ var pages = template.Must(template.New("page.html").Funcs(template.FuncMap{
 	"scheme": scheme, "each": each, "cards": cards, "join": strings.Join, "base": filepath.Base,
 	"elsewhere": func(n int) string { return plural(n, "needs you in another job", "need you in other jobs") },
 	"needs":     func() contract.LookOf { return contract.Looks[0] },
+	"agents":    func(n int) string { return plural(n, "agent", "agents") },
 	"nudge":     func() bool { return pushKey() != "" },
 	"open":      func(c contract.Card) string { return contract.RouteTask + c.Task },
 	"shot":      func(t contract.Try, i int) string { return contract.RouteEvidence + t.Attempt + "/" + fmt.Sprint(i) },
@@ -39,9 +40,6 @@ var pages = template.Must(template.New("page.html").Funcs(template.FuncMap{
 // pushKey is the kit's own reader of the login's key for nudges, once Plug
 // has run: with no key a phone is offered no nudge of the page's own.
 var pushKey = func() string { return "" }
-
-// Phase 5 owes here: Home prints a fleet's card (Card.Fleet) and an item's
-// fleet, on a laptop and on a phone. Nothing else of phase 5 is on the page.
 
 // Plug puts the screens and their fixed files into the kit; it binds nothing.
 func Plug(k *contract.Kit) {
@@ -282,9 +280,15 @@ func word(p *contract.Page, c contract.Card) string {
 }
 
 // news is a card's third line: a change that would conflict is the news,
-// one that only meets another follows it.
+// one that only meets another follows it. A fleet with no news of its own
+// says how far its tasks are.
 func news(p *contract.Page, c contract.Card) string {
 	text := c.News
+	if f := c.Fleet; f != nil && text == "" {
+		if text = fmt.Sprint(f.Done, " of ", f.Of, " done"); f.ToCheck > 0 {
+			text += fmt.Sprint(" · ", f.ToCheck, " to check")
+		}
+	}
 	if c.Pale && !c.Said.IsZero() {
 		text = strings.Replace("said "+age(p, c.Said)+" ago: ", "now ago", "just now", 1) + text
 	}

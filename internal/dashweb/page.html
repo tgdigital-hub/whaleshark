@@ -80,8 +80,8 @@
 
 {{define "item"}}{{$p := .P}}{{$it := .Item}}
 {{- if .Count}}<p class="c-dim">held: {{.Count}} · do not disturb is on</p>{{end}}
-<article class="item{{if .Held}} held{{end}}" id="i-{{.ID}}" data-title="{{.Name}} — {{.Look}}" data-text="{{.Text}}">
-<p><span class="mark c-{{if .Held}}dim{{else}}{{(look .Look).Colour}}{{end}}">{{(look .Look).Mark}}</span> <b class="name">{{.Name}}</b> <span class="c-dim">{{if .Name}}· {{end}}{{.Source}} · {{age $p .Since}}</span></p>
+<article class="item{{if .Held}} held{{end}}" id="i-{{.ID}}" data-title="{{with .Fleet}}{{.}} › {{end}}{{.Name}} — {{.Look}}" data-text="{{.Text}}">
+<p><span class="mark c-{{if .Held}}dim{{else}}{{(look .Look).Colour}}{{end}}">{{(look .Look).Mark}}</span> <b class="name">{{with .Fleet}}{{.}} › {{end}}{{.Name}}</b> <span class="c-dim">{{if .Name}}· {{end}}{{.Source}} · {{age $p .Since}}</span></p>
 <p class="ask">{{.Text}}</p>
 <div class="answer">
 {{- if .Answer}}<span class="c-accent">{{.Answer}} · {{if .Used.IsZero}}Undo{{with left $p $it}} · <b class="left">{{.}}</b>{{end}}{{else}}used at {{clock $p .Used}}{{end}}</span> <span class="c-dim">{{by .By}}</span>{{end}}
@@ -103,12 +103,12 @@
 {{end}}{{end}}{{end}}
 
 {{define "card"}}{{$p := .P}}
-<article class="card k-{{.Colour}}{{if .Unseen}} unseen{{end}}{{if and (eq .Look "building") (not .Word) (not .Clash)}} plain{{end}}" id="c-{{.Task}}">
+<article class="card k-{{.Colour}}{{if .Unseen}} unseen{{end}}{{if and (eq .Look "building") (not .Word) (not .Clash) (not .Fleet)}} plain{{end}}" id="c-{{.Task}}">
 <span class="mark c-{{.Colour}}">{{(look .Look).Mark}}</span>
-<span><a class="name" href="{{open .Card}}">{{.Name}}</a>{{if .Flag}} <span class="c-needs">{{(needs).Mark}}</span>{{end}}</span>
+<span><a class="name" href="{{open .Card}}">{{.Name}}</a>{{if .Fleet}} <span class="c-dim">· {{.Agent}}</span>{{end}}{{if .Flag}} <span class="c-needs">{{(needs).Mark}}</span>{{end}}</span>
 <span class="word c-{{.Colour}}">{{word $p .Card}}</span>
 <span class="bar"><progress{{if .Pale}} class="pale"{{end}} max="100" value="{{.Progress}}"></progress> {{.Progress}}%</span>
-<span class="ctx c-dim">{{if .CtxKnown}}ctx <progress class="c-{{ctx .Card}}" max="100" value="{{.Ctx}}"></progress> {{.Ctx}}%{{else}}ctx unknown{{end}}</span>
+<span class="ctx c-dim">{{if .Fleet}}{{agents .Fleet.Agents}}{{else if .CtxKnown}}ctx <progress class="c-{{ctx .Card}}" max="100" value="{{.Ctx}}"></progress> {{.Ctx}}%{{else}}ctx unknown{{end}}</span>
 <span class="news c-dim">{{news $p .Card}}</span>
 </article>
 {{- end}}
