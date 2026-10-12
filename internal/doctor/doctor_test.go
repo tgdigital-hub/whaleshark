@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,29 @@ import (
 // would write it is replaced before anything starts, and what it was given
 // is kept for the test to look at.
 var board []string
+
+// kimAt and anaAt are the port blocks of the two work logins of a pretended
+// server. The proof of a server listens in a login's block for real, so
+// they are blocks this run of the tests has claimed for as long as it
+// lasts: another run beside it on the machine has others. ports writes a
+// text that names them, which is worded here with the numbers of the two
+// highest blocks, 31000 for kim and 30000 for ana.
+var kimAt, anaAt = claim(), claim()
+
+func claim() int {
+	base, _, err := testkit.Block()
+	if err != nil {
+		panic(err)
+	}
+	return base
+}
+
+func ports(text string) string {
+	n, size := strconv.Itoa, contract.BlockSize
+	next := contract.ServerPorts.Base + (kimAt+2*size-2-contract.ServerPorts.Base)%contract.ServerPorts.Count
+	return strings.NewReplacer("31000", n(kimAt), "31998", n(kimAt+size-2), "31999", n(kimAt+size-1),
+		"30000", n(anaAt), "30998", n(anaAt+size-2), "30999", n(anaAt+size-1), "21998", n(next)).Replace(text)
+}
 
 func TestMain(m *testing.M) {
 	pick.Run = func(argv []string, in []byte) error {

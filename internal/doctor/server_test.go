@@ -49,14 +49,14 @@ type box struct {
 }
 
 const (
-	self  = "/usr/local/bin/whaleshark"
-	kimAt = 31000
-	anaAt = 30000
+	self = "/usr/local/bin/whaleshark"
 	// Every address of the machine, as the system prints it; written in two
 	// halves, as nothing here holds a whole address in numbers.
 	all4   = "0.0.0" + ".0"
 	listen = "LISTEN 0 128 " + all4 + ":22 " + all4 + ":*\nLISTEN 0 128 [::]:22 [::]:*\nLISTEN 0 4096 127.0.0" + ".53%lo:53 " + all4 + ":*"
-	file   = `version = 1
+)
+
+var file = ports(`version = 1
 agents = 20
 road = "tailscale"
 rules = "proven"
@@ -68,8 +68,7 @@ phone = 443
 
 [login.ana]
 ports = 30000
-`
-)
+`)
 
 // server builds a healthy server with the work login kim at the desk; root
 // says whether doctor and the server command run as root.
@@ -127,7 +126,7 @@ func server(t *testing.T, text string, root bool) *box {
 		"systemctl --user is-enabled":    "enabled",
 		"git config --global user.name":  "Kim Example",
 		"git config --global user.email": "kim@example.com",
-		"tailscale serve status":         "https://box.example.ts.net (tailnet only)\n|-- / proxy http://" + contract.Loopback + ":31999",
+		"tailscale serve status":         "https://box.example.ts.net (tailnet only)\n|-- / proxy http://" + contract.Loopback + ports(":31999"),
 		"sshd -T":                        "port 22\n" + strings.Join(inForce, "\n") + "\nmaxsessions 10",
 		"ufw status verbose":             "Status: active\nDefault: deny (incoming), allow (outgoing), disabled (routed)\n\n22/tcp ALLOW IN Anywhere\n22/tcp (v6) ALLOW IN Anywhere (v6)",
 		"sudo -n -l -U admin":            "User admin may run the following commands on box:\n    (ALL : ALL) NOPASSWD: ALL",
@@ -250,10 +249,10 @@ func TestAWorkLoginOnAHealthyServer(t *testing.T) {
 	}
 	for _, words := range [][]string{
 		{"nothing but SSH listens"}, {"automatic security updates are on"}, {"program file is root's", self}, {"package whaleshark is as"},
-		{"home folder", "yours alone"}, {"temp files go to", "inside your own folders"}, {"tabs' temp folders lie in", "yours alone"}, {"ports 31000 to 31999", "yours alone"},
+		{"home folder", "yours alone"}, {"temp files go to", "inside your own folders"}, {"tabs' temp folders lie in", "yours alone"}, {ports("ports 31000 to 31999"), "yours alone"},
 		{"engine is kept alive without a session"}, {"Claude is probably signed in"}, {"git commits as Kim Example"},
 		{"up to 20 agents; 15625 MB"}, {"shared browser took a picture"}, {"page's socket", "yours alone"}, {"page is running, signs in, and refuses"},
-		{"Tailscale forwards port 443 to the door of kim"}, {"door", "31999 is open", "only you and the system"},
+		{"Tailscale forwards port 443 to the door of kim"}, {"door", ports("31999 is open"), "only you and the system"},
 	} {
 		b.want(e, ok, words...)
 	}
@@ -274,7 +273,7 @@ func TestEachFaultOfAWorkLoginIsNamed(t *testing.T) {
 		words []string
 	}{
 		{"no server", "", nil, note, []string{"not set up as a server", setupCmd}},
-		{"two logins one block", strings.Replace(file, "30000", "31000", 1), nil, problem, []string{"server's file cannot be used", "one block"}},
+		{"two logins one block", strings.Replace(file, strconv.Itoa(anaAt), strconv.Itoa(kimAt), 1), nil, problem, []string{"server's file cannot be used", "one block"}},
 		{"a newer file", strings.Replace(file, "version = 1", "version = 9", 1), nil, problem, []string{"server's file cannot be used"}},
 		{"not listed", strings.Replace(file, "login.kim", "login.eve", 1), nil, problem, []string{"kim is not a work login", addCmd + "kim"}},
 		{"restart", file, func(b *box) { b.write(filepath.Join(b.sys, "var", "run", "reboot-required"), "") }, note, []string{"restart needed since " + time.Now().Format(time.DateOnly), "sudo reboot"}},
@@ -320,7 +319,7 @@ func TestEachFaultOfAWorkLoginIsNamed(t *testing.T) {
 		{"no forwarding", file, func(b *box) { b.said["tailscale serve status"] = "No serve config" }, problem, []string{"does not forward port 443 to the door of kim", phoneCmd + "kim"}},
 		{"forwarding unread", file, func(b *box) { b.said["tailscale serve status"] = "!access denied" }, note, []string{"forwarding could not be read", "access denied", proveCmd}},
 		{"door shut", file, func(b *box) { b.phones() }, problem, []string{"phone access is on and nothing listens at your door", "whaleshark dash start"}},
-		{"door open, rules unproven", strings.Replace(file, "proven", "unproven", 1), func(b *box) { b.door() }, note, []string{"31999 is open", "the only wall", proveCmd}},
+		{"door open, rules unproven", strings.Replace(file, "proven", "unproven", 1), func(b *box) { b.door() }, note, []string{ports("31999 is open"), "the only wall", proveCmd}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := server(t, c.file, false)
@@ -411,9 +410,9 @@ func TestEachFaultOfTheMachineIsNamed(t *testing.T) {
 		{"work login with sudo", func(b *box) { b.said["sudo -n -l -U ana"] = "User ana may run the following commands" }, "", []string{"work login ana has sudo"}},
 		{"a program of its own", func(b *box) { b.write(filepath.Join(b.sys, "srv", "kim", ".local", "bin", "whaleshark"), "") }, "", []string{"kim has a program file of its own"}},
 		{"no lingering", func(b *box) { b.said["loginctl show-user ana"] = "no" }, "", []string{"services of ana end when it logs out", addCmd + "ana"}},
-		{"no bind rule", func(b *box) { b.bindRule = false }, contract.RulesUnproven, []string{"port block of kim is not proven its alone", "kim, bind 21998: open", addCmd + "kim"}},
-		{"no connect rule", func(b *box) { b.dialRule = false }, contract.RulesUnproven, []string{"port block of ana is not proven its alone", "kim, dial 30998: open"}},
-		{"probes cannot run", func(b *box) { b.blocks = map[string]int{} }, contract.RulesUnproven, []string{"port block of kim is not proven", "kim, dial 31998: closed"}},
+		{"no bind rule", func(b *box) { b.bindRule = false }, contract.RulesUnproven, []string{"port block of kim is not proven its alone", ports("kim, bind 21998: open"), addCmd + "kim"}},
+		{"no connect rule", func(b *box) { b.dialRule = false }, contract.RulesUnproven, []string{"port block of ana is not proven its alone", ports("kim, dial 30998: open")}},
+		{"probes cannot run", func(b *box) { b.blocks = map[string]int{} }, contract.RulesUnproven, []string{"port block of kim is not proven", ports("kim, dial 31998: closed")}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := server(t, file, true)

@@ -33,18 +33,16 @@ var (
 	tokenRE  = regexp.MustCompile(`name="t" value="([^"]+)"`)
 )
 
-// block is the first port of a block whose door nobody listens on now,
-// looked for from the top of the range.
+// block is the first port of a block that is this test's alone until it
+// ends: another run of these tests on the machine passes it by.
 func block(t *testing.T) int {
 	t.Helper()
-	for base := contract.ServerPorts.Base + contract.ServerPorts.Count - contract.BlockSize; base >= contract.ServerPorts.Base; base -= contract.BlockSize {
-		if l, err := net.Listen("tcp4", net.JoinHostPort(contract.Loopback, strconv.Itoa(base+contract.BlockSize-1))); err == nil {
-			l.Close()
-			return base
-		}
+	base, release, err := testkit.Block()
+	if err != nil {
+		t.Fatal(err)
 	}
-	t.Fatal("no block's door is free on this machine")
-	return 0
+	t.Cleanup(release)
+	return base
 }
 
 // phone is a phone's browser as the road's own program on the server hands

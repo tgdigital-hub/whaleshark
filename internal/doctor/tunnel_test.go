@@ -19,8 +19,7 @@ import (
 
 // A server whose phones come in by Cloudflare: kim has a public name, ana
 // has none yet.
-const (
-	tunnelFile = `version = 1
+var tunnelFile = ports(`version = 1
 agents = 20
 road = "cloudflare"
 team = "myteam"
@@ -35,7 +34,9 @@ email = ["kim@example.com"]
 
 [login.ana]
 ports = 30000
-`
+`)
+
+const (
 	keysAt = "GET https://myteam.cloudflareaccess.com/cdn-cgi/access/certs"
 	nameAt = "GET https://ws1.example.com/"
 	refuse = "  - service: http_status:404\n"
@@ -146,7 +147,7 @@ func TestRootOnAHealthyTunnel(t *testing.T) {
 			probes = append(probes, line[strings.LastIndex(line, "dial"):])
 		}
 	}
-	if strings.Join(probes, ",") != "dial 31998,dial 31999" {
+	if strings.Join(probes, ",") != ports("dial 31998,dial 31999") {
 		t.Errorf("the connector's login was tried at %v", probes)
 	}
 }
@@ -183,8 +184,8 @@ func TestEachFaultOfTheTunnelIsNamed(t *testing.T) {
 		}, problem, []string{"ws1.example.com lacks the connector's check"}},
 		{"another's tag", func(b *box) { b.routes(rule("ws1.example.com", door, check("myteam", "ffff0000")) + refuse) }, problem, []string{"ws1.example.com lacks the connector's check"}},
 		{"another team", func(b *box) { b.routes(rule("ws1.example.com", door, check("theirs", "0a1b2c3d")) + refuse) }, problem, []string{"ws1.example.com lacks the connector's check"}},
-		{"another port of the block", func(b *box) { b.routes(rule("ws1.example.com", door-1, kims) + refuse) }, problem, []string{"ws1.example.com leads to", ":31998 and not to the door of kim"}},
-		{"a neighbour's door", func(b *box) { b.routes(rule("ws1.example.com", anaAt+contract.BlockSize-1, kims) + refuse) }, problem, []string{":30999 and not to the door of kim"}},
+		{"another port of the block", func(b *box) { b.routes(rule("ws1.example.com", door-1, kims) + refuse) }, problem, []string{"ws1.example.com leads to", ports(":31998 and not to the door of kim")}},
+		{"a neighbour's door", func(b *box) { b.routes(rule("ws1.example.com", anaAt+contract.BlockSize-1, kims) + refuse) }, problem, []string{ports(":30999 and not to the door of kim")}},
 		{"the SSH port", func(b *box) {
 			b.routes(rule("ws1.example.com", door, kims) + rule("ssh.example.com", 22, kims) + refuse)
 		}, problem, []string{"a rule for ssh.example.com, which is nobody's"}},
@@ -195,8 +196,8 @@ func TestEachFaultOfTheTunnelIsNamed(t *testing.T) {
 		{"a last rule that leads somewhere", func(b *box) { b.routes(rule("ws1.example.com", door, kims) + "  - service: http://localhost:8080\n") }, problem, []string{"last rule does not refuse everything else"}},
 		{"not connected", func(b *box) { b.said["GET http://"+net.JoinHostPort(contract.Loopback, tunnelPort)+"/ready"] = "503" }, problem, []string{"tunnel is not connected to Cloudflare (503)", "sudo systemctl restart " + tunnelLogin}},
 		{"connector silent", func(b *box) { b.said["GET http://"+net.JoinHostPort(contract.Loopback, tunnelPort)+"/ready"] = "" }, note, []string{"whether the tunnel is connected cannot be told"}},
-		{"the connector beside the door", func(b *box) { b.reach[door-1] = true }, problem, []string{"port block of kim is not proven its alone", tunnelLogin + ", dial 31998: open"}},
-		{"the connector kept from the door", func(b *box) { b.reach = nil }, problem, []string{"port block of kim is not proven", tunnelLogin + ", dial 31999: closed"}},
+		{"the connector beside the door", func(b *box) { b.reach[door-1] = true }, problem, []string{"port block of kim is not proven its alone", tunnelLogin + ports(", dial 31998: open")}},
+		{"the connector kept from the door", func(b *box) { b.reach = nil }, problem, []string{"port block of kim is not proven", tunnelLogin + ports(", dial 31999: closed")}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			b := tunnelled(t, true)
@@ -222,7 +223,7 @@ func TestAWorkLoginBehindTheTunnel(t *testing.T) {
 	}
 	b.want(e, ok, "routing file is root's and valid")
 	b.want(e, ok, "tunnel is connected")
-	b.want(e, ok, "31999 refuses a request with no pass of Cloudflare's, with a forged one")
+	b.want(e, ok, ports("31999 refuses a request with no pass of Cloudflare's, with a forged one"))
 	b.want(e, note, "Cloudflare was not asked", "doctor asks first")
 	if e.line("connector is held") != nil || e.line("ana") != nil {
 		t.Errorf("a work login was shown the machine's or a neighbour's rows:\n%s", e.text())
@@ -266,7 +267,7 @@ func TestEachFaultBehindTheTunnelIsNamed(t *testing.T) {
 			if pass == "" {
 				refuses(w, pass)
 			}
-		}, nil, "", problem, []string{"31999 did not refuse a pass signed with a key made here, such a pass for another tag, such a pass that has run out", "whaleshark dash phone off"}},
+		}, nil, "", problem, []string{ports("31999 did not refuse a pass signed with a key made here, such a pass for another tag, such a pass that has run out"), "whaleshark dash phone off"}},
 		{"a door that lets everybody in", func(http.ResponseWriter, string) {}, nil, "", problem, []string{"did not refuse no pass, a pass signed"}},
 		{"a door that sends to the pairing", func(w http.ResponseWriter, _ string) {
 			w.Header().Set("Location", contract.RoutePair)
