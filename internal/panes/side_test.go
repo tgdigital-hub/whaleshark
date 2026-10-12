@@ -598,8 +598,11 @@ func TestTheRowsOfWhatIsDoneAtATerminal(t *testing.T) {
 	}
 	to(contract.SecNudges)
 	wd.shows("Your own nudge programs: 0 · in hooks/nudge.d of your settings folder")
-	for section, row := range map[string][2]string{contract.SecKeys: {"[ Put whaleshark's own shortcuts in… ]", "init --keys"},
-		contract.SecProject: {"[ Take this project out… ]", "init --remove"}} {
+	// In the screen's own order: the row of teams looked at after the loop
+	// is one of This project, the section the loop must end in.
+	for _, row := range [][3]string{{contract.SecKeys, "[ Put whaleshark's own shortcuts in… ]", "init --keys"},
+		{contract.SecProject, "[ Take this project out… ]", "init --remove"}} {
+		section, row := row[0], row[1:]
 		to(section)
 		wd.shows(row[0])
 		wd.settle()
