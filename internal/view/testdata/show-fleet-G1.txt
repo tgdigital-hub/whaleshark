@@ -1,0 +1,13 @@
+G1  billing                 ▲ needs you · try 1 · codex · 1h 00m · context unknown            run r1
+
+ Fleet     codex · 5 of 8 agents · 1 group open · 1 to check · 0 of 5 done · whaleshark status --run
+           r2
+ Check     make test
+ Brief     .whaleshark/runs/r1/briefs/G1.md
+
+FOR YOU
+ ▲ q1   billing › refund flow  question       2m  refund to the card, or to store credit? (Card /
+                                                  Credit)
+        > whaleshark answer q1 Card --human
+
+ 09:20 started
