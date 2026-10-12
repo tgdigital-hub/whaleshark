@@ -775,7 +775,7 @@ func (l *launcher) hand(r outcome, t *contract.Task, low, id, hash string, agent
 		return r
 	}
 	r.Attempt, r.State = id, working
-	if k.Terms.Point(pane, contract.PointMail, "") == nil {
+	if k.Terms.Point(pane, contract.PointFleet, "") == nil {
 		l.step("", func(s, _ *contract.State) error { return k.Rules.Pointed(s, id, seq, contract.Now()) })
 	}
 	return r

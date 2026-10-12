@@ -19,7 +19,7 @@ var errSlowStart = errors.New("the agent did not start in time")
 
 // pointers are the fixed lines Point may type.
 var pointers = []contract.Pointer{contract.PointEvents, contract.PointAnswer, contract.PointQuestion, contract.PointCarryOn,
-	contract.PointAnswered, contract.PointMail, contract.PointResumed, contract.PointLeadOn}
+	contract.PointAnswered, contract.PointMail, contract.PointFleet, contract.PointResumed, contract.PointLeadOn}
 
 // until waits for a state that ends the wait, and answers late when none
 // came in time.

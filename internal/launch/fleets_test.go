@@ -341,14 +341,14 @@ func held(t *testing.T, double *fakeengine.Fake) {
 	mail, resumed := 0, 0
 	for _, line := range typed {
 		switch line {
-		case string(contract.PointMail):
+		case string(contract.PointFleet):
 			mail++
 		case string(contract.PointResumed), string(contract.PointLeadOn):
 			resumed++
 		}
 	}
 	if mail != 1 || resumed != 7 {
-		t.Errorf("%d pointers to mail and %d after the pause were typed, expected 1 and 7 (three leaders, three workers, the orchestrator):\n%s", mail, resumed, strings.Join(typed, "\n"))
+		t.Errorf("%d pointers to new work and %d after the pause were typed, expected 1 and 7 (three leaders, three workers, the orchestrator):\n%s", mail, resumed, strings.Join(typed, "\n"))
 	}
 }
 

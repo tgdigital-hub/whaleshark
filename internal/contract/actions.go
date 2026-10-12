@@ -102,6 +102,7 @@ const (
 	PointCarryOn  Pointer = "whaleshark: questions for the human go in the action pane (`whaleshark need`). Then run: whaleshark wait"
 	PointAnswered Pointer = "Your question %s was answered. Run: whaleshark ask --resume %[1]s"
 	PointMail     Pointer = "whaleshark: a message is waiting. Run: whaleshark mail"
+	PointFleet    Pointer = "whaleshark: new work for your fleet. Run: whaleshark mail"
 	PointResumed  Pointer = "whaleshark: resumed. Run: whaleshark mail"
 	PointLeadOn   Pointer = "whaleshark: resumed. Run: whaleshark wait"
 )
