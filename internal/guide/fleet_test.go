@@ -277,6 +277,14 @@ func TestTheGuards(t *testing.T) {
 		!strings.Contains(got, "your fleet's agent-hours") || !strings.Contains(got, "show T7 ") || !strings.Contains(Guards("orchestrator", guarded()), "show G7 ") || strings.Contains(got, "the person, in one sentence") {
 		t.Errorf("a leader is not told in its own words:\n%s", got)
 	}
+	// The section is printed after the guide's own text, so the three texts'
+	// own limit does not hold what is read at a start: the whole does, with
+	// every guard on, and no reader's is longer than 175 lines.
+	for who, text := range map[string]string{"lead": Lead, "orchestrator": Orchestrator, "leader": Leader} {
+		if n := strings.Count(text+Guards(who, guarded()), "\n"); n >= 175 {
+			t.Errorf("the %s reads %d lines at its start with every guard on", who, n)
+		}
+	}
 	// What the level above and the other fleet are told of, each guide says.
 	for text, want := range map[string]string{
 		Orchestrator: "both leaders were told is two fleets still at work on one file: say which goes first",
