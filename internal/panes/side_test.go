@@ -564,6 +564,22 @@ func TestEverySettingIsARowChangedByAKeyAndByAClick(t *testing.T) {
 	wd.ran("set ")
 }
 
+// "Try it" under Agent tools runs the one test of the tool shown, which is
+// doctor's: one child, with the tool's name.
+func TestTryItRunsTheOneTestOfTheTool(t *testing.T) {
+	wd := startWith(t, settings, 120, 44, map[string]string{"PATH": ""}, func(*world) {})
+	for range slices.Index(contract.Sections, contract.SecTools) {
+		wd.s.Key("tab")
+	}
+	wd.shows(" " + strings.ToUpper(contract.SecTools) + " ")
+	wd.shows("[ Try it ]")
+	wd.settle()
+	wd.s.ClickText("[ Try it ]")
+	if line := wd.ran("doctor --try "); !strings.HasPrefix(line, "doctor --try "+contract.DefaultTool+" --human") {
+		t.Errorf("the button started %q", line)
+	}
+}
+
 // What `set` does of its own for phase 5: the layout's keys move the open
 // panes at once, a limit of all agents under a fleet's is taken and said,
 // and a section seen again ends its warning.

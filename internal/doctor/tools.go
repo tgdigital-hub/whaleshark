@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
@@ -75,8 +76,42 @@ func (e *exam) tools() {
 // Trial is what the one test of a tool saw, step by step, and the last line
 // its screen showed at rest, which may serve as its description's ready.
 type Trial struct {
-	Started, Pasted, Worked, Rested bool
-	Rest                            string
+	Started bool   `json:"started"`
+	Pasted  bool   `json:"pasted"`
+	Worked  bool   `json:"worked"`
+	Rested  bool   `json:"rested"`
+	Rest    string `json:"rest,omitempty"`
+}
+
+// tryWait is how long each step of a tool's test is given.
+const tryWait = 20 * time.Second
+
+// try is `doctor --try NAME`, which the settings screen's "Try it" runs: the
+// one test of a tool that is wired in, said step by step in one line.
+func try(c *contract.Call, name string) (any, error) {
+	dirs, err := c.Kit.Platform.Dirs()
+	tools, _ := contract.Tools(c.Kit.Platform, dirs)
+	t, wired := contract.FindTool(tools, name)
+	if err != nil || !wired || !t.Found() {
+		return nil, &contract.Refusal{Exit: contract.ExitFailed, Code: "no_tool",
+			Message: fmt.Sprintf("No agent tool %.20q is wired in here: its description or its program is missing.", name)}
+	}
+	tr, err := Try(c.Kit, t, tryWait)
+	saw := ""
+	for _, step := range []struct {
+		came bool
+		word string
+	}{{tr.Started, "started"}, {tr.Pasted, "took the paste"}, {tr.Worked, "went to work"}, {tr.Rested, "came to rest"}} {
+		if step.came {
+			saw += " · " + step.word
+		}
+	}
+	if err != nil {
+		return nil, &contract.Refusal{Exit: contract.ExitFailed, Code: "trial", Data: tr,
+			Message: cli.Plain(fmt.Sprintf("%s%s, and then: %v.", t.Name, saw, err))}
+	}
+	fmt.Fprintf(c.Out, "%s%s. At rest its screen shows: %s\n", t.Name, saw, cli.Plain(tr.Rest))
+	return tr, nil
 }
 
 // Try is the one test of a tool that is wired in: it is started in a tab of

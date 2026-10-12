@@ -73,17 +73,11 @@ func (p *pane) settingsRows() (out []setting) {
 		}
 	}
 	if section == contract.SecTools {
-		// Until a command runs the one test of a tool, this is doctor's line of it.
-		press("[ Check it ]", func() {
-			p.child(p.cmd("doctor", "--json"), "", func(out []byte, said string, _ bool) {
-				var got struct{ Lines []struct{ Text string } }
-				result(out, &got)
-				p.hint = cmp.Or(said, "doctor says nothing of "+p.tool)
-				for _, l := range got.Lines {
-					if strings.Contains(l.Text, "agent tool "+p.tool+" ") {
-						p.hint = l.Text
-					}
-				}
+		// The one test of the tool, in a tab of its own that is gone when it ends.
+		press("[ Try it ]", func() {
+			p.hint = "trying " + p.tool + " in a tab of its own…"
+			p.child(p.cmd("doctor", "--try", p.tool), "", func(out []byte, said string, _ bool) {
+				p.hint = cmp.Or(strings.TrimSpace(string(out)), said)
 			})
 		})
 		press("[ Take this tool out ]", func() { p.apply(setting{key: &contract.Key{}, name: "tools." + p.tool}, "remove", false) })

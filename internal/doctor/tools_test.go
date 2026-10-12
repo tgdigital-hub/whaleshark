@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -164,5 +165,35 @@ func TestTryATool(t *testing.T) {
 		if rel, err := filepath.Rel(d.dirs.Cache, c.terms.dir); err != nil || !filepath.IsLocal(rel) || exists(c.terms.dir) {
 			t.Errorf("the scratch folder %s is not in the cache, or was left there", c.terms.dir)
 		}
+	}
+}
+
+// `doctor --try NAME` is that test as a command, which the settings screen's
+// "Try it" runs: what was seen in one line, a step that did not come as a
+// failure that names it, and a name nobody wired in refused before any tab.
+func TestDoctorTryIsTheOneTestOfAWiredTool(t *testing.T) {
+	d := project(t)
+	d.write(filepath.Join(d.dirs.Config, contract.ToolsDir, "hermes.toml"), "run = ['"+d.program(t.TempDir(), "hermes")+"', 'chat']\nhooks = 'none'\n")
+	try := func(name string, terms *trial) (string, *contract.Refusal) {
+		out := new(bytes.Buffer)
+		d.k.Terms = terms
+		_, err := run(&contract.Call{Kit: d.k, Command: contract.Find("doctor"), Flags: map[string][]string{"try": {name}}, Caller: d.caller,
+			Root: d.root, Now: time.Now(), Out: out, Err: &d.errw})
+		r, _ := err.(*contract.Refusal)
+		return out.String(), r
+	}
+	if out, r := try("hermes", &trial{rests: true}); r != nil || out != "hermes · started · took the paste · went to work · came to rest. At rest its screen shows: type here\n" {
+		t.Errorf("a tool that passes: %q, %+v", out, r)
+	}
+	if _, r := try("hermes", &trial{prompt: contract.ErrPromptStalled}); r == nil || r.Exit != contract.ExitFailed || r.Code != "trial" ||
+		!strings.HasPrefix(r.Message, "hermes · started, and then: ") || !strings.Contains(r.Message, "cannot be wired in") || r.Data != (Trial{Started: true}) {
+		t.Errorf("a tool that takes no paste: %+v", r)
+	}
+	terms := &trial{}
+	if _, r := try("nobody", terms); r == nil || r.Code != "no_tool" || len(terms.asked) != 0 {
+		t.Errorf("a tool nobody wired in: %+v, asked %v", r, terms.asked)
+	}
+	if f := contract.Find("doctor").Flags; !slices.ContainsFunc(f, func(f contract.Flag) bool { return f.Name == "try" && f.Who == contract.H }) {
+		t.Error("--try is not the person's alone")
 	}
 }

@@ -87,6 +87,8 @@ func run(c *contract.Call) (any, error) {
 	var err error
 	if c.Flags["server"] != nil && len(c.Args) == 2 {
 		return probe(c)
+	} else if name := c.Flags["try"]; name != nil && len(c.Args) == 0 {
+		return try(c, name[0])
 	} else if len(c.Args) > 0 {
 		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "doctor takes no argument.", Next: []string{"whaleshark help doctor"}}
 	}
