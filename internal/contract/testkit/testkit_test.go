@@ -98,3 +98,50 @@ func TestRepo(t *testing.T) {
 		t.Fatalf("the branch changed %q", got)
 	}
 }
+
+// The morning with three fleets says the same thing in what the left
+// section is built from and in what must come out: every row is a task of
+// the run it names, each leader's attempt leads its fleet's run from the
+// pane that run is bound to, and the counts are the pictures'.
+func TestThreeFleets(t *testing.T) {
+	f := Fleets()
+	shop := f.In.Projects[0]
+	runs := map[string]*contract.State{}
+	agents := 0
+	for _, s := range shop.Runs {
+		runs[s.Run.ID] = s
+		agents += len(s.Attempts) + 1
+	}
+	up := runs["r1"]
+	if agents-3 != f.Side.Workspaces[0].Agents || up.Run.Mode != contract.ModeFleets || len(up.Run.Fleets) != 3 || len(f.Cards) != 3 {
+		t.Fatalf("%d agents and %d fleets, the model says %d", agents-3, len(up.Run.Fleets), f.Side.Workspaces[0].Agents)
+	}
+	for name, fleet := range up.Run.Fleets {
+		low, group := runs[fleet.Run], up.Tasks[fleet.Groups[0]]
+		lead := up.Attempts[group.Attempts[0]]
+		if low == nil || low.Run.Parent.Fleet != name || group.Fleet != name || group.Placement != contract.PlaceFleet ||
+			lead.Leads != fleet.Run || lead.Place.Pane != low.Run.Orchestrator.Pane || f.View.Fleets[name] != low {
+			t.Errorf("the fleet %s is not whole: %+v", name, fleet)
+		}
+	}
+	rows, fleets := 0, 0
+	for _, r := range f.Side.Rows {
+		switch r.Kind {
+		case contract.RowFleet:
+			fleets++
+		case contract.RowAgent:
+			if rows++; runs[r.Run] == nil || runs[r.Run].Tasks[r.Task] == nil || runs[r.Run].Tasks[r.Task].Name != r.Name {
+				t.Errorf("the row %q is no task of run %s", r.Name, r.Run)
+			}
+		}
+	}
+	if fleets != 3 || rows != 11 || f.Side.First == nil || f.Side.First.Name != "refund flow" || f.Item.Fleet != "billing" {
+		t.Errorf("%d fleets and %d workers' rows (help pages is folded), first %+v", fleets, rows, f.Side.First)
+	}
+	if up.Questions["q1"].Down.Run != "r2" || runs["r2"].Questions["q1"].Up.Run != "r1" {
+		t.Error("the question that climbed has lost its other half")
+	}
+	if len(f.In.Terms.Panes) != 19+3+2 {
+		t.Errorf("%d panes, want every agent's and the two tabs in no project", len(f.In.Terms.Panes))
+	}
+}
