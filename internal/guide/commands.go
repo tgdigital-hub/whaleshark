@@ -6,7 +6,6 @@ import (
 	"cmp"
 	_ "embed"
 	"io"
-	"os/exec"
 	"slices"
 	"strings"
 
@@ -71,9 +70,6 @@ func run(c *contract.Call) (any, error) {
 // than one agent tool is wired in with its program found: each with what it
 // tells of its states and what the person says it suits. who is the reader.
 func Tools(who string, tools []contract.Tool, person contract.PersonConfig) string {
-	tools = slices.DeleteFunc(slices.Clone(tools), func(t contract.Tool) bool {
-		_, err := exec.LookPath(t.Run[0])
-		return err != nil
-	})
+	tools = slices.DeleteFunc(slices.Clone(tools), func(t contract.Tool) bool { return !t.Found() })
 	return render(toolsText, map[string]any{"Who": who, "Tools": tools, "Person": person})
 }

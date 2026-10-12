@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -92,7 +93,9 @@ var toolName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,15}$`)
 // program that is no full path or lies inside a project of the login's
 // list. A file with a built-in's name takes its place field by field.
 func Tools(p Platform, d Dirs) (tools []Tool, faults []string) {
-	tools = slices.Clone(builtIn)
+	if tools = slices.Clone(builtIn); d.Config == "" {
+		return tools, nil // no folder of the login's is known: never one beside where the command stands
+	}
 	dir := filepath.Join(d.Config, ToolsDir)
 	files, _ := filepath.Glob(filepath.Join(dir, "*.toml"))
 	if others, _ := p.WritableByOthers(dir); others && len(files) > 0 {
@@ -126,6 +129,14 @@ func Tools(p Platform, d Dirs) (tools []Tool, faults []string) {
 		}
 	}
 	return tools, faults
+}
+
+// Found says whether the tool's program is there to start, which with its
+// description is what "wired in" means: a list of tools to choose from
+// holds the found ones only.
+func (t Tool) Found() bool {
+	_, err := exec.LookPath(t.Run[0])
+	return err == nil
 }
 
 // FindTool is the wired tool of a name, the default one for no name.

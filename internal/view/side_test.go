@@ -15,19 +15,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 )
 
-// seen marks every task of the morning as looked at. The fixture's rows and
-// cards are written with nothing unseen, and its record with nothing seen.
-func seen(f *testkit.ThreeFleets) *testkit.ThreeFleets {
-	for _, p := range f.In.Projects {
-		for _, s := range p.Runs {
-			for _, t := range s.Tasks {
-				t.SeenAt = f.In.Now
-			}
-		}
-	}
-	return f
-}
-
 // worded is a card with what the fixture's cards word and nothing else.
 func worded(v *contract.View) (cards []contract.Card) {
 	for _, s := range v.Sections {
@@ -42,7 +29,7 @@ func worded(v *contract.View) (cards []contract.Card) {
 // hand from the pictures: the side model whole, and of the orchestrator's
 // view each card and the one item in the fields the fixture words.
 func TestTheMorningWithThreeFleets(t *testing.T) {
-	f := seen(testkit.Fleets())
+	f := testkit.Fleets()
 	if got, want := indent(t, Side(f.In)), indent(t, f.Side); got != want {
 		t.Errorf("the side model differs from the fixture's\n%s", diff(want, got))
 	}
@@ -239,7 +226,7 @@ func names(rows []contract.SideRow) (out []string) {
 // rows, what needs the person and the row in front are never cut, and in a
 // panel too short for a line a fleet the fleets not in front fold.
 func TestRowsGiveWay(t *testing.T) {
-	f := seen(testkit.Fleets())
+	f := testkit.Fleets()
 	f.In.Rows = 13
 	side := Side(f.In)
 	want := []string{"orchestrator", "billing", "  refund flow", "  invoice pdf", "  tax rounding", "  card retries", "  receipt mail",
@@ -324,7 +311,7 @@ func TestTwoHundredInTime(t *testing.T) {
 // with a hostile name, what was typed, a parked fleet, a name that tries to
 // write to the terminal, and no engine.
 func TestTheSideRoundTheRows(t *testing.T) {
-	f := seen(testkit.Fleets())
+	f := testkit.Fleets()
 	root := func(name ...string) string {
 		return filepath.Join(append([]string{string(filepath.Separator) + "work"}, name...)...)
 	}
@@ -355,7 +342,7 @@ func TestTheSideRoundTheRows(t *testing.T) {
 		t.Errorf("a tab of the person's own: %+v, hint %q", r, side.Hint)
 	}
 
-	f = seen(testkit.Fleets())
+	f = testkit.Fleets()
 	f.In.Find = "SEARCH"
 	want = []string{"search", "  search box", "  search results", "  search help"}
 	if got := names(Side(f.In).Rows); !slices.Equal(got, want) {
@@ -406,7 +393,7 @@ func (h home) Dirs() (contract.Dirs, error) {
 // login whose own file switches Fleet Mode on.
 func morning(t *testing.T, mode, command string, args ...string) (*contract.Call, *bytes.Buffer) {
 	t.Helper()
-	f := seen(testkit.Fleets())
+	f := testkit.Fleets()
 	shop := f.In.Projects[0]
 	c, out, _, _ := view(t, &testkit.Fixture{Now: f.In.Now, State: *shop.Runs[0], Terms: f.In.Terms}, command, contract.Human, args...)
 	h := home{c.Kit.Platform.(login)}
@@ -457,7 +444,7 @@ func TestFleetsInStatusShowAndCatchup(t *testing.T) {
 // A second group of a fleet is the same card until every card is asked
 // for; a question a leader passed up for itself is titled by the leader.
 func TestAFleetWithTwoGroups(t *testing.T) {
-	f := seen(testkit.Fleets())
+	f := testkit.Fleets()
 	up := f.View.State
 	g := *up.Tasks["G2"]
 	g.ID, g.Name, g.Attempts, g.Status = "G7", "search again", nil, contract.TaskReady

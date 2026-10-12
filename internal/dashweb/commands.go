@@ -284,10 +284,8 @@ func word(p *contract.Page, c contract.Card) string {
 // says how far its tasks are.
 func news(p *contract.Page, c contract.Card) string {
 	text := c.News
-	if f := c.Fleet; f != nil && text == "" {
-		if text = fmt.Sprint(f.Done, " of ", f.Of, " done"); f.ToCheck > 0 {
-			text += fmt.Sprint(" · ", f.ToCheck, " to check")
-		}
+	if c.Fleet != nil && text == "" {
+		text = c.Fleet.Line()
 	}
 	if c.Pale && !c.Said.IsZero() {
 		text = strings.Replace("said "+age(p, c.Said)+" ago: ", "now ago", "just now", 1) + text

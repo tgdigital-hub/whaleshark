@@ -143,7 +143,7 @@ type ValueRule struct {
 var ValueRules = []ValueRule{
 	{Value: "id", Max: 16, Pattern: `^[A-Za-z0-9_][A-Za-z0-9_-]*$`},
 	{Value: "title", Max: 80, OneLine: true},
-	{Value: "name", Max: 24, Words: 3, Pattern: `^[^-]`, OneLine: true},
+	{Value: "name", Max: 24, Words: 3, Pattern: `^\s*[^-\s]`, OneLine: true}, // no option, also once the spaces before it are gone
 	{Value: "number", Max: 9, Pattern: `^[0-9]+$`},
 	{Value: "attempt", Pattern: `^[A-Za-z0-9_][A-Za-z0-9_-]{0,15}\.[0-9]{1,9}$`},
 	{Value: "pane", Max: 64, Pattern: `^[A-Za-z0-9][A-Za-z0-9:._-]*$`},

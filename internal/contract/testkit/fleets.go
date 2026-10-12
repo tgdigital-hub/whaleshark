@@ -14,12 +14,16 @@ import (
 // five workers, search by Claude Code with six, help pages by Hermes with
 // four), a second project, blog, with a lead agent and two workers, and two
 // tabs in no project. Billing's worker "refund flow" asked a question that
-// climbed to the person; "invoice pdf" waits to be checked.
+// climbed to the person; "invoice pdf" waits to be checked. The person has
+// looked at every tab this morning: nothing is unseen.
 //
 // In is what the side model is built from and Side what must come out with
 // every fleet unfolded but help pages and no limit of rows. View and Cards
 // are what the orchestrator's run is shown as: one card a fleet, and the
-// one item with its fleet. The package that builds the model is tested
+// one item with its fleet. Cards word what a fleet's card adds and what it
+// is ordered and coloured by; how far a fleet is, its news and the times
+// are whatever the builder makes of In, and the pictures' own figures (40,
+// 55 and 75 percent) are in no record here. The package that builds the model is tested
 // against Side; the pane that draws it is tested on Side alone.
 type ThreeFleets struct {
 	In    contract.SideInput
@@ -72,7 +76,7 @@ func work(s *contract.State, id, name, tool, pane, cwd string, now time.Time, sn
 	}
 	name = strings.TrimRight(name, "?!")
 	t := &contract.Task{ID: id, Name: name, Title: name, Brief: "briefs/" + id + ".md", Check: "make test", Placement: contract.PlaceShared,
-		Agent: tool, Status: contract.TaskRunning, Attempts: []string{id + ".1"}, CreatedAt: now.Add(-time.Hour)}
+		Agent: tool, Status: contract.TaskRunning, Attempts: []string{id + ".1"}, CreatedAt: now.Add(-time.Hour), SeenAt: now}
 	if state == contract.AttemptReported {
 		t.Status = contract.TaskReview
 	}
@@ -133,7 +137,8 @@ func Fleets() *ThreeFleets {
 				Root: shop, Run: f.run, Task: id, Tab: wa.Place.Tab, Actions: []string{"stop", "note"}}
 			switch wa.State {
 			case contract.AttemptAsked:
-				r.Look, r.Actions = contract.LookNeedsYou, []string{"answer", "stop", "note"}
+				// Its question climbed: the answer goes to the twin in the run above.
+				r.Look, r.Actions, r.Item, r.ItemRun = contract.LookNeedsYou, []string{"answer", "stop", "note"}, "q1", "r1"
 			case contract.AttemptReported:
 				r.Look, r.Actions = contract.LookToCheck, []string{"accept", "send-back", "stop", "note"}
 				card.Fleet.ToCheck++

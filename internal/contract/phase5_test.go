@@ -2,10 +2,12 @@ package contract
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -381,5 +383,48 @@ func TestThePhaseFiveStandIns(t *testing.T) {
 		if a, ok := FindAction(id); !ok || a.Label == "" || slices.ContainsFunc(Actions, func(b Action) bool { return b.ID == id }) {
 			t.Errorf("the left section's actions have no row %s, or the list of every action has it already", id)
 		}
+	}
+}
+
+// What the first wave of phase 5 asked of the contract. The warning line
+// names a changed tool once and any other setting by its key. With no
+// folder of the login's known no description is read, least of all from a
+// folder named tools where the command stands. A name is no option behind
+// spaces either. And a key says its fields under names of their own.
+func TestWhatTheFirstWaveAsked(t *testing.T) {
+	for changed, want := range map[string]string{
+		"": "", "notify.url": "setting changed: notify.url", "tools.hermes.run": "agent tool changed: hermes",
+		"tools.hermes.run,shell,tools.hermes.env.KEY,tools.aider.run": "agent tool changed: hermes, aider · setting changed: shell",
+	} {
+		if got := Warned(strings.FieldsFunc(changed, func(r rune) bool { return r == ',' })); got != want {
+			t.Errorf("changed %q warns %q, want %q", changed, got, want)
+		}
+	}
+
+	h, _ := login(t)
+	t.Chdir(t.TempDir())
+	if err := os.Mkdir(ToolsDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ToolsDir, "mine.toml"), []byte(`run = ["/bin/sh"]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if tools, faults := Tools(h, Dirs{}); len(tools) != len(BuiltIn()) || faults != nil {
+		t.Errorf("with no folder of the login's: %+v, %v", tools, faults)
+	}
+	if (Tool{Run: []string{"no-such-program-of-the-test"}}).Found() {
+		t.Error("a program that is nowhere is found")
+	}
+
+	rule := ValueRules[slices.IndexFunc(ValueRules, func(r ValueRule) bool { return r.Value == "name" })]
+	for name, passes := range map[string]bool{"billing": true, " help pages ": true, "-rf": false, " -rf": false, "\t--fleet=x": false, "  ": false} {
+		if regexp.MustCompile(rule.Pattern).MatchString(name) != passes {
+			t.Errorf("the name %q: passes %v", name, !passes)
+		}
+	}
+
+	key, _ := json.Marshal(Keys[0])
+	if got := string(key); !strings.HasPrefix(got, `{"name":"theme","section":"Look","label":"Colour scheme","kind":"choice","values":`) || strings.Contains(got, "ui.theme") {
+		t.Errorf("a key as JSON: %s", got)
 	}
 }

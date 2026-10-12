@@ -1,6 +1,10 @@
 package contract
 
-import "time"
+import (
+	"slices"
+	"strings"
+	"time"
+)
 
 // The left section's width in cells: what a person may set, and what it is
 // when nothing is said. Under SideNamesFrom columns of window it is at most
@@ -113,7 +117,8 @@ type SideProject struct {
 
 // SideInput is everything the left section is built from. Rows is how many
 // rows the agents panel has, 0 for no limit; Folded names the fleets the
-// person folded, as "run/fleet"; Find is what was typed to narrow the rows.
+// person folded, as "run/fleet"; Find is what was typed to narrow the rows;
+// Changed is UIFile.Changed, which Warn is worded from.
 type SideInput struct {
 	Now      time.Time
 	Projects []SideProject
@@ -123,6 +128,7 @@ type SideInput struct {
 	Rows     int
 	Folded   []string
 	Find     string
+	Changed  []string
 	Checked  time.Time
 	Notes    []string
 }
@@ -185,7 +191,9 @@ var SideMarks = map[string][2]string{RowLead: {"●", "*"}, RowTab: {"·", "."},
 // of its Limit (Unlimited prints no limit) and whether it is Open or Parked.
 // Root, Run and Task say what a click or an action is about, and Tab where
 // a click goes: the agent's, the leader's or the lead agent's tab. Actions
-// are ids of the action table offered on the row's mark.
+// are ids of the action table offered on the row's mark; Item is the item
+// "answer" is about, and ItemRun the run it is in where that is not Run: a
+// fleet's worker whose question climbed is answered in the run above.
 type SideRow struct {
 	Kind    string   `json:"kind"`
 	Depth   int      `json:"depth,omitempty"`
@@ -202,9 +210,33 @@ type SideRow struct {
 	Run     string   `json:"run,omitempty"`
 	Task    string   `json:"task,omitempty"`
 	Tab     string   `json:"tab,omitempty"`
+	Item    string   `json:"item,omitempty"`
+	ItemRun string   `json:"item_run,omitempty"`
 	Front   bool     `json:"front,omitempty"`
 	Unseen  bool     `json:"unseen,omitempty"`
 	Actions []string `json:"actions,omitempty"`
+}
+
+// Warned is the one line in the warning colour that every screen carries
+// while changed, which is UIFile.Changed, holds a setting that runs a
+// program: "agent tool changed: hermes", a tool named once however many of
+// its keys changed, and "setting changed: shell" for any other.
+func Warned(changed []string) string {
+	var tools, rest, out []string
+	for _, name := range changed {
+		if part := strings.Split(name, "."); part[0] != StoreTools || len(part) < 2 {
+			rest = append(rest, name)
+		} else if !slices.Contains(tools, part[1]) {
+			tools = append(tools, part[1])
+		}
+	}
+	if len(tools) > 0 {
+		out = append(out, "agent tool changed: "+strings.Join(tools, ", "))
+	}
+	if len(rest) > 0 {
+		out = append(out, "setting changed: "+strings.Join(rest, ", "))
+	}
+	return strings.Join(out, " · ")
 }
 
 // noSide is the side model until the view package plugs its builder in: the

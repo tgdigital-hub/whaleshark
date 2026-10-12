@@ -29,7 +29,7 @@ func byLook(x, y contract.SideRow) int { return cmp.Compare(order[x.Look], order
 // reads nothing and keeps nothing; a run's rows are its view's cards, so
 // the bar says nothing of an agent that the other screens do not.
 func Side(in contract.SideInput) *contract.Side {
-	out := &contract.Side{Version: contract.SideVersion, At: in.Now, Workspaces: []contract.Workspace{}, Rows: []contract.SideRow{},
+	out := &contract.Side{Version: contract.SideVersion, At: in.Now, Warn: contract.Warned(in.Changed), Workspaces: []contract.Workspace{}, Rows: []contract.SideRow{},
 		Fresh: contract.Fresh{Checked: in.Checked, Notes: in.Notes}}
 	snap := in.Terms
 	if snap == nil {
@@ -149,7 +149,7 @@ func (w *space) run(in contract.SideInput, s *contract.State, runs map[string]*c
 			continue
 		}
 		fleet := s.Tasks[r.Task].Fleet
-		r.Kind, r.Tool, r.Agents, r.Limit, r.Parked, r.Run = contract.RowFleet, clean(c.Agent), c.Fleet.Agents, c.Fleet.Limit, c.Fleet.Parked, c.Fleet.Run
+		r.Kind, r.Tool, r.Agents, r.Limit, r.Parked, r.Run, r.Item = contract.RowFleet, clean(c.Agent), c.Fleet.Agents, c.Fleet.Limit, c.Fleet.Parked, c.Fleet.Run, ""
 		if r.Open = !slices.Contains(in.Folded, s.Run.ID+"/"+fleet); !r.Parked {
 			r.Actions = []string{"park", "note-leader"}
 		}
@@ -165,7 +165,7 @@ func (w *space) run(in contract.SideInput, s *contract.State, runs map[string]*c
 				}
 				for i := range under {
 					if u := &under[i]; u.Task == low.Questions[q.Down.ID].Task && !needs(u.Look) {
-						u.Look, u.Word, u.Actions = contract.LookNeedsYou, "", append([]string{"answer"}, u.Actions...)
+						u.Look, u.Word, u.Actions, u.Item, u.ItemRun = contract.LookNeedsYou, "", append([]string{"answer"}, u.Actions...), q.ID, s.Run.ID
 					}
 				}
 			}
@@ -185,7 +185,7 @@ func (w *space) agents(v *contract.View, depth int) (rows []contract.SideRow) {
 	for _, sec := range v.Sections {
 		for _, c := range sec.Cards {
 			rows = append(rows, contract.SideRow{Kind: contract.RowAgent, Depth: depth, Look: c.Look, Word: clean(c.Word), Name: clean(c.Name), Root: w.Root, Run: v.Run,
-				Task: c.Task, Tab: c.Tab, Unseen: c.Unseen, Actions: slices.DeleteFunc(slices.Clone(c.Actions), func(a string) bool { return a == "go" })})
+				Task: c.Task, Tab: c.Tab, Item: c.Item, Unseen: c.Unseen, Actions: slices.DeleteFunc(slices.Clone(c.Actions), func(a string) bool { return a == "go" })})
 			if needs(c.Look) {
 				w.need++
 			}

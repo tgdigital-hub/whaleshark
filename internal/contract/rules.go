@@ -120,13 +120,15 @@ type Rules interface {
 	// limits.Leaders (LimitLeaders) and of limits.Total (LimitTotal). With a
 	// worker it is asked for that task of the fleet's own run: one more of
 	// limits.Agents, the leader not counted (LimitFleet), and of the total.
-	// cap is what a server still leaves the login, 0 for no server.
+	// cap is how many agents a server allows the login in all, 0 for no
+	// server: it takes the place of limits.Total where it is lower.
 	Room(up *State, fleets map[string]*State, fleet, worker string, limits PersonConfig, cap int) error
 	// Lead makes a group's attempt in up the leader of low: it writes the
 	// attempt's Leads, low's Parent and up's entry of the fleet with by as
 	// the leader's pane, and binds low to that pane as Takeover does. For a
 	// fleet that has a living leader by is empty: the attempt takes that
-	// leader's place. A fleet whose leader had ended is taken over the same way.
+	// leader's place. A fleet whose leader had ended is taken over the same
+	// way. For a new leader it is called after Placed, which gives the tab.
 	Lead(up, low *State, attempt string, by Binding, branch string, now time.Time) error
 	// Park stops a fleet whose leader holds no other open group: every live
 	// attempt of low is stopped and its task ready again, as Stop does one,

@@ -234,7 +234,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 		c.Look, c.Since = contract.LookPaused, b.s.Run.Paused.At
 		if status == contract.StatusWorking {
 			c.Word = contract.WordFinishing
-			if !a.Gated || !contract.Gates[a.Agent.Kind].Holds || a.Seen.StillFlagged {
+			if tool, _ := contract.FindTool(slices.Concat(b.in.Tools, contract.BuiltIn()), a.Agent.Kind); !a.Gated || !tool.Held() || a.Seen.StillFlagged {
 				c.Word = contract.WordStillRunning
 			}
 		}
@@ -438,7 +438,7 @@ func (b *builder) item(q *contract.Question, st *seat, holds, late bool) contrac
 	switch {
 	case late:
 		it.Buttons = append(it.Buttons, contract.Button{Label: "Ask the lead", Action: "ask-lead"})
-		if b.in.Caller == contract.Orchestrator {
+		if by := b.in.Caller; by == contract.Orchestrator || by == contract.Leader { // a leader is its fleet's lead agent
 			it.Next = []string{"whaleshark answer " + id + ` "<answer>"`, "whaleshark escalate " + id}
 		} else if !human {
 			it.Next = []string{sourceLate}
@@ -552,7 +552,7 @@ func (b *builder) finish(st *seat) {
 		switch {
 		case human && !reads:
 			line += " --human"
-		case b.in.Caller != contract.Orchestrator && !human && !reads:
+		case b.in.Caller != contract.Orchestrator && b.in.Caller != contract.Leader && !human && !reads:
 			continue
 		}
 		c.Next = append(c.Next, "whaleshark "+line)

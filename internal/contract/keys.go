@@ -26,7 +26,16 @@ import (
 // where in that file, when that is not Name. Asks is what a change asks
 // first. Help is the one line under the row in front.
 type Key struct {
-	Name, Section, Label, Kind, Values, Default, Store, Path, Asks, Help string
+	Name    string `json:"name"`
+	Section string `json:"section,omitempty"`
+	Label   string `json:"label,omitempty"`
+	Kind    string `json:"kind"`
+	Values  string `json:"values,omitempty"`
+	Default string `json:"default,omitempty"`
+	Store   string `json:"store"`
+	Path    string `json:"-"`
+	Asks    string `json:"asks,omitempty"`
+	Help    string `json:"help,omitempty"`
 }
 
 // The kinds of value: Words is a command cut into arguments at its spaces,

@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -203,6 +204,15 @@ type FleetCard struct {
 	Done    int    `json:"done"`
 	Of      int    `json:"of"`
 	Parked  bool   `json:"parked,omitempty"`
+}
+
+// Line is the third line of a fleet's card that has no news of its own: how
+// far the fleet's tasks are, in the same words on the page and in the pane.
+func (f *FleetCard) Line() string {
+	if f.ToCheck == 0 {
+		return fmt.Sprint(f.Done, " of ", f.Of, " done")
+	}
+	return fmt.Sprint(f.Done, " of ", f.Of, " done · ", f.ToCheck, " to check")
 }
 
 // Counts are the figures of the headers and the last lines.
