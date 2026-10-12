@@ -13,6 +13,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/launch"
 )
 
 func task(c *contract.Call) (any, error) {
@@ -106,6 +107,9 @@ func task(c *contract.Call) (any, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	if low, lerr := k.Store.Read(c.Root, fleet); fleet != "" && lerr == nil && !low.Run.ClosedAt.IsZero() {
+		launch.GiveUp(k, c.Root, fleet) // the fleet went with its last group: so do its tabs, copies and ports
 	}
 	fmt.Fprintf(c.Out, "%s is %s.\n", t.ID, t.Status)
 	if sub == "edit" {

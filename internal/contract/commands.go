@@ -260,7 +260,7 @@ var Commands = []Command{
 		Flags:   flags("relayed", "undo!"),
 		Example: `whaleshark answer q7 "use main"`},
 	{Name: "escalate", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 4, 5},
-		Usage: "escalate <qid>", Help: "mark a worker's question as one for the human",
+		Usage: "escalate <qid>", Help: "hand a worker's question on: to the human, and from a fleet to the orchestrator",
 		Example: "whaleshark escalate q7"},
 	{Name: "need", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 4, 5, 75},
 		Usage:   `need question|choice|signoff|todo "<text>" [--task T] [--holds] [--options a,b] [--urgent] [--wait [--timeout SEC]] / need close <id>`,

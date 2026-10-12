@@ -174,6 +174,18 @@ func Leave(k *contract.Kit, s *contract.State) {
 	}
 }
 
+// GiveUp takes away what an ended fleet's run gives up, as a removed run
+// does: its agents' tabs and temp folders, its copies of the code with the
+// task branches proven merged, and its ports. The run's folder and the
+// fleet's branch stay.
+func GiveUp(k *contract.Kit, root, run string) {
+	if low, err := k.Store.Read(root, run); err == nil {
+		Leave(k, low)
+		k.Placement.Forget(root, low)
+	}
+	contract.FreeSlots(k.Platform, func(o contract.Slot) bool { return o.Root == k.Platform.PathKey(root) && o.Run == run })
+}
+
 type stopped struct {
 	Task    string `json:"task"`
 	Attempt string `json:"attempt"`
@@ -312,11 +324,7 @@ func closeTabs(c *contract.Call) (any, error) {
 		if f != nil && f.EndedAt.IsZero() && !slices.Contains(over, t.Fleet) &&
 			both(c, f.Run, func(up, low *contract.State) error { return k.Rules.Ended(up, low, false, c.Now) }) == nil {
 			over = append(over, t.Fleet)
-			if low, err := k.Store.Read(c.Root, f.Run); err == nil {
-				Leave(k, low)
-				k.Placement.Forget(c.Root, low)
-			}
-			contract.FreeSlots(k.Platform, func(o contract.Slot) bool { return o.Root == k.Platform.PathKey(c.Root) && o.Run == f.Run })
+			GiveUp(k, c.Root, f.Run)
 			fmt.Fprintf(c.Out, "ended: the fleet %s (run %s)\n", t.Fleet, f.Run)
 		}
 		for _, id := range t.Attempts {

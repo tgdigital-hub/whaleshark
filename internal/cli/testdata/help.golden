@@ -1,6 +1,6 @@
 $ whaleshark     # as a program
   init      set this project up, check what it needs, and offer the rules for the lead agent  (not built yet)
-  doctor    one line per check, each with its fix  (not built yet)
+  doctor    one line per check, each with its fix; --try runs the one test of an agent tool  (not built yet)
   guide     the guide that matches this version  (not built yet)
   trust     show what the project's settings would run or reach, and approve it  (not built yet)
   help      this list, or one command in full
@@ -18,7 +18,7 @@ $ whaleshark     # as a program
   start     start a worker for each task, each in a tab named after it; run it in the background  (not built yet)
   wait      block until something happens, then hand out the oldest batch of events  (not built yet)
   answer    answer a question or an item; --undo reopens one whose answer nothing has used yet  (not built yet)
-  escalate  mark a worker's question as one for the human  (not built yet)
+  escalate  hand a worker's question on: to the human, and from a fleet to the orchestrator  (not built yet)
   need      put an item in front of the person, or withdraw one  (not built yet)
   tell      send a worker a message; tell lead is the person's note to the lead agent  (not built yet)
   accept    run the task's check and, when it passes, keep the work; several tasks are checked together  (not built yet)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -178,7 +179,21 @@ func TestCancellingAFleetsLastGroupGivesTheFleetUp(t *testing.T) {
 		t.Fatalf("a refused cancel left the group %s", up.Tasks["G1"].Status)
 	}
 	stop("r2", "T1")
+	// The tab its worker ran in goes with the fleet, as at the close of a last group.
+	tab, err := p.Kit.Terms.TabCreate(p.Root, runOf(t, p, "r2").Tasks["T1"].Name, nil)
+	if err == nil {
+		err = p.Kit.Store.Change(p.Root, "r2", func(s *contract.State) error {
+			s.Attempts["T1.1"].Place = contract.Place{Tab: tab.Tab, Pane: tab.ID, OpenedByUs: true}
+			return nil
+		})
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 	orch(0, "task", "cancel", "G1")("G1 is cancelled")
+	if snap, _ := p.Kit.Terms.Snapshot(t.Context()); slices.ContainsFunc(snap.Panes, func(q contract.Pane) bool { return q.ID == tab.ID }) {
+		t.Error("the tab of the fleet's worker stayed when the fleet was given up")
+	}
 	up := runOf(t, p, "r1")
 	if f := up.Run.Fleets["billing"]; f.EndedAt.IsZero() || f.Pane != "" || runOf(t, p, "r2").Run.ClosedAt.IsZero() || up.Tasks["G1"].Status != contract.TaskCancelled {
 		t.Fatalf("the fleet was not given up: %+v", f)
