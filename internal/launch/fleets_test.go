@@ -84,7 +84,7 @@ func begin(t *testing.T, on scenario.Backend) *morning {
 		filepath.Join(p.Root, "brief.md"):               "Target: one page\nChange: write it\nConstraints: none\nOwnership: your own file\nAcceptance: it is there\n",
 	}
 	for path, text := range files {
-		if err := os.MkdirAll(filepath.Dir(path), 0o700); err == nil {
+		if err = os.MkdirAll(filepath.Dir(path), 0o700); err == nil {
 			err = os.WriteFile(path, []byte(text), 0o600)
 		}
 		if err != nil {
