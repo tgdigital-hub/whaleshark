@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 
@@ -53,6 +54,15 @@ func valid(s *contract.State, run string) (err error) {
 			must("id", f.Groups...)
 		}
 	}
+	// Phase 6: what an approval names is an id of this record or a key of
+	// the settings table; a protected file's path is data, shown and never
+	// an argument.
+	for _, a := range []*contract.Approval{s.Run.Plan, s.Run.Protect} {
+		if a != nil {
+			must("id", a.Approved...)
+			may("id", a.Item)
+		}
+	}
 	for id, t := range s.Tasks {
 		if filed("task", id, t != nil && t.ID == id); t == nil {
 			continue
@@ -86,6 +96,10 @@ func valid(s *contract.State, run string) (err error) {
 		must("id", id)
 		may("id", q.Task)
 		may("attempt", q.Attempt)
+		must("id", q.Tasks...)
+		if key, _ := contract.FindKey(cmp.Or(q.Set, &contract.SetAsk{Key: "theme"}).Key); key == nil {
+			filed("the setting of item", id, false)
+		}
 		for _, twin := range []*contract.Twin{q.Up, q.Down} {
 			if twin != nil {
 				must("id", twin.Run, twin.ID)

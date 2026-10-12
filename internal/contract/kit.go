@@ -73,6 +73,21 @@ type Kit struct {
 	// takeover call it when they bind a pane, and set after a layout key. A
 	// keeper out of reach is no error.
 	Panes func(k *Kit, pane string) error
+	// PlanText words a job's plan as its item shows it: one line of totals,
+	// then a line a fleet or a task, of the tasks named and no others, forty
+	// lines at most. fleets is every fleet's run by the fleet's name. The
+	// view puts its own here and start hands the text to Rules.Planned.
+	PlanText func(up *State, fleets map[string]*State, tasks []string, limits PersonConfig) string
+	// Hold brings a run's hold file and its agents in line with its record:
+	// held, the file is written, an agent with nothing in hand is closed and
+	// one at work is left to its gate; not held, the file goes and the
+	// agents are woken a few at a time. The sweep calls it when Rules.Spend
+	// or Rules.Hold changed something, and at every look at a held run.
+	Hold func(k *Kit, root, run string) error
+	// Notice asks, at most once a day and never on a server, for the latest
+	// release and keeps the answer (VersionSeen). The window calls it when a
+	// person opens it, beside its work, and waits for nothing.
+	Notice func(k *Kit)
 	// SyncText words a sync brief; the guides put theirs here.
 	SyncText func(SyncBrief) string
 	// Page draws one screen of the page and Asset hands out one of its fixed
@@ -101,7 +116,8 @@ func NewKit() *Kit {
 		Store: NoStore{}, Terms: NoTerminals{}, Pty: NoPty, Platform: NoPlatform{}, Placement: NoPlacement{},
 		Integrator: NoIntegrator{}, Overlap: NoOverlap{}, Notifier: NoNotifier{},
 		Evidence: NoEvidence{}, AgentSettings: NoAgentSettings{}, Sweeper: NoSweeper{},
-		View: noView, Side: noSide, ProjectSet: noProjectSet, Panes: func(*Kit, string) error { return nil }, SyncText: noSyncText, Page: noPage, Asset: noAsset, Push: noPush, PushKey: func() string { return "" }, Main: listOnly, handlers: map[string]Handler{},
+		View: noView, Side: noSide, ProjectSet: noProjectSet, Panes: func(*Kit, string) error { return nil },
+		PlanText: noPlanText, Hold: func(*Kit, string, string) error { return nil }, Notice: func(*Kit) {}, SyncText: noSyncText, Page: noPage, Asset: noAsset, Push: noPush, PushKey: func() string { return "" }, Main: listOnly, handlers: map[string]Handler{},
 	}
 }
 
@@ -109,6 +125,11 @@ func NewKit() *Kit {
 func noView(in ViewInput) *View {
 	return &View{Version: ViewVersion, At: in.Now, Caller: in.Caller,
 		Alerts: []string{"the view model is " + ErrNotBuilt.Error()}, Fresh: Fresh{Checked: in.Checked}}
+}
+
+// noPlanText is a plan's text until the view words it: the count alone.
+func noPlanText(_ *State, _ map[string]*State, tasks []string, _ PersonConfig) string {
+	return fmt.Sprintf("Plan: %d tasks", len(tasks))
 }
 
 // The page, its files and the phone's nudge until their packages are built:

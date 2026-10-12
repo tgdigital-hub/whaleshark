@@ -31,6 +31,12 @@ const (
 	EnvBrowsers    = "PLAYWRIGHT_BROWSERS_PATH"
 )
 
+// Phase 6 owes here: the Tailscale road leaves, in the one commit that
+// takes it out of the whole tree: RoadTailscale, HeaderTailscale, Identity and
+// Person.Phone go from this file, with their cases in phase3_test.go, and
+// ReadServer names the road it refuses and the line `sudo whaleshark server
+// tunnel --team NAME`. Road stays a setting with one value.
+//
 // The two roads a phone can come in by, of which a server names one or none,
 // and what is known of the two port rules that keep a login's block its own:
 // doctor --server proves them as a second login and is the one that may
@@ -64,6 +70,8 @@ type Server struct {
 	Road  string `toml:"road"`
 	Team  string `toml:"team"`
 	Rules string `toml:"rules"`
+	// Notice false keeps `server status` from asking for a newer release.
+	Notice bool `toml:"notice"`
 	// Login is each work login by its name.
 	Login map[string]Person `toml:"login"`
 }
@@ -100,7 +108,7 @@ func ReadServer(read func(path string) ([]byte, error)) (*Server, error) {
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
-	s := &Server{Agents: 20}
+	s := &Server{Agents: 20, Notice: true}
 	if err == nil {
 		err = toml.Unmarshal(data, s)
 	}
@@ -233,6 +241,8 @@ type Phones struct {
 	// page's server wrote it down for the screens: it alone decides either.
 	Asking *Pairing  `json:"asking,omitempty"`
 	Shut   time.Time `json:"shut,omitzero"`
+	// Code is the pairing code an app may present, while one is good.
+	Code *PairCode `json:"code,omitempty"`
 }
 
 // Pairing is a phone's request to be paired: the number it is shown, who
@@ -243,6 +253,9 @@ type Pairing struct {
 	Name     string    `json:"name"`
 	Notes    []string  `json:"notes,omitempty"`
 	At       time.Time `json:"at"`
+	// Session is set for an app: the hash of the secret it made, which
+	// becomes its Phone.Session when the person approves the number.
+	Session string `json:"session,omitempty"`
 }
 
 // A request to pair is gone after PairLife; that the door shut itself is

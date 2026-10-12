@@ -9,8 +9,11 @@ import "time"
 // phase 5: a run's mode, parent and fleets, a task's fleet, an attempt's
 // leads, a question's two twins. Each is empty in a file of version 1, which
 // is read as it stands and written back as 2 by the first change, under the
-// lock, with the older file kept beside it.
-const StateVersion = 2
+// lock, with the older file kept beside it. 3 is phase 6: a run's plan,
+// protected files and spending, an attempt's rest under a hold and what the
+// stuck detector keeps, a progress note said again, a task's failed checks,
+// a question's tasks and setting. Each is empty in an older file.
+const StateVersion = 3
 
 // State is state.json, the one authoritative record of a run.
 type State struct {
@@ -57,6 +60,11 @@ type Run struct {
 	Mode   string            `json:"mode,omitempty"`
 	Fleets map[string]*Fleet `json:"fleets,omitempty"`
 	Parent *Twin             `json:"parent,omitempty"`
+	// Plan, Protect and Spend are the three guards of a job as its record
+	// knows them (guard.go); each is empty while its setting is off.
+	Plan    *Approval `json:"plan,omitempty"`
+	Protect *Approval `json:"protect,omitempty"`
+	Spend   Spend     `json:"spend,omitzero"`
 }
 
 // ModeFleets is the mode of a run whose tasks are groups handed to fleets.
@@ -76,6 +84,8 @@ type Fleet struct {
 	Since   time.Time `json:"since"`
 	Groups  []string  `json:"groups,omitempty"`
 	EndedAt time.Time `json:"ended_at,omitzero"`
+	// Spend is the spending guard on this fleet alone.
+	Spend Spend `json:"spend,omitzero"`
 }
 
 // Twin names the other half of something that lies in two runs of one
@@ -176,9 +186,12 @@ type Task struct {
 	Synced    int       `json:"synced,omitempty"`
 	SyncBrief string    `json:"sync_brief,omitempty"`
 	Accepted  *Accepted `json:"accepted"`
-	SeenAt    time.Time `json:"seen_at,omitzero"`
-	CreatedAt time.Time `json:"created_at"`
-	SettledAt time.Time `json:"settled_at,omitzero"`
+	// CheckFails counts the checks of this task that failed running; a pass
+	// sets it to nought.
+	CheckFails int       `json:"check_fails,omitempty"`
+	SeenAt     time.Time `json:"seen_at,omitzero"`
+	CreatedAt  time.Time `json:"created_at"`
+	SettledAt  time.Time `json:"settled_at,omitzero"`
 }
 
 // The placements; a folder given with --cwd is PlaceCwd followed by it. A
@@ -269,6 +282,9 @@ type Attempt struct {
 	// attempts of one orchestrator's run can share a place and a Leads: one
 	// leader, several groups.
 	Leads string `json:"leads,omitempty"`
+	// Rested is how long it stood under holds that have ended: Spent leaves
+	// it out. Whoever ends a hold adds to it, in one place (Rules.Hold).
+	Rested time.Duration `json:"rested,omitzero"`
 }
 
 // Agent is the program in the attempt's pane. Name is what the keeper knows it by and
@@ -313,12 +329,26 @@ type AgentSeen struct {
 	// this attempt, and still_running for this pause.
 	OvertimeFlagged bool `json:"overtime_flagged,omitempty"`
 	StillFlagged    bool `json:"still_flagged,omitempty"`
+	// What the stuck detector keeps (guard.go): since when the verdict
+	// holds and by which signs (their names with commas between: the block
+	// stays comparable), how far up it was told (0 to 3) and when
+	// last, the context figure last seen and how often it fell by CtxDrop
+	// with no new progress note between.
+	StuckSince time.Time `json:"stuck_since,omitzero"`
+	StuckWhy   string    `json:"stuck_why,omitempty"`
+	StuckTold  int       `json:"stuck_told,omitempty"`
+	StuckAt    time.Time `json:"stuck_at,omitzero"`
+	Ctx        int       `json:"ctx,omitempty"`
+	Emptied    int       `json:"emptied,omitempty"`
 }
 
 type Progress struct {
 	Pct  int       `json:"pct"`
 	Note string    `json:"note"`
 	At   time.Time `json:"at"`
+	// Same counts the notes since the last that said anything new: the same
+	// figure and the same words.
+	Same int `json:"same,omitempty"`
 }
 
 // CheckResult is how the last check of an attempt ended, with the last line
@@ -412,7 +442,7 @@ var EventKinds = []string{
 	"stale", "overtime", "check_failed", "stuck", "overlap", "scope",
 	"base_moved", "setup_failed", "land_failed", "rejected", "human",
 	"answered", "paused", "resumed", "still_running", "upgraded", "together",
-	"untrusted",
+	"untrusted", "protected", "budget",
 }
 
 // Question kinds, forms, addressees and states.
@@ -445,6 +475,13 @@ const (
 	CauseTogether   = "together"
 	CauseTrust      = "trust"
 	CausePair       = "pair"
+	// Phase 6. The first four and CauseSetting are answered by the person
+	// and nobody else (PersonOnly); a stuck item is a to-do like any other.
+	CausePlan    = "plan"
+	CauseProtect = "protect"
+	CauseBudget  = "budget"
+	CauseSetting = "setting"
+	CauseStuck   = "stuck"
 )
 
 // Question is a worker's question to the lead agent, or an item for the human.
@@ -475,6 +512,11 @@ type Question struct {
 	// orchestrator's run; Down, on that one, is the way back.
 	Up   *Twin `json:"up,omitempty"`
 	Down *Twin `json:"down,omitempty"`
+	// Tasks is what a plan's item showed, by id: an approval covers these
+	// and no task added later. Set is the change an agent asked for, on an
+	// item of CauseSetting.
+	Tasks []string `json:"tasks,omitempty"`
+	Set   *SetAsk  `json:"set,omitempty"`
 }
 
 // Origin is the kind of caller that did something and where the command says

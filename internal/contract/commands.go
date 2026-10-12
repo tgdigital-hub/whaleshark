@@ -28,8 +28,8 @@ const (
 // ends no run, hands nothing to a fleet (two levels, never three), answers
 // nothing in the person's name, and asks the orchestrator with need, whose
 // answer its wait hands it, not with ask, which would keep it from waiting
-// on its fleet.
-var LeaderNever = []string{"land", "run new", "run close", "run rm", "run takeover", "task --fleet", "answer --relayed", "ask"}
+// on its fleet. It changes no setting: only the agent the person talks to may.
+var LeaderNever = []string{"land", "run new", "run close", "run rm", "run takeover", "task --fleet", "answer --relayed", "ask", "set"}
 
 // The refusals of Fleet Mode, all exit 5.
 const (
@@ -225,9 +225,9 @@ var Commands = []Command{
 	{Name: "engine", Section: "setup", Phase: PhaseE, Who: H | U, Exits: []int{0, 3},
 		Usage: "engine run|stop|status", Help: "the keeper that holds every pane's terminal for this login: run it, stop it, see it",
 		Example: "whaleshark engine status"},
-	{Name: "set", Section: "setup", Phase: 1, Who: H | U, Exits: []int{0, 2, 5},
-		Usage: "set <key> <value> [--project]", Help: "change a setting; every one is a key here and a row of the settings screen",
-		Flags:   flags("project!"),
+	{Name: "set", Section: "setup", Phase: 1, Who: H | O | U, Exits: []int{0, 2, 5},
+		Usage: "set <key> <value> [--project] / set --save FILE / set --load FILE", Help: "change a setting; every one is a key here and a row of the settings screen; save your settings as a file, or load one",
+		Flags:   flags("project!", "save=FILE!", "load=FILE!"),
 		Example: "whaleshark set theme kelp"},
 	{Name: "hook", Section: "setup", Phase: 1, Who: all, Exits: []int{0},
 		Usage: "hook statusline / hook gate [kind] / hook state <event>", Help: "run by an agent's own harness, never typed",
@@ -331,9 +331,9 @@ var Commands = []Command{
 		Usage: "graph [--ready]", Help: "the plan: tasks in the order they depend on each other",
 		Flags:   flags("ready"),
 		Example: "whaleshark graph --ready"},
-	{Name: "log", Section: "views", Phase: 2, Who: O | H | U, Exits: []int{0, 4},
-		Usage: "log [--all] [--task ID]", Help: "the messages both ways, newest last",
-		Flags:   flags("all", "task=ID"),
+	{Name: "log", Section: "views", Phase: 2, Who: O | H | U, Exits: []int{0, 4, 5},
+		Usage: "log [--all] [--task ID] [--export [FILE]]", Help: "the messages both ways, newest last; --export writes the job's log as one plain file",
+		Flags:   flags("all", "task=ID", "export!"),
 		Example: "whaleshark log --task T3"},
 	{Name: "show", Section: "views", Phase: 1, Who: O | H | U, Exits: []int{0, 4},
 		Usage:   "show <task>[.n] [--screen] [--diff [--stat]]",

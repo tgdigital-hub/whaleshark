@@ -5,7 +5,7 @@
  "checked": "2026-10-08T21:14:00Z",
  "elsewhere": 1,
  "state": {
-  "version": 2,
+  "version": 3,
   "run": {
    "id": "r3",
    "objective": "new shop site",

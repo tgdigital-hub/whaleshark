@@ -104,7 +104,8 @@ type Rules interface {
 	SetWorktree(s *State, task string, w *Worktree, now time.Time) error
 	// Synced counts one more sync of a task that has a worktree and keeps
 	// its brief; sync then sends the brief with Tell. A task synced twice
-	// is the one to accept next.
+	// is the one to accept next. From phase 6 a group is counted too, with
+	// no brief: its copy is its fleet's branch.
 	Synced(s *State, task, brief string, now time.Time) (times int, err error)
 
 	// 19.1 Fleets. up is an orchestrator's run and low one of its fleets'
@@ -147,6 +148,71 @@ type Rules interface {
 	// uses the twin; done is false where there was nothing to copy. answer
 	// on a twin calls it, and the sweep of either run for a pair a kill left apart.
 	Down(up, low *State, twin string, now time.Time) (done bool, err error)
+
+	// Phase 6 (20.1 to 20.4, 20.18). The items below are the tool's own
+	// (FromTool, for the human) and of a cause PersonOnly names: Answer
+	// refuses them to every caller but the person, and --relayed too, with
+	// RefusedPersonOnly. Use, once such an answer has settled, also writes
+	// what it decides: a plan's tasks into Run.Plan.Approved; the
+	// fingerprint seen into Run.Protect.Print; for AnswerMore a fifth of
+	// the limit into Spend.More and for AnswerNoLimit Spend.Off, each
+	// ending the hold as Resume ends a pause (and adding the time rested to
+	// Attempt.Rested, which Resume does too); a setting's change it only
+	// hands back, for the caller to make with Set as the person. An answer
+	// that sends back, or leaves, writes nothing.
+	//
+	// Planned is asked by start in a job (a run with no parent) while
+	// plan.first is on, with the tasks it would start. All approved: nil.
+	// With by, the person's own start: they are approved by that, nil.
+	// Else nothing may start: it opens the plan's item (a signoff,
+	// CausePlan, Tasks the ones that lack approval, text the plan as
+	// Kit.PlanText words it) or brings the open one up to date, and returns
+	// the refusal RefusedPlanFirst as kept: Store.Change saves, then the
+	// caller ends with it.
+	Planned(s *State, tasks []string, text string, by *Origin, now time.Time) (kept *Refusal)
+	// Protect is told by accept in a job, after a collect, what
+	// Integrator.Protected found: seen is empty when no protected file
+	// differs from the base. A fingerprint that is new and not the approved
+	// one opens the item (a signoff, CauseProtect, holding nothing) or
+	// brings it up to date, raises one protected event for the task and
+	// reports asked; the approved one, or none, closes an open item.
+	Protect(s *State, task, seen string, files []string, now time.Time) (asked bool)
+	// Landable refuses a landing (RefusedProtected) whose protected files,
+	// worked out again from the tip, are not the ones approved.
+	Landable(s *State, seen string, files []string) error
+	// Spend is the sweep's look at a job (fleet empty) or at one fleet of
+	// it, on the job's record: spent as Spent gives it, limit as
+	// PersonConfig.SpendLimit. Crossing four fifths it raises budget once;
+	// at the limit, once, it marks the Spend held, pauses the job's own run
+	// by HeldBy (a fleet's run is Hold's), raises budget and the urgent
+	// choice of CauseBudget. It answers SpendWarned, SpendHeld or nothing.
+	Spend(s *State, fleet string, spent time.Duration, limit int, now time.Time) (did string)
+	// Hold brings a fleet's run in line with its job's record: paused by
+	// HeldBy while the job or that fleet is held, and resumed when neither
+	// is. The caller then has Kit.Hold do the same with the run's hold file
+	// and its agents.
+	Hold(up, low *State, now time.Time) (changed bool)
+	// Going judges one live attempt after Seen, while stuck.watch is on:
+	// the signs, the verdict and its level. exact is Tool.Exact of its
+	// tool; ctx is its context figure, not Known for a tool that tells
+	// none. It writes only when a verdict or a level changes: the stuck
+	// fields of AgentSeen, a stuck event for this run's lead agent at
+	// ToldLeader, and in a job the person's to-do of CauseStuck one climb
+	// later, withdrawn when the verdict clears. In a fleet's run the levels
+	// above the leader lie in the job's run: up says that Passed is owed.
+	// Tell, Stop, Reject, Synced, ResetTask and Start of the task count as
+	// dealing with it and start the climb's clock again.
+	Going(s *State, attempt string, exact bool, ctx CtxFile, limits ProjectFile, climb time.Duration, now time.Time) (changed, up bool)
+	// Passed writes into the job's run what a fleet's attempt has reached:
+	// a stuck event naming the fleet at ToldOrchestrator, the person's
+	// to-do at ToldPerson, and its withdrawal once the verdict cleared.
+	Passed(up, low *State, attempt string, now time.Time) error
+	// SetAsked takes an agent's change of a setting that holds agents or
+	// calls the person: it opens the item (a signoff, CauseSetting, Set the
+	// change, text the setting's own description) or replaces the value in
+	// the one that is open for that key. A key the person left as it was in
+	// this run is refused, and not asked again.
+	SetAsked(s *State, ask SetAsk, text string, now time.Time) (id string, err error)
 }
 
 // TaskEdit is what task edit may replace; a nil field is left as it is.

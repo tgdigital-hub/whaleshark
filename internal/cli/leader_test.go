@@ -123,7 +123,7 @@ func TestTheCallerTableWithFleets(t *testing.T) {
 		{"a leader is the person by the flag, in a bare tab", leaderBare, "pause --human", "", "not_human", ""},
 		{"a leader is the person by the page's mark", scene{pane: "w1:p2", attempt: "G1.1", run: "r1", from: "page"}, "pause", "", "human_only", ""},
 		{"a leader presses Stop all", leader, "pause", "", "human_only", ""},
-		{"a leader raises its own limit", leader, "set fleets.total 400", "", "human_only", ""},
+		{"a leader raises its own limit", leader, "set fleets.total 400", "", contract.RefusedLeader, ""},
 		{"a leader writes to the orchestrator as the person", leader, "tell lead x", "", "human_only", ""},
 		{"a leader undoes an answer", leader, "answer q1 --undo", "", "human_only", ""},
 		{"a leader approves a project's settings", leader, "trust", "", "human_only", ""},
@@ -148,7 +148,7 @@ func TestTheCallerTableWithFleets(t *testing.T) {
 		{"the orchestrator answers inside a fleet", orchestrator, "answer q1 yes --run r2", "", "not_bound", ""},
 		{"the orchestrator stops a fleet's worker", orchestrator, "stop T1 --run r2", "", "not_bound", ""},
 		{"the orchestrator says which group", orchestrator, "report done ok --task G1", "", "not_leader", ""},
-		{"the orchestrator raises a limit", orchestrator, "set fleets.leaders 9", "", "human_only", ""},
+		{"the orchestrator asks for a limit to be raised", orchestrator, "set fleets.leaders 9", contract.Orchestrator, "", "r1"},
 		{"a fleet's name of four words", orchestrator, "task add G7 x --fleet a,b --fleet one-two-three-four-five-six", "", "invalid_value", ""},
 		{"a fleet's name that reads as an option", orchestrator, "task add G7 x --fleet=-rf", "", "invalid_value", ""},
 		// The person: everything, anywhere.

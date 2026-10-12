@@ -257,6 +257,11 @@ type ProjectFile struct {
 		StaleMinutes    int `toml:"stale_minutes"`
 		MaxMinutes      int `toml:"max_minutes"`
 	} `toml:"limits"`
+	// Protect.Also adds paths to the person's protected list for everyone
+	// who works here. It can only add, so it needs no approval.
+	Protect struct {
+		Also []string `toml:"also,omitempty"`
+	} `toml:"protect,omitempty"`
 }
 
 // ProjectDefaults is a ProjectFile with every default filled in.
@@ -317,6 +322,36 @@ type UIFile struct {
 	// Shut names the fleets folded in the left section, each "<run>/<fleet>".
 	Shut     []string  `json:"shut,omitempty"`
 	LastHere time.Time `json:"last_here,omitzero"`
+	// ByAgent is the settings the person's agent changed since they last saw
+	// those sections of the settings screen, each with what it was: one line
+	// on every screen names them (AgentChanged), and u there takes one back.
+	ByAgent []SetAsk `json:"by_agent,omitempty"`
+	// FirstSteps is "off" once the five first steps were hidden or finished,
+	// and Steps the ones ticked so far, a bit each from the first.
+	FirstSteps string `json:"first_steps,omitempty"`
+	Steps      int    `json:"steps,omitempty"`
+}
+
+// FirstSteps are the five lines of the left section's empty agents panel.
+var FirstSteps = [5]string{
+	"start your agent: type  claude  here →",
+	"tell it what you want built, in your words",
+	"your agents appear here; click one to go to it",
+	"what needs you lands below; y answers",
+	"ctrl+space s  settings ·  S  stops everything",
+}
+
+// AgentChanged is the line every screen carries while by, which is
+// UIFile.ByAgent, holds anything: "setting changed by your agent: theme".
+func AgentChanged(by []SetAsk) string {
+	var keys []string
+	for _, a := range by {
+		keys = append(keys, a.Key)
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	return "setting changed by your agent: " + strings.Join(keys, ", ")
 }
 
 // CtxFile is the file CtxPath names: how full an agent's context is, as its own
@@ -421,6 +456,29 @@ type PersonConfig struct {
 		Link     string `toml:"link,omitempty"`
 		FullText bool   `toml:"full_text,omitempty"`
 	} `toml:"notify,omitempty"`
+	// The guardrails (guard.go), each the person's own and read when it is
+	// used: no project's file holds one or can switch one off. Spend's two
+	// limits are agent-hours, Unlimited for none.
+	Plan struct {
+		First bool `toml:"first"`
+	} `toml:"plan"`
+	Protect struct {
+		Files bool   `toml:"files"`
+		Paths string `toml:"paths"` // patterns with commas between: the struct stays comparable
+	} `toml:"protect"`
+	Spend struct {
+		Guard bool `toml:"guard"`
+		Job   int  `toml:"job"`
+		Fleet int  `toml:"fleet"`
+	} `toml:"spend"`
+	Stuck struct {
+		Watch        bool `toml:"watch"`
+		ClimbMinutes int  `toml:"climb_minutes"`
+	} `toml:"stuck"`
+	// Update.Notice: the window asks once a day whether a newer release is out.
+	Update struct {
+		Notice bool `toml:"notice"`
+	} `toml:"update"`
 }
 
 // ConfigFile and UIFileName are the person's two files of ours.
@@ -466,6 +524,8 @@ func PersonDefaults() PersonConfig {
 	c.Fleets.Leader, c.Fleets.Worker = DefaultTool, FleetWorkerLeader
 	c.Nudge.Sound, c.Nudge.Popup, c.Nudge.Phone = true, true, true
 	c.Nudge.LeadMinutes = 10
+	c.Protect.Paths, c.Spend.Job = ProtectDefault, 40
+	c.Stuck.Watch, c.Stuck.ClimbMinutes, c.Update.Notice = true, 10, true
 	return c
 }
 

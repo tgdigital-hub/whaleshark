@@ -545,7 +545,7 @@ func TestAllowedALeader(t *testing.T) {
 		{low, "land", "", contract.RefusedLeader}, {low, "run", "new", contract.RefusedLeader}, {low, "run", "close", contract.RefusedLeader},
 		{low, "run", "rm", contract.RefusedLeader}, {low, "run", "takeover", contract.RefusedLeader}, {low, "ask", "", contract.RefusedLeader},
 		{low, "pause", "", "human_only"}, {low, "resume", "", "human_only"}, {low, "trust", "", "human_only"}, {low, "tell", "lead", "human_only"},
-		{low, "set", "", "human_only"},
+		{low, "set", "", contract.RefusedLeader},
 		// The orchestrator's run, and any other, it may read and not change.
 		{up, "start", "", "not_bound"}, {up, "accept", "", "not_bound"}, {up, "answer", "", "not_bound"}, {up, "task", "add", "not_bound"},
 		{up, "status", "", ""}, {up, "show", "", ""}, {up, "run", "takeover", contract.RefusedLeader}, {up, "land", "", contract.RefusedLeader},

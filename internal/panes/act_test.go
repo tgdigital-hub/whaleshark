@@ -69,7 +69,7 @@ func child(args []string) int {
 	case args[0] == "set":
 		k := contract.NewKit()
 		k.Platform = system(root, nil)
-		if _, err := set(&contract.Call{Kit: k, Command: contract.Find("set"), Args: words[1:], Now: time.Now(), Out: os.Stdout}); err != nil {
+		if _, err := set(&contract.Call{Kit: k, Command: contract.Find("set"), Args: words[1:], Caller: contract.Caller{Kind: contract.Human}, Now: time.Now(), Out: os.Stdout}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return contract.ExitUsage
 		}
@@ -800,7 +800,7 @@ func TestSet(t *testing.T) {
 	now := time.Date(2026, 10, 8, 21, 14, 0, 0, time.UTC)
 	run := func(args ...string) (string, error) {
 		var out strings.Builder
-		_, err := set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: args, Caller: contract.Caller{Pane: d.me}, Now: now, Out: &out})
+		_, err := set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: args, Caller: contract.Caller{Kind: contract.Human, Pane: d.me}, Now: now, Out: &out})
 		return out.String(), err
 	}
 	exit := func(err error) int {
@@ -916,7 +916,7 @@ func TestTheKeysGoBetweenThePanes(t *testing.T) {
 		t.Error("ui actions focus with the action pane closed did not say so")
 	}
 	// On top: the pane is split off upward, in one call.
-	set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: []string{actions, "top"}, Out: io.Discard})
+	set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: []string{actions, "top"}, Caller: contract.Caller{Kind: contract.Human}, Out: io.Discard})
 	d.did()
 	top, err := d.ui(d.me, actions, "on")
 	if got := d.did(); err != nil || !strings.Contains(got, "split "+d.me+" up 0.75") || strings.Contains(got, contract.OpSwap) {

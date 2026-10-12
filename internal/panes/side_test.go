@@ -188,11 +188,11 @@ var pictures = []struct {
 │   Keys               │ › Fleet leaders at once                                            [ - ]  4  [ + ]  [ unlimited ]  │ the next start; nothing running is stopped.          │
 │   Scrolling & copy   │   Agents in one fleet                                              [ - ]  8  [ + ]  [ unlimited ]  │                                                      │
 │ ▌ Fleet Mode         │   Agents in all                                                    [ - ] 20  [ + ]  [ unlimited ]  │ It came as 4.                                        │
-│   Agent tools        │   A leader's tool                                                                    [ claude ▾ ]  │                                                      │
-│   This project       │   A worker's tool                                                              [ the leader's ▾ ]  │                                                      │
-│   Page & phone       │                                                                                                    │                                                      │
-│   This server        │   Agents running now: 0 of 20                                                                      │                                                      │
-│                      │   [ Put this section back as it came ]                                                             │                                                      │
+│   Guardrails         │   A leader's tool                                                                    [ claude ▾ ]  │                                                      │
+│   Agent tools        │   A worker's tool                                                              [ the leader's ▾ ]  │                                                      │
+│   This project       │                                                                                                    │                                                      │
+│   Page & phone       │   Agents running now: 0 of 20                                                                      │                                                      │
+│   This server        │   [ Put this section back as it came ]                                                             │                                                      │
 │                      │                                                                                                    │                                                      │
 │                      │                                                                                                    │                                                      │
 │                      │                                                                                                    │                                                      │
@@ -208,17 +208,17 @@ var pictures = []struct {
 │   Keys             │ › Fleet leaders at once                             [ - ]  4  [ + ]  [ unlimited ]  │
 │   Scrolling & copy │     How many fleets may run side by side. Takes hold at the next start; nothing ru… │
 │ ▌ Fleet Mode       │   Agents in one fleet                               [ - ]  8  [ + ]  [ unlimited ]  │
-│   Agent tools      │   Agents in all                                     [ - ] 20  [ + ]  [ unlimited ]  │
-│   This project     │   A leader's tool                                                     [ claude ▾ ]  │
-│   Page & phone     │   A worker's tool                                               [ the leader's ▾ ]  │
-│   This server      │                                                                                     │
-│                    │   Agents running now: 0 of 20                                                       │
+│   Guardrails       │   Agents in all                                     [ - ] 20  [ + ]  [ unlimited ]  │
+│   Agent tools      │   A leader's tool                                                     [ claude ▾ ]  │
+│   This project     │   A worker's tool                                               [ the leader's ▾ ]  │
+│   Page & phone     │                                                                                     │
+│   This server      │   Agents running now: 0 of 20                                                       │
 │ / find a setting · j k choose · ← → or a click change · enter type a value · u undo · e… saved as you go │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 `},
 	{settings, 76, 13, `
 ┌─ settings ───────────────────────────────────────────────────────────────┐
-│ ‹ Scrolling & copy    FLEET MODE    Agent tools ›   (6 of 10)            │
+│ ‹ Scrolling & copy    FLEET MODE    Guardrails ›   (6 of 11)             │
 │                                                                          │
 │   Fleet Mode                                                     ‹ off › │
 │ › Fleet leaders at once                   [ - ]  4  [ + ]  [ unlimited ] │
