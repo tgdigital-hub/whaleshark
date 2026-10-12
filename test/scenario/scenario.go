@@ -493,6 +493,9 @@ func (r *runner) open(rest string) {
 		r.fail("the test gave Run no pane program")
 	}
 	r.shut(name)
+	// A scenario names a row as it is drawn with the full marks, whatever the
+	// locale of the system it runs on says of its terminal.
+	r.t.Setenv("WHALESHARK_MARKS", "full")
 	s := &screen{Screen: termtest.New(w, h), rows: h, left: make(chan struct{})}
 	go func() {
 		defer close(s.left)
