@@ -17,6 +17,12 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 5 owes here: a row for each wired tool (found or not, its file the
+// login's alone, what it can tell and whether Stop all holds it, and every
+// fault contract.Tools names), how many agents this machine's memory
+// carries, and the one test of a tool as a function: started in a scratch
+// folder, handed one line, and what the Watcher saw.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("doctor", run)

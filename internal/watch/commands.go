@@ -11,6 +11,10 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 5 owes here: what is known of a kind of agent comes from its
+// contract.Tool (Exact and Screen), and the table of kinds in this folder
+// goes.
+
 // Plug has nothing to put into the kit: the keeper makes a Watcher for each
 // program it starts and answers its agent calls with it.
 func Plug(*contract.Kit) {}

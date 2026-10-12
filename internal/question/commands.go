@@ -18,6 +18,11 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 5 owes here: escalate in a fleet's run, and need from a leader, make
+// the twin above (Rules.Twin, through Store.Both); an answer on a twin goes
+// down once it has settled (Rules.Down); and a leader's ask is refused with
+// the line to type in its place, need.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("ask", ask)

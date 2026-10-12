@@ -16,6 +16,13 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 5 owes here: the start of a group in its three cases (a living
+// leader takes it; with none, the limits, a run for the fleet, a tab and the
+// leader's prompt; an ended leader's run is taken over), Rules.Room under
+// contract.LoginLock, contract.EnvDepth 1 for a leader and 2 for its
+// workers, every agent started from its tool's description (the table of
+// kinds in this folder goes), and stop and close of a fleet.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("start", start)

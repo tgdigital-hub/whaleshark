@@ -47,6 +47,10 @@ import (
 
 const startWait, startStep = 10 * time.Second, 50 * time.Millisecond
 
+// Phase 5 owes here: the fleets' own runs handed to the view of an
+// orchestrator's run (ViewInput.Fleets), so that Home shows one card a
+// fleet.
+
 // Plug binds dash.
 func Plug(k *contract.Kit) { k.Handle("dash", dash) }
 

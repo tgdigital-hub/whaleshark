@@ -18,6 +18,10 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 5 owes here: tell to a group reaches its leader, and tell into a
+// fleet's run reaches a worker there; what the person does past the
+// orchestrator leaves a human event in the orchestrator's run too.
+
 // Plug binds this package's handlers.
 func Plug(k *contract.Kit) {
 	k.Handle("tell", tell)

@@ -58,6 +58,7 @@ type kind struct {
 	resume []string
 }
 
+// Phase 5: this table goes; a tool's description holds it (contract.Tools).
 var kinds = map[string]kind{
 	defaultKind: {"--add-dir", false, []string{"--resume"}},
 	"codex":     {"--add-dir", true, []string{"resume"}},

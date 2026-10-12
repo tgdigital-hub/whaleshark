@@ -15,6 +15,13 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
 
+// Phase 5 owes here: ui run side, the left section drawn from contract.Side
+// in the dock, and ui run settings with ui settings: every row of
+// contract.Keys by its section, each change one `set`. The fleet at the
+// bottom and as a strip, a fleet's card, and the kit's Panes, which opens
+// and moves the two panes by the person's layout. Every width by
+// contract.Fit.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("ui", ui)

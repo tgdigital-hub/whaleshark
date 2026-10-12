@@ -22,6 +22,8 @@ type kind struct {
 
 // kinds are the agents known by the name of their program. One that is not
 // here is told busy from quiet and no more.
+//
+// Phase 5: this table goes; a tool's description holds it (contract.Tools).
 var kinds = map[string]kind{
 	"claude": {hooks: true, trust: "trust this folder", question: [2]string{"Do you want to", "Esc to cancel"},
 		working: "esc to interrupt", ready: "? for shortcuts"},

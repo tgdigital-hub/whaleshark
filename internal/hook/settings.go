@@ -35,6 +35,8 @@ type harness struct {
 // the file has the shape of Claude Code's, its moments are among Claude
 // Code's by the same names, and it loads a project's hooks only once the
 // person has trusted that project and looked the hooks over.
+//
+// Phase 5: a tool's description names one of these two forms (contract.Tool).
 var harnesses = map[string]harness{
 	claude: {[]string{".claude", "settings.local.json"}, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
 		"PostToolUse", "PostToolUseFailure", "PermissionDenied", "Stop", "StopFailure", "SessionEnd"}, formGate, true},

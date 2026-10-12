@@ -14,6 +14,10 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 5 owes here: --task, by which a leader says which of its groups it
+// reports on or notes progress for: needed when it holds more than one,
+// refused from anybody else.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("report", report)

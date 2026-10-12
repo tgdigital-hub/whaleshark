@@ -5,6 +5,9 @@ package theme
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
+// Phase 5 owes here: the contrast of the new pairs in every scheme: a row
+// under the pointer on each state colour, and the bar on accent.
+
 // Plug binds nothing: a scheme is chosen with the set command.
 func Plug(*contract.Kit) {}
 

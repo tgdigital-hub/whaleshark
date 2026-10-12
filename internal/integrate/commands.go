@@ -25,6 +25,10 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 5 owes here: a group is collected as a merge of its fleet's branch
+// (Fleet.Branch) that keeps its tasks' commits and carries the group's
+// trailer, and is checked on the merged work.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	g := integrator{k}

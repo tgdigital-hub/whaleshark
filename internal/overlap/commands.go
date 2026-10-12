@@ -26,6 +26,9 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 5 owes here: the branches of an orchestrator's fleets are scanned
+// against each other and against the collected work, as tasks' are.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	o := scanner{k}

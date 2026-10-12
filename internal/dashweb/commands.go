@@ -40,6 +40,9 @@ var pages = template.Must(template.New("page.html").Funcs(template.FuncMap{
 // has run: with no key a phone is offered no nudge of the page's own.
 var pushKey = func() string { return "" }
 
+// Phase 5 owes here: Home prints a fleet's card (Card.Fleet) and an item's
+// fleet, on a laptop and on a phone. Nothing else of phase 5 is on the page.
+
 // Plug puts the screens and their fixed files into the kit; it binds nothing.
 func Plug(k *contract.Kit) {
 	k.Page, k.Asset = Page, Asset

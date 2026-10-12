@@ -25,6 +25,11 @@ const (
 	formState  = "state"
 )
 
+// Phase 5 owes here: which harness a tool has is its description's Hooks:
+// contract.HooksClaude or contract.HooksCodex, and with contract.HooksNone
+// it gets nothing and is not gated. The table of this folder is then the two
+// forms, and no list of tools.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.AgentSettings = settings{k}
