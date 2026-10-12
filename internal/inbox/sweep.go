@@ -252,10 +252,15 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 }
 
 // leaders is the sweep's row for a leader whose end no attempt shows: its fleet's pane has had no
-// agent for leaderGone. The fleet ends where its every group is settled, and else is parked.
+// agent for leaderGone. The fleet ends where its every group is settled, and else is parked. A
+// leader with a group at work is its attempt's row to end, however long that proof takes.
 func (sw sweeper) leaders(root string, s *contract.State, l *look, since time.Time) (gone time.Time) {
 	for name, f := range s.Run.Fleets {
-		if p := l.panes[f.Pane]; f.Pane == "" || p != nil && p.Agent != "" {
+		atWork := func(id string) bool {
+			a := s.Attempts[id]
+			return a.Place.Pane == f.Pane && (a.State == contract.AttemptWorking || a.State == contract.AttemptAsked)
+		}
+		if p := l.panes[f.Pane]; f.Pane == "" || p != nil && p.Agent != "" || slices.ContainsFunc(slices.Collect(maps.Keys(s.Attempts)), atWork) {
 			continue
 		}
 		if gone = cmp.Or(since, l.now); l.now.Sub(gone) < leaderGone {

@@ -220,6 +220,32 @@ func TestALeaderThatEndsWhileItHoldsNoGroup(t *testing.T) {
 	}
 }
 
+// A leader with a group at work whose program ends is ended by its
+// attempt's own row, once: the row for a leader that holds no group says
+// nothing of it, though that proof takes longer than its two minutes, as it
+// does after the keeper gave the pane a new terminal.
+func TestALeaderAtWorkIsItsAttemptsToEnd(t *testing.T) {
+	w := morning(t)
+	billing := w.state().Run.Fleets["billing"].Pane
+	w.p.Double.Push(testkit.PushGone, billing)
+	w.in("r1", func(s *contract.State, now time.Time) {
+		a := s.Attempts["G1.1"]
+		a.Seen.Status, a.Seen.Liveness, a.Seen.GoneSince, a.Seen.At = "", contract.Unverifiable, time.Time{}, now
+	})
+	events := len(w.state().Inbox.Events)
+	w.after(6 * time.Second)
+	w.after(125 * time.Second)
+	if up := w.state(); up.Run.Fleets["billing"].Pane != billing || up.Attempts["G1.1"].State != contract.AttemptWorking || len(up.Inbox.Events) != events {
+		t.Fatalf("the leader's end was said before its attempt showed it: %+v, told %v", up.Run.Fleets["billing"], up.Inbox.Events[events:])
+	}
+	w.after(35 * time.Second)
+	w.after(3 * time.Minute)
+	up := w.state()
+	if n := len(up.Inbox.Events); up.Attempts["G1.1"].State != contract.AttemptExited || n != events+1 || up.Inbox.Events[n-1].Kind != "exited" || up.Inbox.Events[n-1].Task != "G1" {
+		t.Fatalf("G1.1 is %s and the orchestrator was told %v", up.Attempts["G1.1"].State, up.Inbox.Events[events:])
+	}
+}
+
 // A question and its twin lie in two runs, written one after the other. The
 // sweep of either run finishes what a kill between the two writes left: the
 // lower half of a twin, an orchestrator's answer that did not go down. And a
