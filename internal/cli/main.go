@@ -157,10 +157,17 @@ func run(c *contract.Call, argv []string) (any, error) {
 		if len(c.Args) > strings.Count(deed, " ") && Valid("id", c.Args[strings.Count(deed, " ")], "") == nil {
 			data["on"] = c.Args[strings.Count(deed, " ")]
 		}
-		_ = c.Kit.Store.Change(c.Root, on, func(s *contract.State) error {
+		tell := func(s *contract.State) error {
 			c.Kit.Rules.Raise(s, contract.Event{Kind: "human", Text: "The person ran " + deed + " themselves.", Data: data}, c.Now)
 			return nil
-		})
+		}
+		// What he does in a fleet, past the orchestrator, both lead agents are told (19.1).
+		if s, err := c.Kit.Reader().Read(c.Root, on); err == nil && s != nil && s.Run.Parent != nil {
+			data["fleet"] = s.Run.Parent.Fleet
+			_ = c.Kit.Store.Both(c.Root, s.Run.Parent.Run, on, func(up, low *contract.State) error { tell(up); return tell(low) })
+		} else {
+			_ = c.Kit.Store.Change(c.Root, on, tell)
+		}
 	}
 	return result, err
 }

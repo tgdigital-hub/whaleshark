@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -12,15 +13,6 @@ import (
 
 // Version is the version of the program; a release build sets it.
 var Version = "dev"
-
-// Phase 5 owes here: the caller contract.Leader: a worker whose attempt has
-// Leads, in the pane its fleet's run records as its lead agent's. Its
-// report, progress and mail address the run of its attempt, as a worker's
-// do; every other command addresses its fleet's run as Leader, and what
-// contract.LeaderNever lists is refused (exit 5, contract.RefusedLeader).
-// --task says which of a leader's groups a report or a progress is about and
-// is refused from anybody else. help set lists contract.Keys, and a fleet's
-// name passes the rule of a task's name.
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
@@ -158,6 +150,11 @@ func help(c *contract.Call) (any, error) {
 	line("Exits:", strings.Join(codes, ", "))
 	if r.Example != "" {
 		line("Example:", r.Example)
+	}
+	for _, k := range contract.Keys {
+		if cmd.Name == "set" && k.Section != "" {
+			fmt.Fprintf(c.Out, "  %-30s %-24s %s\n", k.Name, cmp.Or(k.Values, k.Kind), k.Label)
+		}
 	}
 	if !r.Built {
 		fmt.Fprintf(c.Out, "\nNot built yet: it comes with phase %s.\n", contract.PhaseName(cmd.Phase))
