@@ -44,10 +44,10 @@ func (w *Watcher) until(timeout time.Duration, late error, over func(State) (boo
 }
 
 // Ready waits until the agent just started can take a prompt: its hook has
-// said the session began, or its screen shows it ready, or, for a kind with
-// neither, its output has gone quiet. An agent that shows a question
-// instead is contract.ErrAgentNotReady, which no hook can tell: none runs
-// while the question about the folder is open.
+// said the session began, or its screen shows it ready, or, for a tool whose
+// description has no word for that, its output has gone quiet. An agent
+// that shows a question instead is contract.ErrAgentNotReady, which no hook
+// can tell: none runs while the question about the folder is open.
 func (w *Watcher) Ready(timeout time.Duration) error {
 	return w.until(timeout, errSlowStart, func(s State) (bool, error) {
 		switch s.Status {
@@ -56,7 +56,7 @@ func (w *Watcher) Ready(timeout time.Duration) error {
 		case contract.StatusIdle:
 			return true, nil
 		}
-		return s.Status == Quiet && kinds[s.Agent].ready == "", nil
+		return s.Status == Quiet && w.tool.Screen.Ready == "", nil
 	})
 }
 
@@ -182,15 +182,15 @@ func (w *Watcher) open() (bool, uint64, error) {
 	}
 	s, from := w.seen()
 	w.mu.Lock()
-	away, shown := w.away, w.hook != "" && s.Status == contract.StatusIdle
+	away, shown, known := w.away, w.hook != "" && s.Status == contract.StatusIdle, w.words.Working != ""
 	w.mu.Unlock()
-	// An agent of a kind whose screen is known must have shown itself at its
+	// An agent of a tool whose screen is known must have shown itself at its
 	// prompt or at work: anything else may be a question the words do not cover.
 	sure := s.Status == contract.StatusIdle || s.Status == contract.StatusWorking
 	switch {
 	case s.Status == contract.StatusBlocked:
 		return shown, from, contract.ErrAgentBlocked
-	case s.Agent == "" || away && s.Agent == w.own || kinds[s.Agent].working != "" && !sure:
+	case s.Agent == "" || away && s.Agent == w.own || known && !sure:
 		return shown, from, contract.ErrAgentNotReady
 	}
 	return shown, from, nil

@@ -415,7 +415,7 @@ func (s *stand) heard() []string {
 // that does not.
 func shown(t *testing.T, p *pane, w *Watcher, agent string) {
 	t.Helper()
-	for end := time.Now().Add(wait); kinds[agent].read(p.Text(), true) != question; time.Sleep(10 * time.Millisecond) {
+	for end := time.Now().Add(wait); onScreen(w.tool.Screen, p.Text(), true) != question; time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(end) {
 			t.Fatalf("the screen never showed the question:\n%s", p.Text())
 		}

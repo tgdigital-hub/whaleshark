@@ -11,13 +11,23 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 5 owes here: what is known of a kind of agent comes from its
-// contract.Tool (Exact and Screen), and the table of kinds in this folder
-// goes.
+// wired gives every tool's description when a pane's program is started:
+// the ones compiled in until Plug has the kit, then the login's own as well.
+var wired = contract.BuiltIn
 
 // Plug has nothing to put into the kit: the keeper makes a Watcher for each
-// program it starts and answers its agent calls with it.
-func Plug(*contract.Kit) {}
+// program it starts and answers its agent calls with it. It takes the
+// platform from it, by which the descriptions are read.
+func Plug(k *contract.Kit) {
+	wired = func() []contract.Tool {
+		d, err := k.Platform.Dirs()
+		if err != nil {
+			return contract.BuiltIn()
+		}
+		tools, _ := contract.Tools(k.Platform, d)
+		return tools
+	}
+}
 
 // Busy and Quiet are the honest words for a program whose output is all
 // there is to go by: something is being printed, or nothing has been for a while.
@@ -75,7 +85,9 @@ type State struct {
 type Watcher struct {
 	p    Pane
 	emit func(State)
-	own  string // the kind the pane was started as; empty for a shell
+	own  string          // the tool the pane was started as; empty for a shell
+	tool contract.Tool   // its description; of no tool for a shell or a name that is not wired in
+	all  []contract.Tool // every description, for the agent a person starts in a shell
 	poke chan struct{}
 	done chan struct{}
 
@@ -85,28 +97,32 @@ type Watcher struct {
 
 	mu      sync.Mutex
 	st      State
-	starts  uint64        // how often the agent went to work or to a question
-	home    string        // the program in front once the start was over; empty until then and where the system cannot tell
-	first   string        // a shell's own name as its pane started it, before anything was typed there
-	away    bool          // another program is in front of the agent
-	hook    string        // the state the hooks gave last; empty before the first and after the last
-	sees    int           // what the screen showed at the last reading
-	asked   bool          // the screen has shown the question a hook announced
-	n       uint64        // the count at the last look
-	grew    time.Time     // when it last differed
-	settled bool          // the screen was read once more after the output went quiet
-	wake    chan struct{} // closed at every change of st
+	starts  uint64              // how often the agent went to work or to a question
+	home    string              // the program in front once the start was over; empty until then and where the system cannot tell
+	first   string              // a shell's own name as its pane started it, before anything was typed there
+	away    bool                // another program is in front of the agent
+	hook    string              // the state the hooks gave last; empty before the first and after the last
+	words   contract.ToolScreen // the screen's words of the agent in st
+	sees    int                 // what the screen showed at the last reading
+	asked   bool                // the screen has shown the question a hook announced
+	n       uint64              // the count at the last look
+	grew    time.Time           // when it last differed
+	settled bool                // the screen was read once more after the output went quiet
+	wake    chan struct{}       // closed at every change of st
 }
 
-// New starts following the program just started in p: an agent of a kind,
-// under the name the tool gave it, or a shell when agent is empty. emit is
+// New starts following the program just started in p: an agent by the name
+// of its tool, whose description says what its screen's words are, under
+// the name the tool gave it, or a shell when agent is empty. emit is
 // called with every new state, in order and from one goroutine of the
 // Watcher's own, never from inside a call of its methods.
 func New(p Pane, agent, name string, emit func(State)) *Watcher {
-	w := &Watcher{p: p, emit: emit, own: agent, poke: make(chan struct{}, 1), done: make(chan struct{}),
+	w := &Watcher{p: p, emit: emit, own: agent, all: wired(), poke: make(chan struct{}, 1), done: make(chan struct{}),
 		st: State{Agent: agent, Name: name, Status: contract.StatusUnknown}, wake: make(chan struct{})}
 	if agent == "" {
 		w.first, _ = p.Front()
+	} else {
+		w.tool, _ = contract.FindTool(w.all, agent)
 	}
 	go w.loop()
 	return w

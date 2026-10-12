@@ -14,16 +14,15 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-const claude = "claude"
-
-// settings is the agent-settings provider. It sets the kinds whose harness
-// is below: every other gets nothing and is not gated.
+// settings is the agent-settings provider. It sets a tool whose description
+// names one of the two forms of hooks below: every other gets nothing and
+// is not gated.
 type settings struct{ k *contract.Kit }
 
-// harness is where one kind of agent keeps a folder's hooks and the moments
-// of a session it runs them at, by the names of its own manual. gate is the
-// gate's form, with the word its kind's answer goes by; status says it
-// shows a status line.
+// harness is where one form keeps a folder's hooks and the moments of a
+// session it runs them at, by the names of its own manual. gate is the
+// gate's form, with the word its answer goes by; status says it shows a
+// status line.
 type harness struct {
 	file   []string
 	events []string
@@ -31,17 +30,29 @@ type harness struct {
 	status bool
 }
 
-// Codex's is as its maker's page on hooks gives it, read and not yet run:
-// the file has the shape of Claude Code's, its moments are among Claude
-// Code's by the same names, and it loads a project's hooks only once the
-// person has trusted that project and looked the hooks over.
-//
-// Phase 5: a tool's description names one of these two forms (contract.Tool).
+// The two forms, by a description's Hooks. Codex's is as its maker's page
+// on hooks gives it, read and not yet run: the file has the shape of Claude
+// Code's, its moments are among Claude Code's by the same names, and it
+// loads a project's hooks only once the person has trusted that project and
+// looked the hooks over.
 var harnesses = map[string]harness{
-	claude: {[]string{".claude", "settings.local.json"}, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
+	contract.HooksClaude: {[]string{".claude", "settings.local.json"}, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
 		"PostToolUse", "PostToolUseFailure", "PermissionDenied", "Stop", "StopFailure", "SessionEnd"}, formGate, true},
-	"codex": {[]string{".codex", "hooks.json"}, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
-		"PostToolUse", "Stop", "SessionEnd"}, formGate + " codex", false},
+	contract.HooksCodex: {[]string{".codex", "hooks.json"}, []string{"SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
+		"PostToolUse", "Stop", "SessionEnd"}, formGate + " " + contract.HooksCodex, false},
+}
+
+// of is the description of a tool by its name, as wired in for this login,
+// and the form of hooks it names; known is false for a tool that is not
+// wired in and for one that reads no hooks.
+func (s settings) of(name string) (t contract.Tool, h harness, known bool) {
+	tools := contract.BuiltIn()
+	if d, err := s.k.Platform.Dirs(); err == nil {
+		tools, _ = contract.Tools(s.k.Platform, d)
+	}
+	t, _ = contract.FindTool(tools, name)
+	h, known = harnesses[t.Hooks]
+	return t, h, known
 }
 
 func (h harness) path(folder string) string {
@@ -63,7 +74,7 @@ type group struct {
 
 // localFile is the settings file Claude Code reads for one folder and one
 // person, and keeps out of git.
-func localFile(folder string) string { return harnesses[claude].path(folder) }
+func localFile(folder string) string { return harnesses[contract.HooksClaude].path(folder) }
 
 func isOurs(command, form string) bool { return strings.HasSuffix(command, " hook "+form) }
 
@@ -156,11 +167,11 @@ func encode(v any) []byte {
 }
 
 func (s settings) Ensure(kind, folder, scratch string, write bool) (contract.AgentSetup, error) {
-	h, known := harnesses[kind]
+	t, h, known := s.of(kind)
 	if !known {
 		return contract.AgentSetup{}, nil
 	}
-	setup := contract.AgentSetup{File: h.path(folder), Gated: contract.Gates[kind].Holds}
+	setup := contract.AgentSetup{File: h.path(folder), Gated: t.Held()}
 	line, err := s.line()
 	if err != nil {
 		return setup, err
@@ -176,21 +187,22 @@ func (s settings) Ensure(kind, folder, scratch string, write bool) (contract.Age
 	case had:
 	case write:
 		err = s.replace(setup.File, out)
-	case kind == claude:
+	case t.Hooks == contract.HooksClaude:
 		out, _, _, _ = h.rewrite(nil, line)
 		file := filepath.Join(scratch, "claude-settings.json")
 		setup.File, setup.Args = "", []string{"--settings", file}
 		err = os.WriteFile(file, out, 0o600)
 	default:
 		// Codex's page names no way to hand it hooks beside a folder: in
-		// one that is not its alone it runs without, and is not held.
+		// one that is not its alone a tool of its form runs without, and is
+		// not held.
 		setup = contract.AgentSetup{}
 	}
 	return setup, err
 }
 
 func (s settings) Remove(kind, folder string) error {
-	h, known := harnesses[kind]
+	_, h, known := s.of(kind)
 	if !known {
 		return nil
 	}

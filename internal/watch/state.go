@@ -1,36 +1,13 @@
 package watch
 
 import (
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
-
-// kind is what can be known of one kind of agent beyond its output. hooks
-// says its harness runs `hook state`. The other fields are words on its
-// screen, read from recordings of it, and are as fragile as that: trust is
-// the question about a folder, asked before any hook runs; both words of
-// question together are a question about a step; working and ready are the
-// line under its prompt box.
-type kind struct {
-	hooks          bool
-	trust          string
-	question       [2]string
-	working, ready string
-}
-
-// kinds are the agents known by the name of their program. One that is not
-// here is told busy from quiet and no more.
-//
-// Phase 5: this table goes; a tool's description holds it (contract.Tools).
-var kinds = map[string]kind{
-	"claude": {hooks: true, trust: "trust this folder", question: [2]string{"Do you want to", "Esc to cancel"},
-		working: "esc to interrupt", ready: "? for shortcuts"},
-	// Codex's hooks are its maker's page's, read and not yet run; of its
-	// screen no word is known, so no question on it is seen before a hook.
-	"codex": {hooks: true},
-}
 
 // events are the moments an agent's harness reports and the state each one
 // means; an empty state is the agent's own end. Any other event means
@@ -57,16 +34,19 @@ const (
 	question
 )
 
-// read is what a screen shows. The question about a folder can only be open
-// while no hook has run, so later the same words are a text like any other.
-func (k kind) read(text string, hooked bool) int {
+// onScreen is what a screen shows by a tool's words, each of which is as
+// fragile as a screen is; a tool with none is told busy from quiet and no
+// more. Every phrase of its question together is a question about a step.
+// The question about a folder can only be open while no hook has run, so
+// later the same words are a text like any other.
+func onScreen(k contract.ToolScreen, text string, hooked bool) int {
 	has := func(s string) bool { return s != "" && strings.Contains(text, s) }
 	switch {
-	case !hooked && has(k.trust), has(k.question[0]) && has(k.question[1]):
+	case !hooked && has(k.Trust), len(k.Question) > 0 && !slices.ContainsFunc(k.Question, func(s string) bool { return !has(s) }):
 		return question
-	case has(k.working):
+	case has(k.Working):
 		return working
-	case has(k.ready):
+	case has(k.Ready):
 		return ready
 	}
 	return nothing
@@ -132,13 +112,18 @@ func (w *Watcher) look(now time.Time) State {
 	if w.home == "" && err == nil && (n > 0 && now.Sub(w.grew) >= homeAfter || front != "" && front == w.first) {
 		w.home = front
 	}
-	w.st.Agent, w.away = w.own, w.home != "" && err == nil && front != w.home
-	// One system's builds of a program carry its ending in their name on another.
-	if name := strings.TrimSuffix(front, ".exe"); w.own == "" && w.away && kinds[name].working != "" {
-		w.st.Agent = name
+	w.st.Agent, w.words, w.away = w.own, w.tool.Screen, w.home != "" && err == nil && front != w.home
+	// A tool a person starts in a shell is known by its program's name. One
+	// system's builds of a program carry its ending in their name on another.
+	if name := strings.TrimSuffix(front, ".exe"); w.own == "" && w.away {
+		for _, t := range w.all {
+			if t.Screen.Working != "" && strings.TrimSuffix(filepath.Base(t.Run[0]), ".exe") == name {
+				w.st.Agent, w.words = t.Name, t.Screen
+			}
+		}
 	}
 	if read {
-		w.sees = kinds[w.st.Agent].read(text, w.hook != "")
+		w.sees = onScreen(w.words, text, w.hook != "")
 	}
 	// A question the hooks announced is over when the screen that showed it
 	// shows the agent at work instead: the hook after the step comes only
