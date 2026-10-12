@@ -39,3 +39,39 @@ func play(t *testing.T, file string) *scenario.Project {
 }
 
 func TestAJobWithFleetModeOff(t *testing.T) { play(t, "fleet-mode-off.scn") }
+
+// With Fleet Mode on. What the file's own lines cannot say is held here: each
+// group was collected as a merge that carries its trailer and keeps its
+// tasks' commits, and when the job is closed no agent of a fleet is left in
+// a tab, the workers a leader could not close itself among them.
+func TestAJobWithFleetModeOn(t *testing.T) {
+	p := play(t, "fleet-mode-on.scn")
+	git := func(args ...string) string {
+		out, err := exec.Command("git", append([]string{"-C", p.Root}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return string(out)
+	}
+	merges := git("log", "--merges", "--format=%s / %(trailers:key=Whaleshark-Task,valueonly,separator=%x20)", "whaleshark/r1")
+	if merges != "G5: Bill the taxes / r1/G5\nG1: Build billing / r1/G1\n" {
+		t.Errorf("the groups collected on the job's branch:\n%s", merges)
+	}
+	if work := git("log", "--no-merges", "--format=%s", "main..whaleshark/r1"); work != "B2: Invoices\nB1: Refunds\n" {
+		t.Errorf("the tasks' commits in what was collected:\n%s", work)
+	}
+	snap, err := p.Terms().Snapshot(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var left []string
+	for _, pane := range snap.Panes {
+		if !pane.Dock && !pane.Ours && pane.ID != p.Lead && pane.ID != p.Own {
+			left = append(left, pane.Label)
+		}
+	}
+	// One tab stays, as in any run: that of the leader whose program ended, to be looked at.
+	if len(left) != 1 || left[0] != "search" {
+		t.Errorf("tabs left when the job is closed: %q", left)
+	}
+}

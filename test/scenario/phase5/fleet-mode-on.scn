@@ -1,0 +1,131 @@
+# Phase 5 with Fleet Mode on, played whole with scripted agents: the person
+# speaks to an orchestrator, the orchestrator hands groups of work to fleets,
+# each fleet's leader starts its own workers. Three fleets of two workers, a
+# fourth fleet refused by the limit, a fifth group handed to a leader that
+# sits, a worker's question up three levels to the person and its answer
+# down again, a group collected as a merge, a leader that ends and is started
+# again, Stop all across the fleets, and the job closed with its fleets' runs.
+agent G1.1: listen
+agent G2.1: listen
+agent G2.2: listen
+agent G3.1: listen
+agent B1.1: ask "Refund to the card, or to store credit?" --options card,credit | expect-answer credit | edit refunds.txt | commit | write-result | report done "refunds go to store credit" | listen
+agent B2.1: edit invoice.txt | commit | write-result | report done "the invoice is in" | listen
+agent S1.1: edit search.txt | commit | write-result | report done "the search box is in" | listen
+agent S2.1: listen
+agent H1.1: edit help.txt | commit | write-result | report done "the help pages are in" | listen
+agent H2.1: listen
+
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+git
+orch: init
+human: set fleets.mode on
+human: set fleets.leaders 3
+human: set fleets.agents 2
+human: set fleets.total 9
+orch: run new "the shop, by fleets"                 -> expect r1
+task G1 "Build billing" --name "billing one" --fleet billing --check "test -f refunds.txt" --brief brief.md
+task G2 "Build search" --name "search one" --fleet search --check "test -f search.txt" --brief brief.md
+task G3 "Write the help" --name "help one" --fleet "help pages" --check "test -f help.txt" --brief brief.md
+task G4 "Build the mail" --name "mail one" --fleet mail --check "exit 0" --brief brief.md
+task G5 "Bill the taxes" --name "billing two" --fleet billing --check "test -f invoice.txt" --brief brief.md
+orch: task add T1 "No fleet" --brief brief.md --check "exit 0" -> expect exit 2 "--fleet"
+
+# Three fleets, each a run with its leader; a fourth is one leader too many,
+# and a fifth group goes to the leader of billing, which sits.
+orch: start G1                                      -> expect "(G1.1)"
+orch: start G2                                      -> expect "(G2.1)"
+orch: start G3                                      -> expect "(G3.1)"
+orch: start G4                                      -> expect exit 5 "3 fleets are running, which is your limit"
+orch: start G5                                      -> expect "(G5.1)"
+orch: status                                        -> expect billing search "help pages" "3 of 3 leaders"
+
+# Each leader plans its fleet and starts its own workers from its own tab;
+# a third worker is over the limit of one fleet.
+as-worker G1.1: task add B1 "Refunds" --name "refund flow" --owns refunds.txt --check "test -f refunds.txt" --brief brief.md
+as-worker G1.1: task add B2 "Invoices" --name "invoice pdf" --owns invoice.txt --check "test -f invoice.txt" --brief brief.md
+as-worker G1.1: task add B3 "Taxes" --name "tax rounding" --owns tax.txt --check "exit 0" --brief brief.md
+as-worker G1.1: start B1 B2                         -> expect "(B1.1)" "(B2.1)"
+as-worker G1.1: start B3                            -> expect exit 5 "2 agents are live in billing"
+as-worker G2.1: task add S1 "The box" --name "search box" --owns search.txt --check "test -f search.txt" --brief brief.md
+as-worker G2.1: task add S2 "The ranking" --name ranking --owns rank.txt --check "exit 0" --brief brief.md
+as-worker G2.1: start S1 S2                         -> expect "(S1.1)" "(S2.1)"
+as-worker G3.1: task add H1 "The pages" --name "getting started" --owns help.txt --check "test -f help.txt" --brief brief.md
+as-worker G3.1: task add H2 "The answers" --name faq --owns faq.txt --check "exit 0" --brief brief.md
+as-worker G3.1: start H1 H2                         -> expect "(H1.1)" "(H2.1)"
+orch: status                                        -> expect "9 of 9 agents"
+
+# A worker of billing asks. Its leader does not know and hands the question
+# up; the orchestrator does not know either and hands it to the person, who
+# presses one button in the action pane. Once the answer has settled the
+# next sweep carries it down both steps, and the worker goes on with it.
+await: in r2: attempts B1.1 asked, B2.1 reported
+as-worker G1.1: wait --timeout 10                   -> expect question q1 done B2
+as-worker G1.1: escalate q1                         -> expect "for the orchestrator"
+orch: wait --timeout 10                             -> expect question q1 billing
+orch: escalate q1                                   -> expect "for the person"
+pane actions: 100x20
+expect-row "billing › refund flow"
+click "[ Credit ]"
+expect-row "u to undo"
+await: q1 state answered answer credit
+clock +5s
+orch: status --sweep --quiet
+await: in r2: attempts B1.1 reported; in r2: q1 state used answer credit; q1 state used
+
+# The leader checks its workers' results onto the fleet's branch and reports
+# its first group; the orchestrator reads it and collects it: the fleet's
+# branch is merged into the job's, the tasks' commits kept.
+as-worker G1.1: accept B1                           -> expect "B1 is done, checked"
+as-worker G1.1: accept B2                           -> expect "B2 is done, checked"
+file .whaleshark/runs/r1/attempts/G1.1/result.md: Billing is built: refunds go to store credit, the invoice is in.
+as-worker G1.1: report done "Billing is built. Both tasks are checked. Nothing is left open." --task G1
+orch: wait --ack last --timeout 10                  -> expect done G1
+orch: show G1                                       -> expect "Billing is built"
+orch: accept G1                                     -> expect "G1 is done, checked"
+
+# The leader of search ends. Its workers go on, and what they report waits
+# in the record; the orchestrator is told, starts the group again, and the
+# new leader takes the fleet's run over and finds the report there.
+await: in r3: attempts S1.1 reported
+term-event gone G2
+# Three sweeps prove it: on the real keeper the pane has a new terminal, and
+# for two minutes after such a change nobody is declared gone.
+clock +6s
+orch: status --sweep --quiet
+clock +125s
+orch: status --sweep --quiet
+clock +35s
+orch: status --sweep --quiet
+await: attempts G2.1 exited; G2 status ready failures 1
+orch: wait --ack last --timeout 10                  -> expect exited G2
+orch: start G2 --retry                              -> expect "(G2.2)"
+as-worker G2.2: wait --timeout 10                   -> expect done S1
+as-worker G2.2: accept S1                           -> expect "S1 is done, checked"
+# What the leader before it started is not the new leader's to close: the
+# keeper lets a tab be closed from the pane that opened it. It is told so.
+as-worker G2.2: close S1                            -> expect "kept: the tab of search box" "the leader before you opened it"
+as-worker G2.2: stop S2                             -> expect "its tab: left open" "the leader before you opened it"
+
+# Stop all reaches the job and every fleet's run; nothing starts while it
+# holds, and resume wakes them all.
+human: pause                                        -> expect "Paused."
+orch: start G4                                      -> expect exit 5 paused
+as-worker G3.1: start H2 --retry                    -> expect exit 5 paused
+human: resume                                       -> expect "Resumed."
+
+# The second group of billing is reported by the same leader and collected
+# from the fleet's branch as it then stands.
+file .whaleshark/runs/r1/attempts/G5.1/result.md: The taxes are billed with the invoice.
+as-worker G1.1: report done "The taxes are billed. The check passes. Nothing is left open." --task G5
+orch: accept G5                                     -> expect "G5 is done, checked"
+
+# Billing's groups are closed, which ends the fleet: its leader's tab and
+# its run go. The job is closed with the fleets that are still running.
+orch: close G1 G5                                   -> expect "ended: the fleet billing (run r2)"
+orch: status                                        -> expect "search" "help pages"
+orch: stop G2
+orch: stop G3
+orch: run close --abandon
+assert: G1 status done; G5 status done; in r2: B1 status done; in r2: B2 status done; in r3: S1 status done
+assert: no event lost; no event twice; in r2: no event lost; in r3: no event lost

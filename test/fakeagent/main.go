@@ -189,6 +189,14 @@ func main() {
 		case "hang":
 			tell(contract.StatusIdle)
 			forever()
+		case "listen":
+			// At its prompt for good, as an agent that waits for whatever is
+			// typed next: each line sets it to work for a moment, then it rests.
+			for {
+				tell(contract.StatusIdle)
+				<-told
+				tell(contract.StatusWorking)
+			}
 		case "block":
 			tell(contract.StatusBlocked)
 			forever()

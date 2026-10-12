@@ -102,6 +102,7 @@ var AgentSteps = map[string]string{
 	"sleep":             `sleep <seconds>`,
 	"die":               `die                    exit without reporting`,
 	"hang":              `hang                   stay idle`,
+	"listen":            `listen                 stay idle for good, and take every line typed in the tab: at work for a moment, then idle again`,
 	"block":             `block                  the pane's agent is at a prompt`,
 	"rest":              `rest                   stay idle until a line is typed in the tab, then go on`,
 	"shot":              `shot <name>            save a small picture of that name as evidence of a browser check`,

@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -52,8 +53,8 @@ type runner struct {
 	t       testing.TB
 	p       *Project
 	pane    Pane
-	at      string // the file and line of the step being run
-	ack     string // the delivery id the last wait printed
+	at      string            // the file and line of the step being run
+	ack     map[string]string // the delivery id the last wait of each caller printed
 	left    []running
 	screens map[string]*screen
 	shown   *screen           // the pane the pane steps act on
@@ -113,7 +114,7 @@ func RunOn(t testing.TB, on Backend, path string, pane Pane) *Project {
 		}
 	}
 
-	r := &runner{t: t, p: PrepareOn(t, on, fixture, scripts), pane: pane, screens: map[string]*screen{}}
+	r := &runner{t: t, p: PrepareOn(t, on, fixture, scripts), pane: pane, screens: map[string]*screen{}, ack: map[string]string{}}
 	t.Cleanup(func() {
 		for name := range r.screens {
 			r.shut(name)
@@ -364,10 +365,10 @@ func (r *runner) command(who, line string) {
 		r.fail("no command on this line")
 	}
 	if i := slices.Index(args, "--ack"); i >= 0 && i+1 < len(args) && args[i+1] == "last" {
-		if r.ack == "" {
+		// The caller's own last delivery, and with none of its own the last of anyone.
+		if args[i+1] = cmp.Or(r.ack[who], r.ack[""]); args[i+1] == "" {
 			r.fail("--ack last, but no wait before this line printed a delivery id")
 		}
-		args[i+1] = r.ack
 	}
 	cmd := r.p.Command(who, args...)
 	var out bytes.Buffer
@@ -385,7 +386,7 @@ func (r *runner) command(who, line string) {
 		r.fail("still running after %v; end the line with & to leave it running\n%s", patience, &out)
 	}
 	if id := deliveryID.Find(out.Bytes()); args[0] == "wait" && id != nil {
-		r.ack = string(id)
+		r.ack[who], r.ack[""] = string(id), string(id)
 	}
 	exit, must := 0, words(want)
 	if len(must) > 1 && must[0] == "exit" {
