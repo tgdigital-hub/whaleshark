@@ -140,7 +140,9 @@ func lastNote(a *contract.Attempt) time.Time {
 func stoppedTogether(s *contract.State, now time.Time) {
 	working, idle := 0, 0
 	for _, a := range s.Attempts {
-		if a.State != contract.AttemptWorking {
+		// A fleet's leader rests between one `wait` and the next while its
+		// workers work: leaders at rest together are no sign of a limit.
+		if a.State != contract.AttemptWorking || a.Leads != "" {
 			continue
 		}
 		working++
