@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -113,5 +114,25 @@ func TestTheMainTabFollowsANameGivenToItsChat(t *testing.T) {
 	r.again()
 	if !r.locked(func() bool { return r.k.lay.Tab(main).Chat && !r.k.lay.Tab(w.Tab).Chat }) || label(main) != "back again" {
 		t.Errorf("after a restart the main tab is %q", label(main))
+	}
+}
+
+// The settings screen draws its own box: over a tab it gets no second frame
+// with its command line for a title, where any other program does.
+func TestTheSettingsScreenHasOneFrame(t *testing.T) {
+	r := newRig(t)
+	c := r.dial()
+	w := r.window(100, 30)
+	w.shows("pane=p1")
+	if reply := c.call(contract.WireCall{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ui", "run", "settings"}, W: 80, H: 10, From: "p1"}); reply.Err != "" {
+		t.Fatalf("overlay: %+v", reply)
+	}
+	r.program("p2").print("the settings\r\n")
+	w.shows("the settings")
+	if text := w.text(); strings.Contains(text, "┌") || strings.Contains(text, "└") {
+		t.Errorf("the settings screen is framed a second time:\n%s", text)
+	}
+	if spec := r.program("p2").spec; spec.Cols != 80 || spec.Rows != 10 {
+		t.Errorf("it was started at %d by %d", spec.Cols, spec.Rows)
 	}
 }
