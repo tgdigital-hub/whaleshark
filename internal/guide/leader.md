@@ -63,7 +63,9 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   Then `whaleshark close T3`: the tab goes, and a done task's copy of the code with it.
 - `check_failed`: read the log in `whaleshark show T3`, then `reject` with the reason.
 - `question`: a worker is blocked on you. If you know: `whaleshark answer q7 "<the answer>"`.
-  If you do not: `whaleshark escalate q7` hands it to the orchestrator. Never guess.
+  If you do not: `whaleshark escalate q7` hands it to the orchestrator. Never guess. That one
+  command is the whole of it: do not also write a `need` for the same question, or the person
+  is asked twice. The answer comes down to the worker by itself.
 - `answered`: an item of yours has its answer, from the orchestrator or through it. Act on it.
 - `human`: the person did something in your fleet themselves. Read it.
 - `quiet`, `blocked`: look with `whaleshark show T3 --screen`. A worker that asked in its own chat

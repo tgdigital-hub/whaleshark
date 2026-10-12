@@ -220,10 +220,15 @@ func use(s *contract.State, q *contract.Question, now time.Time) {
 
 // pass lets a start or an accept go past the items that hold a task, which
 // makes their answers final, or refuses while one is open or still settling.
-func pass(s *contract.State, t *contract.Task, now time.Time) error {
+func pass(s *contract.State, t *contract.Task, start bool, now time.Time) error {
 	var held []*contract.Question
 	for _, q := range questions(s) {
 		if !q.Holds || q.Task != t.ID || q.State == contract.QuestionUsed || q.State == contract.QuestionClosed {
+			continue
+		}
+		// A question a leader passed up holds its worker below, not the start
+		// of the leader that takes the fleet over while it waits.
+		if start && q.Down != nil {
 			continue
 		}
 		if !settled(s, q, now) {
