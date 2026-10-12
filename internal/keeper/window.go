@@ -195,16 +195,30 @@ func (k *Keeper) compose(w *window) {
 			g.CurX, g.CurY, g.CurShown = at.X+x, at.Y+y, true
 		}
 	}
-	if tab := k.shown(); tab != nil {
-		for _, at := range k.lay.Places(tab) {
-			p := k.panes[at.Pane]
-			if p == nil {
-				continue
+	// The panes last, for a key's echo; the lines again for an open rail's edge
+	// over them; then the dock, the keeper's to draw until its program has printed.
+	tab, d, places := k.shown(), k.lay.Dock, k.lay.Places(k.shown())
+	for _, at := range places {
+		if p := k.panes[at.Pane]; p != nil && !p.rec.Dock {
+			paint(p, at.Rect, at.Pane == tab.Focus && k.over == nil && !d.Keys)
+		}
+	}
+	if d.Open {
+		k.lay.Draw(g.Grid, w.look)
+	}
+	for _, at := range places {
+		switch p := k.panes[at.Pane]; {
+		case p == nil:
+		case !p.rec.Dock && p.rec.Ours && at.Y > 0 && at.W > 4:
+			g.Put(at.X+1, at.Y-1, at.W-2, " whaleshark "+p.argv[3]+" ", w.look.Accent)
+		case p.rec.Dock && p.count.Load() > 0:
+			paint(p, at.Rect, d.Keys && k.over == nil)
+		case p.rec.Dock:
+			for y := range at.H {
+				g.Put(at.X, y, at.W, strings.Repeat(" ", at.W), w.look.Text)
 			}
-			paint(p, at.Rect, at.Pane == tab.Focus && k.over == nil)
-			if p.rec.Ours && at.Y > 0 && at.W > 4 {
-				g.Put(at.X+1, at.Y-1, at.W-2, " whaleshark "+p.argv[3]+" ", w.look.Accent)
-			}
+			g.Put(at.X+1, 0, at.W-1, contract.SideTitle, w.look.Accent)
+			g.Put(at.X+1, 2, at.W-1, "starting"+map[bool]string{true: "...", false: "…"}[w.look.Plain], w.look.Dim)
 		}
 	}
 	if o := k.over; o != nil {

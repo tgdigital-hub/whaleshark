@@ -64,6 +64,8 @@ type Keeper struct {
 	overW float64           // its width and height as they were asked for:
 	overH float64           // shares of the window, or cells above 1
 	set   contract.Settings // the person's own, read again when their file changes
+	hover bool              // the pointer is in the dock
+	ends  []time.Time       // the last ends of the dock's program, three at most
 	saver *restore.Saver    // nil beside a layout file of a newer program
 	lost  error             // what the layout file could not be read for
 }
@@ -116,6 +118,7 @@ func open(kit *contract.Kit) (*Keeper, error) {
 	screen.Version = k.version
 	k.set = k.settings()
 	k.back()
+	k.dock()
 	go k.notice()
 	return k, nil
 }
@@ -400,7 +403,7 @@ func (k *Keeper) changed() {
 			o.size(at.W, at.H)
 		}
 	}
-	for _, t := range k.lay.Tabs {
+	for _, t := range append([]*layout.Tab{nil}, k.lay.Tabs...) {
 		for _, at := range k.lay.Places(t) {
 			// A place with no cells is a pane the window has no room for.
 			if p := k.panes[at.Pane]; p != nil && at.W > 0 && at.H > 0 {
@@ -409,7 +412,7 @@ func (k *Keeper) changed() {
 		}
 	}
 	for _, p := range k.panes {
-		p.shown.Store(tab != nil && p.rec.Tab == tab.ID || p == k.over)
+		p.shown.Store(tab != nil && p.rec.Tab == tab.ID || p == k.over || p.rec.Dock)
 	}
 	k.saved()
 	k.wake()

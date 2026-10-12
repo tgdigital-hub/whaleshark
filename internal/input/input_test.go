@@ -98,7 +98,7 @@ func show(a Act) string {
 		return fmt.Sprintf("select in %s: %s at %d,%d", a.Pane,
 			map[term.Action]string{term.Press: "press", term.Move: "move", term.Release: "release"}[a.Action], a.X, a.Y)
 	}
-	return map[Kind]string{Zoom: "zoom ", Redraw: "redraw ", Mark: "mark in ", Copy: "copy from "}[a.Kind] + a.Pane
+	return map[Kind]string{Zoom: "zoom ", Redraw: "redraw ", Mark: "mark in ", Copy: "copy from ", Settings: "settings from ", Width: "width"}[a.Kind] + a.Pane
 }
 
 func shown(acts []Act) string {

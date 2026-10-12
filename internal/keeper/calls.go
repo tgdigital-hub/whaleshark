@@ -26,7 +26,7 @@ var onPane = []string{contract.OpRun, contract.OpScreen, contract.OpSplit, contr
 // the person's keys or close something. A fence against mistakes, no wall:
 // whoever runs as the login can leave the pane's name out.
 var fenced = []string{contract.OpPrompt, contract.OpRun, contract.OpAgentStart, contract.OpTabFocus, contract.OpPaneFocus,
-	contract.OpPaneClose, contract.OpTabClose, contract.OpSetKeys, contract.OpOverlay}
+	contract.OpPaneClose, contract.OpTabClose, contract.OpSetKeys, contract.OpOverlay, contract.OpDock}
 
 // call answers one call. The terminals it ended are closed after the lock
 // is given back and before the answer goes out; and an agent is waited for,
@@ -77,6 +77,11 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 	p, tab := k.panes[c.Pane], k.lay.Tab(c.Tab)
 	if p == nil && slices.Contains(onPane, c.Op) {
 		return r, nil, contract.ErrNoPane
+	}
+	// The dock is looked at and nothing else: not closed, split, swapped or run in.
+	if q := k.panes[c.Target]; q != nil && q.rec.Dock ||
+		p != nil && p.rec.Dock && slices.Contains(onPane, c.Op) && c.Op != contract.OpScreen && c.Op != contract.OpSize {
+		return r, nil, contract.ErrDock
 	}
 	switch c.Op {
 	case contract.OpVersion:
@@ -130,18 +135,19 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		rec := n.rec
 		r.Pane = &rec
 	case contract.OpRun, contract.OpAgentStart:
-		// An agent is its kind's program with the arguments given, and the
-		// name the tool knows it by; whatever else is run there is none.
-		old, was, rec := p.tty, p.argv, p.rec
+		// An agent is its tool's program, by that kind's description, with the
+		// arguments given and its name; whatever else is run there is none.
+		old, was, rec, wired := p.tty, p.argv, p.rec, true
 		p.argv, p.rec.Agent, p.rec.Name, p.rec.Session = c.Argv, "", "", ""
 		if c.Op == contract.OpAgentStart {
-			p.argv, p.rec.Agent, p.rec.Name = append([]string{c.Kind}, c.Argv...), c.Kind, c.Name
+			t, ok := k.tool(c.Kind)
+			p.argv, p.rec.Agent, p.rec.Name, wired = slices.Concat(t.Run, c.Argv), c.Kind, c.Name, ok
 		}
 		if q := k.named(c.Name); q != nil && q != p {
 			// A prompt finds its agent by name: two of one name would share it.
 			err = fmt.Errorf("an agent named %q is in pane %s already", c.Name, q.rec.ID)
-		} else if len(p.argv) == 0 || p.argv[0] == "" {
-			err = errors.New("no program to run")
+		} else if !wired || len(p.argv) == 0 || p.argv[0] == "" {
+			err = errors.New("no program to run") // none named, or a kind nobody wired in
 		} else {
 			err = k.start(p)
 		}
@@ -176,7 +182,10 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			break
 		}
 		// It runs as in the pane it was asked from, or the one with the keys.
-		from := cmp.Or(k.panes[c.From], k.panes[k.focus], &pane{})
+		from := k.panes[c.From]
+		if from == nil || from.rec.Dock {
+			from = cmp.Or(k.panes[k.focus], &pane{})
+		}
 		p = k.fresh(from.rec.Tab, from.rec.Label, from.rec.Cwd)
 		p.argv, k.over, k.overW, k.overH = c.Argv, p, cmp.Or(c.W, 0.8), cmp.Or(c.H, 0.8)
 		if err = k.start(p); err != nil {
@@ -212,6 +221,7 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		if to != "" {
 			k.lay.Focus(to)
 			k.lay.Show(k.lay.Of(to).ID)
+			k.lay.Dock.Keys, k.lay.Dock.Open = false, false
 			k.changed()
 		}
 		r.Text = k.focus
@@ -230,6 +240,7 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			k.wake()
 		case contract.OpTabFocus:
 			k.lay.Show(c.Tab)
+			k.lay.Dock.Keys, k.lay.Dock.Open = false, false
 			k.changed()
 		case contract.OpTabClose:
 			for _, id := range tab.Panes() {
@@ -247,8 +258,14 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 	case contract.OpSetKeys:
 		err = k.setKeys(c.Keys)
 	case contract.OpDock:
-		// Phase 5 owes the dock: see this folder's commands.go.
-		err = contract.ErrNotBuilt
+		// The keys to the dock or back, which opens and closes a rail; or it is folded.
+		d, keys, fold := &k.lay.Dock, c.Dir == contract.DockKeys, c.Dir == contract.DockFold
+		if !keys && !fold && c.Dir != contract.DockBack {
+			return r, nil, fmt.Errorf("the dock is told %s, %s or %s", contract.DockKeys, contract.DockBack, contract.DockFold)
+		} else if d.Fold = d.Fold != fold; !fold {
+			d.Keys, d.Open = keys, keys
+		}
+		k.changed()
 	default:
 		err = fmt.Errorf("the keeper has no call %q", c.Op)
 	}

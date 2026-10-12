@@ -109,11 +109,22 @@ func (k *Keeper) shell(s contract.Settings) []string {
 	return []string{"/bin/sh"}
 }
 
+// tool is a kind of agent's description, read by the keeper itself at every start.
+func (k *Keeper) tool(kind string) (contract.Tool, bool) {
+	tools, _ := contract.Tools(k.kit.Platform, k.dirs)
+	return contract.FindTool(tools, cmp.Or(kind, "-")) // no kind is no tool, not the default one
+}
+
 // env is what a pane's program is started with: what the keeper itself was
-// started with, the tab's own variables over that, and the keeper's three
-// last. Nothing of a window is in it.
+// started with, the tab's own variables over that, those of an agent's tool,
+// and the keeper's three last. Nothing of a window is in it.
 func (k *Keeper) env(p *pane) []string {
-	set := append(slices.Clone(k.tabs[p.rec.Tab]), "TERM=xterm-256color", "COLORTERM=truecolor", contract.EnvPane+"="+p.rec.ID)
+	set := slices.Clone(k.tabs[p.rec.Tab])
+	t, _ := k.tool(p.rec.Agent)
+	for name, v := range t.Env {
+		set = append(set, name+"="+v)
+	}
+	set = append(set, "TERM=xterm-256color", "COLORTERM=truecolor", contract.EnvPane+"="+p.rec.ID)
 	if p == k.over {
 		// A program drawn over the tab acts on the pane the person was in.
 		set = append(set, contract.EnvActivePane+"="+k.focus)
@@ -134,14 +145,8 @@ func (k *Keeper) env(p *pane) []string {
 // Whatever ran there before is the caller's to end.
 func (k *Keeper) start(p *pane) error {
 	w, h := firstW, firstH
-	if at := k.overAt(); p == k.over && at.W > 0 && at.H > 0 {
+	if at := k.place(p); at.W > 0 && at.H > 0 {
 		w, h = at.W, at.H
-	} else if t := k.lay.Of(p.rec.ID); t != nil {
-		for _, at := range k.lay.Places(t) {
-			if at.Pane == p.rec.ID && at.W > 0 && at.H > 0 {
-				w, h = at.W, at.H
-			}
-		}
 	}
 	argv := p.argv
 	if p.from != nil && p.from.Run != nil {
@@ -177,7 +182,7 @@ func (k *Keeper) start(p *pane) error {
 	p.count.Store(0)
 	p.mu.Unlock()
 	p.from, p.hooked, p.wish = nil, false, ""
-	go k.read(p, tty)
+	go k.read(p, tty, p.rec.Dock)
 	return nil
 }
 
@@ -250,11 +255,12 @@ func (p *pane) told(on bool) {
 
 // read feeds everything a pane's terminal gives to its screen, until the
 // terminal ends; then the pane goes, unless another program is in it by then.
-func (k *Keeper) read(p *pane, tty contract.Pty) {
+func (k *Keeper) read(p *pane, tty contract.Pty, dock bool) {
+	var seen atomic.Int64 // this terminal's own bytes: the pane may hold another by then
 	go func() {
 		tty.Wait()
-		for n := p.count.Load(); ; n = p.count.Load() {
-			if time.Sleep(linger); p.count.Load() == n {
+		for n := seen.Load(); ; n = seen.Load() {
+			if time.Sleep(linger); seen.Load() == n {
 				break
 			}
 		}
@@ -272,7 +278,7 @@ func (k *Keeper) read(p *pane, tty contract.Pty) {
 	buf := make([]byte, 32<<10)
 	for {
 		n, err := tty.Read(buf)
-		if n > 0 {
+		if seen.Add(int64(n)); n > 0 {
 			reply, wish, bell, held, ok := p.feed(tty, buf[:n])
 			if len(reply) > 0 {
 				tty.Write(reply)
@@ -280,7 +286,7 @@ func (k *Keeper) read(p *pane, tty contract.Pty) {
 			if held {
 				again.Reset(heldFor)
 			}
-			if k.saver != nil {
+			if k.saver != nil && !dock {
 				k.saver.Flowed()
 			}
 			if ok && (bell || p.shown.Load()) {
@@ -303,7 +309,9 @@ func (k *Keeper) read(p *pane, tty contract.Pty) {
 	}
 	tty.Close()
 	k.mu.Lock()
-	if k.panes[p.rec.ID] == p && p.tty == tty {
+	if mine := k.panes[p.rec.ID] == p && p.tty == tty; mine && dock {
+		k.ended(p)
+	} else if mine {
 		k.drop(p)
 		k.changed()
 	}

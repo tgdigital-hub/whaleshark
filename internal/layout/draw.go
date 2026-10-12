@@ -53,7 +53,8 @@ func (l *Layout) row() []span {
 		s := "+" + strconv.Itoa(n)
 		return span{x, len(s), -1, step, s}
 	}
-	x := 1
+	a := l.area()
+	x, end := a.X+1, a.X+a.W
 	if l.first > 0 {
 		out = append(out, count(x, -1, l.first))
 		x += out[0].w + 3
@@ -67,10 +68,10 @@ func (l *Layout) row() []span {
 		if rest > 0 {
 			after = 3 + count(0, 1, rest).w
 		}
-		if x+w+after > l.W && i > l.first {
+		if x+w+after > end && i > l.first {
 			return append(out, count(x, 1, rest+1))
 		}
-		w = max(min(w, l.W-x-after), 0)
+		w = max(min(w, end-x-after), 0)
 		out = append(out, span{x, w, i, 0, text})
 		x += w + 3
 	}
@@ -114,6 +115,11 @@ func (l *Layout) At(x, y int) (h Hit) {
 	if l.Over != "" && l.OverAt.has(x, y) {
 		return Hit{Kind: OnPane, Pane: l.Over, X: x - l.OverAt.X, Y: y - l.OverAt.Y}
 	}
+	if at, line, _, _ := l.side(); at.has(x, y) {
+		return Hit{Kind: OnPane, Pane: DockPane, X: x - at.X, Y: y}
+	} else if line.has(x, y) {
+		return Hit{Kind: OnLine, Pane: DockPane}
+	}
 	if x < 0 || y < 0 || x >= l.W || y >= l.H || y == 1 || t == nil {
 		return h
 	}
@@ -129,7 +135,7 @@ func (l *Layout) At(x, y int) (h Hit) {
 		return h
 	}
 	if t.Zoom != "" {
-		return Hit{Kind: OnPane, Pane: t.Zoom, X: x, Y: y - 2}
+		return Hit{Kind: OnPane, Pane: t.Zoom, X: x - l.area().X, Y: y - 2}
 	}
 	walk(t.Root, l.area(), func(n *Node, r Rect) {
 		if n.A == nil && r.has(x, y) {
@@ -190,7 +196,7 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 			}
 		}
 	}
-	mark(Rect{0, 1, l.W, min(l.H-1, 1)}, left|right)
+	mark(Rect{l.area().X, 1, l.area().W, min(l.H-1, 1)}, left|right)
 	var keys Rect
 	if t := l.shown(); t != nil {
 		for _, p := range l.Places(t) {
@@ -209,6 +215,16 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 				mark(line, up|down)
 			}
 		})
+	}
+	// The dock's edge runs the whole height; no line shows under an open rail.
+	if dock, edge, _, _ := l.side(); edge.W > 0 {
+		for y := range l.H {
+			clear(ends[y*l.W+min(dock.X, edge.X) : y*l.W+max(dock.X+dock.W, edge.X+1)])
+			ends[y*l.W+edge.X] = up | down
+		}
+		if l.Dock.Keys {
+			keys = Rect{dock.X - 1, -1, dock.W + 2, dock.H + 2}
+		}
 	}
 	at := func(x, y int) bool { return x >= 0 && y >= 0 && x < l.W && y < l.H && ends[y*l.W+x] != 0 }
 	for i, e := range ends {
