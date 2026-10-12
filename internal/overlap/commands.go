@@ -26,10 +26,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 6 owes here: an orchestrator's scan also reads its fleets' work in
-// progress and pairs work of different fleets only; a finding names both
-// fleets; sync counts a group too (Rules.Synced).
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	o := scanner{k}
@@ -163,10 +159,10 @@ func (o scanner) sync(c *contract.Call) (any, error) {
 	k := c.Kit
 	t, err := k.Rules.FindTask(s, c.Args[0])
 	// A group's copy is its fleet's branch: its leader has a worker of the
-	// fleet merge the collected work in, and nothing is counted on the group.
-	branch := ""
+	// fleet merge the collected work in. It is counted with no brief.
+	branch, group := "", false
 	if f := s.Run.Fleets[cmp.Or(t, &contract.Task{}).Fleet]; f != nil && t.SettledAt.IsZero() {
-		branch = f.Branch
+		branch, group = f.Branch, true
 	} else if err == nil {
 		// Asked of the copy just read, so a refusal comes before any git.
 		if _, err = k.Rules.Synced(s, t.ID, "", c.Now); err == nil {
@@ -206,8 +202,15 @@ func (o scanner) sync(c *contract.Call) (any, error) {
 	var unread []int
 	err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
 		err := k.Rules.Allowed(s, c.Caller, c.Command.Name, "")
-		if err == nil && t.Fleet == "" {
-			out.Times, err = k.Rules.Synced(s, t.ID, out.Brief, c.Now)
+		if brief := out.Brief; err == nil {
+			if group {
+				brief = ""
+			}
+			out.Times, err = k.Rules.Synced(s, t.ID, brief, c.Now)
+		}
+		// Rules from before phase 6 count no group, and say so with this.
+		if old := (*contract.Refusal)(nil); group && errors.As(err, &old) && old.Code == "no_worktree" {
+			err = nil
 		}
 		if err == nil {
 			err = cmp.Or(os.MkdirAll(filepath.Dir(path), 0o700), os.WriteFile(path, []byte(text), 0o600))

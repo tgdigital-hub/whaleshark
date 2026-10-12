@@ -1,9 +1,12 @@
 package overlap
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -203,9 +206,10 @@ func TestTwoFleetsOnOneFileThroughScanSyncMergeAndLanding(t *testing.T) {
 	}
 }
 
-// A deep scan of an orchestrator's run looks at no folder: a fleet's branch
-// is its work, and what is not committed there is its own tasks'. With two
-// groups of one fleet open the fleet is still one, named by its first.
+// A deep scan of an orchestrator's run does not look at the folder that
+// stands on a fleet's branch: the branch is the fleet's work, and what is not
+// committed is looked for in its tasks' own folders. With two groups of one
+// fleet open the fleet is still one, named by its first.
 func TestAFleetIsScannedAsOneAndOnlyItsBranch(t *testing.T) {
 	f := start(t, map[string]string{"cart.js": alpha()})
 	f.change(func(s *contract.State) { s.Run.Mode = contract.ModeFleets })
@@ -225,11 +229,184 @@ func TestAFleetIsScannedAsOneAndOnlyItsBranch(t *testing.T) {
 	testkit.Commit(t, billing, "T1", map[string]string{"cart.js": alpha(10)})
 	testkit.Commit(t, search, "T1", map[string]string{"cart.js": alpha(10, 11)})
 	must(t, os.WriteFile(filepath.Join(search, "loose.txt"), []byte("not committed\n"), 0o600))
-	want := "overlap G1+G2 (content) cart.js"
+	want := "overlap G1+G2 (billing and search: content) cart.js"
 	same(t, "found", f.scan(false), want)
 	same(t, "found by the deep scan", f.scan(true), want)
 	same(t, "found for the fleet's second group", f.scan(false, "G3"), want)
 	// A fleet that ended is scanned no more.
 	f.change(func(s *contract.State) { s.Run.Fleets["search"].EndedAt = time.Now() })
 	same(t, "found once a fleet ended", f.scan(false))
+}
+
+// flight puts a task in flight into a fleet's own run: a copy of the code
+// cut from the fleet's branch, with one commit of the files given, and an
+// agent at work in it.
+func (f *fix) flight(run, id string, files map[string]string) string {
+	f.t.Helper()
+	low, err := f.k.Store.Read(f.root, run)
+	must(f.t, err)
+	dir, branch := filepath.Join(f.work, run+"-"+id), "whaleshark/"+run+"-"+id
+	f.git(f.root, "worktree", "add", "-q", "-b", branch, dir, low.Run.Integration.Branch)
+	if files != nil {
+		testkit.Commit(f.t, dir, "the work of "+id, files)
+	}
+	must(f.t, f.k.Store.Change(f.root, run, func(s *contract.State) error {
+		s.Tasks[id] = &contract.Task{ID: id, Name: "part " + id, Title: "the part " + id, Status: contract.TaskRunning, Check: "exit 0",
+			Attempts: []string{id + ".1"}, Worktree: &contract.Worktree{Path: dir, Branch: branch}}
+		s.Attempts[id+".1"] = &contract.Attempt{ID: id + ".1", Task: id, N: 1, State: contract.AttemptWorking}
+		return nil
+	}))
+	return dir
+}
+
+// fleets makes the first run an orchestrator's, with one group handed to
+// each fleet named and its leader at work: the fleets' runs are r2, r3, ...
+func (f *fix) fleets(names ...string) {
+	f.t.Helper()
+	f.change(func(s *contract.State) { s.Run.Mode = contract.ModeFleets })
+	must(f.t, os.WriteFile(filepath.Join(f.root, "b.md"), []byte(groupBrief), 0o600))
+	for i, name := range names {
+		group := fmt.Sprint("G", i+1)
+		f.play(0, "task", "add", group, name+" work", "--brief", "b.md", "--check", "exit 0", "--fleet", name)
+		f.lead(group, name, fmt.Sprint("r", i+2))
+	}
+}
+
+func write(t testing.TB, dir string, files map[string]string) {
+	t.Helper()
+	for name, text := range files {
+		must(t, os.WriteFile(filepath.Join(dir, name), []byte(text), 0o600))
+	}
+}
+
+// Two fleets, one file, both workers still at work with nothing committed
+// and nothing accepted by either leader: one deep scan of the orchestrator's
+// run finds it and names both fleets. Work of one fleet is not paired there;
+// that is its leader's scan, which sees its own run and no other.
+func TestTwoFleetsStillAtWorkOnOneFile(t *testing.T) {
+	f := start(t, map[string]string{"cart.js": alpha(), "notes.txt": alpha()})
+	f.fleets("billing", "search")
+	refund, also, filter := f.flight("r2", "T1", nil), f.flight("r2", "T2", nil), f.flight("r3", "T1", nil)
+	write(t, refund, map[string]string{"cart.js": alpha(10), "notes.txt": alpha(3)})
+	write(t, also, map[string]string{"notes.txt": alpha(3, 4)})
+	write(t, filter, map[string]string{"cart.js": alpha(10, 11)})
+
+	const where = "billing's T1 and search's T1: "
+	loose := "same G1+G2 (" + where + "merges cleanly; billing's T1 has it not committed; search's T1 has it not committed) cart.js"
+	clash := "overlap G1+G2 (" + where + "content, not committed) cart.js"
+	same(t, "found by the scan after a report", f.scan(false), loose)
+	same(t, "found by one deep scan", f.scan(true), clash)
+	// The leader's own scan: its two workers, and nothing of the other fleet.
+	low, err := f.k.Store.Read(f.root, "r2")
+	must(t, err)
+	found, err := f.o.Scan(context.Background(), f.root, low, nil, true)
+	must(t, err)
+	same(t, "found by billing's leader", lines(found), "overlap T2+T1 (content, not committed) notes.txt")
+
+	// The orchestrator's wait runs the deep scan five minutes after the last
+	// and hands the finding over; the next scans do not say it again.
+	f.p.Clock(6 * time.Minute)
+	said(t, f.play(0, "wait", "--timeout", "20"), "overlap G2", "cart.js")
+	s := f.state()
+	if n := events(s, "overlap"); n != 1 || len(s.Run.Findings) != 1 || !strings.HasPrefix(s.Run.Findings[0].How, where) {
+		t.Fatalf("%d overlap events, findings %+v", n, s.Run.Findings)
+	}
+	said(t, f.play(contract.ExitClash, "overlap"), "G1 and G2 would conflict", where, "cart.js", "whaleshark sync G2")
+	testkit.Commit(t, refund, "the refund flow", map[string]string{"cart.js": alpha(10)})
+	testkit.Commit(t, filter, "the cart filter", map[string]string{"cart.js": alpha(10, 11)})
+	said(t, f.play(contract.ExitClash, "overlap"), where+"content)")
+	// Accepted by billing's leader, it is the fleet's own work that clashes.
+	f.git(filepath.Join(f.work, "r2"), "merge", "-q", "--ff-only", "whaleshark/r2-T1")
+	same(t, "found once the leader accepted", f.scan(false), "overlap G1+G2 (billing and search's T1: content) cart.js")
+	if n := events(f.state(), "overlap"); n != 1 {
+		t.Fatalf("one clash was announced %d times", n)
+	}
+
+	// A run that does not say it is this job's fleet is not read.
+	must(t, f.k.Store.Change(f.root, "r3", func(s *contract.State) error { s.Run.Parent.Run = "r9"; return nil }))
+	f.change(func(s *contract.State) { s.Run.Findings = nil })
+	same(t, "found with a run that is not this job's", f.scan(true))
+}
+
+// counted is the rules as phase 6 has them for a group: its syncs are
+// counted, with no brief.
+type counted struct{ contract.Rules }
+
+func (r counted) Synced(s *contract.State, task, brief string, now time.Time) (int, error) {
+	if t := s.Tasks[task]; t != nil && t.Fleet != "" && brief == "" {
+		t.Synced++
+		return t.Synced, nil
+	}
+	return r.Rules.Synced(s, task, brief, now)
+}
+
+// sync of a group counts on the group, and says after the second which is
+// collected next.
+func TestSyncOfAGroupIsCounted(t *testing.T) {
+	f := start(t, map[string]string{"cart.js": alpha()})
+	f.fleets("billing", "search")
+	f.collect(map[string]string{"cart.js": alpha(10)})
+	kit := *f.k
+	kit.Rules = counted{f.k.Rules}
+	var out strings.Builder
+	for n := 1; n <= 2; n++ {
+		got, err := scanner{&kit}.sync(&contract.Call{Kit: &kit, Command: contract.Find("sync"), Args: []string{"G2"},
+			Caller: contract.Caller{Kind: contract.Human}, Root: f.root, Run: "r1", Now: contract.Now(), Out: &out})
+		if must(t, err); got.(*synced).Times != n {
+			t.Fatalf("sync %d of the group was counted as %d", n, got.(*synced).Times)
+		}
+	}
+	if g := f.state().Tasks["G2"]; g.Synced != 2 || g.SyncBrief != "" {
+		t.Fatalf("the group has synced %d, brief %q", g.Synced, g.SyncBrief)
+	}
+	said(t, out.String(), "G2 has been sent to sync 2 times: accept it next")
+}
+
+// Twenty copies in four fleets, each thirty files of a large repository,
+// three of them from forty that all draw on: the orchestrator's scan, first,
+// with nothing moved, and deep with every copy holding work not committed.
+func TestTwentyInFourFleets(t *testing.T) {
+	if *files == 0 || *realTree != "" {
+		t.Skip("a measurement: run with -files 2000")
+	}
+	tree, names := map[string]string{}, []string{}
+	for n := range *files {
+		names = append(names, fmt.Sprintf("dir%02d/file%05d.txt", n%40, n))
+		tree[names[n]] = alpha()
+	}
+	f := start(t, tree)
+	f.fleets("billing", "search", "checkout", "accounts")
+	var dirs []string
+	for i := range 20 {
+		change := map[string]string{}
+		for j := range 27 {
+			change[names[(i*97+j*31+40)%*files]] = alpha(i%30 + 1)
+		}
+		for j := range 3 {
+			change[names[(i*7+j*13)%40]] = alpha((i+j)%30 + 1)
+		}
+		dirs = append(dirs, f.flight(fmt.Sprint("r", i%4+2), fmt.Sprint("T", i/4+1), change))
+	}
+	scan := func(deep bool) ([]contract.Finding, time.Duration) {
+		began := time.Now()
+		found, err := f.o.Scan(context.Background(), f.root, f.state(), nil, deep)
+		must(t, err)
+		return found, time.Since(began)
+	}
+	found, first := scan(false)
+	_, again := scan(false)
+	for i, dir := range dirs {
+		must(t, os.WriteFile(filepath.Join(dir, names[i%40]), []byte(alpha(i%30+2)), 0o600))
+	}
+	wip, deep := scan(true)
+	t.Logf("%d files, 20 copies in 4 fleets, %d findings: first scan %v, scan with nothing moved %v; %d findings by the deep scan in %v",
+		*files, len(found), first, again, len(wip), deep)
+	for _, f := range slices.Concat(found, wip) {
+		if !slices.Equal(f.Tasks[:1], f.Tasks[1:]) && !strings.Contains(f.How, ": ") {
+			t.Fatalf("a finding across fleets that does not name them: %+v", f)
+		}
+	}
+	if len(found) == 0 || *files == 2000 && max(first, deep) > 3*time.Second {
+		t.Fatalf("%d findings; the first scan took %v and the deep one %v", len(found), first, deep)
+	}
 }
