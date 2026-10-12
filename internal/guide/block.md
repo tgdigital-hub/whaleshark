@@ -1,6 +1,10 @@
 <!-- whaleshark:begin · written by `whaleshark init` · remove with `whaleshark init --remove` -->
 ## WhaleShark
 If this folder has a `.whaleshark` folder, the work here is run with WhaleShark.
+You are then one of a team. The person talks to one main agent, the orchestrator, in the tab
+`Orchestrator`. It hands tasks to workers, each in a tab of its own; in Fleet Mode it hands groups of
+tasks to fleet leaders, and each leader runs its own workers. A worker answers to whoever started it,
+a leader to the orchestrator, the orchestrator to the person. Find your own part:
 If `WHALESHARK_ATTEMPT` is set in your environment, or `whaleshark status` says this tab is a
 worker's, you are a worker: follow the prompt file you were given and ignore the rest of this block.
 If that prompt says you lead a fleet, you are a fleet leader: run `whaleshark guide leader` first.

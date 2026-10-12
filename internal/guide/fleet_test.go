@@ -304,11 +304,12 @@ func TestTheLeadersPrompt(t *testing.T) {
 	}
 }
 
-// The block gained two lines and nothing else, and the block an older
-// program wrote is still ours: found, left as it is, and taken out whole.
+// The block gained the lines that say how the team is built, and nothing
+// else; and each block an older program wrote is still ours: found, left
+// as it is, and taken out whole.
 func TestTheBlockBeforeThisOne(t *testing.T) {
 	var added []string
-	old := strings.Split(earlier, "\n")
+	old := strings.Split(before, "\n")
 	for _, line := range strings.Split(Block, "\n") {
 		if len(old) > 0 && line == old[0] {
 			old = old[1:]
@@ -316,9 +317,16 @@ func TestTheBlockBeforeThisOne(t *testing.T) {
 			added = append(added, line)
 		}
 	}
-	if len(old) != 0 || len(added) != 2 || !strings.Contains(added[0], "`whaleshark guide leader`") || !strings.Contains(added[1], "`--fleet`") {
-		t.Errorf("the block is not the one before it with two lines more: %q, and %d lines gone", added, len(old))
+	if said := strings.Join(added, " "); len(old) != 0 || len(added) != 4 || !strings.Contains(said, "the orchestrator, in the tab `Orchestrator`") ||
+		!strings.Contains(said, "fleet leaders") || !strings.Contains(said, "A worker answers to whoever started it") {
+		t.Errorf("the block is not the one before it with the team in four lines more: %q, and %d lines gone", added, len(old))
 	}
+	for _, earlier := range []string{earlier, before} {
+		theBlockBefore(t, earlier)
+	}
+}
+
+func theBlockBefore(t *testing.T, earlier string) {
 	for _, before := range []string{"", "my own notes\n", "# Notes\n\nmine\n"} {
 		path := filepath.Join(t.TempDir(), "CLAUDE.md")
 		content := before + map[bool]string{true: "\n"}[before != ""] + earlier

@@ -33,14 +33,17 @@ import (
 // what the tool is started with besides, for a local model; a value of it
 // can be a key, so no screen and no log shows one.
 type Tool struct {
-	Name   string            `toml:"-"`
-	Label  string            `toml:"label"`
-	Run    []string          `toml:"run"`
-	Model  []string          `toml:"model,omitempty"`
-	Folder []string          `toml:"folder,omitempty"`
-	Each   bool              `toml:"each,omitempty"`
-	Resume []string          `toml:"resume,omitempty"`
-	Hooks  string            `toml:"hooks"`
+	Name   string   `toml:"-"`
+	Label  string   `toml:"label"`
+	Run    []string `toml:"run"`
+	Model  []string `toml:"model,omitempty"`
+	Folder []string `toml:"folder,omitempty"`
+	Each   bool     `toml:"each,omitempty"`
+	Resume []string `toml:"resume,omitempty"`
+	Hooks  string   `toml:"hooks"`
+	// Rules is the file the tool reads when it starts, named from the home
+	// folder: where init writes the short block that tells an agent its part.
+	Rules  string            `toml:"rules,omitempty"`
 	Suits  string            `toml:"suits,omitempty"`
 	Screen ToolScreen        `toml:"screen,omitempty"`
 	Env    map[string]string `toml:"env,omitempty"`
@@ -81,11 +84,11 @@ const (
 // is found on the path, as it always was; a person's file names a full path.
 var builtIn = []Tool{
 	{Name: "claude", Label: "Claude Code", Run: []string{"claude"}, Model: []string{"--model", "{model}"},
-		Folder: []string{"--add-dir", "{dir}"}, Resume: []string{"--resume", "{session}"}, Hooks: HooksClaude, Proven: true,
+		Folder: []string{"--add-dir", "{dir}"}, Resume: []string{"--resume", "{session}"}, Hooks: HooksClaude, Rules: ".claude/CLAUDE.md", Proven: true,
 		Suits:  "the default; anything",
 		Screen: ToolScreen{Title: "Claude Code", Ready: "? for shortcuts", Working: "esc to interrupt", Question: []string{"Do you want to", "Esc to cancel"}, Trust: "trust this folder"}},
 	{Name: "codex", Label: "Codex", Run: []string{"codex"}, Model: []string{"--model", "{model}"},
-		Folder: []string{"--add-dir", "{dir}"}, Each: true, Resume: []string{"resume", "{session}"}, Hooks: HooksCodex},
+		Folder: []string{"--add-dir", "{dir}"}, Each: true, Resume: []string{"resume", "{session}"}, Hooks: HooksCodex, Rules: ".codex/AGENTS.md"},
 }
 
 // BuiltIn is the descriptions compiled in, for whoever lists them apart.
@@ -169,6 +172,8 @@ func (t Tool) Check(p Platform, roots []string) error {
 		return errors.New("it names no program to run")
 	case t.Hooks != HooksClaude && t.Hooks != HooksCodex && t.Hooks != HooksNone:
 		return fmt.Errorf("hooks is %s, %s or %s", HooksClaude, HooksCodex, HooksNone)
+	case t.Rules != "" && !filepath.IsLocal(filepath.FromSlash(t.Rules)):
+		return fmt.Errorf("the file it reads at its start is named from your home folder and stays inside it: %.40q does not", t.Rules)
 	}
 	if own := !slices.ContainsFunc(builtIn, func(b Tool) bool { return slices.Equal(b.Run, t.Run) }); own {
 		if !filepath.IsAbs(t.Run[0]) {
@@ -180,7 +185,7 @@ func (t Tool) Check(p Platform, roots []string) error {
 			}
 		}
 	}
-	for _, word := range slices.Concat(t.Run, t.Model, t.Folder, t.Resume, []string{t.Label, t.Suits}) {
+	for _, word := range slices.Concat(t.Run, t.Model, t.Folder, t.Resume, []string{t.Label, t.Suits, t.Rules}) {
 		if strings.ContainsFunc(word, func(r rune) bool { return r < ' ' || r == 0x7f }) {
 			return errors.New("a word of it holds a line break or a control character")
 		}

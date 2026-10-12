@@ -81,6 +81,16 @@ func (p *pane) settingsRows() (out []setting) {
 				p.hint = cmp.Or(strings.TrimSpace(string(out)), said)
 			})
 		})
+		// The short rules, where the tool reads them when it starts: init's own
+		// step for this one tool, so its agents know the team and their part.
+		if tool.Rules != "" {
+			press("[ Write its rules ]", func() {
+				p.child(p.cmd("init", "--agent", p.tool), "", func(out []byte, said string, _ bool) {
+					lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+					p.hint = cmp.Or(said, lines[len(lines)-1])
+				})
+			})
+		}
 		press("[ Take this tool out ]", func() { p.apply(setting{key: &contract.Key{}, name: "tools." + p.tool}, "remove", false) })
 	}
 	// What is no value of a file but a thing done at a terminal, where the

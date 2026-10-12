@@ -622,6 +622,11 @@ func TestTheRowsOfWhatIsDoneAtATerminal(t *testing.T) {
 	wd.settle()
 	wd.s.ClickText("[ Is the page running? ]")
 	wd.ran("dash status")
+	// A tool's short rules are written by init's own step for that tool.
+	to(contract.SecTools)
+	wd.settle()
+	wd.s.ClickText("[ Write its rules ]")
+	wd.ran("init --agent claude")
 }
 
 // What `set` does of its own for phase 5: the layout's keys move the open

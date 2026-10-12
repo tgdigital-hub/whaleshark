@@ -298,8 +298,10 @@ func (i *setting) use(e contract.InstalledEntry) {
 func (i *setting) agent(kind string) error {
 	k := i.c.Kit
 	home, _ := os.UserHomeDir()
-	if path, ok := guide.File(kind, home, os.Getenv); !ok {
-		i.say("%s has no instruction file we know: start your lead agent with this as its first message: %s", kind, guide.FirstMessage)
+	tools, _ := contract.Tools(k.Platform, i.dirs)
+	tool, _ := contract.FindTool(tools, kind)
+	if path, ok := guide.File(tool, home, os.Getenv); !ok {
+		i.say("%s names no file it reads when it starts (Settings › Agent tools): a worker or a leader of it is told by its first prompt, and as your main agent give it this first message: %s", kind, guide.FirstMessage)
 	} else {
 		data, _ := k.Platform.Read(path)
 		before, created, err := guide.Write(k.Platform, path)

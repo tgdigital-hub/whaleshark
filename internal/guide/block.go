@@ -17,8 +17,13 @@ import (
 //go:embed block.md
 var Block string
 
+// The blocks before this one: still found, and taken out.
+//
 //go:embed block1.md
-var earlier string // the block before this one: still found, and taken out
+var earlier string
+
+//go:embed block2.md
+var before string
 
 // A block is found by its two marker lines.
 const (
@@ -26,35 +31,19 @@ const (
 	endMark   = "<!-- whaleshark:end"
 )
 
-// AgentFile is the user-wide instruction file one agent tool reads: Dir and
-// Name under the home folder, or Name in the folder Env names when it is set.
-// Confirmed is true only for a row read in the tool's own page, Source.
-type AgentFile struct {
-	Kind, Dir, Name, Env string
-	Confirmed            bool
-	Source               string
-}
-
-// Files is the table. For a kind with no row the person pastes FirstMessage.
-var Files = []AgentFile{
-	{Kind: "claude", Dir: ".claude", Name: "CLAUDE.md", Confirmed: true, Source: "https://code.claude.com/docs/en/memory"},
-	{Kind: "codex", Dir: ".codex", Name: "AGENTS.md", Env: "CODEX_HOME", Confirmed: true, Source: "https://developers.openai.com/codex/guides/agents-md"},
-	{Kind: "gemini", Dir: ".gemini", Name: "GEMINI.md", Confirmed: true, Source: "https://google-gemini.github.io/gemini-cli/docs/cli/gemini-md.html"},
-	{Kind: "opencode", Dir: ".config/opencode", Name: "AGENTS.md", Confirmed: true, Source: "https://opencode.ai/docs/rules/"},
-}
-
-// File returns a kind's instruction file, and false for a kind with no row.
-func File(kind, home string, getenv func(string) string) (string, bool) {
-	for _, f := range Files {
-		if f.Kind != kind {
-			continue
-		}
-		if dir := getenv(f.Env); f.Env != "" && dir != "" {
-			return filepath.Join(dir, f.Name), true
-		}
-		return filepath.Join(home, filepath.FromSlash(f.Dir), f.Name), true
+// File is the instruction file a tool reads when it starts, by its
+// description: Rules under the home folder, which Check holds inside it. For
+// a tool with none the block has no place, and its first prompt, or the
+// person's FirstMessage, points at the guide. Codex's folder moves with its
+// own variable.
+func File(t contract.Tool, home string, getenv func(string) string) (string, bool) {
+	if t.Rules == "" || home == "" {
+		return "", false
 	}
-	return "", false
+	if dir := getenv("CODEX_HOME"); t.Hooks == contract.HooksCodex && dir != "" {
+		return filepath.Join(dir, filepath.Base(t.Rules)), true
+	}
+	return filepath.Join(home, filepath.FromSlash(t.Rules)), true
 }
 
 // BlockState is what a file holds of the block.
@@ -69,7 +58,7 @@ const (
 // find returns where a block of ours starts a line of data and how long it
 // is, or -1.
 func find(data []byte) (at, n int) {
-	for _, block := range []string{Block, earlier} {
+	for _, block := range []string{Block, before, earlier} {
 		if i := bytes.Index(append([]byte("\n"), data...), []byte("\n"+block)); i >= 0 {
 			return i, len(block)
 		}

@@ -118,6 +118,7 @@ var Keys = []Key{
 	{"tools.<name>.each", SecTools, "That option before every folder", KindSwitch, "", "off", StoreTools, "each", "", ""},
 	{"tools.<name>.resume", SecTools, "How a conversation is continued", KindWords, "", "", StoreTools, "resume", "", "With {session}; empty and it starts afresh."},
 	{"tools.<name>.hooks", SecTools, "Whose hooks it reads", KindChoice, "claude|codex|none", "none", StoreTools, "hooks", "", "With hooks its states are exact and Stop all can hold it; without, it is busy or quiet."},
+	{"tools.<name>.rules", SecTools, "The file it reads when it starts", KindText, "", "", StoreTools, "rules", "", "From your home folder, as .claude/CLAUDE.md or .codex/AGENTS.md: init writes the short rules there, so its agents know their part."},
 	{"tools.<name>.suits", SecTools, "What it suits", KindText, "", "", StoreTools, "suits", "", "Your sentence; the orchestrator reads it when it chooses a tool."},
 	{"tools.<name>.screen.title", SecTools, "Its title while a chat has no name", KindText, "", "", StoreTools, "screen.title", "", "With it the main tab follows a name you give the chat."},
 	{"tools.<name>.screen.ready", SecTools, "Its line while it waits", KindText, "", "", StoreTools, "screen.ready", "", ""},

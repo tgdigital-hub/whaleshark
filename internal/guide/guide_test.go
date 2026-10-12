@@ -410,30 +410,40 @@ func TestGuideCommand(t *testing.T) {
 	}
 }
 
+// A tool's instruction file is what its description names, under the home
+// folder; a tool that names none has no file, whatever it is called.
 func TestFiles(t *testing.T) {
-	agent := regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
-	seen := map[string]bool{}
-	for _, f := range Files {
-		if !agent.MatchString(f.Kind) || seen[f.Kind] || f.Dir == "" || f.Name == "" {
-			t.Errorf("bad row %+v", f)
-		}
-		if f.Confirmed != (f.Source != "") {
-			t.Errorf("%s: a confirmed row names its source, and only a confirmed row", f.Kind)
-		}
-		seen[f.Kind] = true
-	}
 	none := func(string) string { return "" }
+	tool := func(name string) contract.Tool {
+		tl, _ := contract.FindTool(contract.BuiltIn(), name)
+		return tl
+	}
 	for kind, want := range map[string]string{"claude": "/people/ana/.claude/CLAUDE.md", "codex": "/people/ana/.codex/AGENTS.md"} {
-		if got, ok := File(kind, "/people/ana", none); !ok || got != filepath.FromSlash(want) {
+		if got, ok := File(tool(kind), "/people/ana", none); !ok || got != filepath.FromSlash(want) {
 			t.Errorf("File(%s) = %q, %v", kind, got, ok)
 		}
 	}
 	env := func(name string) string { return map[string]string{"CODEX_HOME": "/srv/codex"}[name] }
-	if got, _ := File("codex", "/people/ana", env); got != filepath.FromSlash("/srv/codex/AGENTS.md") {
+	if got, _ := File(tool("codex"), "/people/ana", env); got != filepath.FromSlash("/srv/codex/AGENTS.md") {
 		t.Errorf("File(codex) with its variable set = %q", got)
 	}
-	if got, ok := File("nosuch", "/people/ana", none); ok || got != "" {
-		t.Errorf("File(nosuch) = %q, %v", got, ok)
+	if got, _ := File(tool("claude"), "/people/ana", env); got != filepath.FromSlash("/people/ana/.claude/CLAUDE.md") {
+		t.Errorf("File(claude) moved with another tool's variable: %q", got)
+	}
+	own := contract.Tool{Name: "hermes", Run: []string{"/opt/hermes"}, Hooks: contract.HooksNone, Rules: ".hermes/AGENTS.md"}
+	if got, ok := File(own, "/people/ana", none); !ok || got != filepath.FromSlash("/people/ana/.hermes/AGENTS.md") {
+		t.Errorf("a tool by description: %q, %v", got, ok)
+	}
+	own.Rules = ""
+	if got, ok := File(own, "/people/ana", none); ok || got != "" {
+		t.Errorf("a tool that names no file = %q, %v", got, ok)
+	}
+	// A description cannot name a file outside the home folder.
+	for _, out := range []string{"../other/AGENTS.md", "/etc/AGENTS.md", "a/../../x"} {
+		own.Rules = out
+		if err := own.Check(contract.NoPlatform{}, nil); err == nil || !strings.Contains(err.Error(), "stays inside it") {
+			t.Errorf("rules = %q passed the check: %v", out, err)
+		}
 	}
 }
 
