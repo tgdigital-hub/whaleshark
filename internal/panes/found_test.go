@@ -23,7 +23,8 @@ func TestADrawingLooksForNoProgram(t *testing.T) {
 	bin, file := t.TempDir(), filepath.Join(dirs.Config, contract.ToolsDir, "hermes.toml")
 	write := func(path, text string) {
 		t.Helper()
-		if err := os.MkdirAll(filepath.Dir(path), 0o700); err == nil {
+		err := os.MkdirAll(filepath.Dir(path), 0o700)
+		if err == nil {
 			err = os.WriteFile(path, []byte(text), 0o700) // #nosec G306 -- a program of the test's own
 		}
 		if err != nil {
