@@ -385,11 +385,15 @@ lines 1380 screen internal/screen
 # 35 more at the join of phase 5's second wave, at what was built: who
 # opened a tab, kept over a restart, and the four calls the fence lets that
 # pane make there: a fleet leader starts and closes its own workers.
-lines 1925 keeper internal/keeper
+# 60 more at the start of phase 6, at what the integration of phase 5
+# built: a chat's name as its tab's, tabs handed to a new leader, the
+# settings screen in one frame. It stands at 1,981.
+lines 1985 keeper internal/keeper
 # layout gives 135 and input 120 after the Windows proof, to platform,
 # guide, runtask and doctor: both are built whole, at 763 and 467.
 # 70 more for phase 5: the dock's place, the tab row beside it, its edge.
-lines 835 layout internal/layout
+# 5 more at the start of phase 6, at what the integration of phase 5 built.
+lines 840 layout internal/layout
 # pty gives 50 to restore at the join of phase 2; it is built whole at 617.
 lines 710 pty internal/pty
 # watch: 30 more after the first real workers. An Enter that waits for the
@@ -412,7 +416,8 @@ lines 515 restore internal/restore
 # platform, and 5 to watch: built whole at 271.
 lines 280 window internal/window
 lines 270 engine internal/engine
-lines 350 pick internal/pick
+# 5 more at the start of phase 6, at what the integration of phase 5 built.
+lines 355 pick internal/pick
 # overlay gives 60 at the start of phase 3: built whole at 140; and 20 at
 # the join of its first wave.
 lines 145 overlay internal/overlay
@@ -436,9 +441,9 @@ skip _test.go testdata testkit
 # 43,500 at the start of phase 6. The tree stood at 40,982 with what the
 # integration of phase 5 has built so far; the contracts of phase 6 are
 # 1,010 more (900 in the contract, 75 in notes that each package replaces
-# with its code); the folders' lines above sum to 43,250, about 1,250
+# with its code); the folders' lines above sum to 43,320, about 1,300
 # beyond that. Phase 6 was planned at 1,460 and told as 1,460 to 2,000;
-# with the contract at three times its plan it is about 2,270 if every
+# with the contract at three times its plan it is about 2,300 if every
 # folder fills its line. The join of its second wave sets this to what is
 # built.
 total 43500
