@@ -136,9 +136,16 @@ func shut(k *contract.Kit, snap *contract.Snapshot, name string, p contract.Plac
 	err := k.Terms.TabClose(p.Tab)
 	if errors.Is(err, contract.ErrNoPane) {
 		err = nil
+	} else if err != nil && strings.Contains(err.Error(), contract.Fence(contract.OpTabClose).Error()) {
+		err = errFenced
 	}
 	return err == nil, err
 }
+
+// errFenced is a tab the keeper's fence does not let this pane close: a
+// leader closes the tabs it opened itself, and one that took a fleet over
+// did not open the tabs of the workers it found there.
+var errFenced = errors.New("the leader before you opened it, and a tab is closed from the pane that opened it: the orchestrator's `whaleshark stop <group>` closes it, or the person")
 
 // DropTemp removes the temp folder a start on a server gave an attempt. The
 // record's word counts only for a folder that lies where such folders are
@@ -242,6 +249,13 @@ func stop(c *contract.Call) (any, error) {
 				shut(k, snap, name, w.Place)
 				DropTemp(k, &w)
 			}
+			if parked {
+				// And what its ended agents left open, which a leader that
+				// took the fleet over could not close itself.
+				if low, lerr := k.Store.Read(c.Root, s.Run.Fleets[t.Fleet].Run); lerr == nil {
+					Leave(k, low)
+				}
+			}
 		}
 		if err != nil {
 			r.Tab = "left open: " + err.Error()
@@ -311,7 +325,9 @@ func closeTabs(c *contract.Call) (any, error) {
 				continue
 			}
 			did, err := shut(k, snap, tabName(t), a.Place)
-			if err != nil {
+			if err == errFenced {
+				fmt.Fprintf(c.Out, "kept: the tab of %s: %v\n", t.Name, err)
+			} else if err != nil {
 				return nil, refusal(err)
 			}
 			DropTemp(k, a)
