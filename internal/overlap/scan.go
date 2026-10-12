@@ -27,6 +27,7 @@ type scanner struct{ k *contract.Kit }
 // work is what one task has changed since the collected work it began from.
 type work struct {
 	t     *contract.Task
+	of    *work             // on a fleet's own task in flight: the fleet's work
 	head  string            // the tip of its branch
 	snap  string            // on a deep scan, a commit of its folder as it stands
 	files map[string]bool   // every path it touched; true for one not committed
@@ -36,11 +37,27 @@ type work struct {
 // tree is what is merged for a task on a deep scan.
 func (w *work) tree() string { return cmp.Or(w.snap, w.head) }
 
+// side is whose work a finding names: a fleet's task stands under its fleet
+// and is paired with no other work of that fleet.
+func (w *work) side() *work { return cmp.Or(w.of, w) }
+
+// name is how a finding says whose work it is: a fleet by its name, a
+// fleet's task under that, any other task by its id.
+func (w *work) name() string {
+	if w.of != nil {
+		return w.of.t.Fleet + "'s " + w.t.ID
+	}
+	return cmp.Or(w.t.Fleet, w.t.ID)
+}
+
 // Scan is contract.Overlap. It asks git what each task in flight changed,
 // merges every pair, and each task with the collected work, in git's store
 // alone, and says what it found; it touches no branch, index or file of the
 // project. With tasks named only their pairs and their own findings are
 // looked at anew, and the run's other findings are returned as recorded.
+// An orchestrator's scan reads each fleet's run and takes its tasks in flight
+// beside the fleet's branch: work of two fleets is paired, of one fleet never,
+// and such a finding names the two groups and, in How, both fleets.
 func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks []string, deep bool) ([]contract.Finding, error) {
 	if s.Run.Integration == nil {
 		return nil, nil
@@ -50,22 +67,52 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 		return nil, err
 	}
 	at, tip := g.at, g.tip
+	// The first thing that went wrong is told at the end, with all that was found.
+	var failed error
+	var mu sync.Mutex
+	note := func(err error) {
+		mu.Lock()
+		failed = cmp.Or(failed, err)
+		mu.Unlock()
+	}
 	var live []*work
+	flying := func(t *contract.Task, branch string, of *work) *work {
+		if at[branch] == "" || t.Status == contract.TaskDone || t.Status == contract.TaskCancelled {
+			return nil
+		}
+		live = append(live, &work{t: t, of: of, head: at[branch], files: map[string]bool{}, moved: map[string]string{}})
+		return live[len(live)-1]
+	}
 	byID := map[string]*work{}
 	for _, id := range slices.Sorted(maps.Keys(s.Tasks)) {
 		t, branch, key := s.Tasks[id], "", id
+		f := s.Run.Fleets[t.Fleet]
 		if w := t.Worktree; w != nil && w.RemovedAt.IsZero() {
 			branch = w.Branch
-		} else if f := s.Run.Fleets[t.Fleet]; f != nil && f.EndedAt.IsZero() {
+		} else if f != nil && f.EndedAt.IsZero() {
 			// A fleet's branch is the branch of its groups: the first that is
 			// open stands for the fleet, and a later one is found under it.
 			if branch, key = f.Branch, "fleet "+t.Fleet; byID[key] != nil {
 				byID[id], branch = byID[key], ""
 			}
 		}
-		if at[branch] != "" && t.Status != contract.TaskDone && t.Status != contract.TaskCancelled {
-			byID[key] = &work{t: t, head: at[branch], files: map[string]bool{}, moved: map[string]string{}}
-			live, byID[id] = append(live, byID[key]), byID[key]
+		w := flying(t, branch, nil)
+		if w == nil {
+			continue
+		}
+		if byID[key], byID[id] = w, w; key == id {
+			continue
+		}
+		// The fleet's tasks in flight, as its own run has them.
+		low, err := o.k.Store.Read(root, f.Run)
+		if err != nil || low.Run.Parent == nil || low.Run.Parent.Run != s.Run.ID {
+			note(err)
+			continue
+		}
+		for _, id := range slices.Sorted(maps.Keys(low.Tasks)) {
+			if c := low.Tasks[id].Worktree; c != nil && c.RemovedAt.IsZero() {
+				flying(low.Tasks[id], c.Branch, w)
+			}
 		}
 	}
 	named := map[string]bool{}
@@ -79,16 +126,8 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 		}
 		named[byID[t.ID].t.ID] = true
 	}
-	fresh := func(w *work) bool { return len(named) == 0 || named[w.t.ID] }
+	fresh := func(w *work) bool { return len(named) == 0 || named[w.side().t.ID] }
 
-	// The first thing that went wrong is told at the end, with all that was found.
-	var failed error
-	var mu sync.Mutex
-	note := func(err error) {
-		mu.Lock()
-		failed = cmp.Or(failed, err)
-		mu.Unlock()
-	}
 	var wg sync.WaitGroup
 	four := make(chan bool, 4)
 	for _, w := range live {
@@ -103,11 +142,11 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 	alive, jobs := []string{tip}, [][2]string{}
 	for i, a := range live {
 		alive = append(alive, a.head, a.tree())
-		if fresh(a) {
+		if fresh(a) && a.of == nil {
 			jobs = append(jobs, [2]string{tip, a.head})
 		}
 		for _, b := range live[i+1:] {
-			if fresh(a) || fresh(b) {
+			if a.side() != b.side() && (fresh(a) || fresh(b)) {
 				jobs = append(jobs, [2]string{a.head, b.head}, [2]string{a.tree(), b.tree()})
 			}
 		}
@@ -143,7 +182,7 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 				off = append(off, name)
 			}
 		}
-		if fresh(w) {
+		if fresh(w) && w.of == nil { // a fleet's task is held to these by its leader's scan
 			add("scope", astray, off, w.t.ID)
 			if m := g.seen.Pairs[tip+" "+w.head]; len(m.Clashes) > 0 {
 				kinds := slices.Sorted(maps.Keys(m.Clashes))
@@ -167,7 +206,7 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 	}
 	for i, a := range live {
 		for _, b := range live[i+1:] {
-			if !fresh(a) && !fresh(b) {
+			if a.side() == b.side() || !fresh(a) && !fresh(b) {
 				continue
 			}
 			shared := append(both[[2]*work{a, b}], both[[2]*work{b, a}]...)
@@ -178,34 +217,38 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 			for _, how := range slices.Sorted(maps.Keys(m.Clashes)) {
 				clash = append(clash, m.Clashes[how]...)
 			}
-			first, second := order(a, b, slices.Concat(clash, same), s.Run.Findings)
+			p, q := order(a, b, slices.Concat(clash, same), s.Run.Findings)
+			first, second, who := p.side().t.ID, q.side().t.ID, ""
+			if p.side().t.Fleet != "" {
+				who = p.name() + " and " + q.name() + ": "
+			}
 			for _, how := range slices.Sorted(maps.Keys(m.Clashes)) {
-				add("overlap", how, m.Clashes[how], first, second)
+				add("overlap", who+how, m.Clashes[how], first, second)
 			}
 			// What clashes only once work not committed is counted.
 			for _, how := range slices.Sorted(maps.Keys(wip.Clashes)) {
 				files := slices.DeleteFunc(slices.Clone(wip.Clashes[how]), func(f string) bool { return slices.Contains(clash, f) })
-				add("overlap", how+", "+loose, files, first, second)
+				add("overlap", who+how+", "+loose, files, first, second)
 				clash = append(clash, files...)
 			}
-			add("overlap", twin, same, first, second)
-			how := []string{clean}
+			add("overlap", who+twin, same, first, second)
+			how := []string{who + clean}
 			if !checked {
-				how[0] = unknown
+				how[0] = who + unknown
 			}
 			shared = slices.DeleteFunc(shared, func(f string) bool { return slices.Contains(clash, f) })
 			for _, f := range shared {
 				for _, w := range []*work{a, b} {
 					if w.files[f] {
-						how = append(how, w.t.ID+" has it "+loose)
+						how = append(how, w.name()+" has it "+loose)
 					}
 					if to := w.moved[f]; to != "" {
-						how = append(how, w.t.ID+" moved "+f+" to "+to)
+						how = append(how, w.name()+" moved "+f+" to "+to)
 					}
 				}
 			}
 			slices.Sort(how[1:])
-			add("same", strings.Join(slices.Compact(how), "; "), shared, a.t.ID, b.t.ID)
+			add("same", strings.Join(slices.Compact(how), "; "), shared, a.side().t.ID, b.side().t.ID)
 		}
 	}
 	// A worker that left its folder edits the project's own; a task placed there may.
@@ -227,8 +270,10 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 			continue
 		}
 		for _, id := range f.Tasks {
-			w := byID[id]
-			again, dirty = again || fresh(w), dirty || slices.ContainsFunc(f.Files, func(name string) bool { return w.files[name] })
+			again = again || fresh(byID[id])
+			for _, w := range live {
+				dirty = dirty || w.side() == byID[id] && slices.ContainsFunc(f.Files, func(name string) bool { return w.files[name] })
+			}
 		}
 		if !again || ctx.Err() != nil || !deep && dirty && strings.HasSuffix(f.How, ", "+loose) {
 			add(f.Kind, f.How, f.Files, f.Tasks...)
@@ -267,8 +312,11 @@ func (g *repo) look(w *work, tip string, deep bool) error {
 			w.files[name] = true
 		}
 	}
-	if deep && len(waits) > 0 {
-		w.snap, err = g.snapshot(w.t.Worktree.Path, w.head, w.t.ID)
+	if name := w.t.ID; deep && len(waits) > 0 {
+		if w.of != nil {
+			name = w.of.t.ID + "." + name // two fleets may each have a T1
+		}
+		w.snap, err = g.snapshot(w.t.Worktree.Path, w.head, name)
 	}
 	return err
 }
@@ -298,7 +346,7 @@ func owned(patterns []string, file string) bool { return contract.Owned(patterns
 // reported, else the one that owns the files, else the one the run already
 // has first, so that a pair is not announced again the other way round,
 // else the one that changed fewer files, else the one with the earlier id.
-func order(a, b *work, files []string, had []contract.Finding) (first, second string) {
+func order(a, b *work, files []string, had []contract.Finding) (first, second *work) {
 	n := func(yes bool) int {
 		if yes {
 			return 0
@@ -313,9 +361,9 @@ func order(a, b *work, files []string, had []contract.Finding) (first, second st
 			return f.Kind == "overlap" && slices.Equal(f.Tasks, []string{x.t.ID, y.t.ID})
 		})
 	}
-	if cmp.Or(cmp.Compare(n(a.t.Status == contract.TaskReview), n(b.t.Status == contract.TaskReview)), cmp.Compare(n(owns(a)), n(owns(b))),
-		cmp.Compare(n(was(a, b)), n(was(b, a))), cmp.Compare(len(a.files), len(b.files))) > 0 {
+	if x, y := a.side(), b.side(); cmp.Or(cmp.Compare(n(x.t.Status == contract.TaskReview), n(y.t.Status == contract.TaskReview)), cmp.Compare(n(owns(x)), n(owns(y))),
+		cmp.Compare(n(was(x, y)), n(was(y, x))), cmp.Compare(len(x.files), len(y.files))) > 0 {
 		a, b = b, a
 	}
-	return a.t.ID, b.t.ID
+	return a, b
 }
