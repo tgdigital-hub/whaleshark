@@ -20,21 +20,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 5 owes here: the dock: one pane that is in no tab and shows beside
-// every tab, at the edge and the width of contract.Settings.Side, laid out
-// by contract.Fit; a drag's end writes the width. The keeper starts its own
-// program file with ui, run and side in it, from that list and nothing else,
-// starts it again within a second of its end and every five seconds after
-// three ends in ten, and draws contract.SideTitle and one dim line there
-// while no program is up. Every call that would close, split, swap, zoom or
-// start a program in the dock is contract.ErrDock; the dock is in no layout
-// file; its pane has Dock set in every snapshot. The three words of
-// contract.Terminals' Dock move the keys and fold it, and a rail opens over
-// the tab while it has the keys or the pointer. And an agent is started from
-// its tool's description: the program and the variables of its entry in
-// contract.Tools, which the keeper reads itself, where today the kind's name
-// is looked up on the path.
-
 // Plug binds `engine`.
 func Plug(k *contract.Kit) { k.Handle("engine", engine) }
 

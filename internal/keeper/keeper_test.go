@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/layout"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 )
 
@@ -83,10 +84,13 @@ func (f *program) Close() error           { f.once.Do(func() { close(f.ended) })
 // rig is a keeper of the test's own: a login in a folder of its own, a
 // socket there, and pretended programs in the panes.
 type rig struct {
-	t    *testing.T
-	k    *Keeper
-	kit  *contract.Kit
-	fail bool // the next start of a program fails
+	t      *testing.T
+	k      *Keeper
+	kit    *contract.Kit
+	fail   bool         // the next start of a program fails
+	docked bool         // the keeper keeps its dock
+	down   atomic.Bool  // the dock's program does not start
+	sides  atomic.Int32 // how often it was tried
 }
 
 func value(env []string, name string) string {
@@ -121,13 +125,41 @@ func login(t *testing.T) *contract.Kit {
 	return kit
 }
 
-func newRig(t *testing.T) *rig {
+// newRig is a keeper with its dock taken out: the tests written before
+// there was one are about tabs and panes, at the sizes a window alone gives
+// them. dockRig is the keeper as it runs, and the tests of the dock use it.
+func newRig(t *testing.T) *rig  { return rigOf(t, false, nil) }
+func dockRig(t *testing.T) *rig { return rigOf(t, true, nil) }
+
+// undock takes the dock out of a keeper that has just been opened.
+func (r *rig) undock() {
+	r.k.mu.Lock()
+	defer r.k.mu.Unlock()
+	if p := r.k.panes[layout.DockPane]; p != nil && !r.docked {
+		delete(r.k.panes, layout.DockPane)
+		p.quit()
+		p.tty.Close()
+		r.k.lay.Dock = layout.Dock{}
+		r.k.nTerm-- // the dock's program was the last one started,
+		r.k.seq--   // and the one event so far was its start
+	}
+}
+
+func rigOf(t *testing.T, docked bool, real func(contract.PtySpec) (contract.Pty, error)) *rig {
 	t.Helper()
-	r := &rig{t: t, kit: login(t)}
+	r := &rig{t: t, kit: login(t), docked: docked}
 	boardMu.Lock()
 	board = nil
 	boardMu.Unlock()
 	r.kit.Pty = func(s contract.PtySpec) (contract.Pty, error) {
+		if value(s.Env, contract.EnvPane) == layout.DockPane {
+			if r.sides.Add(1); r.down.Load() {
+				return nil, errors.New("the dock's program is not there")
+			}
+		}
+		if real != nil {
+			return real(s)
+		}
 		if r.fail {
 			// The keeper tries once more where it is when the folder is gone.
 			r.fail = s.Dir != ""
@@ -144,6 +176,7 @@ func newRig(t *testing.T) *rig {
 	}
 	k.instance, k.version = "one", "test"
 	r.k = k
+	r.undock()
 	go k.serve()
 	t.Cleanup(k.stop)
 	return r

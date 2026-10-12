@@ -3,6 +3,7 @@ package input
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
@@ -14,21 +15,23 @@ import (
 type Kind uint8
 
 const (
-	Type   Kind = iota + 1 // write Text to Pane's terminal
-	Call                   // do Call, as if it had come over the socket
-	Row                    // move the tab row by Step tabs
-	Drag                   // move the dividing line Hit to the cell X, Y
-	Zoom                   // give Pane its whole tab, or put it back
-	Redraw                 // make Pane's program draw again
-	Run                    // start Argv as a child, with Pane's id in its variables
-	Popup                  // open Argv as an overlay
-	Scroll                 // move Pane's view Step lines, back for a negative
-	Select                 // the mouse selects in Pane: Action at the window's cell X, Y
-	Mark                   // start selecting in Pane with the keys
-	Copy                   // put the selection on the clipboard
-	Allow                  // let Pane's program copy what it asked to
-	tabBy                  // show the tab Step places on
-	tabAt                  // show tab number Step
+	Type     Kind = iota + 1 // write Text to Pane's terminal
+	Call                     // do Call, as if it had come over the socket
+	Row                      // move the tab row by Step tabs
+	Drag                     // move the dividing line Hit to the cell X, Y
+	Zoom                     // give Pane its whole tab, or put it back
+	Redraw                   // make Pane's program draw again
+	Run                      // start Argv as a child, with Pane's id in its variables
+	Popup                    // open Argv as an overlay
+	Scroll                   // move Pane's view Step lines, back for a negative
+	Select                   // the mouse selects in Pane: Action at the window's cell X, Y
+	Mark                     // start selecting in Pane with the keys
+	Copy                     // put the selection on the clipboard
+	Allow                    // let Pane's program copy what it asked to
+	Settings                 // open the settings screen over the tab
+	Width                    // a drag of the dock's edge ended: its width is written
+	tabBy                    // show the tab Step places on
+	tabAt                    // show tab number Step
 )
 
 // Act is one thing the keeper does for an event, in the order given.
@@ -72,6 +75,7 @@ func New(s contract.Settings, system string) *Keys {
 		"r": call(contract.OpSplit, contract.Right, 0.5), "d": call(contract.OpSplit, contract.Down, 0.5),
 		"n": {Kind: tabBy, Step: 1}, "p": {Kind: tabBy, Step: -1},
 		"z": {Kind: Zoom}, "l": {Kind: Redraw}, "v": {Kind: Mark}, "y": {Kind: Allow},
+		"b": call(contract.OpDock, contract.DockFold, 0), "g": call(contract.OpDock, contract.DockKeys, 0), "s": {Kind: Settings},
 	}
 	for _, dir := range []string{contract.Left, contract.Right, contract.Up, contract.Down} {
 		k.after[dir] = call(contract.OpPaneFocus, dir, 0)
@@ -107,6 +111,7 @@ type In struct {
 	Keys  *Keys
 	Armed bool
 	to    Kind       // whose the held button is: Drag, Select, or Type for a program
+	edge  time.Time  // when the dock's edge was last pressed
 	held  layout.Hit // where it went down, or was last seen inside its pane
 }
 
@@ -125,6 +130,12 @@ func (in *In) Take(ev term.Event, v View) []Act {
 	if n := v.Lay.Active; focus == "" && n >= 0 && n < len(v.Lay.Tabs) {
 		focus = v.Lay.Tabs[n].Focus
 	}
+	// What is typed goes to the dock while it has the keys; a shortcut is
+	// still about the pane that had them.
+	keys := focus
+	if v.Over == "" && v.Lay.Dock.Keys {
+		keys = layout.DockPane
+	}
 	modes := func(pane string) (m screen.Modes) {
 		if pane != "" {
 			m = v.Modes(pane)
@@ -136,13 +147,13 @@ func (in *In) Take(ev term.Event, v View) []Act {
 		if a, mine := in.shortcut(canon(ev.Key), v, focus); mine {
 			return a
 		}
-		return typed(focus, Key(ev, modes(focus)))
+		return typed(keys, Key(ev, modes(keys)))
 	case term.Paste:
-		return typed(focus, Paste(ev.Text, modes(focus)))
+		return typed(keys, Paste(ev.Text, modes(keys)))
 	case term.Focus:
-		return typed(focus, Focus(ev.Focused, modes(focus)))
+		return typed(keys, Focus(ev.Focused, modes(keys)))
 	case term.Mouse:
-		return in.mouse(ev, v, focus, modes)
+		return in.mouse(ev, v, keys, modes)
 	}
 	return nil
 }
@@ -171,6 +182,9 @@ func (in *In) shortcut(key string, v View, focus string) ([]Act, bool) {
 	}
 	if a.Pane = focus; a.Call.Op != contract.OpTabCreate {
 		a.Call.Pane = focus
+	}
+	if a.Call.Dir == contract.DockKeys && v.Lay.Dock.Keys {
+		a.Call.Dir = contract.DockBack // pressed again, the keys go back
 	}
 	switch tabs := v.Lay.Tabs; {
 	case !ok, len(tabs) == 0 && a.Call.Op != contract.OpTabCreate && a.Kind != Run && a.Kind != Popup:
@@ -202,7 +216,10 @@ func (in *In) mouse(ev term.Event, v View, focus string, modes func(string) scre
 		case ev.Button == term.NoButton && on:
 			return typed(h.Pane, Mouse(ev, modes(h.Pane), h.X, h.Y))
 		case to == Drag && ev.Action == term.Move:
+			in.edge = time.Time{}
 			return []Act{{Kind: Drag, Hit: was, X: ev.X, Y: ev.Y}}
+		case to == Drag && was.Pane == layout.DockPane:
+			return []Act{{Kind: Width}}
 		case to == Select:
 			return []Act{{Kind: Select, Pane: was.Pane, X: ev.X, Y: ev.Y, Action: ev.Action}}
 		case to != Type:
@@ -240,15 +257,20 @@ func (in *In) mouse(ev term.Event, v View, focus string, modes func(string) scre
 	case h.Kind == layout.OnMore:
 		return []Act{{Kind: Row, Step: h.Step}}
 	case h.Kind == layout.OnLine:
-		in.to, in.held = Drag, h
+		// A second press on the dock's edge within half a second folds it.
+		twice := h.Pane == layout.DockPane && time.Since(in.edge) < 500*time.Millisecond
+		if in.to, in.held, in.edge = Drag, h, time.Now(); twice {
+			in.to, in.edge = 0, time.Time{}
+			return []Act{call(contract.OpDock, contract.DockFold, 0)}
+		}
 		return nil
 	case !on:
 		return nil
 	}
 	// A press on a pane without the keys moves the keys there and is
-	// passed on, so one click acts.
+	// passed on, so one click acts. A press in the dock moves no keys.
 	var acts []Act
-	if h.Pane != focus {
+	if h.Pane != focus && h.Pane != layout.DockPane {
 		acts = []Act{{Kind: Call, Call: contract.WireCall{Op: contract.OpPaneFocus, Pane: h.Pane}}}
 	}
 	in.held = h

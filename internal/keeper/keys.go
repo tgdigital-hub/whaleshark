@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -42,9 +43,15 @@ func (k *Keeper) input(w *window) {
 		keys := k.panes[k.focus]
 		if k.over != nil {
 			v.Over, keys = k.over.rec.ID, k.over
+		} else if k.lay.Dock.Keys {
+			keys = k.panes[layout.DockPane]
 		}
 		var acts []input.Act
 		used, moved := false, false
+		// A rail opens over the tab while the pointer is in it.
+		if in := ev.Kind == term.Mouse && k.lay.At(ev.X, ev.Y).Pane == layout.DockPane; ev.Kind == term.Mouse && in != k.hover {
+			k.hover, k.lay.Dock.Open, moved = in, in || k.lay.Dock.Keys, true
+		}
 		if ev.Kind == term.KeyPress && keys != nil && !w.in.Armed {
 			keys.mu.Lock()
 			d := keys.pick.Key(ev, keys.scr, w.board.CtrlC(k.set.Keys.Style))
@@ -82,6 +89,12 @@ func (k *Keeper) input(w *window) {
 				}
 			case a.Kind == input.Popup:
 				k.do(contract.WireCall{Op: contract.OpOverlay, Argv: a.Argv, From: a.Pane})
+			case a.Kind == input.Settings:
+				size := map[bool]float64{true: 1}[k.lay.W < 100] // the whole of a narrow window
+				k.do(contract.WireCall{Op: contract.OpOverlay, Argv: k.ours("settings"), From: a.Pane, W: size, H: size})
+			case a.Kind == input.Width:
+				width := strconv.Itoa(k.lay.Dock.Width)
+				after = append(after, func() { contract.Set(&contract.Call{Kit: k.kit}, "side.width", width) })
 			case p == nil:
 			case a.Kind == input.Zoom:
 				k.lay.Zoom(a.Pane)
@@ -134,13 +147,11 @@ func (k *Keeper) input(w *window) {
 // place is where a pane shows in the window used last.
 func (k *Keeper) place(p *pane) (at layout.Rect) {
 	if p == k.over {
-		return k.lay.OverAt
+		return k.overAt()
 	}
-	if t := k.lay.Of(p.rec.ID); t != nil {
-		for _, pl := range k.lay.Places(t) {
-			if pl.Pane == p.rec.ID {
-				at = pl.Rect
-			}
+	for _, pl := range k.lay.Places(k.lay.Of(p.rec.ID)) {
+		if pl.Pane == p.rec.ID {
+			at = pl.Rect
 		}
 	}
 	return at
@@ -156,8 +167,8 @@ func (k *Keeper) modes(pane string) (m screen.Modes) {
 	return m
 }
 
-// notice reads the person's settings again whenever their file changes:
-// every window's keys, and the scroll-back of the panes started after.
+// notice reads the person's settings again whenever their file changes: every
+// window's keys, the dock's edge and width, the scroll-back of later panes.
 func (k *Keeper) notice() {
 	w, err := k.kit.Platform.Watch(contract.SettingsPath(k.dirs))
 	if err != nil {
@@ -175,6 +186,8 @@ func (k *Keeper) notice() {
 		for _, win := range k.wins {
 			win.in.Keys = input.New(k.set, win.sys)
 		}
+		k.lay.Dock.Right, k.lay.Dock.Width = k.set.Side.Place == contract.Right, k.set.Side.Width
+		k.changed()
 		k.mu.Unlock()
 	}
 }
@@ -217,6 +230,9 @@ func (k *Keeper) pack() *restore.File {
 	f.Layout, _ = json.Marshal(&k.lay)
 	keep := k.set.Scrollback.Keep
 	for _, p := range k.panes {
+		if p.rec.Dock {
+			continue // made anew at every start: no file names its program
+		}
 		f.Panes = append(f.Panes, restore.Pane{Rec: p.rec, Argv: p.argv, Count: p.count.Load(), Text: func() []string {
 			p.mu.Lock()
 			defer p.mu.Unlock()

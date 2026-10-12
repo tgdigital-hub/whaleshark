@@ -260,6 +260,7 @@ func (r *rig) again() {
 	}
 	k.version = "test"
 	r.k = k
+	r.undock()
 	go k.serve()
 	r.t.Cleanup(k.stop)
 }

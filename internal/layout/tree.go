@@ -12,6 +12,8 @@ import (
 const (
 	LeastW = 8
 	LeastH = 2
+	// DockPane is the id of the dock's pane, which no pane of a tab can have.
+	DockPane = "dock"
 )
 
 // What a call is refused with, beside contract.ErrNoPane.
@@ -57,7 +59,18 @@ type Layout struct {
 	// the keeper's, kept here so that At can say a click landed in it.
 	Over   string `json:"-"`
 	OverAt Rect   `json:"-"`
+	Dock   Dock   `json:"-"`
 	first  int    // the first tab the tab row shows
+}
+
+// Dock is the place of the one pane that is in no tab and shows beside every
+// tab: whether there is one, its edge, and the width the person set, in
+// cells. Fold makes it a rail, Keys says it has the keys, Open draws a rail
+// at its set width over the tab. None of it is in a layout file.
+type Dock struct {
+	On, Right        bool
+	Width            int
+	Fold, Keys, Open bool
 }
 
 // leaf finds a pane's node under n and the split it is in, up for n itself.
@@ -248,7 +261,7 @@ func (l *Layout) Zoom(pane string) bool {
 // has two sides and a share, every pane and tab an id nothing else has, and
 // what a tab names as focused or zoomed is a pane of its own.
 func (l *Layout) Sound() bool {
-	seen := map[string]bool{}
+	seen := map[string]bool{"pane " + DockPane: true}
 	fresh := func(kind, id string) bool {
 		ok := id != "" && !seen[kind+id]
 		seen[kind+id] = true

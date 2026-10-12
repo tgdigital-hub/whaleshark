@@ -22,8 +22,36 @@ type Place struct {
 	Rect
 }
 
-// area is the window under the tab row and its line.
-func (l *Layout) area() Rect { return Rect{0, 2, l.W, max(l.H-2, 0)} }
+// side is the dock and its dividing line as they show, and the columns left
+// to every tab: from x, w of them. The dock's width is contract.Fit's for
+// this window: the set one, a narrower one, or a rail, as a folded dock is.
+func (l *Layout) side() (at, line Rect, x, w int) {
+	if !l.Dock.On {
+		return at, line, 0, l.W
+	}
+	kept := contract.Fit(l.W, contract.Layout{Side: l.Dock.Width}).Side
+	if l.Dock.Fold {
+		kept = contract.SideRail
+	}
+	shown := kept
+	if l.Dock.Open && kept == contract.SideRail {
+		shown = min(max(l.Dock.Width, contract.SideMin), contract.SideMax)
+	}
+	kept, shown = max(min(kept, l.W-1), 0), max(min(shown, l.W-1), 0)
+	at, line = Rect{0, 0, shown, l.H}, Rect{shown, 0, min(l.W, 1), l.H}
+	if w = max(l.W-kept-1, 0); l.Dock.Right {
+		line.X = l.W - shown - 1
+		at.X = line.X + 1
+		return at, line, 0, w
+	}
+	return at, line, l.W - w, w
+}
+
+// area is the window under the tab row and its line, beside the dock.
+func (l *Layout) area() Rect {
+	_, _, x, w := l.side()
+	return Rect{x, 2, w, max(l.H-2, 0)}
+}
 
 // least is the smallest a node can be, down or across.
 func (n *Node) least(down bool) int {
@@ -107,14 +135,19 @@ func (l *Layout) place(t *Tab, of *Node) (at Rect) {
 	return at
 }
 
-// Places is where each pane of a tab shows at the window's size: every pane,
-// or the zoomed one alone. No two places share a cell, none has a negative
-// side, and one with no cells at all is a pane the window has no room for.
-func (l *Layout) Places(t *Tab) []Place {
-	if t.Zoom != "" {
-		return []Place{{t.Zoom, l.area()}}
+// Places is where each pane of a tab shows at the window's size: the dock
+// first, beside every tab and beside none, then every pane or the zoomed one
+// alone. No two places share a cell but under an open rail, none has a
+// negative side, and one with no cells is a pane the window has no room for.
+func (l *Layout) Places(t *Tab) (out []Place) {
+	if at, _, _, _ := l.side(); l.Dock.On {
+		out = append(out, Place{DockPane, at})
 	}
-	var out []Place
+	if t == nil {
+		return out
+	} else if t.Zoom != "" {
+		return append(out, Place{t.Zoom, l.area()})
+	}
 	walk(t.Root, l.area(), func(n *Node, r Rect) {
 		if n.A == nil {
 			out = append(out, Place{n.Pane, r})
@@ -157,7 +190,7 @@ func (l *Layout) Beside(pane, direction string) string {
 	}
 	found, most := "", 0
 	for _, p := range places {
-		if m := p.meet(probe); m > most {
+		if m := p.meet(probe); m > most && p.Pane != DockPane {
 			found, most = p.Pane, m
 		}
 	}
@@ -235,8 +268,16 @@ func (l *Layout) Resize(pane, direction string, amount float64) error {
 
 // Drag moves the dividing line a press landed on to the cell the pointer is
 // on now. The hit is one of the layout as it is: once a pane has opened or
-// closed, At is asked again.
+// closed, At is asked again. The dock's edge sets its width, unfolded, within
+// the contract's limits and never past what leaves a tab contract.TalkMin.
 func (l *Layout) Drag(h Hit, x, y int) {
+	if h.Kind == OnLine && h.Pane == DockPane {
+		if l.Dock.Right {
+			x = l.W - 1 - x
+		}
+		l.Dock.Width, l.Dock.Fold = max(min(x, contract.SideMax, l.W-1-contract.TalkMin), contract.SideMin), false
+		return
+	}
 	if h.line == nil || l.Active >= len(l.Tabs) {
 		return
 	}

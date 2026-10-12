@@ -345,6 +345,41 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+// A layout file with a dock in it is read as having none: the dock is made
+// by the keeper at every start, so no file names its place, its width or
+// its program. And no tab can hold a pane of the dock's id.
+func TestAFileWithADockInItHasNone(t *testing.T) {
+	p := platform.New(runtime.GOOS)
+	_, dirs := login(t)
+	write := func(text string) {
+		t.Helper()
+		os.MkdirAll(dirs.State, 0o700)
+		if err := os.WriteFile(restore.Path(dirs), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(`{"version":1,"w":120,"h":30,"tabs_made":1,"panes_made":1,
+	 "layout":{"tabs":[{"id":"t1","label":"reef","focus":"p1","root":{"pane":"p1"}}],"active":0,
+	   "dock":{"On":true,"Right":true,"Width":60,"Fold":true,"Keys":true},"Dock":{"On":true,"Width":60}},
+	 "panes":[{"pane":{"pane":"p1","tab":"t1","dock":true},"argv":["a-shell"]},
+	          {"pane":{"pane":"dock","tab":"","dock":true,"ours":true},"argv":["a-program","ui","run","side"]}]}`)
+	f, lay, err := restore.Load(p, dirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lay.Dock != (layout.Dock{}) || len(f.Panes) != 1 || f.Panes[0].Rec.ID != "p1" || f.Panes[0].Rec.Dock || f.Panes[0].Run != nil {
+		t.Errorf("the layout's dock is %+v and the panes are %+v", lay.Dock, f.Panes)
+	}
+	if places := lay.Places(lay.Tabs[0]); len(places) != 1 || places[0].W != 120 {
+		t.Errorf("the tab's places are %+v", places)
+	}
+	write(`{"version":1,"layout":{"tabs":[{"id":"t1","focus":"dock","root":{"pane":"dock"}}],"active":0},
+	 "panes":[{"pane":{"pane":"dock","tab":"t1"},"argv":["a-program","ui","run","side"]}]}`)
+	if f, _, err := restore.Load(p, dirs); f != nil || !errors.Is(err, restore.ErrUnusable) {
+		t.Errorf("a tab that holds a pane of the dock's id: %v, %v", f, err)
+	}
+}
+
 func TestWhatAPaneStarts(t *testing.T) {
 	for _, c := range []struct {
 		agent, session string
