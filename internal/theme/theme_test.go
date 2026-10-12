@@ -65,6 +65,31 @@ func TestEverySchemeNamesTheSixteenAndIsReadable(t *testing.T) {
 	}
 }
 
+// The pairs the left section and the settings screen add. What the pointer
+// is over is drawn the other way round: the ground as text on a state's
+// colour, on accent for a button and for the title of the region with the
+// keys, on the warning colour for a switch that is on. The bar of the row in
+// front and the value in force are accent on the ground.
+func TestThePairsUnderThePointerAndTheBar(t *testing.T) {
+	for _, s := range Schemes {
+		if s.Name == None {
+			continue
+		}
+		lit := []string{"accent", "blocked"}
+		for _, l := range contract.Looks {
+			lit = append(lit, l.Colour)
+		}
+		for _, name := range lit {
+			if got := contrast(s.Ground, s.Colours[name]); got < 4.5 {
+				t.Errorf("%s: the ground as text on %s is %.2f to 1, want 4.5", s.Name, name, got)
+			}
+		}
+		if got := contrast(s.Colours["accent"], s.Ground); got < 4.5 {
+			t.Errorf("%s: the bar in accent is %.2f to 1 against the ground, want 4.5", s.Name, got)
+		}
+	}
+}
+
 func TestGetAndNext(t *testing.T) {
 	var names []string
 	for _, s := range Schemes {

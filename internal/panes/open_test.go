@@ -103,9 +103,9 @@ func TestUIOpensBothPanesOnceAndClosesOnlyItsOwn(t *testing.T) {
 	// A pane's program is started from its list of arguments, with no
 	// shell and no word in front: so the keeper knows it as ours.
 	self, _ := d.k.Platform.SelfPath()
-	want := "split " + d.me + " right 0.7\n" +
+	want := "split " + d.me + " right 36\n" +
 		"run " + o.Fleet + " " + self + " ui run fleet --root /project\n" +
-		"split " + d.me + " down 0.75\n" +
+		"split " + d.me + " down 2\n" +
 		"run " + o.Actions + " " + self + " ui run actions --root /project"
 	if got := d.did(); got != want {
 		t.Errorf("ui asked the terminals for\n%s\nwant\n%s", got, want)
@@ -221,13 +221,12 @@ func TestUIFitsTheFleetToTheScreen(t *testing.T) {
 		width, kept int
 		split       string
 	}{
-		{150, 0, " right 0.7\n"},   // three tenths at first
-		{100, 0, " right 0.66\n"},  // or the cells a card needs
-		{150, 60, " right 0.6\n"},  // then the width it was left at
-		{80, 60, " right 0.667\n"}, // a third at most on a narrow screen
-		{80, 20, " right 0.75\n"},  // or less
-		{300, 20, " right 0.9\n"},  // never under a tenth
-		{59, 0, ""},                // and no panes at all under sixty columns
+		{150, 0, " right 46\n"},  // in a wide window the width it comes with
+		{100, 0, " right 36\n"},  // in a narrower one the cells a card needs
+		{150, 60, " right 60\n"}, // then the width it was left at
+		{300, 20, " right 36\n"}, // never under what a card needs
+		{80, 60, " down 2\n"},    // its strip where the conversation would have too little
+		{10, 0, ""},              // and no fleet at all under forty columns
 	} {
 		d.double.Width = c.width
 		dirs, _ := d.k.Platform.Dirs()

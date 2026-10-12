@@ -137,7 +137,7 @@ func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepa
 		<-done
 		wd.double.Close()
 	})
-	wd.shows("live · ")
+	wd.shows(map[bool]string{true: "saved as you go", false: "live · "}[kind == settings])
 	wd.began = true
 	return wd
 }

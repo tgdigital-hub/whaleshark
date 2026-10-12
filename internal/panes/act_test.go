@@ -886,6 +886,7 @@ func TestSet(t *testing.T) {
 // split off upward; a pane of ours can open the other.
 func TestTheKeysGoBetweenThePanes(t *testing.T) {
 	d := newDesk(t)
+	d.double.Width = 200 // a window in which the action pane opens whole
 	o, err := d.ui(d.me)
 	if err != nil {
 		t.Fatal(err)

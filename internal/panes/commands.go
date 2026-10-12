@@ -1,4 +1,5 @@
-// Package panes draws the fleet pane and the action pane. A pane keeps
+// Package panes draws the left section, the fleet pane, the action pane and
+// the settings screen, and places the panes as the layout says. A pane keeps
 // nothing and changes nothing: it reads the record, the terminals' picture and a few
 // small files, has one view model built from them, and draws that. What a
 // click or a key changes, a child command changes: the program itself,
@@ -9,23 +10,18 @@ import (
 	"cmp"
 	"os"
 	"os/exec"
+	"slices"
 	"syscall"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
 
-// Phase 5 owes here: ui run side, the left section drawn from contract.Side
-// in the dock, and ui run settings with ui settings: every row of
-// contract.Keys by its section, each change one `set`. The fleet at the
-// bottom and as a strip, a fleet's card, and the kit's Panes, which opens
-// and moves the two panes by the person's layout. Every width by
-// contract.Fit.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("ui", ui)
 	k.Handle("set", set)
+	k.Panes = Panes
 }
 
 // ui opens and closes the two panes beside the conversation, gives the
@@ -36,7 +32,7 @@ func ui(c *contract.Call) (any, error) {
 	one := a[0] == fleet || a[0] == actions
 	switch {
 	case len(a) > 2:
-	case a[0] == "run" && (a[1] == fleet || a[1] == actions), a[0] == menu && a[1] == "":
+	case a[0] == "run" && slices.Contains([]string{fleet, actions, side, settings}, a[1]), a[0] == menu && a[1] == "":
 		t, err := term.Open()
 		if err != nil {
 			return nil, err
@@ -54,6 +50,9 @@ func ui(c *contract.Call) (any, error) {
 			return nil, again(p.self)
 		}
 		return nil, nil
+	case a[0] == settings && a[1] == "":
+		self, _ := c.Kit.Platform.SelfPath()
+		return nil, c.Kit.Terms.Overlay([]string{self, "ui", "run", settings}, 0, 0)
 	case a[0] == actions && a[1] == "focus":
 		_, ui, _, err := screen(c.Kit)
 		if err == nil && ui.ActionsPane == "" {
