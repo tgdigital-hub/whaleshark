@@ -79,9 +79,9 @@ func TestTheDockStandsBesideEveryTab(t *testing.T) {
 		r.sized(c, layout.DockPane, at.side, 30)
 		r.sized(c, "p1", at.tab, 28)
 	}
-	if x, y := w.shows("t1"); x != 24 || y != 0 {
-		t.Errorf("the tab row begins at %d,%d:\n%s", x, y, w.text())
-	}
+	// The frame of the last width, not one of a width before it that the
+	// window still shows on a busy machine.
+	r.until("the tab row to begin beside the dock", func() bool { return w.cell(24, 0)+w.cell(25, 0) == "t1" })
 	r.until("the dock's edge", func() bool { return w.cell(22, 0) == "│" && w.cell(22, 1) == "├" && w.cell(22, 29) == "│" })
 	c.call(contract.WireCall{Op: contract.OpTabCreate, Label: "two"})
 	c.call(contract.WireCall{Op: contract.OpTabFocus, Tab: "t2"})
