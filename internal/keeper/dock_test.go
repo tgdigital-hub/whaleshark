@@ -126,9 +126,13 @@ func TestTheDockRunsNothingButOurs(t *testing.T) {
 			t.Errorf("%s on the dock: %+v", call.Op, reply)
 		}
 	}
-	// Its program's first line may still be on its way to the screen.
+	// Its program's first line may still be on its way to the screen. It
+	// begins with this program's own path, as long as the system makes it,
+	// and breaks wherever the screen's width falls: at a blank too, which a
+	// row does not end in.
 	r.until("the dock's screen to be read", func() bool {
-		return strings.Contains(c.call(contract.WireCall{Op: contract.OpScreen, Pane: dock}).Text, "ui run side")
+		text := c.call(contract.WireCall{Op: contract.OpScreen, Pane: dock}).Text
+		return strings.Contains(strings.Join(strings.Fields(text), ""), "uirunside")
 	})
 	if r.program(dock) != was || !slices.Equal(was.spec.Argv[1:], []string{"ui", "run", "side"}) || !r.locked(func() bool { return len(r.k.panes) == 2 }) {
 		t.Error("a refused call changed the dock")

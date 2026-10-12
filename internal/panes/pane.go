@@ -65,6 +65,11 @@ type pane struct {
 	cfg     contract.PersonConfig
 	engine  contract.Settings
 	tools   []contract.Tool
+	// found names the tools whose program is there to start; looks counts
+	// how often that was looked for, and seen is the look found is from.
+	found   []string
+	looks   int
+	seen    int
 	fleets  map[string]*contract.State // an orchestrator's fleets, each one's own run
 	below   []string                   // the runs whose files are watched beside the pane's own
 	chosen  string                     // the scheme the settings file names
@@ -354,6 +359,7 @@ func (p *pane) tick(n int) {
 	if n%compareEvery == 0 {
 		p.snapshot(1)
 		p.sweep()
+		p.look()
 	}
 	if st, err := os.Stat(p.self); n%lookEvery == 0 && err == nil && !st.ModTime().Equal(p.born) {
 		p.leave()
@@ -427,11 +433,43 @@ func (p *pane) load() {
 	p.limits, _ = contract.ReadProjectFile(p.root)
 	// The engine's command key, for the hint that names it.
 	p.engine, _ = contract.ReadSettings(p.k.Platform.Peek, dirs)
-	p.tools, _ = contract.Tools(p.k.Platform, dirs)
+	tools, _ := contract.Tools(p.k.Platform, dirs)
+	same := slices.EqualFunc(tools, p.tools, func(a, b contract.Tool) bool { return a.Name == b.Name && slices.Equal(a.Run, b.Run) })
+	if p.tools = tools; !same || p.looks == 0 {
+		p.look()
+	}
 	p.cfg = person(p.k, dirs)
 	if p.above = p.cfg.Panes.Actions == "top"; p.cfg.UI.Theme != p.chosen {
 		p.chosen, p.scheme = p.cfg.UI.Theme, theme.Get(p.cfg.UI.Theme)
 	}
+}
+
+// look finds which wired tools have their program there to start: at once
+// the first time, and after that beside the loop. Along the path that is
+// hundreds of files on Windows, more than a frame has time for, so nothing
+// that is drawn asks for it.
+func (p *pane) look() {
+	tools, n := slices.Clone(p.tools), p.looks+1
+	find := func() (names []string) {
+		for _, t := range tools {
+			if t.Found() {
+				names = append(names, t.Name)
+			}
+		}
+		return names
+	}
+	if p.looks = n; n == 1 || p.bg == nil {
+		p.found, p.seen = find(), n
+		return
+	}
+	p.helper(func() {
+		names := find()
+		p.tell(news{do: func() {
+			if n > p.seen { // a slow look does not take a later one's answer back
+				p.found, p.seen = names, n
+			}
+		}})
+	})
 }
 
 // showing is the run of a pane that was started with none named: the open
@@ -490,7 +528,7 @@ func (p *pane) build() {
 	if !p.lostAt.IsZero() && now.Sub(p.lostAt) < sayLost {
 		notes = append(notes, "terminals: checking every 5 s")
 	}
-	found := slices.DeleteFunc(slices.Clone(p.tools), func(t contract.Tool) bool { return !t.Found() })
+	found := slices.DeleteFunc(slices.Clone(p.tools), func(t contract.Tool) bool { return !slices.Contains(p.found, t.Name) })
 	switch {
 	case p.kind == side:
 		// The model fits its rows to the panel, whose height the drawing knows.

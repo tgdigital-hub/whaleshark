@@ -314,12 +314,27 @@ func start(c *contract.Call) (any, error) {
 	out := make([]outcome, len(ids))
 	l.single = len(ids) == 1
 	var wg sync.WaitGroup
+	var groups []func()
 	for i, id := range ids {
-		wg.Go(func() {
+		bring := func() {
 			out[i] = l.bring(id)
 			l.say(out[i])
-		})
+		}
+		// A group holds the login's lock for the whole of its start, so
+		// groups go one after another whatever is done here: in the order
+		// they were named, and where the leaders' limit ends them it is the
+		// last named that wait.
+		if l.fleet == "" && s.Tasks[id].Fleet != "" {
+			groups = append(groups, bring)
+		} else {
+			wg.Go(bring)
+		}
 	}
+	wg.Go(func() {
+		for _, bring := range groups {
+			bring()
+		}
+	})
 	wg.Wait()
 	if wait := map[bool]string{true: " waits", false: "s wait"}[waiting == 1]; waiting > 0 && limit < own {
 		fmt.Fprintf(c.Out, "%d more ready task%s for a free place: this server lets this login run %d agents.\n", waiting, wait, srv.Cap(me))

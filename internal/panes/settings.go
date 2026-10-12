@@ -284,7 +284,7 @@ func (p *pane) choices(s setting) []string {
 	}
 	var names []string
 	for _, t := range p.tools {
-		if t.Found() && s.key.Kind == contract.KindTool {
+		if s.key.Kind == contract.KindTool && slices.Contains(p.found, t.Name) {
 			names = append(names, t.Name)
 		}
 	}

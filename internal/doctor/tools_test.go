@@ -32,9 +32,11 @@ func (d *desk) program(dir, name string) string {
 // with its reason; and the machine's memory is said in agents.
 func TestTheAgentToolsHaveTheirRows(t *testing.T) {
 	d := project(t)
-	bin, was := t.TempDir(), ask
+	bin, was, root := t.TempDir(), ask, sysRoot
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Cleanup(func() { ask = was })
+	t.Cleanup(func() { ask, sysRoot = was, root })
+	// A system of the test's own: on Linux the row would read this machine's memory.
+	sysRoot = t.TempDir()
 	ask = func(name string, args ...string) (string, error) {
 		if name == "sysctl" {
 			return "17179869184", nil
@@ -90,9 +92,9 @@ func TestMemoryThatCannotBeTold(t *testing.T) {
 	was, root := ask, sysRoot
 	t.Cleanup(func() { ask, sysRoot = was, root })
 	ask = func(string, ...string) (string, error) { return "", errors.New("no such program") }
+	sysRoot = t.TempDir() // which has no figure: this machine's own is not asked
 	e, _ := d.doctor()
 	d.want(e, note, "memory carries cannot be told")
-	sysRoot = t.TempDir()
 	d.write(filepath.Join(sysRoot, "proc", "meminfo"), "MemTotal:        8388608 kB\nMemAvailable:    1000000 kB\n")
 	e, _ = d.doctor()
 	d.want(e, note, "8192 MB of memory", "about 1638 agents")
@@ -142,6 +144,13 @@ func (t *trial) TabClose(tab string) error { t.asked = append(t.asked, "close "+
 // step that does not come is named, and the tab and the folder go either way.
 func TestTryATool(t *testing.T) {
 	d := project(t)
+	// Where the login's scratch folders lie is the system's affair: in the
+	// cache, and on Linux beside it under a short name.
+	one, err := d.k.Platform.PrivateTemp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	scratch := filepath.Dir(one)
 	tool := contract.Tool{Name: "hermes", Run: []string{"/opt/hermes/hermes"}, Hooks: contract.HooksNone}
 	for _, c := range []struct {
 		terms trial
@@ -162,8 +171,8 @@ func TestTryATool(t *testing.T) {
 			slices.Contains(asked, "prompt say ready") != got.Started || !slices.Equal(c.terms.args, d.hooks.args) {
 			t.Errorf("asked of the keeper: %v with %v", asked, c.terms.args)
 		}
-		if rel, err := filepath.Rel(d.dirs.Cache, c.terms.dir); err != nil || !filepath.IsLocal(rel) || exists(c.terms.dir) {
-			t.Errorf("the scratch folder %s is not in the cache, or was left there", c.terms.dir)
+		if rel, err := filepath.Rel(filepath.Dir(d.dirs.Cache), scratch); err != nil || !filepath.IsLocal(rel) || filepath.Dir(c.terms.dir) != scratch || exists(c.terms.dir) {
+			t.Errorf("the scratch folder %s is not one of the login's own under %s, or was left there", c.terms.dir, scratch)
 		}
 	}
 }

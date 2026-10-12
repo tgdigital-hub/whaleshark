@@ -474,7 +474,11 @@ func agree(t *testing.T, name string, f *testkit.Fixture, in contract.ViewInput,
 					// A fleet's card names its leader's tool beside the fleet, as the page does in a span of its own.
 					g.name, _, _ = strings.Cut(g.name, " · ")
 				}
-				if strings.HasSuffix(x.word, "%") && strings.HasSuffix(x.word, "%") && strings.Contains(out, `value="`+strings.TrimSuffix(x.word, "%")+`"></progress> `+x.word) {
+				// Plain text prints a card's progress where the page and the pane
+				// say its word: the figure is the one of this card's own bar.
+				_, card, _ := strings.Cut(out, `>`+html.EscapeString(row.name)+`</a>`)
+				card, _, _ = strings.Cut(card, "</article>")
+				if strings.HasSuffix(x.word, "%") && strings.Contains(card, `value="`+strings.TrimSuffix(x.word, "%")+`"></progress> `+x.word) {
 					x.word = row.word
 				} else if strings.HasPrefix(row.word, x.word+" ") {
 					x.word = row.word // "idle 12m": plain text prints the age in its own column
