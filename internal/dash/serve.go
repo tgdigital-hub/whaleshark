@@ -385,6 +385,17 @@ func (s *server) view(ctx context.Context, j job, all []job, every bool) *contra
 	}
 	s.mu.Unlock()
 	in.State, in.Ctx, in.All = j.state, contract.ReadCtx(peek, s.dirs.State, j.state), every
+	// An orchestrator's run is shown one card a fleet: from each fleet's own
+	// run, read now, and the person's limits.
+	if j.state.Run.Mode == contract.ModeFleets {
+		in.Fleets = map[string]*contract.State{}
+		in.Person, _ = contract.ReadPerson(peek, s.dirs.Config)
+		for name, f := range j.state.Run.Fleets {
+			if low, err := s.k.Reader().Read(j.root, f.Run); err == nil {
+				in.Fleets[name] = low
+			}
+		}
+	}
 	v := s.k.View(in)
 	withPhones(v, in.Phones)
 	return v
