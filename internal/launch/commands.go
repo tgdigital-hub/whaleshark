@@ -16,6 +16,11 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 6 owes here: start under plan first (contract.Unplanned, Kit.PlanText,
+// Rules.Planned); a start in a held run and resume on a guard's hold refused
+// (contract.RefusedOverBudget); Kit.Hold: the hold file, what is closed, the
+// wake.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("start", start)

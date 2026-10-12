@@ -67,7 +67,7 @@ func TestEverySettingHasARow(t *testing.T) {
 				}
 				return k.Store == store && at == path
 			})
-			if !has && !(store == StoreConfig && path == "ui.actions") {
+			if !has && !(store == StoreConfig && path == "ui.actions") && path != "tried.day" { // the day is shown in the row of what was seen
 				t.Errorf("%s holds %s, and no row of Keys is that setting", store, path)
 			}
 		}
@@ -184,7 +184,8 @@ func TestSetWritesEveryStore(t *testing.T) {
 	delete(c.Flags, "project")
 	refused("shell", "/bin/sh", "human_only", ExitRefused)
 	refused("tools.hermes.run", "/opt/hermes/bin/hermes", "human_only", ExitRefused)
-	must("fleets.total", "30", "30") // a plain key is anybody's of the login
+	must("theme", "kelp", "kelp") // a key that holds nobody and calls nobody is set, and kept as the agent's doing
+	refused("fleets.total", "30", RefusedPersonOnly, ExitRefused)
 }
 
 // A tool is wired in by a description from two places and no third; a

@@ -27,6 +27,10 @@
 // package manager for the new one. Otherwise upgrade puts the file it was
 // started from in place, which install.sh has checked.
 //
+// Phase 6 owes here: the Tailscale road leaves the server's script (its
+// `phone` step and the PHONE port), in the one commit that takes it out of
+// the whole tree.
+//
 // Installer is install.sh, the one-line install for one login without
 // root: it fetches a release's file and its signed list, or takes them from
 // a folder (--from), checks both, and puts the file in place by renaming

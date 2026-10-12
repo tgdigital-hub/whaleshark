@@ -123,6 +123,7 @@ other work collected so far. Then stay, and wait again:
 - Never `--fleet` on a task: a fleet has workers and no fleets under it.
 - Never `--relayed` on an answer: you pass on nobody's words as the person's.
 - Never `whaleshark ask`: you ask with `need`.
+- Never `whaleshark set`: settings are changed by the person, or by the orchestrator when they ask it to.
 - Never add `--human` to any command: it is the person's alone.
 - Never start the window or the keeper (whaleshark's open and engine commands), and never type into another tab.
 - Never call work finished that `accept` has not checked, and never report a group with a task open.

@@ -857,3 +857,71 @@ func TestTwentyAgentsOfFourFleetsUnderOneLock(t *testing.T) {
 		t.Errorf("a write waited %v for its turn", slowest)
 	}
 }
+
+// Phase 6 in the record. A file of the version before knows none of the new
+// fields: it is read as it stands, and the first change writes it back as
+// the new version with what that change added, the older file kept beside
+// it. What an approval or an agent's wish names passes the validator on
+// every load, so a record edited by hand cannot name a task that is no id
+// or a setting that is none.
+func TestTheRecordOfPhaseSix(t *testing.T) {
+	st, root := project(t, "r2")
+	file := filepath.Join(st.Dir(root, "r2"), stateFile)
+	older := plant(t, file, 2)
+	if s, err := st.Read(root, "r2"); err != nil || s.Version != 2 || s.Run.Plan != nil || s.Run.Protect != nil || s.Run.Spend != (contract.Spend{}) {
+		t.Fatalf("a record of version 2 as it stands: %+v, %v", s, err)
+	}
+	at := time.Date(2026, 10, 12, 9, 2, 0, 0, time.UTC)
+	err := st.Change(root, "r2", func(s *contract.State) error {
+		s.Run.Plan = &contract.Approval{Approved: []string{"T1", "T2"}, At: at, By: &contract.Origin{Caller: contract.Human, Where: contract.WherePane}}
+		s.Run.Protect = &contract.Approval{Seen: "f1", Files: []string{"db/migrations/0042_refunds.sql"}, Item: "n9"}
+		s.Run.Spend = contract.Spend{More: 8, Warned: true}
+		for _, a := range s.Attempts {
+			a.Rested, a.Seen.StuckSince, a.Seen.StuckWhy, a.Seen.StuckTold = 90*time.Minute, at, "stale,check", contract.ToldLeader
+		}
+		for _, q := range s.Questions {
+			q.Tasks, q.Set = []string{"T1"}, &contract.SetAsk{Key: "spend.guard", From: contract.On, To: contract.Off}
+		}
+		for _, task := range s.Tasks {
+			task.CheckFails = 3
+		}
+		return nil
+	})
+	kept, _ := os.ReadFile(filepath.Join(st.Dir(root, "r2"), "state.v2.json"))
+	s, rerr := st.Read(root, "r2")
+	if err != nil || rerr != nil || s.Version != contract.StateVersion || contract.StateVersion != 3 || !bytes.Equal(kept, older) ||
+		!slices.Equal(s.Run.Plan.Approved, []string{"T1", "T2"}) || s.Run.Plan.By.Where != contract.WherePane || s.Run.Protect.Item != "n9" || s.Run.Spend.More != 8 {
+		t.Fatalf("the upgrade to version 3: %v, %v, %+v", err, rerr, s)
+	}
+	for _, a := range s.Attempts {
+		if a.Rested != 90*time.Minute || a.Seen.StuckWhy != "stale,check" || a.Seen.StuckTold != contract.ToldLeader || !a.Seen.StuckSince.Equal(at) {
+			t.Fatalf("an attempt's phase 6 fields read back: %+v", a)
+		}
+	}
+	for what, spoil := range map[string]func(*contract.State){
+		"a plan's task that is no id": func(s *contract.State) { s.Run.Plan.Approved = []string{"../T1"} },
+		"an item that is no id":       func(s *contract.State) { s.Run.Protect.Item = "n 9" },
+		"a setting that is none": func(s *contract.State) {
+			for _, q := range s.Questions {
+				q.Set = &contract.SetAsk{Key: "no.such"}
+			}
+		},
+	} {
+		if err := st.Change(root, "r2", func(s *contract.State) error { spoil(s); return nil }); err == nil {
+			t.Errorf("%s was written", what)
+		}
+		if _, err := st.Read(root, "r2"); err != nil {
+			t.Fatalf("after %s was refused the record does not read: %v", what, err)
+		}
+	}
+	// The kit's afternoon with every guard on is a record this store takes.
+	g := testkit.Guarded()
+	for _, s := range []*contract.State{g.Up, g.Low["billing"], g.Low["search"]} {
+		if err := st.Create(root, s); err != nil {
+			t.Errorf("the fixture's run %s: %v", s.Run.ID, err)
+		}
+	}
+	if contract.HoldPath(root, "r2") != filepath.Join(st.Dir(root, "r2"), contract.HoldFile) {
+		t.Errorf("the hold file is not in the run's folder: %s", contract.HoldPath(root, "r2"))
+	}
+}

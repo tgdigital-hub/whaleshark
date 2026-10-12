@@ -18,6 +18,9 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 6 owes here: answer on an item of a cause contract.PersonOnly names:
+// the refusal's own next lines, and --relayed refused.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("ask", ask)

@@ -166,6 +166,8 @@ func open(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, refuse("no_terminal", "The window "+err.Error()+": run it in a terminal of your own.")
 	}
+	// A person opened the window: the one moment the version notice may ask.
+	go c.Kit.Notice(c.Kit)
 	// asked is what must be taken back; restore is nil once it has been.
 	var mu sync.Mutex
 	asked := ""

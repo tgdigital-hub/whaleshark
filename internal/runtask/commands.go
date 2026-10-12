@@ -11,6 +11,10 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 6 owes here: accept's look after a collect (Integrator.Protected,
+// Rules.Protect) and its one line; protect.also through ProjectSet; task add
+// --owns warning across fleets.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("init", setUp)

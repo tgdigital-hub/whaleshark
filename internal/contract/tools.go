@@ -51,6 +51,65 @@ type Tool struct {
 	// or a part of it, is the login's own file.
 	Proven bool `toml:"-"`
 	Mine   bool `toml:"-"`
+	// Tried is what the one test of the tool (doctor --try) last saw on this
+	// computer, and the day it ran: a local truth, shown and never typed,
+	// and no rule reads it.
+	Tried ToolTried `toml:"tried,omitempty"`
+}
+
+// ToolTried is one run of a tool's test: the day as 2026-10-12, and of the
+// four things below the ones that were seen, in their order.
+type ToolTried struct {
+	Day string   `toml:"day,omitempty"`
+	Saw []string `toml:"saw,omitempty"`
+}
+
+var TriedSaw = []string{"started", "took its task", "worked", "came to rest"}
+
+// The three ranks of a tool, as a person reads them. A rank is worked out
+// and never claimed: proven has run for real under this program, day after
+// day; ready is a description that ships, written from its maker's manual;
+// any other tool that runs in a terminal is started, given its task and read.
+const (
+	RankProven   = "proven"
+	RankReady    = "ready, not proven"
+	RankTerminal = "works as a terminal tool"
+)
+
+func (t Tool) Rank() string {
+	switch {
+	case t.Proven:
+		return RankProven
+	case slices.ContainsFunc(builtIn, func(b Tool) bool { return b.Name == t.Name }):
+		return RankReady
+	}
+	return RankTerminal
+}
+
+// Facts is the rest of a tool's line in the one table that doctor, the
+// settings screen and the lead agent's guide print: what is known of it,
+// what its test saw here, and "experimental" for all but a proven one.
+func (t Tool) Facts() string {
+	facts := []string{"busy or quiet only", "not held by Stop all"}
+	if t.Exact() {
+		facts[0] = "exact states"
+	}
+	if t.Held() {
+		facts[1] = "held by Stop all"
+	}
+	if t.Hooks == HooksClaude {
+		facts = append(facts, "context bar")
+	}
+	if len(t.Resume) > 0 {
+		facts = append(facts, "picks up after a restart")
+	}
+	if t.Tried.Day != "" {
+		facts = append(facts, "tried here "+t.Tried.Day+": "+strings.Join(t.Tried.Saw, ", "))
+	}
+	if !t.Proven {
+		facts = append(facts, "experimental")
+	}
+	return strings.Join(facts, " · ")
 }
 
 // ToolScreen is words on a tool's screen, each optional and as fragile as a
@@ -185,7 +244,7 @@ func (t Tool) Check(p Platform, roots []string) error {
 			}
 		}
 	}
-	for _, word := range slices.Concat(t.Run, t.Model, t.Folder, t.Resume, []string{t.Label, t.Suits, t.Rules}) {
+	for _, word := range slices.Concat(t.Run, t.Model, t.Folder, t.Resume, t.Tried.Saw, []string{t.Label, t.Suits, t.Rules, t.Tried.Day}) {
 		if strings.ContainsFunc(word, func(r rune) bool { return r < ' ' || r == 0x7f }) {
 			return errors.New("a word of it holds a line break or a control character")
 		}

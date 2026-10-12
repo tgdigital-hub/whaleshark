@@ -387,6 +387,11 @@ type Integrator interface {
 	// closed run that was landed or holds nothing; a branch with work that
 	// was not landed stays and is named.
 	Drop(root string, s *State) (kept string, err error)
+	// Protected holds what the job changed between its base and its tip
+	// against the patterns (Owned): the files that match, read from git
+	// with -z, and their fingerprint, a hash over each path and the id git
+	// gives its contents at the tip. No match gives nothing.
+	Protected(root string, s *State, patterns []string) (print string, files []string, err error)
 }
 
 // Finding is one result of an overlap scan, kept on the run once announced.
@@ -577,6 +582,9 @@ func (NoIntegrator) PrepareAll(string, *State, []string) ([]Checked, error)  { r
 func (NoIntegrator) Collect(string, *State, string, Checked) (string, error) { return "", nil }
 func (NoIntegrator) Diff(string, *State, string, bool) (string, error)       { return "", ErrNotBuilt }
 func (NoIntegrator) Drop(string, *State) (string, error)                     { return "", nil }
+func (NoIntegrator) Protected(string, *State, []string) (string, []string, error) {
+	return "", nil, nil
+}
 
 func (NoOverlap) Scan(context.Context, string, *State, []string, bool) ([]Finding, error) {
 	return nil, nil

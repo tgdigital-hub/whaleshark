@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -143,5 +144,34 @@ func TestThreeFleets(t *testing.T) {
 	}
 	if len(f.In.Terms.Panes) != 19+3+2 {
 		t.Errorf("%d panes, want every agent's and the two tabs in no project", len(f.In.Terms.Panes))
+	}
+}
+
+// The afternoon with every guard on says what its comment says: 33 of 40
+// agent-hours, one group not yet approved, a fingerprint that is not the
+// approved one, an agent's wish for a setting, and one stuck worker.
+func TestGuarded(t *testing.T) {
+	g := Guarded()
+	spent := contract.Spent(g.Now, g.Up, g.Low["billing"], g.Low["search"])
+	if limit := g.Person.SpendLimit(g.Up.Run.Spend, false); spent != 33*time.Hour || limit != 40 || float64(spent)/float64(time.Hour) < contract.SpendWarnAt*float64(limit) {
+		t.Errorf("spent %v of %d agent-hours", spent, limit)
+	}
+	if lack := contract.Unplanned(g.Up, []string{"G1", "G2", "G3"}); len(lack) != 1 || lack[0] != "G3" || g.Up.Questions[g.Up.Run.Plan.Item].Tasks[0] != "G3" {
+		t.Errorf("not approved: %v", lack)
+	}
+	if p := g.Up.Run.Protect; p.Print == p.Seen || g.Up.Questions[p.Item].Cause != contract.CauseProtect || !contract.Owned(contract.Protected(g.Person, contract.ProjectDefaults()), p.Files[0]) {
+		t.Errorf("protected files: %+v", p)
+	}
+	stuck := g.Low["billing"].Attempts["T7.1"].Seen
+	if contract.StuckWhy(stuck.StuckWhy) != "no progress note · the same check failed 3 times" || stuck.StuckTold != contract.ToldOrchestrator {
+		t.Errorf("the stuck worker: %+v", stuck)
+	}
+	for id, q := range g.Up.Questions {
+		if !contract.PersonOnly(q.Cause) || q.From != contract.FromTool || q.For != contract.ForHuman {
+			t.Errorf("item %s is not the tool's own for the person alone: %+v", id, q)
+		}
+	}
+	if again := Guarded(); again.Up == g.Up || again.Low["search"] == g.Low["search"] {
+		t.Error("two calls share a record")
 	}
 }

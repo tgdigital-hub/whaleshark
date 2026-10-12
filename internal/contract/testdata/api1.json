@@ -1,0 +1,55 @@
+{
+ "chat": {
+  "run": "r7",
+  "who": "lead",
+  "lines": [
+   "\u003e done"
+  ]
+ },
+ "header": "Whaleshark-Session",
+ "pair": {
+  "word": "word",
+  "session": "sha256:of-a-secret-the-app-made",
+  "name": "a phone"
+ },
+ "root": {
+  "versions": [
+   1
+  ],
+  "newest": 1,
+  "program": "v1.2.0",
+  "paired": true
+ },
+ "routes": [
+  "/api",
+  "/api/1/view",
+  "/api/1/task/",
+  "/api/1/chat/",
+  "/api/1/live",
+  "/api/1/do/",
+  "/api/1/tell",
+  "/api/1/settings",
+  "/api/1/set",
+  "/api/1/pair",
+  "/api/1/push"
+ ],
+ "set": {
+  "key": "theme",
+  "value": "kelp"
+ },
+ "setting": {
+  "name": "theme",
+  "section": "Look",
+  "label": "Colour scheme",
+  "kind": "choice",
+  "values": "reef|kelp|ember|paper|mono|none",
+  "default": "reef",
+  "store": "config",
+  "help": "The colours of every pane of ours; none leaves the terminal's own.",
+  "value": "kelp",
+  "agent": "free"
+ },
+ "tell": {
+  "text": "start with billing"
+ }
+}

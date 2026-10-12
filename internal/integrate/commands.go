@@ -25,6 +25,9 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 6 owes here: land refused by Rules.Landable, with the fingerprint
+// worked out again from the tip.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	g := integrator{k}

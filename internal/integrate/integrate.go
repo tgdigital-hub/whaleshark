@@ -325,6 +325,12 @@ func (g integrator) Diff(root string, s *contract.State, task string, stat bool)
 	return out, nil
 }
 
+// Phase 6 owes here: Protected, in the contract's words, by one
+// git diff --name-only -z between the base and the tip and one ls-tree.
+func (g integrator) Protected(string, *contract.State, []string) (string, []string, error) {
+	return "", nil, nil
+}
+
 func (g integrator) Drop(root string, s *contract.State) (kept string, err error) {
 	in := s.Run.Integration
 	if in == nil {

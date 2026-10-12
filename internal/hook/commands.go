@@ -25,6 +25,9 @@ const (
 	formState  = "state"
 )
 
+// Phase 6 owes here: the gate's second look, at contract.HoldPath of the tab's
+// own run; a command line that writes the login's settings folder turned down.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.AgentSettings = settings{k}

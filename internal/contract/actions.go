@@ -76,6 +76,11 @@ var SideActions = []Action{
 	{ID: "side-keys", Label: "Go to the left section", How: HowScreen},
 	{ID: "side-fold", Label: "Fold the left section", How: HowScreen},
 	{ID: "workspace", Label: "Open a project", How: HowScreen},
+	// Phase 6: the log as a file, and what two of the tool's items offer
+	// beside their answers. A stuck item's three are go, stop and note-leader.
+	{ID: "export", Label: "Export the log of this job", Run: []string{"log", "--export"}, How: HowChild},
+	{ID: "show-changes", Label: "Show the changes", Run: []string{"show", "{task}", "--diff"}, How: HowTab},
+	{ID: "open-plan", Label: "Open the plan", Run: []string{"graph"}, How: HowTab},
 }
 
 // FindAction is a row of either table by its id.

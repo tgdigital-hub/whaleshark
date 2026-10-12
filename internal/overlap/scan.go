@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"path"
 	"slices"
 	"strings"
 	"sync"
@@ -291,20 +290,9 @@ func uncommitted(out string) (paths []string) {
 	return paths
 }
 
-// owned reports whether one of a task's patterns covers a file: the file
-// itself, a folder above it (with or without a closing /, /* or /**), or a
-// pattern of the shell's kind for the whole path or for its last part.
-func owned(patterns []string, file string) bool {
-	for _, p := range patterns {
-		p = strings.TrimSuffix(strings.TrimSuffix(path.Clean(p), "/**"), "/*")
-		whole, _ := path.Match(p, file)
-		last, _ := path.Match(p, path.Base(file))
-		if p == "." || p == "**" || p == file || strings.HasPrefix(file, p+"/") || whole || last {
-			return true
-		}
-	}
-	return false
-}
+// owned is the contract's one matcher of patterns, which the protected list
+// shares.
+func owned(patterns []string, file string) bool { return contract.Owned(patterns, file) }
 
 // order puts first the task that keeps its place: the one whose work is
 // reported, else the one that owns the files, else the one the run already
