@@ -309,8 +309,11 @@ func (p *pane) shutFleet(r contract.SideRow) {
 		p.shut = slices.Delete(p.shut, at, at+1)
 	} else if r.Open {
 		p.shut = append(p.shut, id)
+	} else {
+		return
 	}
 	p.stale = true
+	p.child(p.cmd("set", "shut", id), "", p.quiet) // kept for the next start of the bar
 }
 
 // sideKey is a key while the left section has the keys. Letters narrow the

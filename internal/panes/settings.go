@@ -88,6 +88,14 @@ func (p *pane) settingsRows() (out []setting) {
 			p.newTab(p.root, "trust")
 		})
 	}
+	if section == contract.SecFleets {
+		// What the limits above are held against at this moment, in this job.
+		of := " of " + strconv.Itoa(p.cfg.Fleets.Total)
+		if p.cfg.Fleets.Total == contract.Unlimited {
+			of = " (unlimited)"
+		}
+		press(fmt.Sprintf("Agents running now: %d%s", p.view.Counts.Agents, of), nil)
+	}
 	if section == contract.SecPage {
 		press(fmt.Sprintf("Phones may reach the page: %s · paired: %d · the page itself: whaleshark dash",
 			map[bool]string{true: contract.On, false: contract.Off}[p.phones.On], len(p.phones.Paired)), nil)

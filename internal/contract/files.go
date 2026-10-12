@@ -311,7 +311,9 @@ type UIFile struct {
 	// Changed names the settings that run a program and were changed since
 	// the person last saw their section of the settings screen: every
 	// screen carries one line in the warning colour while it holds any.
-	Changed  []string  `json:"changed,omitempty"`
+	Changed []string `json:"changed,omitempty"`
+	// Shut names the fleets folded in the left section, each "<run>/<fleet>".
+	Shut     []string  `json:"shut,omitempty"`
 	LastHere time.Time `json:"last_here,omitzero"`
 }
 

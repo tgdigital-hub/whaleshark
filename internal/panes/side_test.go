@@ -191,8 +191,8 @@ var pictures = []struct {
 │   Agent tools        │   A leader's tool                                                                    [ claude ▾ ]  │                                                      │
 │   This project       │   A worker's tool                                                              [ the leader's ▾ ]  │                                                      │
 │   Page & phone       │                                                                                                    │                                                      │
-│   This server        │   [ Put this section back as it came ]                                                             │                                                      │
-│                      │                                                                                                    │                                                      │
+│   This server        │   Agents running now: 0 of 20                                                                      │                                                      │
+│                      │   [ Put this section back as it came ]                                                             │                                                      │
 │                      │                                                                                                    │                                                      │
 │                      │                                                                                                    │                                                      │
 │                      │                                                                                                    │                                                      │
@@ -212,7 +212,7 @@ var pictures = []struct {
 │   This project     │   A leader's tool                                                     [ claude ▾ ]  │
 │   Page & phone     │   A worker's tool                                               [ the leader's ▾ ]  │
 │   This server      │                                                                                     │
-│                    │   [ Put this section back as it came ]                                              │
+│                    │   Agents running now: 0 of 20                                                       │
 │ / find a setting · j k choose · ← → or a click change · enter type a value · u undo · e… saved as you go │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 `},
@@ -227,7 +227,7 @@ var pictures = []struct {
 │   Agents in all                                                   ‹ 20 › │
 │   A leader's tool                                             ‹ claude › │
 │   A worker's tool                                       ‹ the leader's › │
-│   [ Put this section back as it came ]                                   │
+│   Agents running now: 0 of 20                                            │
 │ / find · j k · ← → change · u undo · esc close           saved as you go │
 └──────────────────────────────────────────────────────────────────────────┘
 `},
@@ -419,6 +419,9 @@ func TestTheBarsClicksAndKeys(t *testing.T) {
 	}
 	wd.click("▾")
 	wd.shows("▸ billing")
+	if got := wd.ran("set shut "); !strings.HasPrefix(got, "set shut r1/billing --human") {
+		t.Errorf("a folded fleet is kept by %q", got)
+	}
 	// The keys: down and up choose, a point opens what a row offers, and an
 	// answer goes to the run its question climbed to.
 	wd.s.Key("down")
@@ -634,6 +637,13 @@ func TestSetMovesThePanesAndSaysWhatALimitMeans(t *testing.T) {
 	}
 	if said := run("fleets.total", "20"); strings.Contains(said, "could use") {
 		t.Errorf("a limit of all over a fleet's said %q", said)
+	}
+	// A fleet folded in the left section is in the file, and out of it when opened.
+	run("shut", "r1/help", "pages")
+	run("shut", "r1/billing")
+	run("shut", "r1/help pages")
+	if _, ui, _, _ := screen(d.k); !slices.Equal(ui.Shut, []string{"r1/billing"}) {
+		t.Errorf("the folded fleets on file: %q", ui.Shut)
 	}
 	run("shell", "/bin/sh")
 	if _, ui, _, _ := screen(d.k); !slices.Contains(ui.Changed, "shell") {

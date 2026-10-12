@@ -22,8 +22,8 @@ func screen(k *contract.Kit) (dirs contract.Dirs, ui contract.UIFile, file strin
 
 // set changes a setting. Most are a row of the contract's table and are set
 // there; here are the ways of its own: a time for do not disturb, an open
-// pane that moves or is fitted, and a pane's own marks: folded, here, seen
-// and draft.<item> for a half-typed answer.
+// pane that moves or is fitted, and a pane's own marks: folded, here, seen,
+// shut <run>/<fleet> and draft.<item> for a half-typed answer.
 func set(c *contract.Call) (any, error) {
 	k := c.Kit
 	bad := func(format string, a ...any) (any, error) {
@@ -64,6 +64,13 @@ func set(c *contract.Call) (any, error) {
 		}
 	case key == "here":
 		ui.LastHere = c.Now
+	case key == "shut":
+		// A fleet of the left section is folded, or one that was is opened.
+		if at := slices.Index(ui.Shut, value); at >= 0 {
+			ui.Shut = slices.Delete(ui.Shut, at, at+1)
+		} else {
+			ui.Shut = append(ui.Shut, value)
+		}
 	case key == "seen":
 		// The settings screen showed a section again: its warnings end.
 		ui.Changed = slices.DeleteFunc(ui.Changed, func(name string) bool {
@@ -103,7 +110,7 @@ func set(c *contract.Call) (any, error) {
 	if err = contract.WriteVersioned(k.Platform, file, contract.FileVersion, ui); err != nil {
 		return nil, err
 	}
-	if key != "here" && key != "seen" && key != "folded" && !isDraft {
+	if key != "here" && key != "seen" && key != "folded" && key != "shut" && !isDraft {
 		fmt.Fprintln(c.Out, key+": "+value)
 	}
 	return map[string]string{"key": key, "value": value}, nil

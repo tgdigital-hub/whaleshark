@@ -177,7 +177,7 @@ func (p *pane) loop() bool {
 	}()
 	p.helper(p.listen)
 	p.load()
-	if p.folded = p.ui.Folded; p.kind == menu {
+	if p.folded, p.shut = p.ui.Folded, slices.Clone(p.ui.Shut); p.kind == menu {
 		p.over = menu
 	}
 	if st, err := os.Stat(p.self); err == nil {
