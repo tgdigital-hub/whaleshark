@@ -37,7 +37,13 @@
 # 140; and 35 left for what the wave finds. install, screen, window,
 # gitwt, overlay, theme, mail, pty, dash and hook, each built whole, pay
 # 395; the rest is new and is counted in the total below.
-lines 5040 contract internal/contract cmd/whaleshark
+# 35 more at the join of phase 5's first wave, for what its six packages
+# asked: the warning line of a changed tool worded once for every screen,
+# the item a row's answer is about, a setting's fields under names a
+# program reads, a fleet card's third line in the same words on the page
+# and in the pane, and whether a tool's program is found, which the guide
+# no longer asks by itself. dashweb pays.
+lines 5075 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -68,9 +74,17 @@ lines 1310 platform internal/platform
 # program is said as busy, not as unreadable; it stands at 997. screen pays.
 # 60 more for phase 5: the fleet leader as a caller and which run each of
 # its commands goes to, a group's flag, help for every setting.
-lines 1060 cli internal/cli
+# It gives 15 at the join of phase 5's first wave, to rules: the leader is
+# built, at 1,041, and no later package of the phase is in this folder.
+lines 1045 cli internal/cli
 # rules: 140 more for phase 5: a group's states, the limits, a question's twin.
-lines 1740 rules internal/rules
+# 90 more at the join of its first wave. The six rules of Fleet Mode came to
+# 267 lines where 170 were planned, and what the plan had not counted is
+# the refusals: a half-written twin mended, a leader that is not the one
+# the record names, a server's figure in the limits. Nothing is left to cut
+# that the row asks for; it stands at 1,825 and no later package of the
+# phase is in this folder. cli, hook, watch and dash pay.
+lines 1830 rules internal/rules
 # store: 50 more at the start of phase 5: an orchestrator's run and a
 # fleet's are changed in one step under the project's one lock, and what a
 # fleet adds to the record passes the validator on every load. engine pays.
@@ -143,7 +157,13 @@ lines 595 inbox internal/inbox
 # the 29 that were left and 18 more. window pays.
 # 265 more for phase 5: the left section's model, a fleet as a card, the
 # wired tools' lines.
-lines 2550 view internal/view
+# 135 more at the join of phase 5's first wave: the left section's model
+# alone came to 287 lines where 140 were planned, most of it the order in
+# which rows give way when they do not fit, which the plan took for a
+# sentence. The tools' lines of status, which were to give first, are out
+# of its text already. It stands at 2,683; nobody pays: this is new, and
+# is counted in the total below.
+lines 2685 view internal/view
 # question: 30 more for phase 5, the twin made, answered down and passed up.
 lines 580 question internal/question
 # mail gives 20 at the start of phase 5, to contract: built whole at 316.
@@ -195,7 +215,11 @@ lines 870 overlap internal/overlap
 # say whose the folder of those temp folders is; and a missing ss is said
 # as that. screen pays.
 # 30 more for phase 5: a row for each wired tool, and its one test.
-lines 1700 doctor internal/doctor
+# 95 more at the join of its first wave: the rows came to 80 lines, and the
+# one test of a tool, 46, had been counted in the settings screen that
+# calls it and in no folder. It stands at 1,794; of the 95, 50 are new and
+# counted in the total below; dashweb, dash and input pay the rest.
+lines 1795 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
@@ -212,7 +236,9 @@ lines 3120 panes internal/panes
 lines 90 theme internal/theme
 # hook: 60 more at the start of phase 2, for the settings of a second kind
 # of agent; it stood at 383.
-lines 450 hook internal/hook
+# It gives 25 at the join of phase 5's first wave: a tool's hooks come from
+# its description, and it is built whole at 423.
+lines 425 hook internal/hook
 # team: 25 more. It was built at 273 after three rewrites, with nothing left
 # to cut that the row or the design does not ask for; integrate pays.
 lines 275 team internal/team
@@ -223,7 +249,9 @@ lines 275 team internal/team
 # are built: its own, the shut door that lets a pass through, cost nothing.
 # It gives 45 at the start of phase 5, to contract, and keeps 20 for the
 # fleets on Home.
-lines 2000 dash internal/dash
+# It gives 35 at the join of phase 5's first wave: the fleets on Home took
+# 7 lines of the 20, and it is built whole at 1,960.
+lines 1965 dash internal/dash
 lines 350 push internal/push
 # connect and install: 30 and 20 of the engine's share (the clipboard lift,
 # the keeper's service entry), planned since the engine decision and put
@@ -243,7 +271,9 @@ lines 210 evidence internal/evidence
 # tunnel's passes still add is a few lines of script. It gives 60 more at
 # the wiring of phase 3, with both passes in: it stands at 955. It gives 65
 # more after the third security review, 45 to connect and 20 to doctor.
-lines 1035 dashweb internal/dashweb
+# It gives 70 at the join of phase 5's first wave, to contract and
+# doctor: a fleet's card on Home took 4 lines of the 50, and it stands at 962.
+lines 965 dashweb internal/dashweb
 # install gives 110 after the real runs of phase 2, 60 to doctor and 50 to
 # overlap: it stands at 945.
 lines 990 install install
@@ -289,10 +319,12 @@ lines 710 pty internal/pty
 # 5 more for letting a pane come to rest before a text is typed, which took
 # it to 584; window, built at 271, pays.
 # 30 more for phase 5: a kind of agent from its tool's description.
-lines 615 watch internal/watch
+# It gives 20 at the join of phase 5's first wave: its table of kinds went
+# and the description's words took its place line for line; built at 591.
+lines 595 watch internal/watch
 # input: 25 more for phase 5, the three keys of the dock and of the
-# settings screen.
-lines 495 input internal/input
+# settings screen. It gives 5 at the join of that phase's first wave.
+lines 490 input internal/input
 # restore: 50 more at the join of phase 2. Saving the layout lightly (a file
 # of lines a pane, written only for a pane that printed) came to 493.
 lines 510 restore internal/restore
@@ -313,8 +345,10 @@ skip _test.go testdata testkit
 # project decided to build its own terminal engine and depend on no other
 # program, and 40,000 until phase 5: the left section, the settings screen
 # with every setting in it, layout as settings, Fleet Mode and many agent
-# tools. The folders above are planned at 40,015; the look rounds, which are in
-# no folder's line, are 650 more.
+# tools. The folders above were planned at 40,015 and are at 40,200 since
+# the join of phase 5's first wave, which cost 185 lines more than its six
+# rows were given; the look rounds, which are in no folder's line, are 650
+# more: 40,850 if every folder fills its line.
 total 41000
 
 # The whole module list, not only the direct ones.
