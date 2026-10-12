@@ -374,6 +374,16 @@ func TestEverywhere(t *testing.T) {
 	if all := run(t, c).([]job); len(all) != 3 || !strings.HasPrefix(out.String(), "JOBS   3 open runs · 2 need you") {
 		t.Errorf("without a run: %d jobs\n%s", len(all), out)
 	}
+	// The left section's one child: every open run is swept, the closed one
+	// is not, nothing is printed, with a run here or with none.
+	for _, here := range []string{"r3", ""} {
+		c, out = jobs("everywhere", "sweep", "quiet")
+		sw := &sweeps{}
+		c.Kit.Sweeper, c.Run = sw, here
+		if run(t, c); sw.n != 3 || out.Len() != 0 {
+			t.Errorf("with the run %q here: %d runs swept, printed %q", here, sw.n, out)
+		}
+	}
 }
 
 // changes is an integrator that says what a task changed.

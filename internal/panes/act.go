@@ -118,11 +118,9 @@ func (p *pane) sweep() {
 	if len(p.jobs) > 0 {
 		return
 	}
-	// The left section has every open run of the login looked at.
-	for _, pr := range p.in.Projects {
-		for _, s := range pr.Runs {
-			p.child([]string{"status", "--sweep", "--quiet", "--human", "--root", pr.Root, "--run", s.Run.ID}, "", p.quiet)
-		}
+	// The left section has every open run of the login looked at, by one child.
+	if len(p.in.Projects) > 0 {
+		p.child([]string{"status", "--sweep", "--quiet", "--everywhere", "--human", "--root", p.in.Projects[0].Root}, "", p.quiet)
 	}
 	if p.run == "" {
 		return

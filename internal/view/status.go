@@ -42,6 +42,23 @@ func status(c *contract.Call) (any, error) {
 		}
 		return nil, nil
 	}
+	if quiet && has("everywhere") {
+		// One child for the left section: every open run of the login is looked at.
+		dirs, err := c.Kit.Platform.Dirs()
+		if err != nil {
+			return nil, err
+		}
+		roots, _ := contract.ReadProjects(c.Kit.Platform.Peek, dirs.State)
+		for _, root := range roots {
+			runs, _ := c.Kit.Reader().Runs(root)
+			for _, run := range runs {
+				if s, err := c.Kit.Reader().Read(root, run); err == nil && s.Run.ClosedAt.IsZero() {
+					c.Kit.Sweeper.Sweep(root, run, c.Now)
+				}
+			}
+		}
+		return nil, nil
+	}
 	if c.Run == "" {
 		return none()
 	}
