@@ -912,7 +912,7 @@ func TestHelpAndVersionOfPhase6(t *testing.T) {
 	if out := seen("1.2"); strings.Contains(out, "is out") {
 		t.Errorf("the same version is no news:\n%s", out)
 	}
-	if out := seen("v1.3"); !strings.Contains(out, "\nversion 1.3 is out · ") {
+	if out := seen("v1.3"); !strings.Contains(out, "\nversion 1.3 is out · upgrade it the way you installed it\n") {
 		t.Errorf("a newer release is not said:\n%s", out)
 	}
 	if out := seen("9.9 \x1b[2J; rm"); strings.Contains(out, "is out") {

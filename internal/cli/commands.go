@@ -5,7 +5,6 @@ package cli
 import (
 	"cmp"
 	"fmt"
-	"os"
 	"runtime/debug"
 	"strings"
 
@@ -202,12 +201,8 @@ func version(c *contract.Call) (any, error) {
 		v.Engine, seen = h, h
 	}
 	fmt.Fprintf(c.Out, "whaleshark %s (%s)\nengine %s\n", v.Version, v.Build, Plain(seen))
-	// Where this copy lies says whether Homebrew upgrades it.
-	exe, _ := os.Executable()
-	brew := strings.Contains(strings.ToLower(exe), "brew") || strings.Contains(exe, "/Cellar/")
-	upgrade := map[bool]string{true: "brew upgrade whaleshark", false: "upgrade it the way you installed it"}[brew]
 	if dirs, err := c.Kit.Platform.Dirs(); err == nil {
-		if v.Newer = contract.VersionLine(contract.ReadVersion(c.Kit.Platform.Peek, dirs.State).Seen, Version, upgrade); v.Newer != "" {
+		if v.Newer = contract.VersionLine(contract.ReadVersion(c.Kit.Platform.Peek, dirs.State).Seen, Version); v.Newer != "" {
 			fmt.Fprintln(c.Out, v.Newer)
 		}
 	}

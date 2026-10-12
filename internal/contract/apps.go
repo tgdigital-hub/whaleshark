@@ -60,13 +60,14 @@ func Newer(seen, mine string) bool {
 }
 
 // VersionLine is the one dim line of the left section, of version and of
-// doctor, with the upgrade line of the way this copy was installed; empty
-// while the program is the newest it has heard of.
-func VersionLine(seen, mine, upgrade string) string {
+// doctor; empty while the program is the newest it has heard of. It names
+// no command to upgrade with: the program is one file whichever way it was
+// installed, and where that file lies does not say which way it was.
+func VersionLine(seen, mine string) string {
 	if !Newer(seen, mine) {
 		return ""
 	}
-	return "version " + strings.TrimPrefix(seen, "v") + " is out · " + upgrade
+	return "version " + strings.TrimPrefix(seen, "v") + " is out · upgrade it the way you installed it"
 }
 
 // The interface an app speaks: the phone's door of the page's server, under

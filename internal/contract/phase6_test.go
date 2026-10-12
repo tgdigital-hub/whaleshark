@@ -282,7 +282,7 @@ func TestTheVersionNotice(t *testing.T) {
 			t.Errorf("%q newer than %q: want %v", c.seen, c.mine, c.want)
 		}
 	}
-	if got := VersionLine("v1.3", "v1.2.0", "brew upgrade whaleshark"); got != "version 1.3 is out · brew upgrade whaleshark" {
+	if got := VersionLine("v1.3", "v1.2.0"); got != "version 1.3 is out · upgrade it the way you installed it" {
 		t.Errorf("the line: %q", got)
 	}
 	dir := t.TempDir()
