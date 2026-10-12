@@ -103,6 +103,8 @@ func TestStatus(t *testing.T) {
 		}
 		want := *f.Views[caller]
 		want.Counts.Elsewhere = 0
+		// The wired tools go with every status: the two that are built in.
+		want.Tools = []contract.ToolLine{{Name: "claude", Exact: true, Held: true, Proven: true, Suits: "the default; anything"}, {Name: "codex", Exact: true}}
 		if got, want := indent(t, result), indent(t, &want); got != want {
 			t.Errorf("%s: the result is not the fixture's view\n%s", caller, diff(want, got))
 		}

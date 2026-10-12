@@ -72,7 +72,11 @@ func Build(in contract.ViewInput) *contract.View {
 		Fresh: contract.Fresh{Checked: in.Checked},
 	}
 	for _, t := range b.s.Tasks {
-		b.seats[t.ID] = b.seat(t)
+		st := b.seat(t)
+		if f := b.s.Run.Fleets[t.Fleet]; f != nil {
+			st.card.Name, st.card.Fleet = cli.Plain(t.Fleet), b.fleet(t.Fleet, f)
+		}
+		b.seats[t.ID] = st
 	}
 	b.items(v)
 	v.Items = append(in.Phones.Items(in.Now, in.Caller == contract.Human), v.Items...)
@@ -85,7 +89,7 @@ func Build(in contract.ViewInput) *contract.View {
 		if y, m, d := st.task.SettledAt.In(in.Now.Location()).Date(); c.Look == contract.LookDone && y == year && m == month && d == day {
 			v.Counts.DoneToday++
 		}
-		if order[c.Look] >= order[contract.LookStopped] && !all {
+		if order[c.Look] >= order[contract.LookStopped] && !all && (c.Fleet == nil || !c.Fleet.Parked) {
 			continue
 		}
 		b.finish(st)
@@ -108,7 +112,16 @@ func Build(in contract.ViewInput) *contract.View {
 	slices.SortFunc(seats, func(x, y *seat) int {
 		return cmp.Or(cmp.Compare(order[x.card.Look], order[y.card.Look]), natural(x.task.ID, y.task.ID))
 	})
+	fleets := map[string]bool{}
 	for _, st := range seats {
+		// One card a fleet, its group that needs something first; with every
+		// card asked for, each group has its own.
+		if f := st.card.Fleet; f != nil && !all {
+			if fleets[f.Run] {
+				continue
+			}
+			fleets[f.Run] = true
+		}
 		name := contract.Looks[order[st.card.Look]].Section
 		if n := len(v.Sections); n == 0 || v.Sections[n-1].Name != name {
 			v.Sections = append(v.Sections, contract.Section{Name: name})
@@ -233,6 +246,36 @@ func (b *builder) seat(t *contract.Task) *seat {
 	return st
 }
 
+// fleet is what a card says of its fleet: the agents of the fleet's own run
+// and how far that run is, and the groups of this run it still holds.
+func (b *builder) fleet(name string, f *contract.Fleet) *contract.FleetCard {
+	fc := &contract.FleetCard{Run: f.Run, Limit: b.in.Person.Fleets.Agents, Parked: f.Pane == "" && f.EndedAt.IsZero()}
+	for _, id := range f.Groups {
+		if g := b.s.Tasks[id]; g != nil && g.Status != contract.TaskDone && g.Status != contract.TaskCancelled {
+			fc.Groups++
+		}
+	}
+	if low := b.in.Fleets[name]; low != nil {
+		for _, a := range low.Attempts {
+			if a.State.Live() {
+				fc.Agents++
+			}
+		}
+		for _, t := range low.Tasks {
+			switch t.Status {
+			case contract.TaskCancelled:
+				continue
+			case contract.TaskDone:
+				fc.Done++
+			case contract.TaskReview:
+				fc.ToCheck++
+			}
+			fc.Of++
+		}
+	}
+	return fc
+}
+
 // shots counts the pictures among the files of a browser check.
 func shots(files []contract.EvidenceFile) (n int) {
 	for _, f := range files {
@@ -333,6 +376,17 @@ func (b *builder) item(q *contract.Question, st *seat, holds, late bool) contrac
 		it.Source = "something to do, from the lead agent"
 	default:
 		it.Source = "a question from the lead agent"
+	}
+	if q.Down != nil && st != nil {
+		// It climbed from a fleet: named by the worker it began with, or by
+		// the leader where the leader itself needs something.
+		it.Fleet, it.Name = cli.Plain(st.task.Fleet), "leader"
+		if low := b.in.Fleets[st.task.Fleet]; low != nil && low.Questions[q.Down.ID] != nil && low.Tasks[low.Questions[q.Down.ID].Task] != nil {
+			it.Name = cli.Plain(low.Tasks[low.Questions[q.Down.ID].Task].Name)
+		}
+		if q.For == contract.ForHuman {
+			it.Source = "passed up by the orchestrator"
+		}
 	}
 	id, human := q.ID, b.in.Caller == contract.Human
 	answer := func(text string) string { return "whaleshark answer " + id + " " + text + " --human" }
@@ -509,6 +563,24 @@ func (b *builder) finish(st *seat) {
 // and what the age line says about its sources.
 func (b *builder) around(v *contract.View) {
 	in, run := b.in, b.s.Run
+	if v.Mode = run.Mode; v.Mode == contract.ModeFleets {
+		// What the limits count: a living leader, and every agent of a fleet.
+		v.Limits = &contract.FleetRoom{LeadersMax: in.Person.Fleets.Leaders, AgentsMax: in.Person.Fleets.Total}
+		for name, f := range run.Fleets {
+			if v.Limits.Agents += b.fleet(name, f).Agents; f.Pane != "" {
+				v.Limits.Leaders++
+				v.Limits.Agents++
+			}
+		}
+		if v.Counts.Agents = v.Limits.Agents; in.Person.Fleets.Mode == contract.Off {
+			v.Alerts = append(v.Alerts, "Fleet Mode is switched off: this job keeps its fleets until it is closed")
+		}
+	}
+	for _, t := range in.Tools {
+		if len(in.Tools) > 1 {
+			v.Tools = append(v.Tools, contract.ToolLine{Name: t.Name, Exact: t.Exact(), Held: t.Held(), Proven: t.Proven, Suits: cli.Plain(t.Suits)})
+		}
+	}
 	if slices.ContainsFunc(in.Limits.Agent.Args, unasked) {
 		v.Alerts = append(v.Alerts, "workers in this project run without permission prompts")
 	}
@@ -619,6 +691,27 @@ func first(times ...time.Time) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+// title names what an item is about: the fleet it climbed from first.
+func title(it contract.Item) string { return strings.TrimPrefix(it.Fleet+" › "+it.Name, " › ") }
+
+// of is a figure of its limit, in the words every line uses.
+func of(n, limit int, what string) string {
+	if limit == contract.Unlimited {
+		return fmt.Sprint(n, " ", what, " (unlimited)")
+	}
+	return fmt.Sprint(n, " of ", limit, " ", what)
+}
+
+// fleetLine is a fleet's card in one line: its tool, its agents of its
+// limit or that it is parked, its open groups and how far its run is.
+func fleetLine(c contract.Card) string {
+	f, agents := c.Fleet, "parked"
+	if !f.Parked {
+		agents = of(f.Agents, f.Limit, "agents")
+	}
+	return fmt.Sprintf("%s · %s · %s · %d to check · %d of %d done", clean(c.Agent), agents, plural(f.Groups, "group open", "groups open"), f.ToCheck, f.Done, f.Of)
 }
 
 func plural(n int, one, many string) string {

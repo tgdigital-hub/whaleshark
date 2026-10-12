@@ -1,0 +1,21 @@
+TEAM   run r1 "" · 18 agents · 1 needs you                                              12 Oct 10:20
+
+FOR YOU   1 waiting · 1 holds work up
+ ▲ q1   billing › refund flow  question       2m  refund to the card, or to store credit? (Card /
+                                                  Credit)
+        > whaleshark answer q1 Card --human
+
+NEEDS YOU
+ ▲ G1   billing                needs you      2m  codex · 5 of 8 agents · 1 group open · 1 to check
+                                                  · 0 of 5 done · refund to the card, or to store
+                                                  credit?
+
+BUILDING
+ ◐ G2   search                 building      10m  claude · 6 of 8 agents · 1 group open · 0 to check
+                                                  · 0 of 6 done
+ ◐ G3   help pages             building      10m  hermes · 4 of 8 agents · 1 group open · 0 to check
+                                                  · 0 of 4 done
+
+3 of 4 leaders · 18 of 20 agents
+18 agents · 0 done today (whaleshark status --all)
+live · checked 0s ago

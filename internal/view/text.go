@@ -102,6 +102,9 @@ func Text(w io.Writer, v *contract.View, o Options) {
 		for _, line := range v.Lines {
 			p.line("", clean(line), "")
 		}
+		if l := v.Limits; l != nil {
+			p.line("", of(l.Leaders, l.LeadersMax, "leaders")+" · "+of(l.Agents, l.AgentsMax, "agents"), "")
+		}
 		p.line("", strings.Join(parts, " · "), trail)
 	}
 	p.fresh(w)
@@ -163,7 +166,11 @@ func (p *printer) item(it contract.Item) row {
 		}
 		text += "  (" + strings.Join(options, " / ") + ")"
 	}
-	return p.measure(row{mark: p.mark(it.Look), id: it.ID, name: it.Name, word: formWord(it.Form), age: age(p.v.At.Sub(it.Since)), text: text, next: it.Next,
+	name := title(it)
+	if p.o.PlainMarks {
+		name = strings.ReplaceAll(name, "›", ">")
+	}
+	return p.measure(row{mark: p.mark(it.Look), id: it.ID, name: name, word: formWord(it.Form), age: age(p.v.At.Sub(it.Since)), text: text, next: it.Next,
 		colour: contract.Looks[order[it.Look]].Colour})
 }
 
@@ -173,6 +180,9 @@ func (p *printer) item(it contract.Item) row {
 func (p *printer) card(c contract.Card) row {
 	r := row{mark: p.mark(c.Look), id: c.Task, name: c.Name, word: string(c.Look), age: age(p.v.At.Sub(c.Since)), text: clean(c.News), next: c.Next,
 		colour: c.Colour, bold: c.Unseen}
+	if c.Fleet != nil {
+		r.text = strings.TrimSuffix(fleetLine(c)+" · "+r.text, " · ")
+	}
 	pct := fmt.Sprint(c.Progress, "%")
 	figure := c.Look == contract.LookBuilding && !c.Said.IsZero()
 	switch {
