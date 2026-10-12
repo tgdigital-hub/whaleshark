@@ -126,9 +126,10 @@ func TestTheDockRunsNothingButOurs(t *testing.T) {
 			t.Errorf("%s on the dock: %+v", call.Op, reply)
 		}
 	}
-	if text := c.call(contract.WireCall{Op: contract.OpScreen, Pane: dock}).Text; !strings.Contains(text, "ui run side") {
-		t.Errorf("the dock's screen is not read: %q", text)
-	}
+	// Its program's first line may still be on its way to the screen.
+	r.until("the dock's screen to be read", func() bool {
+		return strings.Contains(c.call(contract.WireCall{Op: contract.OpScreen, Pane: dock}).Text, "ui run side")
+	})
 	if r.program(dock) != was || !slices.Equal(was.spec.Argv[1:], []string{"ui", "run", "side"}) || !r.locked(func() bool { return len(r.k.panes) == 2 }) {
 		t.Error("a refused call changed the dock")
 	}

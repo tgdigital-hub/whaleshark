@@ -85,6 +85,12 @@ func closeAsks(s *contract.State, a *contract.Attempt, now time.Time) {
 		if q.Attempt != a.ID || q.State == contract.QuestionUsed || q.State == contract.QuestionClosed {
 			continue
 		}
+		// What a leader passed up is its fleet's, not its own: the worker
+		// below still waits, and whoever leads next finds the answer on its
+		// way down. It ends with the group, or with the fleet (Ended).
+		if q.Down != nil && a.Leads != "" && a.State != contract.AttemptAccepted {
+			continue
+		}
 		if q.State == contract.QuestionAnswered && q.Kind == contract.KindAsk {
 			decide(s.Tasks[a.Task], q, now)
 		}
