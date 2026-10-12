@@ -122,7 +122,13 @@ func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepa
 	wd.p.make = func(in contract.ViewInput) contract.View {
 		wd.mu.Lock()
 		defer wd.mu.Unlock()
+		// A copy of its own: the pane reads what it was given while the test
+		// goes on changing the cards and items of its world.
 		v := wd.view
+		v.Items, v.Sections = slices.Clone(v.Items), slices.Clone(v.Sections)
+		for i := range v.Sections {
+			v.Sections[i].Cards = slices.Clone(v.Sections[i].Cards)
+		}
 		v.Fresh, wd.seen, wd.in = contract.Fresh{Checked: in.Checked, Notes: in.Notes}, in.Terms, in
 		return v
 	}
