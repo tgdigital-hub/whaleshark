@@ -18,11 +18,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 5 owes here: escalate in a fleet's run, and need from a leader, make
-// the twin above (Rules.Twin, through Store.Both); an answer on a twin goes
-// down once it has settled (Rules.Down); and a leader's ask is refused with
-// the line to type in its place, need.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("ask", ask)
@@ -33,8 +28,23 @@ func Plug(k *contract.Kit) {
 
 // askLock is held by a worker blocked in ask: that is how answer knows
 // somebody is waiting.
-func askLock(c *contract.Call, id string) string {
-	return contract.AskLock(c.Kit.Store.Dir(c.Root, c.Run), id)
+func askLock(c *contract.Call, run, id string) string {
+	return contract.AskLock(c.Kit.Store.Dir(c.Root, run), id)
+}
+
+// fleet names the two runs a step crosses (19.1): from a fleet's run the
+// orchestrator's above it, and from a twin, when one is named, the fleet's
+// run below. Both are empty for a step that stays in the caller's run.
+func fleet(c *contract.Call, twin string) (up, low string) {
+	s, err := c.Kit.Store.Read(c.Root, c.Run)
+	switch {
+	case err != nil:
+	case twin == "" && s.Run.Parent != nil:
+		return s.Run.Parent.Run, c.Run
+	case twin != "" && s.Questions[twin] != nil && s.Questions[twin].Down != nil:
+		return c.Run, s.Questions[twin].Down.Run
+	}
+	return "", ""
 }
 
 func usage(c *contract.Call, format string, a ...any) error {
@@ -66,21 +76,30 @@ func options(c *contract.Call) ([]string, error) {
 // change is one locked step on the caller's run, taken once the rules allow
 // the caller the command. It returns the record as it was saved, and whether
 // the step left the lead agent a new event. An item of the tool's own that
-// the step brought up is nudged for.
-func change(c *contract.Call, sub string, fn func(*contract.State) error) (s *contract.State, raised bool, err error) {
+// the step brought up is nudged for. With up and low named it is one step on
+// both runs under the project's lock, and fn gets the other run second.
+func change(c *contract.Call, sub, up, low string, fn func(s, other *contract.State) error) (s *contract.State, raised bool, err error) {
 	fresh := false
-	err = c.Kit.Store.Change(c.Root, c.Run, func(now *contract.State) error {
+	step := func(now, other *contract.State) error {
 		if err := c.Kit.Rules.Allowed(now, c.Caller, c.Command.Name, sub); err != nil {
 			return err
 		}
 		before := len(now.Inbox.Events)
-		err := fn(now)
+		err := fn(now, other)
 		if err == nil {
 			fresh = trust(c, now)
 		}
 		s, raised = now, len(now.Inbox.Events) > before
 		return err
-	})
+	}
+	switch {
+	case up == "":
+		err = c.Kit.Store.Change(c.Root, c.Run, func(now *contract.State) error { return step(now, nil) })
+	case up == c.Run:
+		err = c.Kit.Store.Both(c.Root, up, low, step)
+	default:
+		err = c.Kit.Store.Both(c.Root, up, low, func(over, now *contract.State) error { return step(now, over) })
+	}
 	if errors.Is(err, contract.ErrNoRun) {
 		err = &contract.Refusal{Exit: contract.ExitMissing, Code: "no_run", Message: "No run is open here.", Next: []string{"whaleshark run list"}}
 	}
@@ -122,15 +141,15 @@ func trust(c *contract.Call, s *contract.State) bool {
 	return err == nil
 }
 
-// pointLead types one of the fixed pointers into the lead agent's tab when
-// no wait is running there and the tab is idle (8e). It is best effort: what
+// pointLead types one of the fixed pointers into the tab of a run's lead
+// agent when no wait is running there and the tab is idle (8e). It is best effort: what
 // it points at is safe in the record. Nothing is typed while all work is paused.
 func pointLead(c *contract.Call, s *contract.State, p contract.Pointer, arg string) bool {
 	o, k := s.Run.Orchestrator, c.Kit
 	if o == nil || s.Run.Paused != nil {
 		return false
 	}
-	unlock, free, err := k.Platform.TryLock(filepath.Join(k.Store.Dir(c.Root, c.Run), contract.WaitLock))
+	unlock, free, err := k.Platform.TryLock(filepath.Join(k.Store.Dir(c.Root, s.Run.ID), contract.WaitLock))
 	if err != nil || !free {
 		return false
 	}
@@ -147,7 +166,9 @@ func pointLead(c *contract.Call, s *contract.State, p contract.Pointer, arg stri
 
 // unread points an idle lead agent at the events a step has just left it.
 func unread(c *contract.Call, s *contract.State) {
-	pointLead(c, s, contract.PointEvents, strconv.Itoa(len(s.Inbox.Events)))
+	if n := len(s.Inbox.Events); n > 0 {
+		pointLead(c, s, contract.PointEvents, strconv.Itoa(n))
+	}
 }
 
 // nudge calls for the person once an item of theirs is in the record. The
@@ -196,7 +217,10 @@ func answer(c *contract.Call) (any, error) {
 	if err := cli.Valid("id", id, ""); err != nil {
 		return nil, usage(c, "%v.", err)
 	}
-	by := contract.Origin{Caller: c.Caller.Kind, Where: c.Caller.Where}
+	by, up, low := contract.Origin{Caller: c.Caller.Kind, Where: c.Caller.Where}, "", ""
+	if !undo {
+		up, low = fleet(c, id)
+	}
 	if by.Caller == contract.Orchestrator && c.Flags["relayed"] != nil {
 		by.Where = contract.WhereRelayed
 	}
@@ -206,8 +230,9 @@ func answer(c *contract.Call) (any, error) {
 			return nil, err
 		}
 	}
-	fresh, mailed := false, false
-	s, raised, err := change(c, "", func(s *contract.State) error {
+	fresh, mailed, down := false, false, false
+	var under *contract.State
+	s, raised, err := change(c, "", up, low, func(s, other *contract.State) error {
 		r := c.Kit.Rules
 		if undo {
 			return r.Undo(s, id, by, c.Now)
@@ -230,6 +255,14 @@ func answer(c *contract.Call) (any, error) {
 			_, none := r.Tell(s, q.Task, "Decided: "+q.Text+" Answer: "+q.Answer, "", c.Now)
 			mailed = none == nil
 		}
+		if err == nil && fresh && by.Caller == contract.Leader {
+			q.AnsweredBy.Caller = contract.Orchestrator // its fleet's lead agent, as its workers know it
+		}
+		if under = other; err == nil && other != nil {
+			// A twin's answer goes down in the same step once it has settled:
+			// the person's at the first sweep after it has, or when it is given again.
+			down, err = r.Down(s, other, id, c.Now)
+		}
 		return err
 	})
 	if err != nil {
@@ -244,10 +277,12 @@ func answer(c *contract.Call) (any, error) {
 		fmt.Fprintf(c.Out, "%s's attempt has ended; your answer will be in the next attempt's prompt.\n", q.Task)
 	case q.State == contract.QuestionClosed:
 		fmt.Fprintf(c.Out, "%s is closed; your answer is kept with the decisions of %s.\n", id, q.Task)
-	case !fresh:
+	case !fresh && !down:
 		fmt.Fprintf(c.Out, "%s has that answer already.\n", id)
 	default:
-		out.Told = tell(c, s, q, by, raised)
+		if out.Told = tell(c, s, q, by, raised); down {
+			out.Told = tell(c, under, under.Questions[q.Down.ID], by, false)
+		}
 		fmt.Fprintf(c.Out, "%s answered.\n", id)
 		if left := q.SettlesAt.Sub(c.Now); left > 0 && by.Caller == contract.Human {
 			fmt.Fprintf(c.Out, "It can be taken back for %v: whaleshark answer %s --undo --human\n", left, id)
@@ -266,7 +301,9 @@ func answer(c *contract.Call) (any, error) {
 // itself; a worker that has stopped waiting gets the one
 // line that says to resume, never the answer (8b step 7). The lead agent is
 // pointed at an item of its own that the person answered, and at the event
-// that says the person answered in its place.
+// that says the person answered in its place. A twin has nobody waiting: its
+// other half in the fleet's run has, and a leader is pointed at the answer
+// to what it handed up.
 func tell(c *contract.Call, s *contract.State, q *contract.Question, by contract.Origin, raised bool) string {
 	if s.Run.Paused != nil {
 		return ""
@@ -274,13 +311,13 @@ func tell(c *contract.Call, s *contract.State, q *contract.Question, by contract
 	if raised {
 		unread(c, s)
 	}
-	if unlock, free, err := c.Kit.Platform.TryLock(askLock(c, q.ID)); err == nil && !free {
+	if unlock, free, err := c.Kit.Platform.TryLock(askLock(c, s.Run.ID, q.ID)); err == nil && !free {
 		return "waiting"
 	} else if free {
 		unlock()
 	}
-	if q.Kind == contract.KindNeed {
-		if q.From == contract.FromLead && by.Caller == contract.Human {
+	if q.Kind == contract.KindNeed || q.Down != nil {
+		if q.From == contract.FromLead && (by.Caller == contract.Human || q.Up != nil) {
 			pointLead(c, s, contract.PointAnswer, "")
 		}
 		return ""
@@ -295,9 +332,23 @@ func escalate(c *contract.Call) (any, error) {
 	if len(c.Args) != 1 || cli.Valid("id", c.Args[0], "") != nil {
 		return nil, usage(c, "escalate takes the id of one question.")
 	}
-	id := c.Args[0]
-	if _, _, err := change(c, "", func(s *contract.State) error { return c.Kit.Rules.Escalate(s, id, c.Now) }); err != nil {
+	id, twin := c.Args[0], ""
+	up, low := fleet(c, "")
+	var over *contract.State
+	if _, _, err := change(c, "", up, low, func(s, above *contract.State) (err error) {
+		if over = above; above == nil {
+			return c.Kit.Rules.Escalate(s, id, c.Now)
+		}
+		twin, err = c.Kit.Rules.Twin(above, s, id, c.Now)
+		return err
+	}); err != nil {
 		return nil, err
+	}
+	if over != nil {
+		// In a fleet a question climbs one level: to the orchestrator (19.1).
+		unread(c, over)
+		fmt.Fprintf(c.Out, "%s is now for the orchestrator, as %s of run %s. Its answer comes back by itself.\n", id, twin, up)
+		return map[string]string{"id": id, "for": contract.ForOrchestrator, "twin": twin}, nil
 	}
 	nudge(c)
 	fmt.Fprintf(c.Out, "%s is now for the person, in the action pane. Do not ask it again in the chat.\n", id)
@@ -317,7 +368,7 @@ func need(c *contract.Call) (any, error) {
 			return nil, usage(c, "need close takes the id of one item.")
 		}
 		id := c.Args[1]
-		if _, _, err := change(c, form, func(s *contract.State) error { return c.Kit.Rules.CloseQuestion(s, id, c.Now) }); err != nil {
+		if _, _, err := change(c, form, "", "", func(s, _ *contract.State) error { return c.Kit.Rules.CloseQuestion(s, id, c.Now) }); err != nil {
 			return nil, err
 		}
 		fmt.Fprintf(c.Out, "%s is withdrawn.\n", id)
@@ -343,14 +394,26 @@ func need(c *contract.Call) (any, error) {
 		q.Task = t[len(t)-1]
 	}
 	id := ""
-	_, _, err = change(c, form, func(s *contract.State) (err error) {
-		id, err = c.Kit.Rules.Need(s, q, c.Now)
+	up, low := fleet(c, "")
+	var over *contract.State
+	_, _, err = change(c, form, up, low, func(s, above *contract.State) (err error) {
+		if id, err = c.Kit.Rules.Need(s, q, c.Now); err == nil && above != nil {
+			// A leader's item is the orchestrator's to answer or to pass on (19.1).
+			over = above
+			var twin string
+			if twin, err = c.Kit.Rules.Twin(above, s, id, c.Now); err == nil {
+				// A twin that a killed need left alone above takes this item's words.
+				above.Questions[twin].Form, above.Questions[twin].Text, above.Questions[twin].Options = form, q.Text, s.Questions[id].Options
+			}
+		}
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	nudge(c)
+	if nudge(c); over != nil {
+		unread(c, over)
+	}
 	if blocks {
 		// The lead agent has no resume: what comes after the time is up is
 		// its wait, which hands the answer over as an answered event.

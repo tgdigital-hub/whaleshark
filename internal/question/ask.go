@@ -59,7 +59,7 @@ func ask(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	s, _, err := change(c, "", func(s *contract.State) (err error) {
+	s, _, err := change(c, "", "", "", func(s, _ *contract.State) (err error) {
 		if err = c.Kit.Rules.Token(s, c.Caller.Attempt, token); err == nil {
 			id, err = c.Kit.Rules.Ask(s, c.Caller.Attempt, text, choices, c.Now)
 		}
@@ -83,7 +83,7 @@ func ask(c *contract.Call) (any, error) {
 // work is paused, is not returned (8n, 8o). When the time is up it says
 // hint, and next is what to run then.
 func wait(c *contract.Call, id, token, hint string, next ...string) (any, error) {
-	k, lock, limit := c.Kit, askLock(c, id), patience(c)
+	k, lock, limit := c.Kit, askLock(c, c.Run, id), patience(c)
 	if err := os.MkdirAll(filepath.Dir(lock), 0o700); err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func wait(c *contract.Call, id, token, hint string, next ...string) (any, error)
 			if err != nil {
 				return nil, err
 			}
-			if q, paused, seen = s.Questions[id], s.Run.Paused != nil, at; q == nil || q.Attempt != c.Caller.Attempt {
+			if q, paused, seen = s.Questions[id], s.Run.Paused != nil, at; q == nil || token != "" && q.Attempt != c.Caller.Attempt {
 				return nil, &contract.Refusal{Exit: contract.ExitMissing, Code: "no_such_question", Message: "This attempt has no question " + id + "."}
 			}
 		}
@@ -127,7 +127,7 @@ func wait(c *contract.Call, id, token, hint string, next ...string) (any, error)
 		}
 		if q.State != contract.QuestionOpen && (q.State != contract.QuestionAnswered || !paused && !now.Before(q.SettlesAt)) {
 			answer, ok := "", false
-			s, raised, err := change(c, "", func(s *contract.State) (err error) {
+			s, raised, err := change(c, "", "", "", func(s, _ *contract.State) (err error) {
 				answer, ok, err = k.Rules.Use(s, id, now)
 				return err
 			})
