@@ -830,3 +830,95 @@ func TestOldGit(t *testing.T) {
 		}
 	}
 }
+
+// login is a pretended login's folders, of which only Dirs is asked.
+type login struct {
+	contract.NoPlatform
+	dirs contract.Dirs
+}
+
+func (l login) Dirs() (contract.Dirs, error) { return l.dirs, nil }
+
+// Phase 6: help ends with where to report; help set --json carries each
+// setting's value now and what an agent may do with it; version says when
+// a newer release was seen.
+func TestHelpAndVersionOfPhase6(t *testing.T) {
+	k, _ := world(t)
+	out, _, _ := call(t, k, lead, "help")
+	if !strings.HasSuffix(out, "\n\n"+contract.ReportLine+"\n") {
+		t.Errorf("help does not end with where to report:\n%s", out)
+	}
+	if out, _, _ = call(t, k, lead, "help", "--json"); !strings.Contains(out, `"report":"Problems and questions`) {
+		t.Error("help --json has no report line")
+	}
+	type keys struct {
+		Result struct {
+			Keys []struct{ Name, Now, Agent, Help string }
+		}
+	}
+	rows := func() map[string][2]string {
+		var got keys
+		out, _, exit := call(t, k, lead, "help", "set", "--json")
+		if err := json.Unmarshal([]byte(out), &got); err != nil || exit != 0 || len(got.Result.Keys) < 40 {
+			t.Fatalf("help set --json: exit %d, %v, %d keys", exit, err, len(got.Result.Keys))
+		}
+		by := map[string][2]string{}
+		for _, key := range got.Result.Keys {
+			if by[key.Name] = [2]string{key.Now, key.Agent}; key.Agent == "" {
+				t.Errorf("%s does not say what an agent may do with it", key.Name)
+			}
+		}
+		return by
+	}
+	// With no folders of a login nothing is read, least of all from the folder it is typed in.
+	for name, row := range rows() {
+		if row[0] != "" {
+			t.Errorf("%s has a value with no login: %q", name, row[0])
+		}
+	}
+	dirs := contract.Dirs{Config: filepath.Join(t.TempDir(), "config"), State: filepath.Join(t.TempDir(), "state"), Cache: t.TempDir()}
+	k.Platform = login{dirs: dirs}
+	for _, dir := range []string{dirs.Config, dirs.State} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dirs.Config, "config.toml"), []byte("[spend]\nguard = true\njob = 12\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string][2]string{
+		"spend.guard": {contract.On, contract.SetAsks}, "spend.job": {"12", contract.SetAsks}, "plan.first": {contract.Off, contract.SetAsks},
+		"stuck.watch": {contract.On, contract.SetAsks}, "theme": {"reef", contract.SetFree}, "shell": {"", contract.SetPerson},
+		"tools.<name>.run": {"", contract.SetPerson}, "notify.url": {"", contract.SetPerson},
+	} {
+		if got := rows()[name]; got != want {
+			t.Errorf("%s: now and agent %q, want %q", name, got, want)
+		}
+	}
+	// The line of a newer release: none while nothing newer was seen, and nothing that is no version.
+	seen := func(v string) string {
+		data, _ := json.Marshal(contract.VersionSeen{Versioned: contract.Versioned{Version: contract.FileVersion}, Seen: v})
+		if err := os.WriteFile(filepath.Join(dirs.State, contract.VersionFile), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		out, _, exit := call(t, k, person, "version")
+		if exit != 0 {
+			t.Fatalf("version: exit %d", exit)
+		}
+		return out
+	}
+	Version = "1.2"
+	defer func() { Version = "dev" }()
+	if out := seen("1.2"); strings.Contains(out, "is out") {
+		t.Errorf("the same version is no news:\n%s", out)
+	}
+	if out := seen("v1.3"); !strings.Contains(out, "\nversion 1.3 is out · ") {
+		t.Errorf("a newer release is not said:\n%s", out)
+	}
+	if out := seen("9.9 \x1b[2J; rm"); strings.Contains(out, "is out") {
+		t.Errorf("what is no version number was shown:\n%s", out)
+	}
+	if out, _, _ := call(t, k, person, "version", "--json"); !strings.Contains(out, `"version":"1.2"`) || strings.Contains(out, "newer") {
+		t.Errorf("version --json: %s", out)
+	}
+}

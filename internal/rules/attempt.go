@@ -157,8 +157,13 @@ func (Rules) Progress(s *contract.State, id string, pct int, note string, now ti
 	if pct < 0 || pct > 100 {
 		return refuse(contract.ExitUsage, "bad_percent", "Progress is a number from 0 to 100.")
 	}
-	a.Progress = &contract.Progress{Pct: pct, Note: note, At: now}
-	a.Seen.StaleFlagged = false
+	p := &contract.Progress{Pct: pct, Note: note, At: now}
+	if old := a.Progress; old != nil && old.Pct == pct && old.Note == note {
+		p.Same = old.Same + 1
+	} else {
+		a.Seen.Emptied = 0
+	}
+	a.Progress, a.Seen.StaleFlagged = p, false
 	return nil
 }
 
@@ -260,13 +265,14 @@ func (r Rules) Checked(s *contract.State, task string, result contract.CheckResu
 		if !result.OK {
 			setState(a, contract.AttemptReported, now)
 			a.Accept = nil
+			t.CheckFails++
 			raise(s, "check_failed", t, a, result.Tail, nil, now)
 			return nil, nil
 		}
 	}
 	end(s, a, contract.AttemptAccepted, contract.ExitReported, now)
 	how.At = now
-	t.Status, t.Accepted, t.SettledAt, t.SyncBrief = contract.TaskDone, &how, now, ""
+	t.Status, t.Accepted, t.SettledAt, t.SyncBrief, t.CheckFails = contract.TaskDone, &how, now, "", 0
 	if in := s.Run.Integration; in != nil && how.Commit != "" {
 		in.Tip, s.Run.Scan.Due = how.Commit, true
 	}

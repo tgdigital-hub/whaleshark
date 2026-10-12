@@ -109,6 +109,9 @@ func answer(q *contract.Question, text string) (string, bool) {
 		}
 		return text, free(contract.AnswerOther)
 	case contract.FormSignoff:
+		if q.Cause == contract.CauseSetting && (lower == contract.AnswerChange || lower == contract.AnswerLeave) {
+			return lower, true
+		}
 		return text, lower == contract.AnswerApprove || free(contract.AnswerSendBack)
 	case contract.FormTodo:
 		return text, lower == contract.AnswerDone || free(contract.AnswerCannot)
@@ -127,6 +130,8 @@ func (Rules) Answer(s *contract.State, id, text string, by contract.Origin, sett
 		return refused("not_yours", "Only the lead agent or the person answers %s.", q.ID)
 	case q.Up != nil && by.Caller == contract.Leader:
 		return refused("handed_up", "%s went to the orchestrator, and its answer comes from there.", q.ID)
+	case contract.PersonOnly(q.Cause) && (by.Caller != contract.Human || by.Where == contract.WhereRelayed):
+		return refused(contract.RefusedPersonOnly, "This sign-off is the person's own click or typed line; you cannot pass it on.")
 	case q.For == contract.ForHuman && by.Caller != contract.Human && by.Where != contract.WhereRelayed:
 		return refused("for_human", "%s is for the person. Pass on what they told you with --relayed.", q.ID)
 	case !ok:
@@ -172,11 +177,12 @@ func shelve(q *contract.Question, by *contract.Origin, now time.Time) {
 	q.Answer, q.AnsweredAt, q.AnsweredBy, q.SettlesAt = "", time.Time{}, nil, time.Time{}
 }
 
+// settled is false under a pause, but for the choice that ends a hold.
 func settled(s *contract.State, q *contract.Question, now time.Time) bool {
-	return q.State == contract.QuestionAnswered && s.Run.Paused == nil && !now.Before(q.SettlesAt)
+	return q.State == contract.QuestionAnswered && (s.Run.Paused == nil || q.Cause == contract.CauseBudget) && !now.Before(q.SettlesAt)
 }
 
-func (Rules) Use(s *contract.State, id string, now time.Time) (string, bool, error) {
+func (r Rules) Use(s *contract.State, id string, now time.Time) (string, bool, error) {
 	q, err := question(s, id)
 	switch {
 	case err != nil:
@@ -189,6 +195,9 @@ func (Rules) Use(s *contract.State, id string, now time.Time) (string, bool, err
 		return "", false, refused("closed", "%s was withdrawn.", q.ID)
 	case !settled(s, q, now):
 		return "", false, nil
+	case contract.PersonOnly(q.Cause):
+		r.decided(s, q, now)
+		return q.Answer, true, nil
 	case q.From == contract.FromTool:
 		// Nobody asked: the answer only clears the item, which closes with its cause.
 		return q.Answer, true, nil
@@ -261,6 +270,8 @@ func (Rules) CloseQuestion(s *contract.State, id string, now time.Time) error {
 		return refused("not_an_item", "%s is a worker's question; it closes when it is answered or its attempt ends.", q.ID)
 	case q.State == contract.QuestionUsed:
 		return refused("used", "%s was answered, and that has been acted on.", q.ID)
+	case contract.PersonOnly(q.Cause):
+		return refused(contract.RefusedPersonOnly, "%s is the person's to answer, and closes with its cause.", q.ID)
 	}
 	q.State = contract.QuestionClosed
 	return nil

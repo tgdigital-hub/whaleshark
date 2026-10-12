@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -90,17 +91,19 @@ func (Rules) Pause(s *contract.State, by string, now time.Time) error {
 }
 
 // Resume also starts the quiet clock again: an agent that was held idle has
-// not been quiet.
+// not been quiet. What an attempt stood under the pause is added to its
+// rest, which contract.Spent leaves out.
 func (Rules) Resume(s *contract.State, now time.Time) error {
 	if s.Run.Paused == nil {
 		return refused("not_paused", "Run %s is not paused.", s.Run.ID)
 	}
-	s.Run.Paused = nil
 	for _, a := range s.Attempts {
 		if a.State == contract.AttemptWorking {
 			a.Seen.LastWorking = now
 		}
+		a.Rested += max(0, cmp.Or(a.EndedAt, now).Sub(s.Run.Paused.At)) // none starts under a pause
 	}
+	s.Run.Paused = nil
 	raise(s, "resumed", nil, nil, "", nil, now)
 	return nil
 }
