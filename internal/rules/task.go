@@ -66,7 +66,7 @@ func name(s *contract.State, t *contract.Task, taken []string) error {
 	for id, other := range s.Tasks {
 		taken = append(taken, id, other.Name)
 	}
-	if slices.ContainsFunc(append(taken, lead), func(n string) bool { return strings.EqualFold(n, t.Name) }) {
+	if slices.ContainsFunc(append(taken, lead, contract.MainTab), func(n string) bool { return strings.EqualFold(n, t.Name) }) {
 		return refused("name_taken", "The name %q is taken. Give another with --name.", t.Name)
 	}
 	return nil

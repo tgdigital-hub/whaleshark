@@ -262,13 +262,10 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			k.opened[c.Tab] = c.Target
 			k.saved()
 		case contract.OpTabRename:
-			tab.Label = c.Label
-			for _, id := range tab.Panes() {
-				k.panes[id].rec.Label = c.Label
-			}
-			k.emit(contract.EvRenamed, contract.Pane{Tab: c.Tab, Label: c.Label})
-			k.saved()
-			k.wake()
+			// A name somebody gave the tab holds; the main agent's default one
+			// follows the chat's.
+			tab.Chat = c.Label == contract.MainTab
+			k.rename(tab, c.Label)
 		case contract.OpTabFocus:
 			k.lay.Show(c.Tab)
 			k.lay.Dock.Keys, k.lay.Dock.Open = false, false

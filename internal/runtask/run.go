@@ -1,11 +1,13 @@
 package runtask
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -159,6 +161,7 @@ func run(c *contract.Call) (any, error) {
 	}
 	if (sub == "takeover" || sub == "use") && c.Caller.Kind != contract.Human {
 		k.Panes(k, pane)
+		mainTab(k, pane)
 	}
 	fmt.Fprintf(c.Out, "Run %s is %s.\n", id, said)
 	// What a closed run leaves (its tabs with their names, its copies of
@@ -243,6 +246,7 @@ func runNew(c *contract.Call, objective string, runs []string) (any, error) {
 		fmt.Fprintln(c.Out, "No tab drives it yet: the lead agent binds it with `whaleshark run takeover`.")
 	} else {
 		k.Panes(k, by.Pane)
+		mainTab(k, by.Pane)
 	}
 	return map[string]string{"run": s.Run.ID, "pane": by.Pane}, nil
 }
@@ -298,4 +302,20 @@ func runList(c *contract.Call, runs []string) (any, error) {
 		fmt.Fprintf(c.Out, "%d kept. Each costs every command from a pane one read; remove a finished one with `whaleshark run rm <id>`.\n", len(lines))
 	}
 	return map[string]any{"runs": lines, "kept": len(lines)}, nil
+}
+
+// mainTab names the tab a run's lead agent sits in, where nobody has named
+// it: Orchestrator, with Fleet Mode on or off. A tab that has a name keeps it.
+func mainTab(k *contract.Kit, pane string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	snap, err := k.Terms.Snapshot(ctx)
+	if err != nil {
+		return
+	}
+	for _, p := range snap.Panes {
+		if p.ID == pane && p.Label == "" {
+			k.Terms.TabRename(p.Tab, contract.MainTab)
+		}
+	}
 }

@@ -101,7 +101,9 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 		// in the folder the keeper was started in, which is written down:
 		// a keeper started again by the system is started somewhere else.
 		wd, _ := os.Getwd()
-		k.do(contract.WireCall{Op: contract.OpTabCreate, Cwd: wd})
+		if r, _, err := k.do(contract.WireCall{Op: contract.OpTabCreate, Cwd: wd, Label: contract.MainTab}); err == nil {
+			k.lay.Tab(r.Pane.Tab).Chat = true // the main agent's, by default
+		}
 	}
 	k.mu.Unlock()
 	go w.draw(k)

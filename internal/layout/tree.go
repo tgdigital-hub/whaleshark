@@ -43,6 +43,9 @@ type Node struct {
 type Tab struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
+	// Chat: the label follows the name a person gives the chat in there. The
+	// main agent's tab, until somebody names the tab itself.
+	Chat  bool   `json:"chat,omitempty"`
 	Focus string `json:"focus"`
 	Zoom  string `json:"zoom,omitempty"`
 	Root  *Node  `json:"root"`

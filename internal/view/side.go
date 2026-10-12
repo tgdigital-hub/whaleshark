@@ -128,9 +128,9 @@ func Side(in contract.SideInput) *contract.Side {
 // with its workers under it.
 func (w *space) run(in contract.SideInput, s *contract.State, runs map[string]*contract.State, tabs map[string]string) {
 	vin := contract.ViewInput{Now: in.Now, Caller: contract.Human, State: s, Terms: in.Terms, Person: in.Person, Swept: contract.Swept{Ran: true}, Watched: true}
-	name := "lead"
+	name := "orchestrator" // with Fleet Mode on or off, as its tab
 	if s.Run.Mode == contract.ModeFleets {
-		name, vin.Fleets = "orchestrator", map[string]*contract.State{}
+		vin.Fleets = map[string]*contract.State{}
 		for fleet, f := range s.Run.Fleets {
 			if low := runs[f.Run]; low != nil {
 				vin.Fleets[fleet] = low
@@ -138,6 +138,12 @@ func (w *space) run(in contract.SideInput, s *contract.State, runs map[string]*c
 		}
 	}
 	if b := s.Run.Orchestrator; b != nil {
+		// A name its tab took from the chat, or was given, is its row's too.
+		for _, p := range cmp.Or(in.Terms, &contract.Snapshot{}).Panes {
+			if p.ID == b.Pane && p.Label != "" && !strings.EqualFold(p.Label, contract.MainTab) {
+				name = clean(p.Label)
+			}
+		}
 		w.rows = append(w.rows, contract.SideRow{Kind: contract.RowLead, Name: name, Root: w.Root, Run: s.Run.ID, Tab: tabs[b.Pane]})
 	}
 	v := Build(vin)

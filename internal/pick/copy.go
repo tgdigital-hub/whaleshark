@@ -86,5 +86,10 @@ func Wish(setting, name, text string) (now bool, ask string) {
 	if setting == "on" || setting == "off" || text == "" {
 		return setting == "on" && text != "", ""
 	}
-	return false, fmt.Sprintf("%s wants to copy %d lines: allow?", name, strings.Count(text, "\n")+1)
+	// The question is a pop-up's title, 40 cells: a long name gives way, not the question.
+	rest := fmt.Sprintf(" wants to copy %d lines: allow?", strings.Count(text, "\n")+1)
+	if r := []rune(name); len(r) > 40-len(rest) {
+		name = string(r[:39-len(rest)]) + "…"
+	}
+	return false, name + rest
 }

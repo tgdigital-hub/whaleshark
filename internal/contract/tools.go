@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
 )
@@ -53,6 +55,10 @@ type Tool struct {
 // works, two phrases that together mean a question is open, and the phrase
 // of its question about a folder, asked before any hook runs.
 type ToolScreen struct {
+	// Title is the terminal title the tool shows while its chat has no name.
+	// A tool that names one sets the title to a chat's name once it has one,
+	// and the main agent's tab can then follow a name the person gives.
+	Title    string   `toml:"title,omitempty"`
 	Ready    string   `toml:"ready,omitempty"`
 	Working  string   `toml:"working,omitempty"`
 	Question []string `toml:"question,omitempty"`
@@ -77,7 +83,7 @@ var builtIn = []Tool{
 	{Name: "claude", Label: "Claude Code", Run: []string{"claude"}, Model: []string{"--model", "{model}"},
 		Folder: []string{"--add-dir", "{dir}"}, Resume: []string{"--resume", "{session}"}, Hooks: HooksClaude, Proven: true,
 		Suits:  "the default; anything",
-		Screen: ToolScreen{Ready: "? for shortcuts", Working: "esc to interrupt", Question: []string{"Do you want to", "Esc to cancel"}, Trust: "trust this folder"}},
+		Screen: ToolScreen{Title: "Claude Code", Ready: "? for shortcuts", Working: "esc to interrupt", Question: []string{"Do you want to", "Esc to cancel"}, Trust: "trust this folder"}},
 	{Name: "codex", Label: "Codex", Run: []string{"codex"}, Model: []string{"--model", "{model}"},
 		Folder: []string{"--add-dir", "{dir}"}, Each: true, Resume: []string{"resume", "{session}"}, Hooks: HooksCodex},
 }
@@ -269,4 +275,33 @@ func replaceFile(p Files, path string, data []byte) error {
 // NotWired is what a start and "Try it" say of a tool that cannot be started.
 func NotWired(name string) string {
 	return fmt.Sprintf("No agent tool %.20q is wired in here: its description or its program is missing.", name)
+}
+
+// MainTab is what the main agent's tab is called until a person names it or
+// its chat: the first tab of a window, and the tab a run's lead agent sits in.
+const MainTab = "Orchestrator"
+
+// TitleText is a terminal title without the one mark a tool turns in front
+// of it while it works.
+func TitleText(title string) string {
+	words := strings.Fields(title)
+	if len(words) > 1 && utf8.RuneCountInString(words[0]) == 1 && !unicode.IsLetter([]rune(words[0])[0]) && !unicode.IsDigit([]rune(words[0])[0]) {
+		words = words[1:]
+	}
+	return strings.Join(words, " ")
+}
+
+// ChatName is the name of a chat as a tab's label, from the text of the
+// title its tool set, or nothing: for a tool that names no title of its
+// own, for that title itself, and for a text that could be read as an
+// option or a path. A title is a stranger's text: it is cut as a task's
+// name is, to 24 characters.
+func ChatName(t Tool, text string) string {
+	if t.Screen.Title == "" || strings.EqualFold(text, t.Screen.Title) || strings.HasPrefix(text, "-") || strings.ContainsAny(text, `/\~`) {
+		return ""
+	}
+	if r := []rune(text); len(r) > 24 {
+		text = strings.TrimSpace(string(r[:24]))
+	}
+	return text
 }

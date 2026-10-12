@@ -444,8 +444,8 @@ func TestAProgramsOwnWishToCopy(t *testing.T) {
 		setting, text string
 		now           bool
 		ask           string
-	}{{"on", "a\nb", true, ""}, {"off", "a\nb", false, ""}, {"ask", "a\nb", false, "sign-up page wants to copy 2 lines: allow?"},
-		{"", "a", false, "sign-up page wants to copy 1 lines: allow?"}, {"on", "", false, ""}, {"ask", "", false, ""}} {
+	}{{"on", "a\nb", true, ""}, {"off", "a\nb", false, ""}, {"ask", "a\nb", false, "sign-up p… wants to copy 2 lines: allow?"},
+		{"", "a", false, "sign-up p… wants to copy 1 lines: allow?"}, {"on", "", false, ""}, {"ask", "", false, ""}} {
 		if now, ask := Wish(c.setting, "sign-up page", c.text); now != c.now || ask != c.ask {
 			t.Errorf("%q with %q: %v, %q", c.setting, c.text, now, ask)
 		}

@@ -15,6 +15,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/input"
+	"github.com/tgdigital-hub/whaleshark/internal/layout"
 	"github.com/tgdigital-hub/whaleshark/internal/pick"
 	"github.com/tgdigital-hub/whaleshark/internal/restore"
 	"github.com/tgdigital-hub/whaleshark/internal/screen"
@@ -46,6 +47,7 @@ type pane struct {
 	watch  *watch.Watcher // follows the program in there now
 	hooked bool           // that program's own hooks have been heard
 	wish   string         // what it asked to copy, while the person is asked
+	rested time.Time      // since when its agent has been at rest
 
 	mu   sync.Mutex
 	tty  contract.Pty
@@ -213,6 +215,9 @@ func (k *Keeper) state(p *pane, tty contract.Pty, s watch.State) {
 	}
 	was := p.rec
 	p.rec.Agent, p.rec.Name, p.rec.Status, p.rec.Cwd = s.Agent, s.Name, s.Status, cmp.Or(s.Cwd, p.rec.Cwd)
+	if was.Status != s.Status {
+		p.rested = time.Now()
+	}
 	if p.hooked {
 		p.rec.Session = s.Session
 	}
@@ -227,6 +232,46 @@ func (k *Keeper) state(p *pane, tty contract.Pty, s watch.State) {
 	}
 	k.emit(kind, p.rec)
 	k.saved()
+}
+
+// heading is the text of the title the pane's program set.
+func (p *pane) heading() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return contract.TitleText(p.scr.Title())
+}
+
+// restFor is how long an agent has been at rest before a new title is taken
+// for a name the person gave its chat: a tool names a chat by itself during
+// a turn or just after it, and the title does not say which of the two it is.
+var restFor = 10 * time.Second
+
+// titled lets the main agent's tab follow its chat's name. Only a tab that
+// follows (the first of a window, or one named MainTab since), only the
+// name of a tool whose description says what its title is without one, never
+// the title a program starts with, and only while the agent rests.
+func (k *Keeper) titled(p *pane, text string, first bool) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	tab := k.lay.Tab(p.rec.Tab)
+	if first || tab == nil || !tab.Chat || k.panes[p.rec.ID] != p || p.rec.Status != contract.StatusIdle || time.Since(p.rested) < restFor {
+		return
+	}
+	t, _ := k.tool(p.rec.Agent)
+	if name := contract.ChatName(t, text); name != "" && name != tab.Label {
+		k.rename(tab, name)
+	}
+}
+
+// rename gives a tab and its panes a label and tells the readers of events.
+func (k *Keeper) rename(tab *layout.Tab, label string) {
+	tab.Label = label
+	for _, id := range tab.Panes() {
+		k.panes[id].rec.Label = label
+	}
+	k.emit(contract.EvRenamed, contract.Pane{Tab: tab.ID, Label: label})
+	k.saved()
+	k.wake()
 }
 
 // quit ends the following of a pane's program.
@@ -276,10 +321,15 @@ func (k *Keeper) read(p *pane, tty contract.Pty, dock bool) {
 	})
 	defer again.Stop()
 	buf := make([]byte, 32<<10)
+	title, first := "", true
 	for {
 		n, err := tty.Read(buf)
 		if seen.Add(int64(n)); n > 0 {
 			reply, wish, bell, held, ok := p.feed(tty, buf[:n])
+			if t := p.heading(); ok && t != title {
+				k.titled(p, t, first)
+				title, first = t, false
+			}
 			if len(reply) > 0 {
 				tty.Write(reply)
 			}
