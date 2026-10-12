@@ -159,8 +159,8 @@ func export(c *contract.Call) (any, error) {
 			l.text(&body, c.Now.Location())
 		}
 	}
-	if len(c.Args) > 1 {
-		return nil, usage("log --export takes one file at most.")
+	if len(c.Args) > 1 || c.Flags["task"] != nil {
+		return nil, usage("log --export takes one file at most, and writes the whole job: --task does not narrow it.")
 	}
 	if len(logs) == 0 {
 		return nil, missing("no_run", "There is no job here whose log could be exported.")
@@ -172,7 +172,7 @@ func export(c *contract.Call) (any, error) {
 		json.NewEncoder(&body).Encode(result)
 	}
 	switch {
-	case len(c.Args) == 1 && (path == "-" || path == ""): // the front hands "-" on as what standard input held
+	case path == "-":
 		_, err := c.Out.Write(body.Bytes())
 		return result, err
 	case path == "":

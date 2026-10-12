@@ -146,7 +146,8 @@ func (p parsed) text(c *contract.Call) *contract.Refusal {
 		}
 		return strings.TrimRight(string(data), "\r\n"), nil
 	}
-	if at := slices.Index(c.Args, "-"); at >= 0 {
+	// After --export a lone "-" is the screen, and nothing is read for it.
+	if at := slices.Index(c.Args, "-"); at >= 0 && c.Flags["export"] == nil {
 		t, bad := read("-")
 		if bad != nil {
 			return bad

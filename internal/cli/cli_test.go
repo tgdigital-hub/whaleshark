@@ -391,6 +391,7 @@ func TestParse(t *testing.T) {
 		{[]string{"tell", "T3", "--file", note}, "", []string{"T3", "line one\nline two"}, map[string][]string{"file": {note}}},
 		{[]string{"tell", "T3", "-"}, "typed in\n", []string{"T3", "typed in"}, map[string][]string{}},
 		{[]string{"tell", "T3", "--file", "-"}, "typed in", []string{"T3", "typed in"}, map[string][]string{"file": {"-"}}},
+		{[]string{"log", "--export", "-"}, "never read", []string{"-"}, map[string][]string{"export": {""}}},
 		{[]string{"accept", "T7", "--by-hand", "--file", note}, "", []string{"T7"}, map[string][]string{"by-hand": {"line one\nline two"}, "file": {note}}},
 		{[]string{"accept", "T7", "--by-hand=read it"}, "", []string{"T7"}, map[string][]string{"by-hand": {"read it"}}},
 		{[]string{"run", "remove", "r1"}, "", []string{"rm", "r1"}, map[string][]string{}},

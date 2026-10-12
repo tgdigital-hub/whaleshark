@@ -36,3 +36,4 @@ human: log --export -               -> expect "WHO" "WHAT HAPPENED" "WHAT YOU AP
 orch: log --export -                -> expect exit 5 "person"
 human: log --export - --json        -> expect '"jobs"' '"approved"'
 human: log --export - extra         -> expect exit 2
+human: log --export - --task T1     -> expect exit 2 "the whole job"
