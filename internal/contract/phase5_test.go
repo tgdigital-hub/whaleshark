@@ -237,7 +237,9 @@ func TestToolsFromDescriptions(t *testing.T) {
 		t.Fatalf("hermes: %+v %v", hermes, faults)
 	}
 	file := filepath.Join(h.config, ToolsDir, "hermes.toml")
-	if info, err := os.Stat(file); err != nil || info.Mode().Perm()&0o077 != 0 {
+	// Windows has no such bits to look at: a file there is as private as the
+	// profile folder it lies in, which is where the settings folder is.
+	if info, err := os.Stat(file); err != nil || runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
 		t.Errorf("the description holds a key and is not the login's alone: %v", err)
 	}
 
