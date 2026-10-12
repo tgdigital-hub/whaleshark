@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
@@ -299,6 +300,12 @@ func TestHelpSetListsTheKeys(t *testing.T) {
 		if listed := strings.Contains(out, "\n  "+key.Name+" "); exit != 0 || listed != (key.Section != "") {
 			t.Errorf("help set and the key %s: listed %v", key.Name, listed)
 		}
+	}
+	// And with --json, each under the names a program reads.
+	var said struct{ Result struct{ Keys []contract.Key } }
+	if out, _, _ = call(t, k, person, "help", "set", "--json"); json.Unmarshal([]byte(out), &said) != nil || len(said.Result.Keys) < 50 ||
+		!strings.Contains(out, `"name":"fleets.mode"`) || strings.Contains(out, `"Section"`) {
+		t.Errorf("help set --json has %d keys:\n%s", len(said.Result.Keys), out)
 	}
 	if other, _, _ := call(t, k, person, "help", "start"); strings.Contains(other, "fleets.mode") {
 		t.Error("the keys are listed under another command")

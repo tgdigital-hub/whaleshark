@@ -38,17 +38,18 @@ var exits = map[int]string{
 
 // row is one command as help --json prints it: the table itself.
 type row struct {
-	Name    string    `json:"name"`
-	Section string    `json:"section"`
-	Phase   int       `json:"phase"`
-	Built   bool      `json:"built"`
-	Who     []string  `json:"who"`
-	Usage   string    `json:"usage"`
-	Help    string    `json:"help"`
-	Exits   []int     `json:"exits"`
-	Flags   []flagRow `json:"flags,omitempty"`
-	Subs    []flagRow `json:"subs,omitempty"`
-	Example string    `json:"example,omitempty"`
+	Name    string         `json:"name"`
+	Section string         `json:"section"`
+	Phase   int            `json:"phase"`
+	Built   bool           `json:"built"`
+	Who     []string       `json:"who"`
+	Usage   string         `json:"usage"`
+	Help    string         `json:"help"`
+	Exits   []int          `json:"exits"`
+	Flags   []flagRow      `json:"flags,omitempty"`
+	Subs    []flagRow      `json:"subs,omitempty"`
+	Example string         `json:"example,omitempty"`
+	Keys    []contract.Key `json:"keys,omitempty"` // of set: every setting that has a row of the screen
 }
 
 // flagRow is a flag, or a form of a command with callers of its own.
@@ -154,6 +155,7 @@ func help(c *contract.Call) (any, error) {
 	for _, k := range contract.Keys {
 		if cmd.Name == "set" && k.Section != "" {
 			fmt.Fprintf(c.Out, "  %-30s %-24s %s\n", k.Name, cmp.Or(k.Values, k.Kind), k.Label)
+			r.Keys = append(r.Keys, k)
 		}
 	}
 	if !r.Built {
