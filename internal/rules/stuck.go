@@ -86,7 +86,8 @@ func (r Rules) Going(s *contract.State, id string, exact bool, ctx contract.CtxF
 	return true, up
 }
 
-// Passed knows its to-do again by the group and the attempt's id below.
+// Passed knows its to-do again by the fleet and the attempt's id below, so
+// it is never taken for a to-do about an attempt of the job's own run.
 func (r Rules) Passed(up, low *contract.State, id string, now time.Time) error {
 	a, t, err := attempt(low, id)
 	name, g := group(up, low)
@@ -98,7 +99,7 @@ func (r Rules) Passed(up, low *contract.State, id string, now time.Time) error {
 	}
 	var q *contract.Question
 	for _, x := range up.Questions {
-		if x.Cause == contract.CauseStuck && x.Task == g.ID && x.Attempt == a.ID && x.State != contract.QuestionClosed {
+		if x.Cause == contract.CauseStuck && x.Fleet == name && x.Attempt == a.ID && x.State != contract.QuestionClosed {
 			q = x
 		}
 	}
@@ -109,7 +110,7 @@ func (r Rules) Passed(up, low *contract.State, id string, now time.Time) error {
 	case told == contract.ToldOrchestrator:
 		raise(up, "stuck", g, nil, text+" Its leader was told.", map[string]any{"why": a.Seen.StuckWhy, "level": told, "fleet": name, "task": t.ID}, now)
 	case told == contract.ToldPerson && q == nil:
-		r.Need(up, contract.Question{Form: contract.FormTodo, From: contract.FromTool, Cause: contract.CauseStuck, Task: g.ID, Attempt: a.ID,
+		r.Need(up, contract.Question{Form: contract.FormTodo, From: contract.FromTool, Cause: contract.CauseStuck, Task: g.ID, Attempt: a.ID, Fleet: name,
 			Text: text + " Its leader and the orchestrator were told."}, now)
 	}
 	return nil

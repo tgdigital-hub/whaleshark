@@ -96,6 +96,7 @@ func valid(s *contract.State, run string) (err error) {
 		must("id", id)
 		may("id", q.Task)
 		may("attempt", q.Attempt)
+		may("name", q.Fleet)
 		must("id", q.Tasks...)
 		if key, _ := contract.FindKey(cmp.Or(q.Set, &contract.SetAsk{Key: "theme"}).Key); key == nil {
 			filed("the setting of item", id, false)

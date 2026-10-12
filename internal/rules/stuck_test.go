@@ -291,6 +291,32 @@ func TestTheClimbInAFleet(t *testing.T) {
 	if _, owed := r.Going(up, "G1.1", true, noCtx, spans(), climb, late.Add(climb)); owed || g.Seen.StuckTold != contract.ToldPerson || itemOf(up, contract.CauseStuck).Attempt != "G1.1" {
 		t.Fatalf("a stuck leader: %+v", g.Seen)
 	}
+	// A leader names a task of its fleet as its own group is named: that
+	// worker's attempt has the leader's id, and the two to-dos stay two.
+	worker(t, low, "G1")
+	low.Tasks["G1"].CheckFails = contract.StuckTimes
+	for n := range 3 {
+		r.Going(low, "G1.1", true, noCtx, spans(), climb, late.Add(time.Duration(n)*climb))
+	}
+	must(t, r.Passed(up, low, "G1.1", late.Add(2*climb)))
+	open := func() (n int, fleet string) {
+		for _, q := range up.Questions {
+			if q.Cause == contract.CauseStuck && q.State != contract.QuestionClosed {
+				n, fleet = n+1, fleet+q.Fleet
+			}
+		}
+		return n, fleet
+	}
+	if n, fleet := open(); n != 2 || fleet != "billing" {
+		t.Fatalf("a leader's to-do and its worker's of the same id: %d open, of %q", n, fleet)
+	}
+	g.Round = 0
+	if r.Going(up, "G1.1", true, noCtx, spans(), climb, late.Add(2*climb)); !g.Seen.StuckSince.IsZero() {
+		t.Fatalf("the leader is still stuck: %+v", g.Seen)
+	}
+	if n, fleet := open(); n != 1 || fleet != "billing" {
+		t.Fatalf("the leader's verdict cleared and took %d to-do with it, leaving %q", 2-n, fleet)
+	}
 }
 
 // "Forgetting": the context figure falling by thirty points twice with no

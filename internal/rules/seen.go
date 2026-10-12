@@ -159,7 +159,7 @@ func stoppedTogether(s *contract.State, now time.Time) {
 // find returns the tool's own item for a cause that is still in view.
 func find(s *contract.State, cause, attempt string) *contract.Question {
 	for _, q := range s.Questions {
-		if q.From == contract.FromTool && q.Cause == cause && q.Attempt == attempt && q.State != contract.QuestionClosed {
+		if q.From == contract.FromTool && q.Cause == cause && q.Attempt == attempt && q.Fleet == "" && q.State != contract.QuestionClosed {
 			return q
 		}
 	}

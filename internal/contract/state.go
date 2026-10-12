@@ -517,6 +517,10 @@ type Question struct {
 	// item of CauseSetting.
 	Tasks []string `json:"tasks,omitempty"`
 	Set   *SetAsk  `json:"set,omitempty"`
+	// Fleet, on a to-do of CauseStuck in an orchestrator's run, is the fleet
+	// whose worker it is about: Attempt is then an attempt of that fleet's
+	// run and of no other, and Task the fleet's group.
+	Fleet string `json:"fleet,omitempty"`
 }
 
 // Origin is the kind of caller that did something and where the command says
