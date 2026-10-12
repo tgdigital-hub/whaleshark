@@ -18,10 +18,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 5 owes here: tell to a group reaches its leader, and tell into a
-// fleet's run reaches a worker there; what the person does past the
-// orchestrator leaves a human event in the orchestrator's run too.
-
 // Plug binds this package's handlers.
 func Plug(k *contract.Kit) {
 	k.Handle("tell", tell)
@@ -104,6 +100,7 @@ func tell(c *contract.Call) (any, error) {
 	var a contract.Attempt // the worker's attempt as the change left it
 	var pane string        // the lead agent's
 	var unread int
+	var fleet *contract.Twin // set on a fleet's run
 	err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
 		if err := k.Rules.Allowed(s, c.Caller, c.Command.Name, sub); err != nil {
 			return err
@@ -121,7 +118,7 @@ func tell(c *contract.Call) (any, error) {
 		out.Body, unread = path, len(s.Inbox.Events)
 		if sub != "" {
 			// The person's note says where it came from, as all they do (18.1).
-			s.Inbox.Events[unread-1].Data["where"] = c.Caller.Where
+			s.Inbox.Events[unread-1].Data["where"], fleet = c.Caller.Where, s.Run.Parent
 		}
 		if o := s.Run.Orchestrator; o != nil {
 			pane = o.Pane
@@ -134,6 +131,14 @@ func tell(c *contract.Call) (any, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if fleet != nil {
+		// A note past the orchestrator: it is told that there was one (19.1).
+		_ = k.Store.Change(c.Root, fleet.Run, func(s *contract.State) error {
+			k.Rules.Raise(s, contract.Event{Kind: "human", Text: "The person sent the leader of " + fleet.Fleet + " a note themselves.",
+				Data: map[string]any{"what": "tell lead", "where": c.Caller.Where, "fleet": fleet.Fleet}}, c.Now)
+			return nil
+		})
 	}
 	now, quiet := c.Flags["now"] != nil, c.Flags["quiet"] != nil
 	if sub == "" {
@@ -235,8 +240,9 @@ type inbox struct {
 }
 
 // read is the worker's mail command: the unread messages, which are then
-// marked read, for a caller that holds the attempt's token. With nothing
-// unread the record is not written. While the
+// marked read, for a caller that holds the attempt's token. A fleet leader
+// reads those of every group it leads, in the order they were sent. With
+// nothing unread the record is not written. While the
 // person has paused all work it says so and hands nothing over, so that a
 // message is never taken for the end of the pause.
 func read(c *contract.Call) (any, error) {
@@ -260,13 +266,28 @@ func read(c *contract.Call) (any, error) {
 		fmt.Fprintln(c.Out, contract.PausedReply)
 		return out, nil
 	}
-	if !slices.ContainsFunc(a.Mail, func(m contract.Mail) bool { return m.ReadAt.IsZero() }) {
+	ids, waiting := []string{id}, false
+	for other, b := range s.Attempts {
+		if a.Leads != "" && b.Leads == a.Leads && b.State.Live() && other != id {
+			ids = append(ids, other)
+		}
+	}
+	for _, id := range ids {
+		waiting = waiting || slices.ContainsFunc(s.Attempts[id].Mail, func(m contract.Mail) bool { return m.ReadAt.IsZero() })
+	}
+	if !waiting {
 		fmt.Fprintln(c.Out, "No new messages.")
 		return out, nil
 	}
 	err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
-		out.Messages, err = k.Rules.ReadMail(s, id, c.Now)
-		return err
+		for _, id := range ids {
+			unread, err := k.Rules.ReadMail(s, id, c.Now)
+			if out.Messages = append(out.Messages, unread...); err != nil {
+				return err
+			}
+		}
+		slices.SortFunc(out.Messages, func(x, y contract.Mail) int { return x.Seq - y.Seq })
+		return nil
 	})
 	for _, m := range out.Messages {
 		fmt.Fprintf(c.Out, "[%d] %s\n", m.Seq, m.Text)

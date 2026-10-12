@@ -1,22 +1,22 @@
 // Package worker is the two commands a worker tells its work with: report
 // and progress (7.3). Who is calling is the cli package's answer; what is
 // checked here is the token in the attempt's own file and, for a finished
-// task, its result file.
+// task, its result file. A fleet leader tells the work of a group with them.
 package worker
 
 import (
+	"cmp"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
-
-// Phase 5 owes here: --task, by which a leader says which of its groups it
-// reports on or notes progress for: needed when it holds more than one,
-// refused from anybody else.
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
@@ -40,8 +40,28 @@ func file(c *contract.Call, name string) string {
 	return filepath.Join(contract.AttemptDir(c.Kit.Store.Dir(c.Root, c.Run), c.Caller.Attempt), name)
 }
 
-// tokenHash is the record's form of the token in the attempt's own file.
+// tokenHash is the record's form of the token in the attempt's own file. A
+// leader's call is first turned to the attempt of the group it is about: the
+// one it leads, or of those it leads the one --task names (19.1).
 func tokenHash(c *contract.Call) (string, error) {
+	if s, err := c.Kit.Store.Read(c.Root, c.Run); err == nil && s.Attempts[c.Caller.Attempt] != nil && s.Attempts[c.Caller.Attempt].Leads != "" {
+		task, held := strings.Join(c.Flags["task"], ""), map[string]string{}
+		for id, a := range s.Attempts {
+			if a.Leads == s.Attempts[c.Caller.Attempt].Leads && a.State.Live() {
+				held[a.Task] = id
+			}
+		}
+		for only := range held {
+			if task == "" && len(held) == 1 {
+				task = only
+			}
+		}
+		if held[task] == "" && (task != "" || len(held) > 1) {
+			return "", &contract.Refusal{Exit: contract.ExitRefused, Code: "which_group",
+				Message: "Say which of your groups this is about, with --task: " + strings.Join(slices.Sorted(maps.Keys(held)), ", ") + "."}
+		}
+		c.Caller.Attempt = cmp.Or(held[task], c.Caller.Attempt)
+	}
 	return contract.ReadToken(c.Kit.Platform.Read, c.Kit.Store.Dir(c.Root, c.Run), c.Caller.Attempt)
 }
 
