@@ -27,6 +27,7 @@ Your prompt says so when it is: a copy on a branch of its own, in which nobody e
 ## At each real milestone
     whaleshark progress 40 "tests written"
 A number from 0 to 100 and a few plain words. It also shows that you are alive.
+Note progress when something real changes, in new words; the same note three times reads as being stuck.
 
 ## Blocked on a decision or a missing fact
     whaleshark ask "Which base branch?" --options main,release

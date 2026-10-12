@@ -6,6 +6,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
@@ -84,7 +85,7 @@ func render(text string, data any) string {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
 		"join":  func(s []string) string { return strings.Join(s, ", ") },
 		"tools": Tools,
-		"line":  func(s string) string { return strings.Join(strings.Fields(s), " ") },
+		"line":  cli.Line,
 		"names": func(s []string) string {
 			return strings.Trim(fmt.Sprintf("%q", s), "[]")
 		},

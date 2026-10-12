@@ -79,6 +79,8 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   its `--owns`. `whaleshark overlap` lists it. What merges cleanly needs no stop. A true conflict:
   accept the task that is done, then `whaleshark sync T7` for the other, whose worker mends it in
   its own copy; never you and never the tool. Worker gone: `whaleshark start T7 --retry`.
+  An `overlap` event that names another fleet: tell your worker now which files are contested,
+  and expect a sync from the orchestrator.
 - `stale`, `overtime`: a worker has sent no note for half an hour, or works past the task's time.
   Nothing was stopped. Look with `whaleshark show T3 --screen`, then `tell` it or `whaleshark stop T3`.
 - `together`: most workers stopped in the same minute, which is usually the usage limit. Start

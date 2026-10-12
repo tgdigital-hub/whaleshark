@@ -93,7 +93,9 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
 - `overlap`, `scope`: two fleets change the same files; `whaleshark overlap` lists it at any time.
   What merges cleanly needs no stop. A true conflict, or a fleet that no longer lands on the
   collected work: accept the group that is done, then `whaleshark sync G7` for the other. Its
-  leader has a worker merge the collected work in; you never mend it yourself.
+  leader has a worker merge the collected work in; you never mend it yourself. An event that says
+  both leaders were told is two fleets still at work on one file: say which goes first, with
+  `whaleshark tell G7 "<the note>"`, and `sync` the other when the first is collected.
 - `stale`, `overtime`: a leader has sent no note for half an hour, or works past the group's time.
   Nothing was stopped. Look with `whaleshark show G7 --screen`, then `tell` it.
 - `together`: most agents stopped in the same minute, which is usually the usage limit. The

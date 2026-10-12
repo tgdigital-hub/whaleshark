@@ -53,6 +53,8 @@ func texts() map[string]struct {
 		"bare leader prompt": {Prompt{Bin: "whaleshark", Fleet: "billing"}.Text(), contract.Leader},
 		"tools, lead":        {Tools("lead", wired(), contract.PersonDefaults()), contract.Orchestrator},
 		"tools, leader":      {Tools("leader", wired(), contract.PersonDefaults()), contract.Leader},
+		"guards, lead":       {Guards("orchestrator", guarded()), contract.Orchestrator},
+		"guards, leader":     {Guards("leader", guarded()), contract.Leader},
 	}
 }
 
@@ -216,7 +218,7 @@ func TestEveryCommandNamedExistsAndIsAllowed(t *testing.T) {
 func TestHumanOnlyForbidden(t *testing.T) {
 	forbids := regexp.MustCompile("(?i)\\bnever add `--human`")
 	for what, x := range texts() {
-		if what != "first message" && !strings.HasPrefix(what, "tools") && !strings.Contains(x.text, "--human") {
+		if what != "first message" && !strings.HasPrefix(what, "tools") && !strings.HasPrefix(what, "guards") && !strings.Contains(x.text, "--human") {
 			t.Errorf("%s does not forbid --human", what)
 		}
 		for line := range strings.Lines(x.text) {
