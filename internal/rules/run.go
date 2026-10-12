@@ -3,6 +3,7 @@ package rules
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -55,7 +56,7 @@ func (Rules) CloseRun(s *contract.State, abandon bool, now time.Time) error {
 		}
 		unlanded = unlanded || t.Accepted != nil && t.Accepted.Commit != ""
 	}
-	if in := s.Run.Integration; unlanded && !abandon && in != nil && in.Landed != in.Tip {
+	if in := s.Run.Integration; unlanded && !abandon && s.Run.Parent == nil && in != nil && in.Landed != in.Tip {
 		return next(refused("not_landed", "Accepted work has not been landed."), "whaleshark land --pr", "whaleshark land --local", "whaleshark run close --abandon")
 	}
 	s.Run.ClosedAt = now
@@ -122,6 +123,12 @@ func (Rules) Allowed(s *contract.State, c contract.Caller, command, sub string) 
 			return refused("worker", "A worker may not run %s. Use report, progress, ask and mail.", command)
 		case contract.Unbound:
 			return next(refused("not_bound", "No run is bound to this pane."), "whaleshark run takeover")
+		case contract.Leader:
+			if command == "ask" {
+				return next(refused(contract.RefusedLeader, "A fleet leader does not ask: it puts the question to the orchestrator as an item, and its wait hands it the answer."), `whaleshark need question "<text>"`)
+			} else if cmd.May(contract.Orchestrator, sub) {
+				return refused(contract.RefusedLeader, "A fleet leader leads its own fleet and nothing else: %s is the orchestrator's or the person's.", strings.TrimSpace(command+" "+sub))
+			}
 		}
 		if !cmd.May(contract.Human, sub) {
 			return refused("worker_only", "Only a worker runs %s.", command)
@@ -134,7 +141,7 @@ func (Rules) Allowed(s *contract.State, c contract.Caller, command, sub string) 
 	if s == nil || cmd.May(contract.Unbound, sub) && !rm {
 		return nil
 	}
-	if o := s.Run.Orchestrator; (c.Kind == contract.Orchestrator || c.Kind == contract.Unbound) && (o == nil || o.Pane != c.Pane) {
+	if o := s.Run.Orchestrator; c.Kind != contract.Worker && c.Kind != contract.Human && (o == nil || o.Pane != c.Pane) {
 		if rm && open(s) != nil {
 			return refused("not_bound", "Run %s was bound to another pane: that pane's agent removes it, or the person.", s.Run.ID)
 		}

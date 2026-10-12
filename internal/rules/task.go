@@ -25,6 +25,9 @@ func (r Rules) AddTask(s *contract.State, t contract.Task, taken []string, now t
 	if err := name(s, &t, taken); err != nil {
 		return err
 	}
+	if err := place(s, &t, taken); err != nil {
+		return err
+	}
 	for id, other := range s.Tasks {
 		if strings.EqualFold(id, t.ID) || strings.EqualFold(other.Name, t.ID) {
 			return refused("id_taken", "The id %s is taken by %s %q.", t.ID, id, other.Name)

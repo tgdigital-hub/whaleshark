@@ -123,8 +123,10 @@ func (Rules) Answer(s *contract.State, id, text string, by contract.Origin, sett
 	}
 	text, ok := answer(q, text)
 	switch {
-	case by.Caller != contract.Human && by.Caller != contract.Orchestrator:
+	case by.Caller != contract.Human && by.Caller != contract.Orchestrator && by.Caller != contract.Leader:
 		return refused("not_yours", "Only the lead agent or the person answers %s.", q.ID)
+	case q.Up != nil && by.Caller == contract.Leader:
+		return refused("handed_up", "%s went to the orchestrator, and its answer comes from there.", q.ID)
 	case q.For == contract.ForHuman && by.Caller != contract.Human && by.Where != contract.WhereRelayed:
 		return refused("for_human", "%s is for the person. Pass on what they told you with --relayed.", q.ID)
 	case !ok:
@@ -197,7 +199,7 @@ func (Rules) Use(s *contract.State, id string, now time.Time) (string, bool, err
 
 // use makes an answer final and hands it on: the asking attempt works
 // again, a held task gets its decision, and the lead agent is told what the
-// person said.
+// person said, or the orchestrator above it.
 func use(s *contract.State, q *contract.Question, now time.Time) {
 	q.State, q.UsedAt = contract.QuestionUsed, now
 	a, t := s.Attempts[q.Attempt], s.Tasks[q.Task]
@@ -211,7 +213,7 @@ func use(s *contract.State, q *contract.Question, now time.Time) {
 			mail(s, a, "Decided: "+q.Text+" Answer: "+q.Answer, "", now)
 		}
 	}
-	if q.For == contract.ForHuman && q.From != contract.FromTool {
+	if (q.For == contract.ForHuman || q.Up != nil) && q.From != contract.FromTool {
 		raise(s, "answered", t, a, q.Answer, map[string]any{"id": q.ID}, now)
 	}
 }
