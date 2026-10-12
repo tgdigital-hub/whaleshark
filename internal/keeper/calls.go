@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -21,21 +22,38 @@ import (
 var onPane = []string{contract.OpRun, contract.OpScreen, contract.OpSplit, contract.OpSwap, contract.OpResize,
 	contract.OpPaneClose, contract.OpSize, contract.OpPaneFocus, contract.OpAgentStart, contract.OpPoint, contract.OpHook}
 
-// fenced are the calls that are not for an agent the tool started to make
-// from its own pane: they type what the caller likes, start a program, move
-// the person's keys or close something. A fence against mistakes, no wall:
-// whoever runs as the login can leave the pane's name out.
-var fenced = []string{contract.OpPrompt, contract.OpRun, contract.OpAgentStart, contract.OpTabFocus, contract.OpPaneFocus,
-	contract.OpPaneClose, contract.OpTabClose, contract.OpSetKeys, contract.OpOverlay, contract.OpDock}
+// own says a fenced call is one its caller may make all the same: one of
+// contract.OwnTab about a tab that this same pane opened, and that nobody
+// else has run a program or started an agent in since. A pane drawn over
+// such a tab is the person's.
+func (k *Keeper) own(c contract.WireCall) bool {
+	tab := c.Tab
+	if c.Op != contract.OpTabClose {
+		p := k.panes[c.Pane]
+		if c.Op == contract.OpPrompt {
+			p = k.named(c.Name)
+		}
+		if p == nil || p == k.over {
+			return false
+		}
+		tab = p.rec.Tab
+	}
+	return slices.Contains(contract.OwnTab, c.Op) && tab != "" && k.opened[tab] == c.From
+}
+
+// disown forgets what a pane opened: its program was replaced, or it is gone.
+func (k *Keeper) disown(pane string) {
+	maps.DeleteFunc(k.opened, func(_, by string) bool { return by == pane })
+}
 
 // call answers one call. The terminals it ended are closed after the lock
 // is given back and before the answer goes out; and an agent is waited for,
 // or typed at, by its Watcher with no lock held.
 func (k *Keeper) call(c contract.WireCall) (contract.WireReply, error) {
 	k.mu.Lock()
-	if q := k.panes[c.From]; q != nil && q.rec.Name != "" && slices.Contains(fenced, c.Op) {
+	if q := k.panes[c.From]; q != nil && q.rec.Name != "" && slices.Contains(contract.Fenced, c.Op) && !k.own(c) {
 		k.mu.Unlock()
-		return contract.WireReply{}, fmt.Errorf("%s is not a call for an agent to make from its pane", c.Op)
+		return contract.WireReply{}, contract.Fence(c.Op)
 	}
 	r, gone, err := k.do(c)
 	p := k.panes[c.Pane]
@@ -107,10 +125,14 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		id := "t" + strconv.Itoa(k.nTab)
 		p = k.fresh(id, c.Label, c.Cwd)
 		k.tabs[id] = c.Env
+		if k.panes[c.From] != nil {
+			k.opened[id] = c.From
+		}
 		k.lay.Add(id, c.Label, p.rec.ID)
 		if err = k.start(p); err != nil {
 			k.lay.Remove(id)
 			delete(k.tabs, id)
+			delete(k.opened, id)
 			k.nTab--
 			k.forget(p)
 			break
@@ -154,6 +176,12 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		if err != nil {
 			p.argv, p.rec = was, rec
 			break
+		}
+		// Whoever opened the tab for an agent of its own has it no longer once
+		// another runs something there; nor has a pane what it opened once its
+		// own program is another.
+		if k.disown(p.rec.ID); k.opened[p.rec.Tab] != c.From {
+			delete(k.opened, p.rec.Tab)
 		}
 		if gone = append(gone, old); c.Op == contract.OpAgentStart {
 			// The agent is what its pane was opened for, not a new start of
@@ -250,6 +278,7 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			}
 			k.lay.Remove(c.Tab)
 			delete(k.tabs, c.Tab)
+			delete(k.opened, c.Tab)
 			k.emit(contract.EvTabClosed, contract.Pane{Tab: c.Tab})
 			k.changed()
 		}

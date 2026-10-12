@@ -103,6 +103,29 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 	say("the dock's screen", err)
 	_, _, err = terms.Size(dock)
 	say("the dock's size", err)
+	// The fence round the pane of an agent the tool started, and the one way
+	// through it: a tab that pane opened itself. How long an agent takes to
+	// start is each backend's own, so only the fence's word is noted.
+	raw := terms.(interface {
+		Call(context.Context, contract.WireCall) (contract.WireReply, error)
+	})
+	terms.AgentStart("ann", "claude", "p3", nil, time.Second)
+	fence := func(what string, c contract.WireCall) contract.WireReply {
+		c.From = "p3"
+		r, err := raw.Call(ctx, c)
+		log = append(log, fmt.Sprintf("%s, from an agent's pane: refused by the fence=%v", what, err != nil && strings.Contains(err.Error(), contract.Fence(c.Op).Error())))
+		return r
+	}
+	own := fence("tab-create", contract.WireCall{Op: contract.OpTabCreate, Label: "its own", Cwd: root}).Pane
+	fence("agent-start in its own tab", contract.WireCall{Op: contract.OpAgentStart, Pane: own.ID, Kind: "claude", Name: "bob", Millis: 1000})
+	fence("agent-start in a person's tab", contract.WireCall{Op: contract.OpAgentStart, Pane: "p2", Kind: "claude", Name: "cy", Millis: 1000})
+	fence("prompt to its own agent", contract.WireCall{Op: contract.OpPrompt, Name: "bob", Text: "x", Millis: 1000})
+	fence("prompt to itself", contract.WireCall{Op: contract.OpPrompt, Name: "ann", Text: "x", Millis: 1000})
+	fence("run in its own tab", contract.WireCall{Op: contract.OpRun, Pane: own.ID, Argv: []string{agent, "hang"}})
+	fence("pane-close in a person's tab", contract.WireCall{Op: contract.OpPaneClose, Pane: "p2"})
+	fence("tab-close of the lead agent's tab", contract.WireCall{Op: contract.OpTabClose, Tab: "t1"})
+	fence("tab-focus", contract.WireCall{Op: contract.OpTabFocus, Tab: "t1"})
+	fence("tab-close of its own tab", contract.WireCall{Op: contract.OpTabClose, Tab: own.Tab})
 	say("tab-close", terms.TabClose("t3"))
 	last, err := terms.Snapshot(ctx)
 	picture("snapshot", last, err)

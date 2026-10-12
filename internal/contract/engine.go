@@ -139,6 +139,25 @@ const (
 	OpStatus     = "status"
 )
 
+// Fenced are the calls that are not for an agent the tool started to make
+// from its own pane: they type what the caller likes, start a program, move
+// the person's keys or close something. A fence against mistakes, no wall:
+// whoever runs as the login can leave the pane's name out. OwnTab are the
+// four of them such a pane may still make about a tab it opened itself with
+// OpTabCreate, which is how a fleet leader starts, prompts and closes its
+// own workers; the record of who opened a tab ends when anyone else runs a
+// program or starts an agent there.
+var (
+	Fenced = []string{OpPrompt, OpRun, OpAgentStart, OpTabFocus, OpPaneFocus,
+		OpPaneClose, OpTabClose, OpSetKeys, OpOverlay, OpDock}
+	OwnTab = []string{OpAgentStart, OpPrompt, OpTabClose, OpPaneClose}
+)
+
+// Fence is what a fenced call is refused with.
+func Fence(op string) error {
+	return fmt.Errorf("%s is not a call for an agent to make from its pane", op)
+}
+
 // WireCall is one call to the keeper. ID is the caller's own number for it and
 // comes back in the WireReply. A call fills the fields its method's arguments
 // name and leaves the rest: Pane is also Swap's source and Target its

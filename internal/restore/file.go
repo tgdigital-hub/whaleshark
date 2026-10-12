@@ -74,7 +74,9 @@ type File struct {
 	NPane  int                 `json:"panes_made"`
 	Layout json.RawMessage     `json:"layout"`
 	Vars   map[string][]string `json:"vars,omitempty"`
-	Panes  []Pane              `json:"panes"`
+	// Openers is, by tab, the pane whose call opened it (the keeper's fence).
+	Openers map[string]string `json:"openers,omitempty"`
+	Panes   []Pane            `json:"panes"`
 }
 
 const name = "layout.json"
@@ -130,7 +132,7 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 		}
 		return nil, nil, ErrUnusable
 	}
-	saved, vars := map[string]Pane{}, map[string][]string{}
+	saved, vars, openers := map[string]Pane{}, map[string][]string{}, map[string]string{}
 	for _, p := range f.Panes {
 		saved[p.Rec.ID] = p
 	}
@@ -139,6 +141,9 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 		f.NTab = max(f.NTab, number(t.ID))
 		if v, ok := f.Vars[t.ID]; ok {
 			vars[t.ID] = v
+		}
+		if by := f.Openers[t.ID]; by != "" {
+			openers[t.ID] = by
 		}
 		for _, id := range t.Panes() {
 			p := saved[id]
@@ -156,7 +161,7 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 			f.Panes, f.NPane = append(f.Panes, p), max(f.NPane, number(id))
 		}
 	}
-	f.Vars = vars
+	f.Vars, f.Openers = vars, openers
 	lay.Fit(f.W, f.H)
 	return f, lay, nil
 }

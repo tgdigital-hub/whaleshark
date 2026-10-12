@@ -220,14 +220,13 @@ func play(t *testing.T, on scenario.Backend) []string {
 		t.Fatalf("G5 did not go to the leader of billing: %+v, fleet %+v", two, up.Run.Fleets["billing"])
 	}
 
-	// Billing gets its two workers; a third is over the fleet's limit. Only
-	// a leader starts from a tab that is one deep. (The person starts them
-	// here, in the fleet's run: the real keeper refuses a leader's own
-	// agent-start, as it refuses every agent the tool started; see the end.)
+	// Billing's leader starts its two workers from its own tab, which the
+	// keeper's fence lets it do in a tab it opened itself; a third is over
+	// the fleet's limit. Only a leader starts from a tab that is one deep.
 	for _, id := range []string{"T1", "T2", "T3"} {
 		m.do("G1.1", 0, nil, asLeader, task("bill", id)...)
 	}
-	m.do(scenario.Human, 0, []string{"(T1.1)", "(T2.1)"}, "", "start", "T1", "T2", "--run", "r2")
+	m.do("G1.1", 0, []string{"(T1.1)", "(T2.1)"}, asLeader, "start", "T1", "T2")
 	m.do(scenario.Human, 5, []string{contract.LimitFleet}, "", "start", "T3", "--run", "r2", "--json")
 	m.do("G1.1", 5, []string{contract.LimitFleet, "2 agents are live in billing"}, asLeader, "start", "T3", "--json")
 	m.do("G1.1", 5, []string{"A worker starts no workers."}, asWorker, "start", "T3")
@@ -236,7 +235,7 @@ func play(t *testing.T, on scenario.Backend) []string {
 	for _, id := range []string{"T1", "T2"} {
 		m.do("G2.1", 0, nil, asLeader, task("find", id)...)
 	}
-	m.do(scenario.Human, 0, []string{"(T1.1)"}, "", "start", "T1", "--run", "r3")
+	m.do("G2.1", 0, []string{"(T1.1)"}, asLeader, "start", "T1")
 	m.do("G2.1", 5, []string{contract.LimitTotal, "6 agents are live in all"}, asLeader, "start", "T2", "--json")
 	m.do("G1.1", 0, []string{"1 more ready task waits for a free place: the limit is 2 agents."}, asLeader, "start", "--ready")
 	if low := m.read("r2"); low.Attempts["T1.1"].State != contract.AttemptWorking || low.Attempts["T2.1"].State != contract.AttemptWorking || len(low.Attempts) != 2 {
@@ -296,14 +295,18 @@ func play(t *testing.T, on scenario.Backend) []string {
 		t.Fatalf("help pages did not begin again in a run of its own: %+v", f)
 	}
 
-	// A leader's own start of a worker, from its tab: on the double.
-	log := m.record()
-	if p.Double == nil {
-		t.Log("NOT PROVEN HERE: a leader starting its own worker. The real keeper refuses agent-start, prompt and tab-close from the pane of an agent the tool started, and a leader is one")
-		return log
-	}
+	// The leader that took billing over starts a worker, stops it, which
+	// closes its tab, and starts it again.
 	m.do("G1.2", 0, []string{"(T3.1)"}, asLeader, "start", "T3")
-	held(t, p.Double)
+	m.do("G1.2", 0, nil, asLeader, "stop", "T3")
+	if n := m.tabs("bill T3"); n != 0 {
+		t.Fatalf("the leader's stop left %d tabs of its worker", n)
+	}
+	m.do("G1.2", 0, []string{"(T3.2)"}, asLeader, "start", "T3", "--retry")
+	log := m.record()
+	if p.Double != nil {
+		held(t, p.Double)
+	}
 	return log
 }
 

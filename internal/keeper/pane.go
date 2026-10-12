@@ -406,6 +406,8 @@ func (k *Keeper) drop(p *pane) {
 		k.over = nil
 	} else if k.lay.Close(p.rec.ID) {
 		delete(k.tabs, p.rec.Tab)
+		delete(k.opened, p.rec.Tab)
 	}
+	k.disown(p.rec.ID)
 	k.emit(contract.EvClosed, p.rec)
 }

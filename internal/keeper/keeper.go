@@ -46,28 +46,31 @@ type Keeper struct {
 	done     chan struct{} // closed when the keeper starts to stop
 	stopped  chan struct{} // closed when it has
 
-	mu    sync.Mutex
-	lay   layout.Layout
-	tabs  map[string][]string // a tab's own variables
-	panes map[string]*pane
-	conns map[net.Conn]struct{}
-	subs  map[chan contract.WireReply]reader
-	wins  []*window
-	last  *window // the window used last, whose size the panes have
-	seq   uint64
-	nTab  int
-	nPane int
-	nTerm int
-	focus string // the pane with the keys
-	pop   overlay.Popup
-	over  *pane             // the pane drawn over the tab that shows, if one is
-	overW float64           // its width and height as they were asked for:
-	overH float64           // shares of the window, or cells above 1
-	set   contract.Settings // the person's own, read again when their file changes
-	hover bool              // the pointer is in the dock
-	ends  []time.Time       // the last ends of the dock's program, three at most
-	saver *restore.Saver    // nil beside a layout file of a newer program
-	lost  error             // what the layout file could not be read for
+	mu   sync.Mutex
+	lay  layout.Layout
+	tabs map[string][]string // a tab's own variables
+	// opened is, by tab, the pane whose call opened it: what the fence lets
+	// an agent's pane start, prompt and close (own). Kept in the layout file.
+	opened map[string]string
+	panes  map[string]*pane
+	conns  map[net.Conn]struct{}
+	subs   map[chan contract.WireReply]reader
+	wins   []*window
+	last   *window // the window used last, whose size the panes have
+	seq    uint64
+	nTab   int
+	nPane  int
+	nTerm  int
+	focus  string // the pane with the keys
+	pop    overlay.Popup
+	over   *pane             // the pane drawn over the tab that shows, if one is
+	overW  float64           // its width and height as they were asked for:
+	overH  float64           // shares of the window, or cells above 1
+	set    contract.Settings // the person's own, read again when their file changes
+	hover  bool              // the pointer is in the dock
+	ends   []time.Time       // the last ends of the dock's program, three at most
+	saver  *restore.Saver    // nil beside a layout file of a newer program
+	lost   error             // what the layout file could not be read for
 }
 
 // open makes the keeper of this login: the one lock, the socket file that
@@ -113,7 +116,7 @@ func open(kit *contract.Kit) (*Keeper, error) {
 	id := make([]byte, 6)
 	rand.Read(id)
 	k := &Keeper{kit: kit, dirs: dirs, instance: hex.EncodeToString(id), version: contract.Version, listener: ln, unlock: unlock,
-		done: make(chan struct{}), stopped: make(chan struct{}), tabs: map[string][]string{}, panes: map[string]*pane{},
+		done: make(chan struct{}), stopped: make(chan struct{}), tabs: map[string][]string{}, opened: map[string]string{}, panes: map[string]*pane{},
 		conns: map[net.Conn]struct{}{}, subs: map[chan contract.WireReply]reader{}}
 	screen.Version = k.version
 	k.set = k.settings()

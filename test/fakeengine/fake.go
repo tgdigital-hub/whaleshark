@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"os"
 	"os/exec"
@@ -64,6 +65,7 @@ type Fake struct {
 	panes              []*pane
 	dock               contract.Pane       // the dock's pane, which is in no tab
 	env                map[string][]string // a tab's variables
+	opened             map[string]string   // a tab's opener, as the keeper's fence keeps it
 	focus              string
 	nTab, nPane, nTerm int
 	seq                uint64
@@ -75,7 +77,7 @@ type Fake struct {
 
 // New returns a double with no tab in it, as a keeper has before its first window.
 func New() *Fake {
-	f := &Fake{Build: "double", Width: 120, instance: 1, env: map[string][]string{}, readers: map[chan contract.TermEvent]bool{}, scripts: map[string]string{}}
+	f := &Fake{Build: "double", Width: 120, instance: 1, env: map[string][]string{}, opened: map[string]string{}, readers: map[chan contract.TermEvent]bool{}, scripts: map[string]string{}}
 	f.dock = contract.Pane{ID: layout.DockPane, Label: contract.SideTitle, Status: contract.StatusUnknown, Ours: true, Dock: true, Terminal: "i1.0"}
 	f.Client = &engine.Client{Dial: func(context.Context) (net.Conn, error) {
 		f.mu.Lock()
@@ -328,6 +330,16 @@ func (f *Fake) refocus() {
 	}
 }
 
+// ran keeps the openers as the keeper does when a program is run or an
+// agent started in a pane: the pane has what it opened no longer, and the
+// tab's opener has the tab no longer when the call is another's.
+func (f *Fake) ran(tab, pane, from string) {
+	maps.DeleteFunc(f.opened, func(_, by string) bool { return by == pane })
+	if f.opened[tab] != from {
+		delete(f.opened, tab)
+	}
+}
+
 // release is an agent leaving its pane: the pane stays, as a bare shell.
 func (f *Fake) release(p *pane) {
 	if p.rec.Agent != "" {
@@ -341,7 +353,9 @@ func (f *Fake) close(p *pane) {
 	f.panes = slices.DeleteFunc(f.panes, func(q *pane) bool { return q == p })
 	if len(f.tab(p.rec.Tab)) == 0 {
 		delete(f.env, p.rec.Tab)
+		delete(f.opened, p.rec.Tab)
 	}
+	f.ran("", p.rec.ID, "")
 	f.emit(contract.EvClosed, p.rec)
 	f.refocus()
 }
@@ -487,6 +501,19 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 	if c.Op == contract.OpPrompt {
 		p = f.pane(c.Name)
 	}
+	// The keeper's fence: an agent's pane makes no call of contract.Fenced,
+	// but one of contract.OwnTab about a tab it opened itself.
+	if q := f.pane(c.From); q != nil && q.rec.Name != "" && slices.Contains(contract.Fenced, c.Op) {
+		at := c.Tab
+		if c.Op != contract.OpTabClose {
+			if at = ""; p != nil {
+				at = p.rec.Tab
+			}
+		}
+		if !slices.Contains(contract.OwnTab, c.Op) || at == "" || f.opened[at] != c.From {
+			return r, contract.Fence(c.Op)
+		}
+	}
 	// The dock is looked at and nothing else, and is told three words.
 	if id := f.dock.ID; c.Op != contract.OpDock && (c.Pane == id || c.Target == id) {
 		switch c.Op {
@@ -510,7 +537,9 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 	case contract.OpTabCreate:
 		f.nTab++
 		id := "t" + strconv.Itoa(f.nTab)
-		f.env[id] = c.Env
+		if f.env[id] = c.Env; f.pane(c.From) != nil {
+			f.opened[id] = c.From
+		}
 		rec := f.open(id, c.Label, c.Cwd).rec
 		r.Pane = &rec
 	case contract.OpNotify:
@@ -538,6 +567,7 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 			}
 			f.panes = slices.DeleteFunc(f.panes, func(q *pane) bool { return q.rec.Tab == c.Tab })
 			delete(f.env, c.Tab)
+			delete(f.opened, c.Tab)
 			f.emit(contract.EvTabClosed, contract.Pane{Tab: c.Tab})
 			f.refocus()
 		}
@@ -590,6 +620,7 @@ func (f *Fake) onPane(c contract.WireCall, p *pane) (r contract.WireReply, err e
 			return r, errors.New("no program to run")
 		}
 		fmt.Fprintf(p.screen, "%% %s\n", strings.Join(c.Argv, " "))
+		f.ran(p.rec.Tab, p.rec.ID, c.From)
 		p.rec.Terminal = f.terminal()
 		// The keeper's own mark of a pane program of ours.
 		p.rec.Agent, p.rec.Name, p.rec.Session = "", "", ""
@@ -609,6 +640,7 @@ func (f *Fake) onPane(c contract.WireCall, p *pane) (r contract.WireReply, err e
 			return r, fmt.Errorf("pane %s already holds an agent", p.rec.ID)
 		}
 		f.nTerm++
+		f.ran(p.rec.Tab, p.rec.ID, c.From)
 		p.rec.Agent, p.rec.Name, p.rec.Session, p.rec.Status = c.Kind, c.Name, "session-"+strconv.Itoa(f.nTerm), contract.StatusIdle
 		f.emit(contract.EvState, p.rec)
 		f.launch(p, c.Argv, false)

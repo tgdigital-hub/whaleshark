@@ -205,7 +205,7 @@ func (k *Keeper) back() {
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	k.lay, k.tabs, k.nTab, k.nPane = *lay, f.Vars, f.NTab, f.NPane
+	k.lay, k.tabs, k.opened, k.nTab, k.nPane = *lay, f.Vars, f.Openers, f.NTab, f.NPane
 	for i := range f.Panes {
 		sp := &f.Panes[i]
 		p := &pane{rec: sp.Rec, argv: sp.Argv, from: sp}
@@ -226,7 +226,7 @@ func (k *Keeper) back() {
 func (k *Keeper) pack() *restore.File {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	f := &restore.File{W: k.lay.W, H: k.lay.H, NTab: k.nTab, NPane: k.nPane, Vars: maps.Clone(k.tabs)}
+	f := &restore.File{W: k.lay.W, H: k.lay.H, NTab: k.nTab, NPane: k.nPane, Vars: maps.Clone(k.tabs), Openers: maps.Clone(k.opened)}
 	f.Layout, _ = json.Marshal(&k.lay)
 	keep := k.set.Scrollback.Keep
 	for _, p := range k.panes {
