@@ -102,6 +102,12 @@ func Side(in contract.SideInput) *contract.Side {
 	}
 	if out.Title, out.Done = front.Name, front.done; !front.job && !front.Other {
 		out.Hint = "no job yet · start your agent here: " + contract.DefaultTool
+		// An agent that sits in the tab in front is started already.
+		for _, p := range cmp.Or(in.Terms, &contract.Snapshot{}).Panes {
+			if p.Focused && p.Agent != "" {
+				out.Hint = "no job yet · tell your agent what you want done"
+			}
+		}
 	}
 	// What was typed narrows the rows, and finds one in a folded fleet too;
 	// with nothing typed a folded fleet keeps only what waits for the person.
