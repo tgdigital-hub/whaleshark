@@ -2,6 +2,6 @@
 ## Agent tools wired in here
 Name one with `--agent` on `task add` or `start`; with none, {{if eq .Who "orchestrator"}}a leader is {{line .Person.Fleets.Leader}}{{else if eq .Who "leader"}}a worker of yours is {{if eq .Person.Fleets.Worker "leader"}}the tool you are yourself{{else}}{{line .Person.Fleets.Worker}}{{end}}{{else}}a worker is claude{{end}}.
 {{- range .Tools}}
-- {{.Name}}: {{if .Exact}}exact states{{else}}busy or quiet only{{end}}, {{if .Held}}held{{else}}not held{{end}} by Stop all{{if not .Proven}}, not yet proven here{{end}}{{with line .Suits}}; suits: {{.}}{{end}}
+- {{.Name}}: {{.Rank}} · {{line .Facts}}{{with line .Suits}}; suits: {{.}}{{end}}
 {{- end}}
 {{end -}}

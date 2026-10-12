@@ -24,15 +24,12 @@ var (
 	Orchestrator string
 	//go:embed tools.tmpl
 	toolsText string
+	//go:embed guards.tmpl
+	guardsText string
 )
 
 // FirstMessage is pasted to a lead agent whose tool has no instruction file.
 const FirstMessage = "Run `whaleshark guide lead` and follow it."
-
-// Phase 6 owes here: the lines for a start refused by plan first, for
-// protected, budget and stuck events, for an overlap that names another fleet
-// and for settings through the agent, in the four guides; the tools' table
-// from Tool.Rank and Tool.Facts.
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
@@ -64,7 +61,7 @@ func run(c *contract.Call) (any, error) {
 			which, text = "orchestrator", Orchestrator
 		}
 		tools, _ := contract.Tools(c.Kit.Platform, d)
-		text += Tools(which, tools, person)
+		text += Guards(which, person) + Tools(which, tools, person)
 		if saved, _ := contract.ReadFleets(c.Kit.Platform.Peek, c.Root); which == "orchestrator" && len(saved) > 0 {
 			text += "\n## Fleets the person keeps here\nPlace work by what each works on; a thing that fits none gets a fleet made on the spot.\n"
 			for _, f := range saved {
@@ -78,9 +75,16 @@ func run(c *contract.Call) (any, error) {
 	return map[string]string{"guide": which, "text": text}, nil
 }
 
+// Guards is what a guide says after its own text: of each guardrail of the
+// person's while it is on, so that one never switched on is never read of,
+// and, to the agent the person talks to, of their settings. who is the reader.
+func Guards(who string, person contract.PersonConfig) string {
+	return render(guardsText, map[string]any{"Who": who, "Person": person})
+}
+
 // Tools is what a guide ends with, and a leader's prompt holds, where more
-// than one agent tool is wired in with its program found: each with what it
-// tells of its states and what the person says it suits. who is the reader.
+// than one agent tool is wired in with its program found: each with its rank,
+// what is known of it and what the person says it suits. who is the reader.
 func Tools(who string, tools []contract.Tool, person contract.PersonConfig) string {
 	tools = slices.DeleteFunc(slices.Clone(tools), func(t contract.Tool) bool { return !t.Found() })
 	return render(toolsText, map[string]any{"Who": who, "Tools": tools, "Person": person})
