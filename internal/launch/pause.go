@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -13,15 +14,24 @@ import (
 // target is one run of one project of the login.
 type target struct{ root, run string }
 
-// targets lists the runs a pause or a resume is about: this one, or with
-// everywhere every run of every project the login has set up.
+// targets lists the runs a pause or a resume is about: this one with the
+// runs of its fleets, or with everywhere every run of every project the
+// login has set up.
 func targets(c *contract.Call, state string, everywhere bool) ([]target, error) {
 	k := c.Kit
 	if !everywhere {
 		if c.Run == "" {
 			return nil, nil
 		}
-		return []target{{c.Root, c.Run}}, nil
+		out := []target{{c.Root, c.Run}}
+		if s, err := k.Store.Read(c.Root, c.Run); err == nil {
+			for _, name := range slices.Sorted(maps.Keys(s.Run.Fleets)) {
+				if f := s.Run.Fleets[name]; f.EndedAt.IsZero() {
+					out = append(out, target{c.Root, f.Run})
+				}
+			}
+		}
+		return out, nil
 	}
 	roots, err := contract.ReadProjects(k.Platform.Peek, state)
 	if err != nil {
@@ -144,6 +154,7 @@ func resume(c *contract.Call) (any, error) {
 		return nil, err
 	}
 	everywhere := c.Flags["everywhere"] != nil
+	here, _ := targets(c, dirs.State, false)
 	var todo []target
 	states := map[target]*contract.State{}
 	others := false
@@ -151,7 +162,7 @@ func resume(c *contract.Call) (any, error) {
 		s, err := k.Store.Read(t.root, t.run)
 		switch {
 		case err != nil || s.Run.Paused == nil:
-		case everywhere || t == target{c.Root, c.Run}:
+		case everywhere || slices.Contains(here, t):
 			if err := k.Rules.Allowed(s, c.Caller, c.Command.Name, ""); err != nil {
 				return nil, err
 			}
@@ -179,6 +190,7 @@ func resume(c *contract.Call) (any, error) {
 	}
 	snap, snapErr := k.Terms.Snapshot(context.Background())
 	told, skips := []string{}, []skipped{}
+	typed := map[string]bool{} // a leader's tab is the place of each of its groups and its fleet's lead: one line is enough
 	var next time.Time
 	for _, t := range todo {
 		limits, _ := contract.ReadProjectFile(t.root)
@@ -196,10 +208,11 @@ func resume(c *contract.Call) (any, error) {
 			if p := paneOf(snap, w.pane); err == nil && p != nil && p.Status == contract.StatusBlocked {
 				err = contract.ErrAgentBlocked
 			}
-			if err == nil {
+			if err == nil && !typed[w.pane] {
 				time.Sleep(time.Until(next))
 				next = time.Now().Add(gap)
 				err = k.Terms.Point(w.pane, contract.PointResumed, "")
+				typed[w.pane] = err == nil
 			}
 			switch {
 			case err == nil:
@@ -210,7 +223,7 @@ func resume(c *contract.Call) (any, error) {
 				skips = append(skips, skipped{w.name, err.Error()})
 			}
 		}
-		if lead != "" && snapErr == nil {
+		if lead != "" && snapErr == nil && !typed[lead] {
 			if err := k.Terms.Point(lead, contract.PointLeadOn, ""); err != nil {
 				skips = append(skips, skipped{"the lead agent", err.Error()})
 			}

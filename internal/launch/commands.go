@@ -16,13 +16,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 5 owes here: the start of a group in its three cases (a living
-// leader takes it; with none, the limits, a run for the fleet, a tab and the
-// leader's prompt; an ended leader's run is taken over), Rules.Room under
-// contract.LoginLock, contract.EnvDepth 1 for a leader and 2 for its
-// workers, every agent started from its tool's description (the table of
-// kinds in this folder goes), and stop and close of a fleet.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("start", start)
@@ -96,6 +89,25 @@ func change(c *contract.Call, fn func(*contract.State) error) error {
 	return nil
 }
 
+// both is change for the command's run and a fleet's run of it, under the
+// project's one lock.
+func both(c *contract.Call, low string, fn func(up, low *contract.State) error) error {
+	err := c.Kit.Store.Both(c.Root, c.Run, low, func(up, low *contract.State) error {
+		if err := c.Kit.Rules.Allowed(up, c.Caller, c.Command.Name, ""); err != nil {
+			return err
+		}
+		return fn(up, low)
+	})
+	if err != nil {
+		return refusal(err)
+	}
+	return nil
+}
+
+// tabName is the label of the tab an attempt of t runs in: a group's is its
+// fleet's, whose leader sits there.
+func tabName(t *contract.Task) string { return cmp.Or(t.Fleet, t.Name) }
+
 // byID orders ids as a person counts them: T2 before T10.
 func byID(a, b string) int {
 	return cmp.Or(cmp.Compare(len(a), len(b)), strings.Compare(a, b))
@@ -158,32 +170,66 @@ func Leave(k *contract.Kit, s *contract.State) {
 type stopped struct {
 	Task    string `json:"task"`
 	Attempt string `json:"attempt"`
-	Tab     string `json:"tab"` // closed, kept, gone, or why it was left open
+	Tab     string `json:"tab"`              // closed, kept, gone, or why it was left open
+	Parked  int    `json:"parked,omitempty"` // the agents of a parked fleet that were stopped with its leader
 }
 
 // stop ends a task's attempt and closes its tab. A start that is still
-// bringing the attempt up finds it ended at its next step and gives up.
+// bringing the attempt up finds it ended at its next step and gives up. A
+// group's stop parks its fleet: the leader and every agent of the fleet are
+// stopped and their tabs closed, and the fleet's run stays open. A leader
+// that holds another open group sits on, and the one group is stopped.
 func stop(c *contract.Call) (any, error) {
 	if len(c.Args) != 1 {
 		return nil, usage(c, "stop takes one task.")
 	}
-	keep := c.Flags["keep-tab"] != nil
+	k, keep := c.Kit, c.Flags["keep-tab"] != nil
 	var name string
 	var a contract.Attempt
-	err := change(c, func(s *contract.State) error {
-		t, err := c.Kit.Rules.FindTask(s, c.Args[0])
+	plain := func(s *contract.State) error {
+		t, err := k.Rules.FindTask(s, c.Args[0])
 		if err == nil {
-			err = c.Kit.Rules.Stop(s, t.ID, keep, c.Now)
+			err = k.Rules.Stop(s, t.ID, keep, c.Now)
 		}
 		if err == nil {
-			name, a = t.Name, *s.Attempts[t.Attempts[len(t.Attempts)-1]]
+			name, a = tabName(t), *s.Attempts[t.Attempts[len(t.Attempts)-1]]
 		}
 		return err
-	})
+	}
+	s, err := read(c)
 	if err != nil {
 		return nil, err
 	}
-	r := stopped{Task: a.Task, Attempt: a.ID, Tab: "kept"}
+	fleet, parked := map[string]contract.Attempt{}, false // the fleet's agents that go with its leader, by their tabs' names
+	t, err := k.Rules.FindTask(s, c.Args[0])
+	if err != nil {
+		return nil, err
+	}
+	if f := s.Run.Fleets[t.Fleet]; f != nil && f.EndedAt.IsZero() {
+		err = both(c, f.Run, func(up, low *contract.State) error {
+			for _, w := range low.Attempts {
+				if w.State.Live() {
+					fleet[low.Tasks[w.Task].Name] = *w
+				}
+			}
+			_, err := k.Rules.Park(up, low, t.ID, c.Now)
+			if parked = err == nil; parked {
+				name, a = tabName(t), *up.Attempts[t.Attempts[len(t.Attempts)-1]]
+			}
+			return err
+		})
+		var r *contract.Refusal
+		if errors.As(err, &r) && (r.Code == "holds_more" || r.Code == "no_live_attempt") {
+			keep, fleet = keep || r.Code == "holds_more", nil // the leader sits on with its other group
+			err = change(c, plain)
+		}
+	} else {
+		err = change(c, plain)
+	}
+	if err != nil {
+		return nil, err
+	}
+	r := stopped{Task: a.Task, Attempt: a.ID, Tab: "kept", Parked: len(fleet)}
 	if !keep {
 		r.Tab = "gone"
 		snap, err := c.Kit.Terms.Snapshot(context.Background())
@@ -192,6 +238,10 @@ func stop(c *contract.Call) (any, error) {
 			if closed, err = shut(c.Kit, snap, name, a.Place); closed {
 				r.Tab = "closed"
 			}
+			for name, w := range fleet {
+				shut(k, snap, name, w.Place)
+				DropTemp(k, &w)
+			}
 		}
 		if err != nil {
 			r.Tab = "left open: " + err.Error()
@@ -199,12 +249,17 @@ func stop(c *contract.Call) (any, error) {
 		DropTemp(c.Kit, &a)
 	}
 	fmt.Fprintf(c.Out, "%s stopped (%s); its tab: %s.\n", name, a.ID, r.Tab)
+	if parked {
+		fmt.Fprintf(c.Out, "The fleet is parked, %d of its agents stopped with its leader: %s brings it back.\n", len(fleet), line(c, "start "+t.ID+" --retry"))
+	}
 	return r, nil
 }
 
 // closeTabs closes the tabs of attempts that have ended, and with each the
 // to-do item about a prompt in it; a settled task gives back its copy of the
-// code and its ports.
+// code and its ports. A leader's tab stays while it sits there, and goes
+// with its fleet: the last group settled ends the fleet's run, and what the
+// run's agents left is taken away as for a run that is removed.
 func closeTabs(c *contract.Call) (any, error) {
 	if (c.Flags["settled"] != nil) == (len(c.Args) > 0) {
 		return nil, usage(c, "close takes tasks, or --settled.")
@@ -237,14 +292,25 @@ func closeTabs(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, refusal(err)
 	}
-	closed, items := []stopped{}, []string{}
+	closed, items, over := []stopped{}, []string{}, []string{}
 	for _, t := range tasks {
+		f := s.Run.Fleets[t.Fleet]
+		if f != nil && f.EndedAt.IsZero() && !slices.Contains(over, t.Fleet) &&
+			both(c, f.Run, func(up, low *contract.State) error { return k.Rules.Ended(up, low, false, c.Now) }) == nil {
+			over = append(over, t.Fleet)
+			if low, err := k.Store.Read(c.Root, f.Run); err == nil {
+				Leave(k, low)
+				k.Placement.Forget(c.Root, low)
+			}
+			contract.FreeSlots(k.Platform, func(o contract.Slot) bool { return o.Root == k.Platform.PathKey(c.Root) && o.Run == f.Run })
+			fmt.Fprintf(c.Out, "ended: the fleet %s (run %s)\n", t.Fleet, f.Run)
+		}
 		for _, id := range t.Attempts {
 			a := s.Attempts[id]
-			if a.State.Live() {
+			if a.State.Live() || f != nil && f.Pane == a.Place.Pane && !slices.Contains(over, t.Fleet) {
 				continue
 			}
-			did, err := shut(k, snap, t.Name, a.Place)
+			did, err := shut(k, snap, tabName(t), a.Place)
 			if err != nil {
 				return nil, refusal(err)
 			}
@@ -313,7 +379,7 @@ func closeTabs(c *contract.Call) (any, error) {
 	if err == nil && kept != nil {
 		return nil, refusal(kept)
 	}
-	return map[string]any{"closed": closed, "removed": slices.Sorted(maps.Keys(removed))}, err
+	return map[string]any{"closed": closed, "removed": slices.Sorted(maps.Keys(removed)), "ended": over}, err
 }
 
 // OwnTab moves a button's long command into a tab of its own (decision 57):

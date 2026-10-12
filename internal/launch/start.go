@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,7 +23,6 @@ import (
 )
 
 const (
-	defaultKind = "claude"
 	// The terminals take a start timeout above three seconds and of at most
 	// five minutes.
 	startTimeout  = 3 * time.Minute
@@ -44,24 +44,6 @@ type outcome struct {
 	Resumed string            `json:"resumed,omitempty"` // the conversation it continues
 	State   string            `json:"state"`
 	Error   *contract.Refusal `json:"error,omitempty"`
-}
-
-// kind is how one kind of agent's program takes what a start hands it, by
-// its own manual: the option that gives it one more folder, whether that
-// option stands before each folder, and the words that continue a
-// conversation, which its id follows. Codex's are read from its maker's
-// pages and have not been run. A kind that is not here is started with its
-// model and the project's arguments and nothing else.
-type kind struct {
-	dir    string
-	each   bool
-	resume []string
-}
-
-// Phase 5: this table goes; a tool's description holds it (contract.Tools).
-var kinds = map[string]kind{
-	defaultKind: {"--add-dir", false, []string{"--resume"}},
-	"codex":     {"--add-dir", true, []string{"resume"}},
 }
 
 const heldArgs = "[agent] args is not approved, so workers are started without it"
@@ -91,6 +73,12 @@ type launcher struct {
 	server        bool
 	block         contract.Ports // the login's ports: its block on a server
 	room, cap     int            // on a server with a cap: the agents this run may hold, and the login
+	// In a job of fleets: the orchestrator's run, and in a fleet's own run
+	// the fleet's name. tool is the one of an agent nobody named one for,
+	// depth how deep its tab is.
+	up, fleet, tool, depth string
+	person                 contract.PersonConfig // the limits are the person's, read at this start
+	tools                  []contract.Tool
 }
 
 func live(s *contract.State) (n int) {
@@ -125,19 +113,83 @@ func (l *launcher) others() (n int, err error) {
 // exact is the room this run has at the moment a start is written. Where a
 // server caps the login, the other projects are counted again under a lock
 // over the login, held until unlock: two projects started in one instant
-// would else each count the other before it had written.
+// would else each count the other before it had written. A start in a job
+// of fleets takes the same lock, for the person's limits count over runs.
 func (l *launcher) exact() (room int, unlock func(), err error) {
-	if l.cap == 0 {
+	if l.cap == 0 && l.up == "" {
 		return l.room, func() {}, nil
 	}
 	if unlock, err = contract.LoginLock(l.c.Kit.Platform); err != nil {
-		return 0, nil, err
+		return l.room, func() {}, err
+	}
+	if unlock = sync.OnceFunc(unlock); l.cap == 0 {
+		return l.room, unlock, nil
 	}
 	n, err := l.others()
-	if err != nil {
-		unlock()
-	}
 	return l.cap - n, unlock, err
+}
+
+// limits reads the runs the person's limits are counted over and returns the
+// question a step asks with its own run as it holds it: is there room for a
+// group of fleet, or with worker for that task of the fleet's own run. The
+// store is read here, since a step calls nothing outside.
+func (l *launcher) limits(fleet, worker string) (func(*contract.State) error, error) {
+	c, k := l.c, l.c.Kit
+	if l.up == "" {
+		return func(*contract.State) error { return nil }, nil
+	}
+	up, err := k.Store.Read(c.Root, l.up)
+	if err != nil {
+		return nil, err
+	}
+	lows := map[string]*contract.State{}
+	for name, f := range up.Run.Fleets {
+		if low, err := k.Store.Read(c.Root, f.Run); err == nil {
+			lows[name] = low
+		}
+	}
+	return func(s *contract.State) error {
+		if worker == "" {
+			up = s
+		} else {
+			lows[fleet] = s
+		}
+		return k.Rules.Room(up, lows, fleet, worker, l.person, l.cap)
+	}, nil
+}
+
+// fleetRun makes the run that is a new fleet, from the tip of what the
+// orchestrator has collected so far, under the lowest number that is free.
+// Its caller holds the login's lock: two leaders get a number each.
+func (l *launcher) fleetRun(name string) (string, error) {
+	c, k := l.c, l.c.Kit
+	up, err := k.Store.Read(c.Root, c.Run)
+	if err != nil {
+		return "", err
+	}
+	var base *contract.GitRef
+	if in := up.Run.Integration; in != nil {
+		base = &contract.GitRef{Ref: in.Branch}
+	}
+	runs, _ := k.Store.Runs(c.Root)
+	for n, taken := 1, new(*contract.Refusal); ; n++ {
+		s := k.Rules.NewRun("r"+strconv.Itoa(n), name, l.project.Limits.Agents, base, contract.Binding{}, contract.Now())
+		if slices.Contains(runs, s.Run.ID) {
+			continue
+		}
+		from, in, err := k.Integrator.Begin(c.Root, s)
+		if errors.As(err, taken) && (*taken).Code == "branch_exists" {
+			continue // a removed run left work on the branch of that number
+		}
+		if err == nil && in != nil {
+			s.Run.Base = from
+			err = k.Rules.Integrated(s, *in)
+		}
+		if err == nil {
+			err = k.Store.Create(c.Root, s)
+		}
+		return s.Run.ID, err
+	}
 }
 
 // start brings up a worker for each task named, or for every ready one, side
@@ -149,7 +201,7 @@ func start(c *contract.Call) (any, error) {
 		return nil, usage(c, "start takes tasks, or --ready.")
 	case c.Flags["resume"] != nil && c.Flags["retry"] == nil:
 		return nil, usage(c, "--resume goes with --retry: it continues the conversation of the attempt before.")
-	case os.Getenv(contract.EnvDepth) != "":
+	case os.Getenv(contract.EnvDepth) != "" && (c.Caller.Kind != contract.Leader || os.Getenv(contract.EnvDepth) != "1"):
 		return nil, refuse(contract.ExitRefused, "worker", "A worker starts no workers.")
 	}
 	k := c.Kit
@@ -168,8 +220,21 @@ func start(c *contract.Call) (any, error) {
 		l.state = dirs.State
 		l.self, err = k.Platform.SelfPath()
 	}
+	if err == nil {
+		l.person, err = contract.ReadPerson(k.Platform.Peek, dirs.Config)
+	}
 	if err != nil {
 		return nil, err
+	}
+	l.tools, _ = contract.Tools(k.Platform, dirs)
+	l.tool, l.depth = contract.DefaultTool, "1"
+	if p := s.Run.Parent; p != nil {
+		l.up, l.fleet, l.tool, l.depth = p.Run, p.Fleet, l.person.Fleets.Worker, strconv.Itoa(contract.MaxDepth)
+		if up, err := k.Store.Read(c.Root, p.Run); err == nil && l.tool == contract.FleetWorkerLeader && up.Run.Fleets[p.Fleet] != nil {
+			l.tool = up.Run.Fleets[p.Fleet].Tool
+		}
+	} else if s.Run.Mode == contract.ModeFleets {
+		l.up, l.tool = c.Run, l.person.Fleets.Leader
 	}
 	// A server's file says which ports are this login's and how many agents
 	// it may run, over all its projects; a machine without one is a person's own.
@@ -178,6 +243,10 @@ func start(c *contract.Call) (any, error) {
 		return nil, refuse(contract.ExitEnv, "server_file", "Nothing is started on a server whose file cannot be used: %v.", err)
 	}
 	me, limit := contract.Me(), s.Run.Limit
+	if n := l.person.Fleets.Agents; l.fleet != "" && n != contract.Unlimited {
+		limit = min(limit, n) // --ready starts what fits in the fleet
+	}
+	own := limit
 	var listed bool
 	if l.block, listed = srv.Block(me); !listed {
 		return nil, refuse(contract.ExitEnv, "no_block", "The login %s is not one of this server's, so it starts nothing here. The administrator adds it with whaleshark server add.", me)
@@ -251,7 +320,7 @@ func start(c *contract.Call) (any, error) {
 		})
 	}
 	wg.Wait()
-	if wait := map[bool]string{true: " waits", false: "s wait"}[waiting == 1]; waiting > 0 && limit < s.Run.Limit {
+	if wait := map[bool]string{true: " waits", false: "s wait"}[waiting == 1]; waiting > 0 && limit < own {
 		fmt.Fprintf(c.Out, "%d more ready task%s for a free place: this server lets this login run %d agents.\n", waiting, wait, srv.Cap(me))
 	} else if waiting > 0 {
 		fmt.Fprintf(c.Out, "%d more ready task%s for a free place: the limit is %d agents.\n", waiting, wait, limit)
@@ -335,15 +404,19 @@ func agentName(root, run, attempt string) string {
 
 var errPaused = refuse(contract.ExitRefused, "paused", "All work is paused.")
 
-// step is one short locked step of a start. It reads the login's pause mark
-// first, which Stop all writes before it marks any run.
-func (l *launcher) step(fn func(*contract.State) error) error {
+// step is one short locked step of a start, with low named on the run and
+// that fleet's run together. It reads the login's pause mark first, which
+// Stop all writes before it marks any run.
+func (l *launcher) step(low string, fn func(s, low *contract.State) error) error {
 	if p, err := contract.Paused(l.c.Kit.Platform.Peek, l.state); err != nil {
 		return err
 	} else if p != nil {
 		return errPaused
 	}
-	return change(l.c, fn)
+	if low != "" {
+		return both(l.c, low, fn)
+	}
+	return change(l.c, func(s *contract.State) error { return fn(s, nil) })
 }
 
 // bring is the staged start of one task: the attempt is written as starting
@@ -362,25 +435,60 @@ func (l *launcher) bring(task string) outcome {
 	if err != nil {
 		return fail(err)
 	}
+	// The room is counted under the login's lock, held until the start is
+	// written. A group holds it from here until its leader is in the record:
+	// a second group of a new fleet then finds the leader that sits, and no
+	// two leaders are counted as one.
+	room, free := l.room, func() {}
+	defer func() { free() }()
+	group := l.fleet == "" && s.Tasks[task].Fleet != ""
+	if group {
+		if room, free, err = l.exact(); err == nil {
+			s, err = k.Store.Read(c.Root, c.Run)
+		}
+		if err != nil {
+			return fail(err)
+		}
+	}
 	t := s.Tasks[task]
 	r.Name = t.Name
 	var prev *contract.Attempt
 	if n := len(t.Attempts); n > 0 {
 		prev = s.Attempts[t.Attempts[n-1]]
 	}
+	// A group goes to its fleet's leader: the one that sits in its tab, or a
+	// new one, in a run of the fleet's own unless the fleet has one open.
+	fleet, worker := cmp.Or(l.fleet, t.Fleet), ""
+	if !group {
+		worker = task
+	}
+	f := s.Run.Fleets[t.Fleet]
+	if f != nil && !f.EndedAt.IsZero() {
+		f = nil
+	}
+	sits := f != nil && f.Pane != ""
 	holds := false
-	if prev != nil {
+	if prev != nil && !sits {
 		was := paneOf(l.snap, prev.Place.Pane)
 		holds = was != nil && was.Agent != ""
 	}
-	agent := contract.Agent{Kind: cmp.Or(l.agent, t.Agent, defaultKind), Model: cmp.Or(l.model, t.Model)}
-	// A conversation is continued by the kind that held it, under the id
+	agent := contract.Agent{Kind: cmp.Or(l.agent, t.Agent, l.tool), Model: cmp.Or(l.model, t.Model)}
+	if sits {
+		agent = contract.Agent{Kind: f.Tool, Model: f.Model}
+	}
+	// A tool is named anywhere and described by the login alone: one that
+	// is not wired in is refused before anything exists.
+	tool, wired := contract.FindTool(l.tools, agent.Kind)
+	if !wired || !tool.Found() {
+		return fail(refuse(contract.ExitRefused, "no_tool", "No agent tool %.20q is wired in here: its description or its program is missing.", agent.Kind))
+	}
+	// A conversation is continued by the tool that held it, under the id
 	// the keeper reported; one that could be read as an option is nobody's.
 	var args []string
-	if how := kinds[agent.Kind].resume; l.resume && prev != nil && prev.Agent.Kind == agent.Kind && len(how) > 0 &&
+	if l.resume && prev != nil && !sits && prev.Agent.Kind == agent.Kind && len(tool.Resume) > 0 &&
 		prev.Agent.Session != "" && prev.Agent.Session[0] != '-' {
 		agent.Session, r.Resumed = prev.Agent.Session, prev.Agent.Session
-		args = append(slices.Clone(how), agent.Session)
+		args = contract.Fill(tool.Resume, "session", agent.Session)
 	}
 	if agent.Model != "" {
 		if err := plain(agent.Model); err != nil {
@@ -393,7 +501,14 @@ func (l *launcher) bring(task string) outcome {
 
 	// Tried first on our own copy of the record: it says whether the start
 	// would be refused, and which attempt it will be, before anything exists.
-	id, err := k.Rules.Start(s, task, l.retry, holds, contract.TokenHash(token), agent, false, c.Now)
+	fits, err := l.limits(fleet, worker)
+	if err == nil {
+		err = fits(s)
+	}
+	var id string
+	if err == nil {
+		id, err = k.Rules.Start(s, task, l.retry, holds, contract.TokenHash(token), agent, false, c.Now)
+	}
 	if err == nil {
 		err = l.over(s, l.room)
 	}
@@ -416,10 +531,20 @@ func (l *launcher) bring(task string) outcome {
 		return fail(refuse(contract.ExitRefused, "starting", "%s is being started by another command.", id))
 	}
 	defer unlock()
-	had := t.Worktree != nil && t.Worktree.RemovedAt.IsZero()
-	folder, tree, err := k.Placement.Place(c.Root, s, task)
-	if err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "token"), []byte(token+"\n"), 0o600); err != nil {
 		return fail(err)
+	}
+	if sits {
+		return l.hand(r, t, f.Run, id, contract.TokenHash(token), agent, tool.Held())
+	}
+	// A leader changes no code: it reads in the project's folder, and has
+	// no copy of the code and no ports of its own.
+	had := t.Worktree != nil && t.Worktree.RemovedAt.IsZero()
+	folder, tree := c.Root, (*contract.Worktree)(nil)
+	if !group {
+		if folder, tree, err = k.Placement.Place(c.Root, s, task); err != nil {
+			return fail(err)
+		}
 	}
 	if !filepath.IsAbs(folder) {
 		folder = filepath.Join(c.Root, folder)
@@ -447,7 +572,9 @@ func (l *launcher) bring(task string) outcome {
 		l.left.Do(l.lacks)
 	}
 	// The task's ports are its own whether or not it has a copy of the code.
-	slot, err = contract.TakeSlot(k.Platform, l.block, c.Root, c.Run, task, l.project.Worktrees.PortBlock)
+	if !group {
+		slot, err = contract.TakeSlot(k.Platform, l.block, c.Root, c.Run, task, l.project.Worktrees.PortBlock)
+	}
 	if errors.Is(err, contract.ErrNoSlot) {
 		r := refuse(contract.ExitRefused, "no_slot", "No port is free for %s: every port of this login is some task's. Closing settled tasks gives theirs back.", task)
 		r.Next = []string{line(c, "close --settled")}
@@ -466,14 +593,12 @@ func (l *launcher) bring(task string) outcome {
 	if err == nil && tree != nil && setup.File != "" {
 		err = k.Placement.Hide(c.Root, folder, setup.File)
 	}
-	if err == nil {
-		err = os.WriteFile(filepath.Join(dir, "token"), []byte(token+"\n"), 0o600)
-	}
 	// On a server the tab gets the browser every login shares and a temp
 	// folder of the login's own, so nothing an agent's tools write lies in a
-	// shared one. A person's own machine has both already.
+	// shared one. A person's own machine has both already. A leader's tab
+	// is as deep as a worker's, and its own workers' one deeper: the last.
 	env := []string{contract.EnvRoot + "=" + c.Root, contract.EnvRun + "=" + c.Run, contract.EnvTask + "=" + task,
-		contract.EnvAttempt + "=" + id, contract.EnvDepth + "=1", contract.EnvBin + "=" + l.self, contract.EnvEvidence + "=" + evidence}
+		contract.EnvAttempt + "=" + id, contract.EnvDepth + "=" + l.depth, contract.EnvBin + "=" + l.self, contract.EnvEvidence + "=" + evidence}
 	if err == nil && l.server {
 		tmp, err = k.Platform.PrivateTemp()
 		env = append(env, contract.EnvBrowsers+"="+contract.ServerBrowsers, "TMPDIR="+tmp)
@@ -481,11 +606,19 @@ func (l *launcher) bring(task string) outcome {
 	if err != nil {
 		return undo(err)
 	}
-	room, counted, err := l.exact()
+	if !group {
+		room, free, err = l.exact()
+	}
+	if err == nil {
+		fits, err = l.limits(fleet, worker)
+	}
 	if err != nil {
 		return undo(err)
 	}
-	err = l.step(func(s *contract.State) error {
+	err = l.step("", func(s, _ *contract.State) error {
+		if err := fits(s); err != nil {
+			return err
+		}
 		got, err := k.Rules.Start(s, task, l.retry, holds, contract.TokenHash(token), agent, setup.Gated, contract.Now())
 		if err == nil && got != id {
 			err = refuse(contract.ExitRefused, "starting", "%s was started by another command.", task)
@@ -493,7 +626,7 @@ func (l *launcher) bring(task string) outcome {
 		if err == nil {
 			err = l.over(s, room)
 		}
-		if other := shares(s, s.Tasks[task]); err == nil && tree == nil && !l.allow && other != "" {
+		if other := shares(s, s.Tasks[task]); err == nil && tree == nil && !group && !l.allow && other != "" {
 			r := refuse(contract.ExitRefused, "shared_overlap", "%s would work in one folder with %s, which is at work on files %s may change too.", task, other, task)
 			r.Next = []string{line(c, "start "+task+" --allow-overlap")}
 			err = r
@@ -519,7 +652,10 @@ func (l *launcher) bring(task string) outcome {
 		}
 		return k.Rules.SetWorktree(s, task, tree, contract.Now())
 	})
-	if counted(); err != nil {
+	if !group {
+		free()
+	}
+	if err != nil {
 		return undo(err)
 	}
 	r.Attempt = id
@@ -527,27 +663,42 @@ func (l *launcher) bring(task string) outcome {
 	if slot.Size > 0 {
 		env = append(env, slot.Env(l.block)...)
 	}
-	pane, err := k.Terms.TabCreate(folder, t.Name, env)
+	pane, err := k.Terms.TabCreate(folder, tabName(t), env)
 	if err != nil {
 		return l.failed(r, err, "the tab could not be opened", false)
 	}
 	r.Tab = pane.Tab
 	place := contract.Place{Tab: pane.Tab, Pane: pane.ID, Terminal: pane.Terminal, Workspace: pane.Workspace, Cwd: folder, OpenedByUs: true}
-	placed := func(s *contract.State) error { return k.Rules.Placed(s, id, place, contract.Now()) }
-	if err := l.step(placed); err != nil {
+	placed := func(s, _ *contract.State) error { return k.Rules.Placed(s, id, place, contract.Now()) }
+	err = l.step("", placed)
+	// The new leader's tab is its fleet's run's: the run the fleet has
+	// open, which it takes over, or a new one.
+	if low := ""; err == nil && group {
+		if f != nil {
+			low = f.Run
+		} else {
+			low, err = l.fleetRun(t.Fleet)
+		}
+		if err == nil {
+			err = l.step(low, func(up, low *contract.State) error {
+				branch := ""
+				if in := low.Run.Integration; in != nil {
+					branch = in.Branch
+				}
+				return k.Rules.Lead(up, low, id, contract.Binding{Pane: pane.ID, Workspace: pane.Workspace}, branch, contract.Now())
+			})
+		}
+	}
+	free()
+	if err != nil {
 		return l.failed(r, err, "the start stopped", false)
 	}
 	args = append(args, setup.Args...)
 	// In a copy of the code of its own, the attempt's files and the brief
 	// lie outside the agent's folder: it is given the two folders, or it
 	// stops to ask before it reads its own prompt.
-	if how := kinds[agent.Kind]; tree != nil && how.dir != "" {
-		for i, folder := range []string{dir, filepath.Dir(filepath.Join(run, t.Brief))} {
-			if i == 0 || how.each {
-				args = append(args, how.dir)
-			}
-			args = append(args, folder)
-		}
+	if tree != nil {
+		args = append(args, tool.Folders(dir, filepath.Dir(filepath.Join(run, t.Brief)))...)
 	}
 	// The project's own arguments, which are empty until a person approved
 	// them. A project cannot know where this program lies on each machine,
@@ -556,7 +707,7 @@ func (l *launcher) bring(task string) outcome {
 		args = append(args, strings.ReplaceAll(arg, "{whaleshark}", l.self))
 	}
 	if agent.Model != "" {
-		args = append(args, "--model", agent.Model)
+		args = append(args, contract.Fill(tool.Model, "model", agent.Model)...)
 	}
 	if err := k.Terms.AgentStart(agent.Name, agent.Kind, pane.ID, args, startTimeout); err != nil {
 		return l.failed(r, err, "the agent did not start", errors.Is(err, contract.ErrAgentNotReady))
@@ -574,9 +725,10 @@ func (l *launcher) bring(task string) outcome {
 	}
 	text := guide.Prompt{Bin: k.Platform.Quote("", []string{l.self}), Run: c.Run, Task: task, Name: t.Name, Dir: folder,
 		Brief: filepath.Join(run, t.Brief), Result: filepath.Join(dir, "result.md"), Owns: t.Owns,
-		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync)), Browser: browser}.Text() + earlier(prev)
+		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync)), Browser: browser,
+		Fleet: t.Fleet, Person: l.person, Tools: l.tools}.Text() + earlier(prev)
 	if err = os.WriteFile(prompt, []byte(text), 0o600); err == nil {
-		err = l.step(placed) // nothing is typed once the attempt was stopped or the person pressed Stop all
+		err = l.step("", placed) // nothing is typed once the attempt was stopped or the person pressed Stop all
 	}
 	if err != nil {
 		return l.failed(r, err, "the start stopped", false)
@@ -584,10 +736,48 @@ func (l *launcher) bring(task string) outcome {
 	if err := k.Terms.Prompt(agent.Name, "Read and follow "+prompt, promptTimeout); err != nil {
 		return l.failed(r, err, "the first prompt was not delivered", errors.Is(err, contract.ErrAgentBlocked))
 	}
-	if err := l.step(func(s *contract.State) error { return k.Rules.Working(s, id, contract.Now()) }); err != nil {
+	if err := l.step("", func(s, _ *contract.State) error { return k.Rules.Working(s, id, contract.Now()) }); err != nil {
 		return l.failed(r, err, "the start stopped", false)
 	}
 	r.State = working
+	return r
+}
+
+// newWork is the message a leader that sits is handed a group with. The
+// line typed into its tab is the pointer to its mail.
+const newWork = "New work for your fleet: group %s %q. Its brief: %s  Its result file: %s  Report it with --task %[1]s."
+
+// hand gives a group to the leader that sits in its fleet's tab. No agent
+// starts, so no tab is opened: the attempt takes the leader's place, the
+// group is put into the leader's mail and one line is typed that says so.
+// The attempt's start.lock is held: no other command makes this attempt.
+func (l *launcher) hand(r outcome, t *contract.Task, low, id, hash string, agent contract.Agent, gated bool) outcome {
+	c, k := l.c, l.c.Kit
+	run := k.Store.Dir(c.Root, c.Run)
+	text := fmt.Sprintf(newWork, t.ID, t.Name, filepath.Join(run, t.Brief), filepath.Join(contract.AttemptDir(run, id), "result.md"))
+	seq, pane := 0, ""
+	err := l.step(low, func(up, low *contract.State) error {
+		_, err := k.Rules.Start(up, t.ID, l.retry, false, hash, agent, gated, contract.Now())
+		if err == nil {
+			err = k.Rules.Lead(up, low, id, contract.Binding{}, "", contract.Now())
+		}
+		if err == nil {
+			err = k.Rules.Working(up, id, contract.Now())
+		}
+		if err == nil {
+			seq, err = k.Rules.Tell(up, t.ID, text, "", contract.Now())
+			r.Tab, pane = up.Attempts[id].Place.Tab, up.Attempts[id].Place.Pane
+		}
+		return err
+	})
+	if err != nil {
+		r.Tab, r.Error = "", refusal(err)
+		return r
+	}
+	r.Attempt, r.State = id, working
+	if k.Terms.Point(pane, contract.PointMail, "") == nil {
+		l.step("", func(s, _ *contract.State) error { return k.Rules.Pointed(s, id, seq, contract.Now()) })
+	}
 	return r
 }
 
