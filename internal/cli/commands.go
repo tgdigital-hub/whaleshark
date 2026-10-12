@@ -14,6 +14,11 @@ import (
 // Version is the version of the program; a release build sets it.
 var Version = "dev"
 
+// Phase 6 owes here: help set --json with each key's value now
+// (contract.Current) and what an agent may do with it (Key.Agent);
+// contract.ReportLine as the last lines of help; version's line of a newer
+// release (contract.VersionLine).
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Main = Main

@@ -26,6 +26,10 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 6 owes here: an orchestrator's scan also reads its fleets' work in
+// progress and pairs work of different fleets only; a finding names both
+// fleets; sync counts a group too (Rules.Synced).
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	o := scanner{k}

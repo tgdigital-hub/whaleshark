@@ -29,6 +29,11 @@ var (
 // FirstMessage is pasted to a lead agent whose tool has no instruction file.
 const FirstMessage = "Run `whaleshark guide lead` and follow it."
 
+// Phase 6 owes here: the lines for a start refused by plan first, for
+// protected, budget and stuck events, for an overlap that names another fleet
+// and for settings through the agent, in the four guides; the tools' table
+// from Tool.Rank and Tool.Facts.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("guide", run)
