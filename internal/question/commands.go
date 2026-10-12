@@ -221,6 +221,11 @@ func answer(c *contract.Call) (any, error) {
 	if !undo {
 		up, low = fleet(c, id)
 	}
+	if up == "" && by.Caller == contract.Human {
+		// The person, inside a fleet's run: the orchestrator's run is told,
+		// and the twin above takes the same answer or loses it (19.1).
+		up, low = fleet(c, "")
+	}
 	if by.Caller == contract.Orchestrator && c.Flags["relayed"] != nil {
 		by.Where = contract.WhereRelayed
 	}
@@ -231,18 +236,33 @@ func answer(c *contract.Call) (any, error) {
 		}
 	}
 	fresh, mailed, down := false, false, false
-	var under *contract.State
+	var under, over *contract.State
 	s, raised, err := change(c, "", up, low, func(s, other *contract.State) error {
 		r := c.Kit.Rules
-		if undo {
-			return r.Undo(s, id, by, c.Now)
-		}
 		q, settle := s.Questions[id], time.Duration(0)
+		// above is the step on the orchestrator's run when this one is its
+		// fleet's: the twin, where the question has one, and the event.
+		above := func(err error, twin func(id string) error) error {
+			if err != nil || other == nil || up == c.Run {
+				return err
+			}
+			group, what := "", map[bool]string{false: "answer", true: "undo"}[undo]
+			if over = other; q.Up != nil && other.Questions[q.Up.ID] != nil {
+				group = other.Questions[q.Up.ID].Task
+				_ = twin(q.Up.ID) // a twin that has ended with its leader's attempt is left
+			}
+			r.Raise(other, contract.Event{Kind: "human", Task: group, Text: "The person answered " + q.ID + " in the fleet " + s.Run.Parent.Fleet + " themselves.",
+				Data: map[string]any{"what": what, "id": q.ID, "fleet": s.Run.Parent.Fleet, "where": by.Where}}, c.Now)
+			return nil
+		}
+		if undo {
+			return above(r.Undo(s, id, by, c.Now), func(twin string) error { return r.Undo(other, twin, by, c.Now) })
+		}
 		if q != nil && button(q, text, by) {
 			settle = settling(c.Kit)
 		}
 		fresh = q != nil && q.Answer == ""
-		err := r.Answer(s, id, text, by, settle, c.Now)
+		err := above(r.Answer(s, id, text, by, settle, c.Now), func(twin string) error { return r.Answer(other, twin, text, by, settle, c.Now) })
 		if err == nil && fresh && by.Caller == contract.Human && q.For == contract.ForOrchestrator {
 			// The lead agent was asked and the person answered: it is told so,
 			// and not what, which nothing may use before it has settled.
@@ -258,7 +278,7 @@ func answer(c *contract.Call) (any, error) {
 		if err == nil && fresh && by.Caller == contract.Leader {
 			q.AnsweredBy.Caller = contract.Orchestrator // its fleet's lead agent, as its workers know it
 		}
-		if under = other; err == nil && other != nil {
+		if under = other; err == nil && other != nil && up == c.Run {
 			// A twin's answer goes down in the same step once it has settled:
 			// the person's at the first sweep after it has, or when it is given again.
 			down, err = r.Down(s, other, id, c.Now)
@@ -267,6 +287,9 @@ func answer(c *contract.Call) (any, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if over != nil {
+		unread(c, over)
 	}
 	q := s.Questions[id]
 	out := answered{ID: id, State: q.State, Answer: q.Answer, SettlesAt: q.SettlesAt}

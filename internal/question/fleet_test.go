@@ -409,3 +409,57 @@ func TestACommandKilledBetweenTheTwoWrites(t *testing.T) {
 		t.Fatalf("need again: %+v above %+v", low.Questions["n1"], tw)
 	}
 }
+
+// The person answers inside a fleet's run, past the orchestrator (19.1):
+// the orchestrator's run gets a human event of it beside the fleet's own,
+// and a twin above takes the same answer and the same undo in that step,
+// so it neither stays open above nor brings an undone answer back down.
+func TestThePersonAnswersInsideAFleet(t *testing.T) {
+	p := morning(t)
+	ask := asks(t, p, refund, "r2", "q1", "ask", "Refund to the card, or to store credit?", "--options", "Card,Credit")
+	does(t, p, leader, 0, "escalate q1", "as q1 of run r1")
+	page := func(args ...string) {
+		t.Helper()
+		if out, err := p.Command(scenario.Page, append(args, "--run", "r2")...).CombinedOutput(); err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, out)
+		}
+	}
+	last := func(s *contract.State) contract.Event { return s.Inbox.Events[len(s.Inbox.Events)-1] }
+
+	page("answer", "q1", "Credit")
+	up, low := both(t, p)
+	if tw, q := up.Questions["q1"], low.Questions["q1"]; tw.State != contract.QuestionAnswered || tw.Answer != "Credit" || !tw.SettlesAt.Equal(q.SettlesAt) || q.Answer != "Credit" {
+		t.Fatalf("the twin above did not take the answer given below: %+v of %+v", tw, q)
+	}
+	if e := last(up); e.Kind != "human" || e.Task != "G1" || e.Data["what"] != "answer" || e.Data["fleet"] != "billing" || e.Data["id"] != "q1" ||
+		last(low).Kind != "human" || strings.Contains(e.Text, "Credit") {
+		t.Fatalf("the orchestrator's run is told %+v, the fleet's %+v", e, last(low))
+	}
+	page("answer", "q1", "--undo")
+	if up, low = both(t, p); up.Questions["q1"].State != contract.QuestionOpen || low.Questions["q1"].State != contract.QuestionOpen || last(up).Data["what"] != "undo" {
+		t.Fatalf("after the undo: %+v above, %+v below, told %+v", up.Questions["q1"], low.Questions["q1"], last(up))
+	}
+	p.Clock(5 * time.Second)
+	if sweep(t, p, "q1") {
+		t.Fatal("an answer that was taken back went down")
+	}
+	page("answer", "q1", "Card")
+	p.Clock(5 * time.Second)
+	if out, exit := ask.end(t); exit != 0 || strings.TrimSpace(out) != "Card" {
+		t.Fatalf("the worker's ask ended %d with %q", exit, out)
+	}
+	if sweep(t, p, "q1") {
+		t.Fatal("the sweep answered the question a second time")
+	}
+	if up, low = both(t, p); up.Questions["q1"].State != contract.QuestionUsed || low.Questions["q1"].State != contract.QuestionUsed || low.Questions["q1"].Answer != "Card" {
+		t.Fatalf("at the end: %+v above, %+v below", up.Questions["q1"], low.Questions["q1"])
+	}
+
+	// A question that never climbed has no twin: the event above is all.
+	asks(t, p, refund, "r2", "q2", "ask", "Which base?")
+	before := len(up.Inbox.Events)
+	page("answer", "q2", "main")
+	if up, _ = both(t, p); len(up.Inbox.Events) != before+1 || last(up).Data["id"] != "q2" || len(up.Questions) != 1 {
+		t.Fatalf("a question with no twin: the run above holds %+v and %d questions", last(up), len(up.Questions))
+	}
+}
