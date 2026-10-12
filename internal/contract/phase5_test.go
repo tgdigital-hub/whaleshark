@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -191,7 +192,16 @@ func TestSetWritesEveryStore(t *testing.T) {
 // what the three tables of launch, watch and hook say of it today.
 func TestToolsFromDescriptions(t *testing.T) {
 	h, c := login(t)
-	if err := WriteProjects(h, h.dir, []string{"/work/shop-site"}); err != nil {
+	// A full path is the system's own: on Windows it begins at a drive, and
+	// a person types it with that system's strokes.
+	full := func(path string) string {
+		if runtime.GOOS == "windows" {
+			path = "C:" + path
+		}
+		return filepath.FromSlash(path)
+	}
+	program := full("/opt/hermes/bin/hermes")
+	if err := WriteProjects(h, h.dir, []string{full("/work/shop-site")}); err != nil {
 		t.Fatal(err)
 	}
 	tools, faults := Tools(h, Dirs{Config: h.config, State: h.dir})
@@ -211,7 +221,7 @@ func TestToolsFromDescriptions(t *testing.T) {
 	if _, err := Set(c, "tools.hermes.label", "Hermes"); err == nil {
 		t.Fatal("a tool with no program was stored")
 	}
-	if _, err := Set(c, "tools.hermes.run", "/opt/hermes/bin/hermes chat"); err != nil {
+	if _, err := Set(c, "tools.hermes.run", program+" chat"); err != nil {
 		t.Fatal(err)
 	}
 	for key, value := range map[string]string{"label": "Hermes", "model": "--model {model}", "env.API_KEY": "s3cret", "screen.question": "Allow,Deny"} {
@@ -223,7 +233,7 @@ func TestToolsFromDescriptions(t *testing.T) {
 	tools, faults = Tools(h, Dirs{Config: h.config, State: h.dir})
 	hermes, wired := FindTool(tools, "hermes")
 	if !wired || len(faults) != 0 || !hermes.Mine || hermes.Proven || hermes.Exact() || hermes.Held() || hermes.Label != "Hermes" || hermes.Env["API_KEY"] != "s3cret" ||
-		!slices.Equal(hermes.Run, []string{"/opt/hermes/bin/hermes", "chat"}) || !slices.Equal(hermes.Screen.Question, []string{"Allow", "Deny"}) {
+		!slices.Equal(hermes.Run, []string{program, "chat"}) || !slices.Equal(hermes.Screen.Question, []string{"Allow", "Deny"}) {
 		t.Fatalf("hermes: %+v %v", hermes, faults)
 	}
 	file := filepath.Join(h.config, ToolsDir, "hermes.toml")
@@ -232,8 +242,8 @@ func TestToolsFromDescriptions(t *testing.T) {
 	}
 
 	// What is refused when it is stored, and not used when it lies there anyway.
-	for key, value := range map[string]string{"tools.hermes.run": "hermes chat", "tools.grok.run": "/work/shop-site/bin/agent", "tools.Bad_Name.run": "/bin/x",
-		"tools.hermes.hooks": "mine", "tools.-x.run": "/bin/x"} {
+	for key, value := range map[string]string{"tools.hermes.run": "hermes chat", "tools.grok.run": full("/work/shop-site/bin/agent"), "tools.Bad_Name.run": full("/bin/x"),
+		"tools.hermes.hooks": "mine", "tools.-x.run": full("/bin/x")} {
 		if _, err := Set(c, key, value); err == nil {
 			t.Errorf("set %s %s was taken", key, value)
 		}
@@ -243,14 +253,14 @@ func TestToolsFromDescriptions(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	plant("inside.toml", "run = ['/work/shop-site/tools/agent']\nhooks = 'none'\n")
+	plant("inside.toml", "run = ['"+full("/work/shop-site/tools/agent")+"']\nhooks = 'none'\n")
 	plant("relative.toml", "run = ['agent']\nhooks = 'none'\n")
 	plant("claude.toml", "suits = 'everything but tests'\n")
-	plant("codex.toml", "run = ['/opt/codex/codex']\n")
+	plant("codex.toml", "run = ['"+full("/opt/codex/codex")+"']\n")
 	tools, faults = Tools(h, Dirs{Config: h.config, State: h.dir})
 	claude, _ = FindTool(tools, "claude")
 	codex, _ = FindTool(tools, "codex")
-	if len(tools) != 3 || len(faults) != 2 || claude.Suits != "everything but tests" || !claude.Proven || claude.Run[0] != "claude" || codex.Run[0] != "/opt/codex/codex" || codex.Hooks != HooksCodex {
+	if len(tools) != 3 || len(faults) != 2 || claude.Suits != "everything but tests" || !claude.Proven || claude.Run[0] != "claude" || codex.Run[0] != full("/opt/codex/codex") || codex.Hooks != HooksCodex {
 		t.Errorf("a built-in changed field by field, two files left out: %d tools, %v, %+v", len(tools), faults, claude)
 	}
 	*h.shared = []string{file}
