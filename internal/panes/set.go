@@ -1,19 +1,14 @@
 package panes
 
 import (
-	"bytes"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
-
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
-	"github.com/tgdigital-hub/whaleshark/internal/theme"
 )
 
 // screen reads ui.json for a command that may write it back.
@@ -25,9 +20,10 @@ func screen(k *contract.Kit) (dirs contract.Dirs, ui contract.UIFile, file strin
 	return dirs, ui, file, err
 }
 
-// set changes one of the person's own settings: what they chose in
-// config.toml, what the screen remembers in ui.json. A pane keeps its own
-// marks the same way: folded, here, and draft.<item> for a half-typed answer.
+// set changes a setting. Most are a row of the contract's table and are set
+// there; here are the ways of its own: a time for do not disturb, an open
+// pane that moves or is fitted, and a pane's own marks: folded, here, seen
+// and draft.<item> for a half-typed answer.
 func set(c *contract.Call) (any, error) {
 	k := c.Kit
 	bad := func(format string, a ...any) (any, error) {
@@ -41,31 +37,9 @@ func set(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg := person(k, dirs)
-	side := cfg.Panes.Actions
 	draft, isDraft := strings.CutPrefix(key, "draft.")
-	var names []string
-	for _, s := range theme.Schemes {
-		names = append(names, s.Name)
-	}
 	var onOff *bool
 	switch {
-	case key == "theme" && slices.Contains(names, value):
-		cfg.UI.Theme = value
-	case key == "theme":
-		return bad("No colour scheme is called %q: there are %s.", value, strings.Join(names, ", "))
-	case key == "actions" && (value == "top" || value == "bottom"):
-		cfg.Panes.Actions = value
-	case key == "actions":
-		return bad("The action pane lies at the top or at the bottom.")
-	case key == "nudge.sound":
-		onOff = &cfg.Nudge.Sound
-	case key == "nudge.popup":
-		onOff = &cfg.Nudge.Popup
-	case key == "nudge.phone":
-		onOff = &cfg.Nudge.Phone
-	case key == "mute":
-		onOff = &ui.Mute
 	case key == "folded":
 		onOff = &ui.Folded
 	case key == "dnd" && strings.HasPrefix(value, "until"):
@@ -90,6 +64,12 @@ func set(c *contract.Call) (any, error) {
 		}
 	case key == "here":
 		ui.LastHere = c.Now
+	case key == "seen":
+		// The settings screen showed a section again: its warnings end.
+		ui.Changed = slices.DeleteFunc(ui.Changed, func(name string) bool {
+			row, _ := contract.FindKey(name)
+			return row == nil || row.Section == value
+		})
 	case isDraft && value == "":
 		delete(ui.Drafts, draft)
 	case isDraft:
@@ -98,10 +78,16 @@ func set(c *contract.Call) (any, error) {
 		}
 		ui.Drafts[draft] = value
 	default:
-		// Every other key of the contract's table is set in its own file.
-		// Phase 5 owes: a layout key moves the open panes at once (Kit.Panes).
-		if value, err = contract.Set(c, key, value); err != nil {
+		// Every other key of the contract's table is set in its own file. A
+		// key that places a pane of ours moves the open panes at once.
+		if value, err = contract.Set(c, key, value); err == nil && (strings.HasPrefix(key, "panes.") || key == actions) {
+			err = k.Panes(k, c.Caller.Pane)
+		}
+		if err != nil {
 			return nil, err
+		}
+		if f := person(k, dirs).Fleets; strings.HasPrefix(key, "fleets.") && f.Total != contract.Unlimited && (f.Total < f.Agents || f.Agents == contract.Unlimited) {
+			fmt.Fprintf(c.Out, "one fleet could use all %d: the limit of all agents is under a fleet's\n", f.Total)
 		}
 		fmt.Fprintln(c.Out, key+": "+value)
 		return map[string]string{"key": key, "value": value}, nil
@@ -113,35 +99,12 @@ func set(c *contract.Call) (any, error) {
 		*onOff = value == "on" || value == "toggle" && !*onOff
 		value = map[bool]string{true: "on", false: "off"}[*onOff]
 	}
-	if key == "theme" || key == "actions" || strings.HasPrefix(key, "nudge.") {
-		var b bytes.Buffer
-		if err = toml.NewEncoder(&b).Encode(cfg); err == nil {
-			err = replace(k, filepath.Join(dirs.Config, contract.ConfigFile), b.Bytes())
-		}
-		if key == "actions" && err == nil && ui.ActionsPane != "" && value != side && move(k.Terms, ui, c.Caller.Pane, value == "top") != nil {
-			fmt.Fprintln(c.Out, "the action pane moves when it is next opened: whaleshark ui actions off, then on")
-		}
-	} else {
-		ui.Version = contract.FileVersion
-		err = contract.WriteVersioned(k.Platform, file, contract.FileVersion, ui)
-	}
-	if err != nil {
+	ui.Version = contract.FileVersion
+	if err = contract.WriteVersioned(k.Platform, file, contract.FileVersion, ui); err != nil {
 		return nil, err
 	}
-	if key != "here" && key != "folded" && !isDraft {
+	if key != "here" && key != "seen" && key != "folded" && !isDraft {
 		fmt.Fprintln(c.Out, key+": "+value)
 	}
 	return map[string]string{"key": key, "value": value}, nil
-}
-
-// replace puts a finished file, private to the login, in the place of path.
-func replace(k *contract.Kit, path string, data []byte) error {
-	err := os.MkdirAll(filepath.Dir(path), 0o700)
-	if err == nil {
-		err = os.WriteFile(path+".new", data, 0o600)
-	}
-	if err == nil {
-		err = k.Platform.Replace(path+".new", path)
-	}
-	return err
 }

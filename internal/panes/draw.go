@@ -3,6 +3,7 @@ package panes
 import (
 	"cmp"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -55,7 +56,7 @@ func bold(st term.Style) term.Style {
 
 // glyph picks the mark for a terminal that can show it, or the plain one.
 func (p *pane) glyph(mark, plain string) string {
-	if p.plainMarks {
+	if p.plainMarks || p.cfg.UI.Marks == "plain" && os.Getenv("WHALESHARK_MARKS") == "" {
 		return plain
 	}
 	return mark
@@ -67,8 +68,8 @@ func look(l contract.Look) contract.LookOf {
 }
 
 func label(action string) string {
-	i := slices.IndexFunc(contract.Actions, func(a contract.Action) bool { return a.ID == action })
-	return contract.Actions[i].Label
+	a, _ := contract.FindAction(action)
+	return a.Label
 }
 
 func ago(d time.Duration) string {
@@ -139,6 +140,10 @@ func (p *pane) draw() {
 	switch {
 	case p.over != "":
 		p.drawOver()
+	case p.kind == side:
+		p.drawSide(now)
+	case p.kind == settings:
+		p.drawSettings()
 	case p.kind == fleet:
 		p.drawFleet(now)
 	default:
@@ -297,15 +302,75 @@ func (p *pane) window(n, room int, height func(int) int) int {
 	return fits(p.top)
 }
 
+// fleetTitle is the fleet pane's name and its long count: of an
+// orchestrator's run the fleets first, then the agents and what needs the
+// person.
+func (p *pane) fleetTitle() (name, counts string) {
+	c := p.view.Counts
+	name, counts = "FLEET", fmt.Sprintf("%d agents · %d need%s you", c.Agents, c.NeedYou, map[bool]string{true: "s"}[c.NeedYou == 1])
+	if p.view.Mode == contract.ModeFleets {
+		name, counts = "FLEETS", fmt.Sprintf("%d · %s", len(p.cards), counts)
+	}
+	return name, counts
+}
+
+// drawLow is the fleet where it is no pane beside the conversation. Folded
+// to its strip it is one line: its agents by their marks, and the button
+// that opens it over the tab. At the bottom its cards lie in columns across
+// the tab, two lines a card, and its age stands on its first line.
+func (p *pane) drawLow(now time.Time) {
+	t, w, h := p.t, p.t.W, p.t.H
+	name, counts := p.fleetTitle()
+	age, ageSt := p.age(now, h <= 2)
+	if h <= 2 {
+		counts = counts[:strings.LastIndex(counts, " · ")]
+		for i, lk := range contract.Looks {
+			n := 0
+			for _, c := range p.cards {
+				if look(c.Look).Mark == lk.Mark {
+					n++
+				}
+			}
+			if n > 0 && !slices.ContainsFunc(contract.Looks[:i], func(o contract.LookOf) bool { return o.Mark == lk.Mark }) {
+				counts += fmt.Sprintf(" · %s%d", p.glyph(lk.Mark, lk.Plain), n)
+			}
+		}
+		p.title(name, counts, w-10)
+		p.button(w-9, 0, "[ open ]", p.st("dim"), func() { p.lay("run", fleet) })
+		t.Put(1, 1, w-2, age, ageSt)
+		return
+	}
+	cols, lines := max((w+2)/contract.FleetColumn, 1), max((h-1)/2, 1)
+	page := cols * lines
+	p.top = max(slices.Index(p.ids(), p.sel), 0) / page * page
+	if rest := len(p.cards) - page; rest > 0 {
+		counts += fmt.Sprintf(" · page %d of %d", p.top/page+1, (len(p.cards)+page-1)/page)
+	}
+	p.title(name, counts, w-7-term.Width(age))
+	t.Put(w-6-term.Width(age), 0, w, age, ageSt)
+	p.button(w-4, 0, "[x]", p.st("dim"), func() { p.act(fleet, nil) })
+	for i, c := range p.cards[min(p.top, len(p.cards)):min(p.top+page, len(p.cards))] {
+		p.card(c, i%cols*contract.FleetColumn, contract.FleetColumn-2, 1+i/cols*2, 2, true, now)
+	}
+}
+
 func (p *pane) drawFleet(now time.Time) {
 	t, v, w, h := p.t, p.view, p.t.W, p.t.H
+	if h <= 2 || p.cfg.Panes.Fleet == contract.Bottom {
+		p.drawLow(now)
+		return
+	}
 	narrow := w < 38
 	dim := p.st("dim")
 	age, ageSt := p.age(now, narrow)
+	name, long := p.fleetTitle()
 	done := fmt.Sprintf("%d done today", v.Counts.DoneToday)
+	if name == "FLEETS" {
+		done = fmt.Sprintf("%d fleets finished today", v.Counts.DoneToday)
+	}
 	foot := 3
 	if narrow {
-		done = fmt.Sprintf("%d done", v.Counts.DoneToday)
+		done = strings.Replace(strings.Replace(done, " today", "", 1), " fleets", "", 1)
 		if foot = 1; term.Width(done+" [show] · "+age) >= w {
 			foot = 2
 		}
@@ -343,7 +408,7 @@ func (p *pane) drawFleet(now time.Time) {
 	}
 	fit := p.window(len(p.cards), room, func(int) int { return rows })
 	for i := range fit {
-		p.card(p.cards[p.top+i], y+i*rows, rows, narrow, now)
+		p.card(p.cards[p.top+i], 0, w, y+i*rows, rows, narrow, now)
 	}
 
 	// The header says as much as fits: the counts in three lengths, and the
@@ -354,24 +419,30 @@ func (p *pane) drawFleet(now time.Time) {
 		counts, above, below string
 		buttons, gap         int
 	}{
-		{fmt.Sprintf("%d agents · %d need you", v.Counts.Agents, v.Counts.NeedYou), " · %d above", " · %d below", 3, 1},
+		{long, " · %d above", " · %d below", 3, 1},
 		{fmt.Sprintf("%d · %d need you", v.Counts.Agents, v.Counts.NeedYou), up, down, 3, 1},
 		{fmt.Sprintf("%d · %d need you", v.Counts.Agents, v.Counts.NeedYou), up, down, 2, 0},
 		{fmt.Sprintf("%d · %s%d", v.Counts.Agents, need, v.Counts.NeedYou), up, down, 2, 0},
 		{fmt.Sprintf("%d · %s%d", v.Counts.Agents, need, v.Counts.NeedYou), up, down, 0, 0},
 	}
 	for i, f := range forms {
+		if i > 0 && name == "FLEETS" {
+			f.counts = fmt.Sprintf("%d · %s", len(p.cards), f.counts)
+		}
+		x := w - f.buttons*(3+f.gap) + f.gap
+		if i == 0 && w >= contract.FleetNarrow {
+			f.counts = p.short(f.counts, x-5-len(name)) // beside the conversation the long count is cut, never changed
+		}
 		if p.top > 0 {
 			f.counts += fmt.Sprintf(f.above, p.top)
 		}
 		if rest := len(p.cards) - p.top - fit; rest > 0 {
 			f.counts += fmt.Sprintf(f.below, rest)
 		}
-		x := w - f.buttons*(3+f.gap) + f.gap
-		if 9+term.Width(f.counts) > x && i < len(forms)-1 {
+		if 4+len(name)+term.Width(f.counts) > x && i < len(forms)-1 {
 			continue
 		}
-		p.title("FLEET", f.counts, x-1)
+		p.title(name, f.counts, x-1)
 		for i, b := range []string{"narrower", "wider", "fleet"}[:f.buttons] {
 			x += p.button(x, 0, [...]string{"[<]", "[>]", "[x]"}[i], dim, func() { p.act(b, nil) }) + f.gap
 		}
@@ -406,9 +477,12 @@ func (p *pane) drawFleet(now time.Time) {
 	}
 }
 
-// card is one agent: its mark, name and state, its two bars, its news.
-func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
-	t, w := p.t, p.t.W
+// card is one agent: its mark, name and state, its two bars, its news; or
+// one fleet: its leader's tool beside its name, its agents where an agent's
+// context stands, and how far its tasks are. It is w cells wide from x0.
+func (p *pane) card(c contract.Card, x0, w, y, rows int, narrow bool, now time.Time) {
+	t := p.t
+	put := func(x, y, n int, s string, st term.Style) int { return t.Put(x0+x, y, n, s, st) }
 	st := func(name string) term.Style {
 		if p.old {
 			name = "dim"
@@ -418,7 +492,7 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 		return s
 	}
 	p.mark(y, rows, c.Task)
-	p.hits = append(p.hits, hit{0, y, w, rows, false, func() {
+	p.hits = append(p.hits, hit{x0, y, w, rows, false, func() {
 		p.sel = c.Task
 		p.goTo(c.Tab)
 	}})
@@ -429,7 +503,7 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 	if c.Task == p.sel {
 		name = bold(name)
 		for i := range rows {
-			t.Put(0, y+i, 1, p.glyph("▌", "|"), p.st("accent"))
+			put(0, y+i, 1, p.glyph("▌", "|"), p.st("accent"))
 		}
 	}
 	lk, word := look(c.Look), c.Word
@@ -439,23 +513,29 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 		}
 	}
 	ww := term.Width(word)
-	t.Put(1, y, 1, p.glyph(lk.Mark, lk.Plain), st(c.Colour))
+	put(1, y, 1, p.glyph(lk.Mark, lk.Plain), st(c.Colour))
 	room := w - ww - 4
 	if c.Flag {
 		room -= 2
 	}
-	x := 3 + t.Put(3, y, room, p.cut(c.Name, room), name)
-	if c.Flag {
-		t.Put(x+1, y, w-ww-x-2, p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain), st("needs"))
+	title := c.Name
+	if c.Fleet != nil {
+		title += " · " + c.Agent
 	}
-	t.Put(w-ww, y, ww, word, st(c.Colour))
+	x := 3 + put(3, y, room, p.cut(title, room), name)
+	if c.Flag {
+		put(x+1, y, w-ww-x-2, p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain), st("needs"))
+	}
+	put(w-ww, y, ww, word, st(c.Colour))
 	// The state word opens what can be done with this agent.
 	if len(c.Actions) > 0 {
-		p.hits = append(p.hits, hit{w - ww, y, ww, 1, false, func() { p.offer(c) }})
+		p.hits = append(p.hits, hit{x0 + w - ww, y, ww, 1, false, func() { p.offer(c) }})
 	}
 
 	ctx, cells := "  ctx unknown", (c.Ctx+10)/20
 	switch {
+	case c.Fleet != nil:
+		ctx, c.News = fmt.Sprintf("%d agents", c.Fleet.Agents), cmp.Or(c.News, c.Fleet.Line())
 	case narrow && c.CtxKnown:
 		ctx = fmt.Sprintf("ctx %2d%%", c.Ctx)
 	case narrow:
@@ -474,21 +554,21 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 	} else if c.Pale && !p.old {
 		bar.Fg = term.RGB(contract.Pale(p.scheme.Colours["building"], p.scheme.Ground))
 	}
-	t.Put(3, y+1, bw, strings.Repeat(block, full), bar)
-	t.Put(3+full, y+1, bw-full, strings.Repeat("░", bw-full), st("bar_empty"))
-	t.Put(3+bw, y+1, 5, fmt.Sprintf(" %3d%%", c.Progress), st("text"))
+	put(3, y+1, bw, strings.Repeat(block, full), bar)
+	put(3+full, y+1, bw-full, strings.Repeat("░", bw-full), st("bar_empty"))
+	put(3+bw, y+1, 5, fmt.Sprintf(" %3d%%", c.Progress), st("text"))
 	if cw > 0 {
-		t.Put(w-cw, y+1, cw, ctx, st("dim"))
+		put(w-cw, y+1, cw, ctx, st("dim"))
 	}
-	if cw > 0 && c.CtxKnown && !narrow {
+	if cw > 0 && c.CtxKnown && !narrow && c.Fleet == nil {
 		level := "ctx_low"
 		if c.Ctx > contract.CtxHigh {
 			level = "ctx_high"
 		} else if c.Ctx >= contract.CtxMid {
 			level = "ctx_mid"
 		}
-		t.Put(w-cw+4, y+1, cells, strings.Repeat("▮", cells), st(level))
-		t.Put(w-cw+4+cells, y+1, 5-cells, strings.Repeat("▯", 5-cells), st("bar_empty"))
+		put(w-cw+4, y+1, cells, strings.Repeat("▮", cells), st(level))
+		put(w-cw+4+cells, y+1, 5-cells, strings.Repeat("▯", 5-cells), st("bar_empty"))
 	}
 	if rows > 2 {
 		news := c.News
@@ -502,7 +582,7 @@ func (p *pane) card(c contract.Card, y, rows int, narrow bool, now time.Time) {
 		} else if x != nil {
 			news += " · also changes " + x.File
 		}
-		t.Put(3, y+2, w-3, p.cut(news, w-3), st("dim"))
+		put(3, y+2, w-3, p.cut(news, w-3), st("dim"))
 	}
 }
 
@@ -519,7 +599,7 @@ func (p *pane) drawActions(now time.Time) {
 	t.Put(max(w-aw-1, 0), h-1, w, age, ageSt)
 	defer func() {
 		p.hintLine(h-1, w-aw-3, "j k choose · y n o answer · u undo · x fold · / all actions · ? keys",
-			cmp.Or(p.command, "ctrl+space")+" a to answer · / all actions · ? keys")
+			cmp.Or(p.engine.Keys.Command, "ctrl+space")+" a to answer · / all actions · ? keys")
 	}()
 
 	y, room, end := 1, h-2, h-1

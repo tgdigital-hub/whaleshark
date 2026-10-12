@@ -1,6 +1,7 @@
 package panes
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	fleet, actions, menu = "fleet", "actions", "menu"
+	fleet, actions, menu, side, settings = "fleet", "actions", "menu", "side", "settings"
 
 	second = time.Second
 	// Every compareEvery seconds the picture the events built is held against
@@ -62,11 +63,14 @@ type pane struct {
 	figures map[string]contract.CtxFile
 	limits  contract.ProjectFile
 	cfg     contract.PersonConfig
-	chosen  string // the scheme the settings file names
+	engine  contract.Settings
+	tools   []contract.Tool
+	fleets  map[string]*contract.State // an orchestrator's fleets, each one's own run
+	below   []string                   // the runs whose files are watched beside the pane's own
+	chosen  string                     // the scheme the settings file names
 	watch   contract.Watcher
 	filesOK time.Time
 
-	command string             // the key that starts a shortcut of the engine's, as the person set it
 	picture *contract.Snapshot // the terminals as the events built it; nil while it cannot be reached
 	termsOK time.Time
 	lost    int
@@ -129,6 +133,22 @@ type pane struct {
 	lastKey string
 	undo    func()
 	burst   bool
+	// The left section: its input and model, the folded fleets, the row acted on.
+	in      contract.SideInput
+	bar     *contract.Side
+	shut    []string
+	at      contract.SideRow
+	fits    int
+	closed  []string // the runs that were read closed
+	watched string   // the files the notices are on
+	// The settings screen: what is in front, what u takes back, what asks first.
+	sect    int
+	saw     int
+	tool    string
+	finding bool
+	undone  []setting
+	pending *setting
+	roots   []string // the projects [+] lists
 	// The click guard: what each row shows, and when that last changed by itself.
 	rows    []string
 	movedAt []time.Time
@@ -138,7 +158,7 @@ type pane struct {
 func newPane(kind string, t *term.Term, k *contract.Kit, root, run string, now func() time.Time) *pane {
 	build := func(in contract.ViewInput) contract.View { return *k.View(in) }
 	me, _ := contract.PaneOf(os.Getenv)
-	return &pane{kind: kind, t: t, k: k, root: root, run: run, anyRun: run == "", seek: true, now: now, make: build, heard: make(chan news), me: me,
+	return &pane{kind: kind, t: t, k: k, root: root, run: run, anyRun: run == "" && kind != side && kind != settings, seek: true, now: now, make: build, heard: make(chan news), me: me,
 		scheme: theme.Schemes[0], plainMarks: contract.PlainMarks(os.Getenv), px: -1, py: -1, lit: -1, stale: true, dirty: true}
 }
 
@@ -319,7 +339,7 @@ func (p *pane) compare(snap *contract.Snapshot, look int) {
 // checked, and every fifth second the keeper is asked for a snapshot.
 func (p *pane) tick(n int) {
 	p.stale, p.dirty = true, true
-	if p.watch == nil || p.run == "" {
+	if p.watch == nil || p.run == "" && p.kind != side {
 		p.load()
 	}
 	if p.readErr == nil || errors.Is(p.readErr, contract.ErrNoRun) {
@@ -349,15 +369,19 @@ func (p *pane) load() {
 			p.watch = nil
 		}
 	}
-	if p.watch == nil && err == nil {
+	if p.kind == side && err == nil {
+		p.loadSide(dirs)
+	} else if p.watch == nil && err == nil {
 		paths := []string{filepath.Join(dirs.State, "ctx"), filepath.Join(dirs.State, contract.UIFileName),
 			filepath.Join(dirs.State, contract.PhonesFile), filepath.Join(dirs.State, "paused"), filepath.Join(dirs.Config, contract.ConfigFile)}
 		if p.anyRun {
 			// Where a new run appears and where the person's pointer lies.
 			paths = append(paths, r.Dir(p.root, ""), filepath.Dir(r.Dir(p.root, "r1")))
 		}
-		if p.run != "" {
-			paths = append(paths, filepath.Join(r.Dir(p.root, p.run), contract.StateFile))
+		for _, run := range append(slices.Clone(p.below), p.run) {
+			if run != "" {
+				paths = append(paths, filepath.Join(r.Dir(p.root, run), contract.StateFile))
+			}
 		}
 		if p.run != "" || p.anyRun {
 			p.watch, _ = p.k.Platform.Watch(paths...)
@@ -366,6 +390,20 @@ func (p *pane) load() {
 	p.state = nil
 	if err == nil && p.run != "" {
 		p.state, err = r.Read(p.root, p.run)
+	}
+	// An orchestrator's fleets are runs of their own: read with it, and watched.
+	var under []string
+	p.fleets = map[string]*contract.State{}
+	for name, f := range cmp.Or(p.state, &contract.State{}).Run.Fleets {
+		if s, ferr := r.Read(p.root, f.Run); ferr == nil {
+			p.fleets[name], under = s, append(under, f.Run)
+		}
+	}
+	if slices.Sort(under); !slices.Equal(under, p.below) && p.watch != nil && p.kind != side {
+		p.watch.Close()
+		p.below, p.watch = under, nil
+		p.load()
+		return
 	}
 	if p.readErr = err; dirs.State == "" {
 		return
@@ -382,8 +420,8 @@ func (p *pane) load() {
 	}
 	p.limits, _ = contract.ReadProjectFile(p.root)
 	// The engine's command key, for the hint that names it.
-	keys, _ := contract.ReadSettings(p.k.Platform.Peek, dirs)
-	p.command = keys.Keys.Command
+	p.engine, _ = contract.ReadSettings(p.k.Platform.Peek, dirs)
+	p.tools, _ = contract.Tools(p.k.Platform, dirs)
 	p.cfg = person(p.k, dirs)
 	if p.above = p.cfg.Panes.Actions == "top"; p.cfg.UI.Theme != p.chosen {
 		p.chosen, p.scheme = p.cfg.UI.Theme, theme.Get(p.cfg.UI.Theme)
@@ -446,9 +484,21 @@ func (p *pane) build() {
 	if !p.lostAt.IsZero() && now.Sub(p.lostAt) < sayLost {
 		notes = append(notes, "terminals: checking every 5 s")
 	}
+	found := slices.DeleteFunc(slices.Clone(p.tools), func(t contract.Tool) bool { return !t.Found() })
 	switch {
+	case p.kind == side:
+		// The model fits its rows to the panel, whose height the drawing knows.
+		in := p.in
+		in.Now, in.Terms, in.Tools, in.Person, in.Changed, in.Checked, in.Notes = now, p.picture, found, p.cfg, p.ui.Changed, checked, notes
+		in.Folded, in.Find = p.shut, p.query.String()
+		if !p.all {
+			in.Rows = p.fits
+		}
+		p.bar = p.k.Side(in)
+		p.view = contract.View{Fresh: p.bar.Fresh}
 	case p.state != nil:
 		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Terms: p.picture,
+			Fleets: p.fleets, Person: p.cfg, Tools: found,
 			Ctx: p.figures, UI: p.ui, Phones: p.phones, Limits: p.limits, Checked: checked, Notes: notes,
 			Swept: p.swept, Watched: !p.sweptAt.IsZero() && now.Sub(p.sweptAt) < 3*compareEvery*second, All: p.all})
 		if a := p.view.Strip.Away; !a.IsZero() {
@@ -458,6 +508,9 @@ func (p *pane) build() {
 		p.view = contract.View{Alerts: []string{"the record cannot be read: " + p.readErr.Error()}, Fresh: contract.Fresh{Notes: notes}}
 	default:
 		p.view = contract.View{Alerts: []string{"no run in this folder yet"}, Fresh: contract.Fresh{Checked: checked, Notes: notes}}
+	}
+	if w := contract.Warned(p.ui.Changed); w != "" && p.kind != side {
+		p.view.Alerts = append([]string{w}, p.view.Alerts...)
 	}
 	p.cards = p.cards[:0]
 	for _, s := range p.view.Sections {
@@ -472,7 +525,7 @@ func (p *pane) build() {
 		}
 	}
 	ids := p.ids()
-	if at := slices.Index(ids, p.sel); at < 0 {
+	if at := slices.Index(ids, p.sel); at < 0 && p.kind != side {
 		p.sel = ""
 	} else {
 		p.follow = p.follow || at != was
@@ -543,7 +596,7 @@ func (p *pane) mouse(ev term.Event) {
 	p.px, p.py = ev.X, ev.Y
 	by := map[term.Button]int{term.WheelUp: -1, term.WheelDown: 1}[ev.Button]
 	switch {
-	case by != 0 && p.over != "":
+	case by != 0 && (p.over != "" || p.kind == settings):
 		p.pick += by
 	case by != 0:
 		p.top += by
@@ -579,9 +632,16 @@ func (p *pane) goTo(tab string) {
 		p.hint = "this one has no tab"
 		return
 	}
-	p.helper(func() {
-		if err := p.k.Terms.TabFocus(tab); err != nil {
-			p.tell(news{said: "cannot go there: " + err.Error()})
+	p.keeper(func() error { return p.k.Terms.TabFocus(tab) })
+}
+
+// newTab opens a tab in a folder and brings it to the front.
+func (p *pane) newTab(dir, label string) {
+	p.keeper(func() error {
+		tab, err := p.k.Terms.TabCreate(dir, label, nil)
+		if err == nil {
+			err = p.k.Terms.TabFocus(tab.Tab)
 		}
+		return err
 	})
 }

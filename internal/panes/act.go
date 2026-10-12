@@ -48,8 +48,16 @@ func (p *pane) cmd(args ...string) []string {
 	if !slices.Contains(args, "--human") {
 		args = append(args, "--human")
 	}
-	if args = append(args, "--root", p.root); p.run != "" {
-		args = append(args, "--run", p.run)
+	root, run := p.root, p.run
+	if p.kind == side && p.at.Root != "" {
+		// A row of the left section is about its own project and run; an
+		// answer goes where the question climbed to.
+		if root, run = p.at.Root, p.at.Run; args[0] == "answer" {
+			run = cmp.Or(p.at.ItemRun, run)
+		}
+	}
+	if args = append(args, "--root", root); run != "" {
+		args = append(args, "--run", run)
 	}
 	return args
 }
@@ -107,7 +115,16 @@ func result(out []byte, v any) bool {
 // sweep starts the command that looks for stalled agents. The pane never
 // looks itself and never writes: it only starts the looking, as a child.
 func (p *pane) sweep() {
-	if p.run == "" || len(p.jobs) > 0 {
+	if len(p.jobs) > 0 {
+		return
+	}
+	// The left section has every open run of the login looked at.
+	for _, pr := range p.in.Projects {
+		for _, s := range pr.Runs {
+			p.child([]string{"status", "--sweep", "--quiet", "--human", "--root", pr.Root, "--run", s.Run.ID}, "", p.quiet)
+		}
+	}
+	if p.run == "" {
 		return
 	}
 	p.child(p.cmd("status", "--sweep", "--quiet", "--json"), "", func(out []byte, _ string, ok bool) {
@@ -173,6 +190,10 @@ func (p *pane) key(ev term.Event) bool {
 	switch {
 	case key == "ctrl+c":
 		return false
+	case p.kind == settings && p.line == nil && p.over == "":
+		return p.settingsKey(ev)
+	case p.kind == side && p.line == nil && p.over == "" && ev.Kind == term.KeyPress:
+		p.sideKey(ev)
 	case p.over == "" && (p.line == nil || p.undo != nil) && p.typing(ev):
 	case p.line != nil:
 		p.typed(ev)
@@ -241,7 +262,7 @@ func (p *pane) press(it contract.Item, b contract.Button) {
 // act runs one row of the action table on what is selected. It is the only
 // way a click or a key changes anything.
 func (p *pane) act(id string, fill map[string]string) {
-	a := contract.Actions[slices.IndexFunc(contract.Actions, func(a contract.Action) bool { return a.ID == id })]
+	a, _ := contract.FindAction(id)
 	if fill == nil {
 		fill = map[string]string{}
 	}
@@ -288,6 +309,22 @@ func (p *pane) act(id string, fill map[string]string) {
 	switch {
 	case id == "go" && c != nil:
 		p.goTo(c.Tab)
+	case id == menu && p.kind == side:
+		p.lay(menu)
+	case id == settings:
+		p.lay("run", settings)
+	case id == "side-keys" || id == "side-fold":
+		p.keeper(func() error {
+			return p.k.Terms.Dock(map[bool]string{true: contract.DockKeys, false: contract.DockFold}[id == "side-keys"])
+		})
+	case id == "workspace":
+		// The projects of the login's list that no workspace shows.
+		dirs, _ := p.k.Platform.Dirs()
+		roots, _ := contract.ReadProjects(p.k.Platform.Peek, dirs.State)
+		p.roots = slices.DeleteFunc(roots, func(root string) bool {
+			return p.bar != nil && slices.ContainsFunc(p.bar.Workspaces, func(w contract.Workspace) bool { return w.Root == root })
+		})
+		p.over, p.pick = "projects", 0
 	case id == "menu" || id == "keys":
 		p.fold(false)
 		p.over, p.pick = id, 0
@@ -541,7 +578,7 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 	}
 	switch p.over {
 	case "menu", "keys":
-		for _, a := range contract.Actions {
+		for _, a := range slices.Concat(contract.Actions, contract.SideActions[2:]) {
 			right := a.Key
 			if run := strings.Join(a.Run, " "); right == "" && strings.Contains(run, "{task}") {
 				right = "(card)"
@@ -560,21 +597,12 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 			}
 			return "all keys", list, "any key closes"
 		}
-		// The person's own settings are lines of this list: each says what
-		// it is now, or what choosing it makes of it.
-		on, n := map[bool]string{true: "on", false: "off"}, p.cfg.Nudge
-		side := map[bool]string{true: "bottom", false: "top"}[p.above]
-		rows := [][4]string{{"The action pane at the " + side, "", "actions", side}, {"A sound when you are needed", on[n.Sound], "nudge.sound", "toggle"},
-			{"A pop-up when you are needed", on[n.Popup], "nudge.popup", "toggle"}, {"A message to the phone when you are needed", on[n.Phone], "nudge.phone", "toggle"}}
-		for _, s := range theme.Schemes {
-			rows = append(rows, [4]string{"Colour scheme: " + s.Name, map[bool]string{true: "now"}[s.Name == p.scheme.Name], "theme", s.Name})
+		return "every action", list, fmt.Sprintf("%d actions · type to search · enter runs it · esc closes", len(list))
+	case "projects":
+		for _, root := range p.roots {
+			list = append(list, entry{filepath.Base(root), "", close(func() { p.newTab(root, filepath.Base(root)) })})
 		}
-		for _, r := range rows {
-			if strings.Contains(strings.ToLower(r[0]), strings.ToLower(p.query.String())) {
-				list = append(list, entry{r[0], r[1], close(func() { p.act("set", map[string]string{"key": r[2], "value": r[3]}) })})
-			}
-		}
-		return "every action", list, fmt.Sprintf("%d actions and settings · type to search · enter runs it · esc closes", len(list))
+		return "open a project", list, "enter opens a tab in it · esc closes"
 	case "teams":
 		for _, t := range p.teams {
 			run := func(goal string) { p.act("team", map[string]string{"name": t.Name, "text": goal}) }

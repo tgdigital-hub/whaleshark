@@ -72,7 +72,7 @@ func TestAPaneFitsWhatItSaysToItsSize(t *testing.T) {
 	p, _, _ = still(t, fleet, 32, 30)
 	shows(p, "FLEET  12 · 2 need you   [<][>]")
 	p, _, _ = still(t, fleet, 40, 48)
-	shows(p, "FLEET  12 · 2 need you      [<] [>] [x]", "tests written · also changes search.…", "clashes with search box: search.js")
+	shows(p, "FLEET  12 agents · 2 need…  [<] [>] [x]", "tests written · also changes search.…", "clashes with search box: search.js")
 	// The bars are one length, whatever the context bar says.
 	x1, _ := p.find(t, " 20%      ctx unknown")
 	x2, _ := p.find(t, " 30%    ctx ▮")
@@ -84,7 +84,7 @@ func TestAPaneFitsWhatItSaysToItsSize(t *testing.T) {
 	none.Sections, none.Counts = nil, contract.Counts{}
 	p.make, p.stale = func(contract.ViewInput) contract.View { return none }, true
 	p.draw()
-	shows(p, "FLEET  0 · 0 need you       [<] [>] [x]", "no agents yet")
+	shows(p, "FLEET  0 agents · 0 need …  [<] [>] [x]", "no agents yet")
 
 	// The action pane: the strip in three lengths, and what does not fit
 	// whole on a line of its own.

@@ -1,6 +1,7 @@
 package panes
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -59,50 +60,24 @@ func TestTheSchemeKeyGoesRound(t *testing.T) {
 	}
 }
 
-// The person's settings are lines of the list of every action, the colour
-// schemes among them: reached by typing and Enter, and by clicks alone.
-func TestTheSettingsAreLinesOfTheActionList(t *testing.T) {
+// The settings are a screen of their own, and that screen is a row of the
+// list of every action beside the left section's own rows: chosen, it is
+// laid over the tab.
+func TestTheSettingsScreenIsARowOfTheActionList(t *testing.T) {
 	wd := startWith(t, actions, 110, 48, nil, ours)
 	wd.s.Type("\x1b[I")
 	wd.shows("KEYS GO HERE")
 	wd.key("/")
-	wd.shows("44 actions and settings · type to search")
-	wd.s.Type("scheme: kelp")
-	wd.shows("1 actions and settings")
+	wd.shows(fmt.Sprint(len(contract.Actions)+len(contract.SideActions)-2, " actions · type to search"))
+	wd.s.Type("settings screen")
+	wd.shows("1 actions")
 	wd.s.Key("enter")
-	wd.ran("set theme kelp --human")
-	// The pane saw its settings file change: the list says which scheme it is now.
+	wd.asked("ui run settings")
 	wd.key("/")
-	wd.s.Type("colour scheme")
-	now := func(name string) bool {
-		_, y, ok := wd.s.Find("Colour scheme: " + name)
-		return ok && strings.HasSuffix(wd.s.Row(y), " now")
-	}
-	if !wd.until(3*time.Second, func() bool { return now("kelp") && !now("reef") }) {
-		t.Fatalf("the list does not say that kelp is the scheme now:\n%s", wd.screen())
-	}
-	wd.s.Key("esc")
-
-	for _, row := range [][3]string{{"A sound when you are needed", "set nudge.sound toggle --human", "nudge.sound: off"},
-		{"A message to the phone when you are needed", "set nudge.phone toggle --human", "nudge.phone: off"},
-		{"The action pane at the top", "set actions top --human", "actions: top"}} {
-		wd.shows("ACTIONS ")
-		wd.settle()
-		wd.s.Click(3, wd.h-1)
-		wd.shows("type to search")
-		wd.click(row[0])
-		wd.ran(row[1])
-		wd.shows(row[2])
-	}
-	wd.key("/")
-	wd.s.Type("action pane at")
-	wd.shows("The action pane at the bottom")
-	wd.s.Key("esc")
-	wd.key("/")
-	wd.s.Type("when you are")
-	if y := wd.row("A sound when you are needed"); !strings.HasSuffix(wd.s.Row(y), " off") || !strings.HasSuffix(wd.s.Row(y+1), " on") {
-		t.Errorf("the list does not say which way the switches stand:\n%s", wd.screen())
-	}
+	wd.s.Type("fold the left")
+	wd.shows("1 actions")
+	wd.s.Key("enter")
+	wd.asked("dock " + contract.DockFold)
 }
 
 // "Run a team..." shows the saved teams. One whose words hold a goal asks
@@ -181,45 +156,29 @@ func TestAnAnswerLeavesNoLineBehind(t *testing.T) {
 
 // set actions moves an open action pane to the other side at once: it
 // changes places with the conversation and takes its own height again.
-func TestSetMovesAnOpenActionPane(t *testing.T) {
+func TestSetActionsIsAnotherNameOfTheLayoutsKey(t *testing.T) {
 	d := newDesk(t)
+	d.double.Width, d.k.Panes = 200, Panes
 	o, err := d.ui(d.me)
 	if err != nil {
 		t.Fatal(err)
 	}
-	run := func(from string, args ...string) string {
-		var out strings.Builder
-		if _, err := set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: args, Caller: contract.Caller{Pane: from}, Out: &out}); err != nil {
-			t.Fatal(err)
-		}
-		return out.String()
-	}
 	d.did()
-	said := run(d.me, actions, "top")
-	if got := d.did(); !strings.Contains(got, "swap "+d.me+" "+o.Actions+"\nresize "+o.Actions+" up 0.5") || strings.Count(got, "resize") != 1 || strings.Contains(said, "next opened") {
-		t.Errorf("set actions top: %q\n%s", said, got)
+	var out strings.Builder
+	if _, err := set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: []string{actions, "top"}, Caller: contract.Caller{Pane: d.me}, Out: &out}); err != nil {
+		t.Fatal(err)
 	}
-	if run(d.me, actions, "top"); strings.Contains(d.did(), "swap") {
-		t.Error("a pane that is on top already was moved")
-	}
-	// Folded, and asked from the pane itself: down to its strip, and the keys stay.
-	run(d.me, "folded", "on")
-	run(o.Actions, actions, "bottom")
-	if got := d.did(); strings.Count(got, "resize "+o.Actions+" down 0.5") != 2 || d.focus() != o.Actions {
-		t.Errorf("set actions bottom from the folded pane: the keys are in %s\n%s", d.focus(), got)
+	if got := d.did(); !strings.Contains(got, "pane-close "+o.Actions) || !strings.Contains(got, "split "+d.me+" up 0.75") || !strings.Contains(out.String(), "actions: top") {
+		t.Errorf("set actions top: %q\n%s", out.String(), got)
 	}
 	// Opened anew, the pane is not folded: it has its whole share again.
-	d.ui(d.me, "close")
-	d.ui(d.me)
-	if _, ui, _, _ := screen(d.k); ui.Folded || ui.ActionsPane == "" {
-		t.Errorf("after opening the panes again ui.json holds %+v", ui)
+	if _, ui, _, _ := screen(d.k); ui.Folded || ui.ActionsPane == "" || ui.ActionsPane == o.Actions {
+		t.Errorf("after the action pane moved ui.json holds %+v", ui)
 	}
-	// With no engine to ask, the pane moves when it is next opened, and that is said.
+	// With no engine to ask, the setting is kept and the pane opens there next time.
 	d.k.Terms = contract.NoTerminals{}
-	var out strings.Builder
-	set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: []string{actions, "top"}, Out: &out})
-	if !strings.Contains(out.String(), "next opened") {
-		t.Errorf("set actions top with no engine said %q", out.String())
+	if _, err := set(&contract.Call{Kit: d.k, Command: contract.Find("set"), Args: []string{actions, "bottom"}, Out: &out}); err != nil {
+		t.Errorf("set actions bottom with no engine: %v", err)
 	}
 }
 

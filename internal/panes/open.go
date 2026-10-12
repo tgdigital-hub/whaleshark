@@ -1,8 +1,11 @@
 package panes
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"strings"
 
@@ -10,16 +13,10 @@ import (
 )
 
 const (
-	// The fleet takes fleetShare of the width, or fleetLeast cells where that
-	// is more, until the person has left it at another, and the conversation
-	// keeps talkShare of the height above the action pane. Under tightBelow
-	// cells the fleet takes a third at most, and under noneBelow no pane is
-	// opened at all.
-	fleetShare = 0.3
-	fleetLeast = 34
-	talkShare  = 0.75
-	tightBelow = 90
-	noneBelow  = 60
+	// The conversation keeps talkShare of the height above an open action
+	// pane; a pane that is its strip has stripRows.
+	talkShare = 0.75
+	stripRows = 2
 	// A dividing line is moved by a share of its split: step at one key, and
 	// at most the half in one call, which takes a pane down to the tenth
 	// that is the least it is left.
@@ -96,27 +93,6 @@ func hand(t contract.Terminals, ui contract.UIFile, to string) error {
 	return err
 }
 
-// move takes an open action pane to the other side of the conversation. The
-// two change places, which leaves each the other's height; the line between
-// them is then moved by the half that gives the conversation its share back,
-// and once more for a pane that is folded. The keys end where they were.
-func move(t contract.Terminals, ui contract.UIFile, me string, top bool) error {
-	from, err := talk(t, ui)
-	if err == nil && from == "" {
-		err = contract.ErrNoPane
-	}
-	if err == nil {
-		err = t.Swap(from, ui.ActionsPane)
-	}
-	for n := 0; err == nil && (n < 1 || n < 2 && ui.Folded); n++ {
-		err = t.Resize(ui.ActionsPane, map[bool]string{true: contract.Up, false: contract.Down}[top], most)
-	}
-	if me == ui.ActionsPane || me == ui.FleetPane {
-		t.PaneFocus(me, "")
-	}
-	return err
-}
-
 // Opened is what `ui` answers: the pane of each of ours that is open now.
 type Opened struct {
 	Fleet   string `json:"fleet,omitempty"`
@@ -127,15 +103,26 @@ func cannot(format string, a ...any) *contract.Refusal {
 	return &contract.Refusal{Exit: contract.ExitEnv, Code: "no_panes", Message: fmt.Sprintf(format, a...)}
 }
 
-// place opens and closes our two panes beside the pane the command was run
-// in; one that is open in another tab is closed there first. want says, for one of ours and whether it is open,
-// whether it shall be. A pane counts as ours only while the keeper marks it
-// as a pane program of ours; nothing else is ever closed.
-func place(c *contract.Call, want func(kind string, open bool) bool) (any, error) {
-	k, me := c.Kit, c.Caller.Pane
-	if me == "" {
-		return nil, cannot("The panes open beside the conversation: run this in the lead agent's tab.")
+// Panes is the kit's Panes: it opens, closes and moves our two panes as the
+// person's layout says, beside pane or, with none named, in the tab in
+// front. A keeper out of reach, or no tab to open them in, is no error.
+func Panes(k *contract.Kit, pane string) error {
+	_, err := place(&contract.Call{Kit: k, Caller: contract.Caller{Pane: pane}, Out: io.Discard}, nil)
+	if r := new(contract.Refusal); errors.As(err, &r) && r.Code == "no_panes" {
+		return nil
 	}
+	return err
+}
+
+// place opens and closes our two panes beside the pane the command was run
+// in; one that is open in another tab is closed there first. want says, for
+// one of ours and whether it is open, whether it shall be; with none it is
+// the layout that says, and every pane of ours is opened anew in its place.
+// The form of each is contract.Fit's for the window. A pane counts as ours
+// only while the keeper marks it as a pane program of ours; nothing else is
+// ever closed.
+func place(c *contract.Call, want func(kind string, open bool) bool) (any, error) {
+	k, me, anew := c.Kit, c.Caller.Pane, want == nil
 	dirs, ui, file, err := screen(k)
 	if err != nil {
 		return nil, err
@@ -146,11 +133,27 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 	}
 	panes := map[string]contract.Pane{}
 	for _, p := range snap.Panes {
-		panes[p.ID] = p
+		if panes[p.ID] = p; anew && me == "" && p.Focused && !p.Dock {
+			me = p.ID
+		}
+	}
+	// The layout is about the conversation: a screen of ours that asks, as
+	// the settings screen does, stands for the pane of its tab that is not ours.
+	for _, p := range snap.Panes {
+		if anew && panes[me].Ours && p.Tab == panes[me].Tab && !p.Ours {
+			me = p.ID
+		}
 	}
 	was := ui
-	if _, there := panes[me]; !there {
-		return nil, cannot("This pane (%s) is not one the terminal engine knows.", me)
+	if _, there := panes[me]; !there || me == "" {
+		return nil, cannot("The panes open beside the conversation: run this in the lead agent's tab.")
+	}
+	cfg := person(k, dirs)
+	lay := contract.Layout{FleetWide: ui.FleetWidth, Fleet: cfg.Panes.Fleet, Actions: cfg.Panes.Actions}
+	if anew {
+		want = func(kind string, _ bool) bool {
+			return map[string]string{fleet: lay.Fleet, actions: lay.Actions}[kind] != contract.Off
+		}
 	}
 	ours := []struct {
 		kind string
@@ -163,10 +166,9 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 		switch o.open = there && *o.pane != "" && p.Ours; {
 		case !o.open:
 			*o.pane = ""
-		case p.Tab != panes[me].Tab:
-			// The panes belong beside the conversation this is run in: the
-			// lead agent of a new tab cannot type into the old one, so a pane
-			// of ours there is closed here, and opened again below if wanted.
+		case anew || p.Tab != panes[me].Tab:
+			// The panes belong beside the conversation this is run in, so a
+			// pane of ours elsewhere is closed, and opened again below if wanted.
 			if err := k.Terms.PaneClose(p.ID); err != nil {
 				return nil, err
 			}
@@ -189,13 +191,22 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 			return nil, cannot("The conversation's pane was not found beside this one: run this there.")
 		}
 	}
-	// The conversation's pane is as wide as the tab while the fleet is closed.
-	w := 0
-	if wantFleet && !fl.open {
-		w, _, _ = k.Terms.Size(me)
+	// The window is the conversation, which is as wide as the tab while the
+	// fleet is closed, a line and the left section in its dock.
+	w, _, _ := k.Terms.Size(me)
+	cols := w + contract.SideRail + 1
+	for _, p := range snap.Panes {
+		if dock, _, err := k.Terms.Size(p.ID); p.Dock && err == nil {
+			cols = w + dock + 1
+		}
 	}
-	if w > 0 && w < noneBelow {
-		return nil, cannot("This terminal is %d columns wide, too narrow for panes: `whaleshark status` shows the same.", w)
+	engine, _ := contract.ReadSettings(k.Platform.Peek, dirs)
+	if lay.Side = engine.Side.Width; lay.Fleet == contract.Off {
+		lay.Fleet = contract.Right // asked for by name, it opens where it comes
+	}
+	form := contract.Fit(cols, lay)
+	if wantFleet && !fl.open && form.FleetForm == contract.FormOff && !anew {
+		return nil, cannot("This terminal is %d columns wide, too narrow for the fleet: `whaleshark status` shows the same.", w)
 	}
 	// The fleet keeps the full height only when it is split off before the
 	// action pane, so an action pane that is in its way is opened again:
@@ -223,27 +234,35 @@ func place(c *contract.Call, want func(kind string, open bool) bool) (any, error
 			// The keeper starts the program in the shell's place, marks the
 			// pane as ours, closes it with its program and brings it back
 			// after a restart.
-			*pane = p.ID
-			err = k.Terms.Run(p.ID, []string{self, "ui", "run", kind, "--root", c.Root})
+			argv := []string{self, "ui", "run", kind}
+			if *pane = p.ID; c.Root != "" {
+				argv = append(argv, "--root", c.Root)
+			}
+			err = k.Terms.Run(p.ID, argv)
 		}
 		return err
 	}
-	if wantFleet && !fl.open {
-		share := fleetShare
-		if ui.FleetWidth > 0 && w > 0 {
-			share = float64(ui.FleetWidth) / float64(w)
-		} else if w > 0 {
-			share = max(share, fleetLeast/float64(w))
+	if wantFleet && !fl.open && form.FleetForm != contract.FormOff {
+		// Beside the conversation it has Fit's width in cells, at the bottom
+		// its height in rows, and as a strip its one line and its age.
+		switch {
+		case form.FleetForm == contract.FormStrip:
+			err = split(fleet, contract.Down, stripRows, fl.pane)
+		case lay.Fleet == contract.Bottom:
+			err = split(fleet, contract.Down, float64(cmp.Or(ui.FleetHeight, contract.FleetHeight)), fl.pane)
+		default:
+			err = split(fleet, lay.Fleet, float64(form.Fleet), fl.pane)
 		}
-		if w > 0 && w < tightBelow {
-			share = min(share, 1.0/3)
-		}
-		err = split(fleet, "right", math.Round(1000*(1-min(max(share, 0.1), 0.9)))/1000, fl.pane)
 	}
 	if err == nil && wantActions && !ac.open {
-		side := map[bool]string{true: contract.Up, false: contract.Down}[person(k, dirs).Panes.Actions == "top"]
-		// A pane opened anew has its whole share, whatever the last one was left at.
-		err, ui.Folded = split(actions, side, talkShare, ac.pane), false
+		side := map[bool]string{true: contract.Up, false: contract.Down}[lay.Actions == contract.Top]
+		// A pane opened anew has its whole share, whatever the last one was
+		// left at, or where Fit says so is its strip until an item holds work up.
+		if ui.Folded = form.Actions == contract.FormStrip; ui.Folded {
+			err = split(actions, side, stripRows, ac.pane)
+		} else {
+			err = split(actions, side, talkShare, ac.pane)
+		}
 	}
 	// What was opened is written down even when a later step failed.
 	if fmt.Sprint(ui) != fmt.Sprint(was) {
