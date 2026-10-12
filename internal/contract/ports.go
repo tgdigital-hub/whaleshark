@@ -397,12 +397,16 @@ type Integrator interface {
 // Finding is one result of an overlap scan, kept on the run once announced.
 // Kind is "same" (one file, merges cleanly), "overlap" (would conflict),
 // "scope" or "lands". Of two tasks that would conflict the first keeps its
-// place and the second is the one told to wait or sync.
+// place and the second is the one told to wait or sync. Work is set on a
+// finding across two fleets alone: for each of Tasks, the fleet's own task
+// in flight that holds the change, or "" where it is the fleet's collected
+// work. It is no part of what makes two findings the same one.
 type Finding struct {
 	Kind  string   `json:"kind"`
 	Tasks []string `json:"tasks"`
 	Files []string `json:"files,omitempty"`
 	How   string   `json:"how,omitempty"`
+	Work  []string `json:"work,omitempty"`
 }
 
 // Overlap scans a run's tasks against each other and the collected work;

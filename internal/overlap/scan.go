@@ -50,6 +50,14 @@ func (w *work) name() string {
 	return cmp.Or(w.t.Fleet, w.t.ID)
 }
 
+// own is a fleet's own task in flight, and "" for any other work.
+func (w *work) own() string {
+	if w.of != nil {
+		return w.t.ID
+	}
+	return ""
+}
+
 // Scan is contract.Overlap. It asks git what each task in flight changed,
 // merges every pair, and each task with the collected work, in git's store
 // alone, and says what it found; it touches no branch, index or file of the
@@ -57,7 +65,8 @@ func (w *work) name() string {
 // looked at anew, and the run's other findings are returned as recorded.
 // An orchestrator's scan reads each fleet's run and takes its tasks in flight
 // beside the fleet's branch: work of two fleets is paired, of one fleet never,
-// and such a finding names the two groups and, in How, both fleets.
+// and such a finding names the two groups, in How both fleets, and in Work
+// each fleet's own task.
 func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks []string, deep bool) ([]contract.Finding, error) {
 	if s.Run.Integration == nil {
 		return nil, nil
@@ -159,9 +168,9 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 
 	var out []contract.Finding
 	had := map[string]bool{}
-	add := func(kind, how string, files []string, tasks ...string) {
+	add := func(kind, how string, files, work []string, tasks ...string) {
 		slices.Sort(files)
-		f := contract.Finding{Kind: kind, Tasks: tasks, Files: slices.Compact(files), How: how}
+		f := contract.Finding{Kind: kind, Tasks: tasks, Files: slices.Compact(files), How: how, Work: work}
 		if key := fmt.Sprint(kind, tasks, f.Files); len(files) > 0 && !had[key] {
 			had[key] = true
 			out = append(out, f)
@@ -183,10 +192,10 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 			}
 		}
 		if fresh(w) && w.of == nil { // a fleet's task is held to these by its leader's scan
-			add("scope", astray, off, w.t.ID)
+			add("scope", astray, off, nil, w.t.ID)
 			if m := g.seen.Pairs[tip+" "+w.head]; len(m.Clashes) > 0 {
 				kinds := slices.Sorted(maps.Keys(m.Clashes))
-				add("lands", strings.Join(kinds, ", "), slices.Concat(slices.Collect(maps.Values(m.Clashes))...), w.t.ID)
+				add("lands", strings.Join(kinds, ", "), slices.Concat(slices.Collect(maps.Values(m.Clashes))...), nil, w.t.ID)
 			}
 		}
 	}
@@ -219,19 +228,20 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 			}
 			p, q := order(a, b, slices.Concat(clash, same), s.Run.Findings)
 			first, second, who := p.side().t.ID, q.side().t.ID, ""
+			var own []string
 			if p.side().t.Fleet != "" {
-				who = p.name() + " and " + q.name() + ": "
+				who, own = p.name()+" and "+q.name()+": ", []string{p.own(), q.own()}
 			}
 			for _, how := range slices.Sorted(maps.Keys(m.Clashes)) {
-				add("overlap", who+how, m.Clashes[how], first, second)
+				add("overlap", who+how, m.Clashes[how], own, first, second)
 			}
 			// What clashes only once work not committed is counted.
 			for _, how := range slices.Sorted(maps.Keys(wip.Clashes)) {
 				files := slices.DeleteFunc(slices.Clone(wip.Clashes[how]), func(f string) bool { return slices.Contains(clash, f) })
-				add("overlap", who+how+", "+loose, files, first, second)
+				add("overlap", who+how+", "+loose, files, own, first, second)
 				clash = append(clash, files...)
 			}
-			add("overlap", who+twin, same, first, second)
+			add("overlap", who+twin, same, own, first, second)
 			how := []string{who + clean}
 			if !checked {
 				how[0] = who + unknown
@@ -248,7 +258,7 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 				}
 			}
 			slices.Sort(how[1:])
-			add("same", strings.Join(slices.Compact(how), "; "), shared, a.side().t.ID, b.side().t.ID)
+			add("same", strings.Join(slices.Compact(how), "; "), shared, nil, a.side().t.ID, b.side().t.ID)
 		}
 	}
 	// A worker that left its folder edits the project's own; a task placed there may.
@@ -260,7 +270,7 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 	if running(true) && !running(false) {
 		text, err := g.git(root, "", "status", "--porcelain=v1", "-z", "--untracked-files=no")
 		note(err)
-		add("scope", atHome, uncommitted(text))
+		add("scope", atHome, uncommitted(text), nil)
 	}
 	// What was not looked at anew stays as the run has it: all of it when the
 	// scan was cut off, and a clash of work not committed outside a deep scan.
@@ -276,7 +286,7 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 			}
 		}
 		if !again || ctx.Err() != nil || !deep && dirty && strings.HasSuffix(f.How, ", "+loose) {
-			add(f.Kind, f.How, f.Files, f.Tasks...)
+			add(f.Kind, f.How, f.Files, f.Work, f.Tasks...)
 		}
 	}
 	return out, cmp.Or(ctx.Err(), failed)

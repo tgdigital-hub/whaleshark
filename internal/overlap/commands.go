@@ -208,10 +208,6 @@ func (o scanner) sync(c *contract.Call) (any, error) {
 			}
 			out.Times, err = k.Rules.Synced(s, t.ID, brief, c.Now)
 		}
-		// Rules from before phase 6 count no group, and say so with this.
-		if old := (*contract.Refusal)(nil); group && errors.As(err, &old) && old.Code == "no_worktree" {
-			err = nil
-		}
 		if err == nil {
 			err = cmp.Or(os.MkdirAll(filepath.Dir(path), 0o700), os.WriteFile(path, []byte(text), 0o600))
 		}

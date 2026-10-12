@@ -311,6 +311,10 @@ func TestTwoFleetsStillAtWorkOnOneFile(t *testing.T) {
 	if n := events(s, "overlap"); n != 1 || len(s.Run.Findings) != 1 || !strings.HasPrefix(s.Run.Findings[0].How, where) {
 		t.Fatalf("%d overlap events, findings %+v", n, s.Run.Findings)
 	}
+	// Each fleet's own task is a field of the finding, not only a sentence.
+	if got := s.Run.Findings[0].Work; !slices.Equal(got, []string{"T1", "T1"}) {
+		t.Fatalf("the finding names the fleets' own tasks as %q", got)
+	}
 	said(t, f.play(contract.ExitClash, "overlap"), "G1 and G2 would conflict", where, "cart.js", "whaleshark sync G2")
 	testkit.Commit(t, refund, "the refund flow", map[string]string{"cart.js": alpha(10)})
 	testkit.Commit(t, filter, "the cart filter", map[string]string{"cart.js": alpha(10, 11)})
@@ -318,6 +322,10 @@ func TestTwoFleetsStillAtWorkOnOneFile(t *testing.T) {
 	// Accepted by billing's leader, it is the fleet's own work that clashes.
 	f.git(filepath.Join(f.work, "r2"), "merge", "-q", "--ff-only", "whaleshark/r2-T1")
 	same(t, "found once the leader accepted", f.scan(false), "overlap G1+G2 (billing and search's T1: content) cart.js")
+	found, err = f.o.Scan(context.Background(), f.root, f.state(), nil, false)
+	if must(t, err); len(found) != 1 || !slices.Equal(found[0].Work, []string{"", "T1"}) {
+		t.Fatalf("with billing's work accepted the finding is %+v", found)
+	}
 	if n := events(f.state(), "overlap"); n != 1 {
 		t.Fatalf("one clash was announced %d times", n)
 	}
@@ -328,29 +336,15 @@ func TestTwoFleetsStillAtWorkOnOneFile(t *testing.T) {
 	same(t, "found with a run that is not this job's", f.scan(true))
 }
 
-// counted is the rules as phase 6 has them for a group: its syncs are
-// counted, with no brief.
-type counted struct{ contract.Rules }
-
-func (r counted) Synced(s *contract.State, task, brief string, now time.Time) (int, error) {
-	if t := s.Tasks[task]; t != nil && t.Fleet != "" && brief == "" {
-		t.Synced++
-		return t.Synced, nil
-	}
-	return r.Rules.Synced(s, task, brief, now)
-}
-
-// sync of a group counts on the group, and says after the second which is
-// collected next.
+// sync of a group counts on the group, by the rules themselves, and says
+// after the second which is collected next.
 func TestSyncOfAGroupIsCounted(t *testing.T) {
 	f := start(t, map[string]string{"cart.js": alpha()})
 	f.fleets("billing", "search")
 	f.collect(map[string]string{"cart.js": alpha(10)})
-	kit := *f.k
-	kit.Rules = counted{f.k.Rules}
 	var out strings.Builder
 	for n := 1; n <= 2; n++ {
-		got, err := scanner{&kit}.sync(&contract.Call{Kit: &kit, Command: contract.Find("sync"), Args: []string{"G2"},
+		got, err := scanner{f.k}.sync(&contract.Call{Kit: f.k, Command: contract.Find("sync"), Args: []string{"G2"},
 			Caller: contract.Caller{Kind: contract.Human}, Root: f.root, Run: "r1", Now: contract.Now(), Out: &out})
 		if must(t, err); got.(*synced).Times != n {
 			t.Fatalf("sync %d of the group was counted as %d", n, got.(*synced).Times)
