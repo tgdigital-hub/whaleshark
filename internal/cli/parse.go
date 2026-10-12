@@ -92,6 +92,9 @@ var kinds = map[string]string{
 func check(cmd *contract.Command, p parsed, root string) *contract.Refusal {
 	for _, f := range cmd.Flags {
 		kind := kinds[f.Value]
+		if f.Name == "fleet" {
+			kind = "name" // it names the leader's tab
+		}
 		if kind == "" || root != "" && kind != "path" {
 			continue
 		}

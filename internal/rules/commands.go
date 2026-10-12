@@ -77,6 +77,7 @@ func end(s *contract.State, a *contract.Attempt, state contract.AttemptState, ca
 	a.Exit = &contract.Exit{Cause: cause, At: now}
 	closeAsks(s, a, now)
 	withdraw(s, contract.CausePrompt, a.ID)
+	left(s, a)
 }
 
 func closeAsks(s *contract.State, a *contract.Attempt, now time.Time) {

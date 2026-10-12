@@ -184,8 +184,8 @@ func withdraw(s *contract.State, cause, attempt string) bool {
 // LeadSeen raises and withdraws the two items about the lead agent's own
 // pane. Each waits a minute first, counted from the moment kept on the run.
 func (Rules) LeadSeen(s *contract.State, pane *contract.Pane, waiting bool, now time.Time) bool {
-	if open(s) != nil {
-		return false
+	if open(s) != nil || s.Run.Parent != nil {
+		return false // a leader is the orchestrator's to look after, not the person's
 	}
 	l := &s.Run.Lead
 	resting, was := pane != nil && pane.Status == contract.StatusIdle, l.Unseen

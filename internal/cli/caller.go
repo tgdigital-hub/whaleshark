@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -126,6 +127,7 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	}
 	var leads []string // the open runs that record this pane as their lead agent's
 	its := ""          // the open run with a live attempt in this pane
+	open := map[string]*contract.State{}
 	for _, id := range runs {
 		if pane == "" {
 			break
@@ -138,6 +140,7 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 		if !s.Run.ClosedAt.IsZero() {
 			continue
 		}
+		open[id] = s
 		if o := s.Run.Orchestrator; o != nil && o.Pane == pane {
 			leads = append(leads, id)
 		}
@@ -191,6 +194,22 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	case slices.Contains(leads, c.Run):
 		who.Kind = contract.Orchestrator
 	}
+	// A fleet leader is a worker whose attempt leads the open run that
+	// records its pane as the lead agent's, and that run names the
+	// attempt's as its parent. A worker's own command goes up as a worker's;
+	// any other goes to its fleet, and to no other run, as the leader's.
+	fleet := ""
+	if up := open[cmp.Or(os.Getenv(contract.EnvRun), its)]; up != nil && up.Attempts[attempt] != nil {
+		if l := up.Attempts[attempt].Leads; slices.Contains(leads, l) && open[l].Run.Parent != nil && open[l].Run.Parent.Run == up.Run.ID {
+			fleet = l
+		}
+	}
+	switch {
+	case fleet == "" && c.Command.Who == contract.W && c.Flags["task"] != nil:
+		return refuse("not_leader", "--task is a fleet leader's, to say which of its groups it means.")
+	case fleet != "" && !(c.Command.May(contract.Worker, sub) && c.Command.May(contract.Leader, sub)) && (c.Flags["run"] == nil || run == fleet):
+		who.Kind, c.Run = contract.Leader, fleet
+	}
 	c.Caller = who
 	if human && who.Kind != contract.Human {
 		if pane == "" {
@@ -231,6 +250,13 @@ func Parked(c *contract.Call) (message string, next []string) {
 // mark for this caller.
 func permit(c *contract.Call, sub string) *contract.Refusal {
 	cmd, kind := c.Command, c.Caller.Kind
+	if kind == contract.Leader && (cmd.May(contract.Orchestrator, sub) || cmd.Name == "ask") && !cmd.LeaderMay(sub, func(f string) bool { return c.Flags[f] != nil }) {
+		r := refuse(contract.RefusedLeader, "A fleet leader leads its own fleet and nothing else: it lands nothing, makes and ends no run, hands no work to another fleet, passes on no word of the person's, and asks the orchestrator with need.")
+		if cmd.Name == "ask" {
+			r.Next = []string{`whaleshark need question "<text>"`}
+		}
+		return r
+	}
 	if !cmd.May(kind, sub) {
 		switch {
 		case kind == contract.Worker:

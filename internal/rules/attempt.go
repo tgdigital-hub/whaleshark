@@ -204,7 +204,7 @@ func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, e
 		setState(a, contract.AttemptReported, now)
 		closeAsks(s, a, now)
 		t.Status = contract.TaskReview
-		s.Run.Scan.Due = s.Run.Scan.Due || t.Worktree != nil
+		s.Run.Scan.Due = s.Run.Scan.Due || t.Worktree != nil || t.Fleet != ""
 	}
 	raise(s, outcome, t, a, summary, nil, now)
 	return false, nil, nil
