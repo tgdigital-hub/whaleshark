@@ -165,7 +165,10 @@ func (r *runner) record() (lines []string) {
 		r.p.must(err)
 		kinds := map[string]int{}
 		for _, e := range append(history, s.Inbox.Events...) {
-			if slices.Contains(contract.EventKinds, e.Kind) && e.Kind != "together" {
+			// So does a worker's "quiet" in a fleet's run: its leader's commands
+			// sweep that run when the last sweep is five seconds old by the real
+			// clock, and only the real keeper sees an agent at rest by itself.
+			if slices.Contains(contract.EventKinds, e.Kind) && e.Kind != "together" && (e.Kind != "quiet" || at == "") {
 				kinds[e.Kind]++
 			}
 		}
