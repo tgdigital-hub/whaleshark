@@ -113,7 +113,11 @@ const (
 type SideProject struct {
 	Root, Branch string
 	Runs         []*State
+	Saved        []SavedFleet // the fleets the person keeps here: a row each, with work or without
 }
+
+// WordSaved is the word of a saved fleet's row while it has no work.
+const WordSaved = "saved"
 
 // SideInput is everything the left section is built from. Rows is how many
 // rows the agents panel has, 0 for no limit; Folded names the fleets the

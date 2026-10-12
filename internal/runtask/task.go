@@ -192,6 +192,7 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		return nil, usage(c, "A task needs its brief: --brief FILE.")
 	case f["check"] == nil:
 		return nil, usage(c, "A task needs a check: --check with a command, or the word none.")
+	case joinSaved(c, &t):
 	case len(f["shared"])+len(f["cwd"])+len(f["fleet"]) > 1:
 		return nil, usage(c, "Only one of --shared, --cwd and --fleet can be given.")
 	case f["cwd"] != nil:
@@ -278,4 +279,17 @@ func meeting(s *contract.State, t *contract.Task) (ids []string) {
 		}
 	}
 	return ids
+}
+
+// joinSaved gives a group the name of the saved fleet it is placed in, in
+// the spelling the person saved it under. It never decides the switch it is
+// a case of.
+func joinSaved(c *contract.Call, t *contract.Task) bool {
+	saved, _ := contract.ReadFleets(c.Kit.Platform.Peek, c.Root)
+	for _, f := range saved {
+		if name, _ := contract.FleetName(t.Fleet); strings.EqualFold(f.Name, name) {
+			t.Fleet = f.Name
+		}
+	}
+	return false
 }

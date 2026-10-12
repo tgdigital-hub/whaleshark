@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
@@ -59,6 +60,12 @@ func run(c *contract.Call) (any, error) {
 		}
 		tools, _ := contract.Tools(c.Kit.Platform, d)
 		text += Tools(which, tools, person)
+		if saved, _ := contract.ReadFleets(c.Kit.Platform.Peek, c.Root); which == "orchestrator" && len(saved) > 0 {
+			text += "\n## Fleets the person keeps here\nPlace work by what each works on; a thing that fits none gets a fleet made on the spot.\n"
+			for _, f := range saved {
+				text += "- " + cli.Line(f.Name) + ": " + cli.Line(f.Purpose) + "\n"
+			}
+		}
 	}
 	if _, err := io.WriteString(c.Out, text); err != nil {
 		return nil, err

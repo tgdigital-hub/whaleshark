@@ -184,6 +184,14 @@ func (w *space) run(in contract.SideInput, s *contract.State, runs map[string]*c
 	}
 	slices.SortStableFunc(fleets, func(x, y []contract.SideRow) int { return byLook(x[0], y[0]) })
 	w.rows = append(w.rows, slices.Concat(fleets...)...)
+	// A fleet the person keeps has its row with no work too.
+	for _, p := range in.Projects {
+		for _, f := range p.Saved {
+			if live := s.Run.Fleets[f.Name]; p.Root == w.Root && s.Run.Mode == contract.ModeFleets && (live == nil || !live.EndedAt.IsZero()) {
+				w.rows = append(w.rows, contract.SideRow{Kind: contract.RowFleet, Name: clean(f.Name), Word: contract.WordSaved, Root: w.Root, Run: s.Run.ID})
+			}
+		}
+	}
 }
 
 // agents is a view's cards as rows, in the view's order.

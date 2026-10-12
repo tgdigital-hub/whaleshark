@@ -237,6 +237,7 @@ func input(c *contract.Call, s *contract.State, swept contract.Swept, snap *cont
 	in.Person, _ = contract.ReadPerson(c.Kit.Platform.Peek, dirs.Config)
 	tools, _ := contract.Tools(c.Kit.Platform, dirs)
 	in.Tools = slices.DeleteFunc(tools, func(t contract.Tool) bool { return !t.Found() })
+	in.Saved, _ = contract.ReadFleets(c.Kit.Platform.Peek, c.Root)
 	if s != nil {
 		in.Ctx = contract.ReadCtx(c.Kit.Platform.Peek, dirs.State, s)
 	}

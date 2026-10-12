@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,7 +17,10 @@ import (
 )
 
 func run(c *contract.Call) (any, error) {
-	sub, args, err := form(c, map[string]int{"new": 1, "list": 0, "show": 0, "use": 1, "close": 0, "rm": 1, "takeover": 0})
+	if len(c.Args) > 0 && c.Args[0] == "fleet" {
+		return runFleet(c, c.Args[1:])
+	}
+	sub, args, err := form(c, map[string]int{"fleet": 0, "new": 1, "list": 0, "show": 0, "use": 1, "close": 0, "rm": 1, "takeover": 0})
 	if err != nil {
 		return nil, err
 	}
@@ -318,4 +323,65 @@ func mainTab(k *contract.Kit, pane string) {
 			k.Terms.TabRename(p.Tab, contract.MainTab)
 		}
 	}
+}
+
+// runFleet keeps the fleets a person saved for this project: with a name
+// and what it works on it saves one, or says anew what it works on; with
+// --forget it is saved no longer, and ends with its work as any fleet;
+// with nothing it lists them. A saved fleet has no leader and no run until
+// a group is placed in it and started, and it stays when that work is done.
+func runFleet(c *contract.Call, args []string) (any, error) {
+	k := c.Kit
+	saved, err := contract.ReadFleets(k.Platform.Read, c.Root)
+	if err != nil {
+		return nil, err
+	}
+	if len(args) == 0 {
+		for _, f := range saved {
+			fmt.Fprintf(c.Out, "%s · saved · %s\n", f.Name, f.Purpose)
+		}
+		if len(saved) == 0 {
+			fmt.Fprintln(c.Out, `No fleet is saved here. whaleshark run fleet "<name>" "<what it works on>" saves one.`)
+		}
+		return saved, nil
+	}
+	name, ok := contract.FleetName(args[0])
+	purpose := ""
+	if len(args) > 1 {
+		purpose = cli.Line(args[1])
+	}
+	at := slices.IndexFunc(saved, func(f contract.SavedFleet) bool { return strings.EqualFold(f.Name, name) })
+	forget := c.Flags["forget"] != nil
+	switch {
+	case !ok || len(args) > 2 || len([]rune(purpose)) > 200:
+		return nil, usage(c, "A fleet is named in at most three words and 24 characters, with no dash in front, and what it works on is one line of at most 200 characters.")
+	case forget && at < 0, !forget && at < 0 && purpose == "":
+		r := refuse(contract.ExitMissing, "no_such_fleet", fmt.Sprintf("No fleet %q is saved here.", name), `whaleshark run fleet "`+name+`" "<what it works on>"`)
+		return nil, r
+	case forget:
+		name = saved[at].Name
+		saved = slices.Delete(saved, at, at+1)
+		fmt.Fprintf(c.Out, "The fleet %q is saved no longer. Work it has goes on, and it ends with that work.\n", name)
+	case at >= 0:
+		if name = saved[at].Name; purpose != "" {
+			saved[at].Purpose = purpose
+		}
+		fmt.Fprintf(c.Out, "The fleet %q is saved · %s\n", name, saved[at].Purpose)
+	default:
+		saved = append(saved, contract.SavedFleet{Name: name, Purpose: purpose, Since: c.Now})
+		fmt.Fprintf(c.Out, "The fleet %q is saved · %s\nIt stays when its work is done. Work goes into it with: whaleshark task add <id> \"<title>\" --fleet %q ...\n", name, purpose, name)
+		if dirs, err := k.Platform.Dirs(); err == nil {
+			if person, _ := contract.ReadPerson(k.Platform.Peek, dirs.Config); person.Fleets.Mode != contract.On {
+				fmt.Fprintln(c.Out, "Fleet Mode is off: a fleet takes work in a job begun with it on (whaleshark set fleets.mode on).")
+			}
+		}
+	}
+	// The project's folder of ours, where this is the first thing kept in
+	// it, is made as the store makes it: the login's own, and in its list.
+	if dir := filepath.Join(c.Root, contract.ProjectDir); os.MkdirAll(dir, 0o700) == nil {
+		if err := contract.ListProject(k.Platform, c.Root); err != nil {
+			return nil, err
+		}
+	}
+	return saved, contract.WriteFleets(k.Platform, c.Root, saved)
 }

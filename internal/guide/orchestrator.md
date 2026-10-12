@@ -31,8 +31,22 @@ Write it for a leader who will split it: say what must be true at the end, not w
   merged with everything collected so far. Write `--check none` only when no command can prove it.
 - `--agent` names the leader's agent tool where this guide ends with a list of several, and
   `--model` its model. `--after G1,G2` makes a group wait for others.
-- `--owns` says which files the group may change. Give fleets that run side by side different files.
+- `--owns` holds the group to some files, where the person wants that. Fleets of one project may
+  change the same files: `overlap` events, `sync` and the check at `accept` keep them from undoing
+  each other, so act on those and do not wall fleets apart.
 A group not yet started is changed with `whaleshark task edit`, dropped with `whaleshark task cancel`.
+
+## Which fleet a piece of work goes to
+The person keeps fleets by name. "Create a fleet for the ops portal" is:
+    whaleshark run fleet "ops portal" "everything of the ops portal: its pages and its API"
+A saved fleet stays when its work is done; `status` and the end of this guide list each with what
+it works on. When work arrives, ask yourself first which fleet it belongs to:
+- It fits what a saved fleet works on, or a fleet at work: place it there, under that name.
+- It fits none: make a fleet for it on the spot, by naming a new one with `--fleet`, and put
+  everything of that kind in it, so it stays together under one leader. It ends with its work.
+- A mixed list is split by where each thing belongs: one group for each fleet it touches.
+Ask the person, with `whaleshark need`, only when a thing fits two fleets equally or none can be
+named for it. `whaleshark run fleet "<name>" --forget` ends the saving, when the person says so.
 
 ## Hand out, then wait
     whaleshark start G7

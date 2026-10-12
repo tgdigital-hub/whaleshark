@@ -9,8 +9,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
 )
@@ -465,4 +467,60 @@ func PersonDefaults() PersonConfig {
 	c.Nudge.Sound, c.Nudge.Popup, c.Nudge.Phone = true, true, true
 	c.Nudge.LeadMinutes = 10
 	return c
+}
+
+// SavedFleet is a fleet the person keeps for a project: its name and what
+// it works on. It stays when its work is done, where a fleet nobody saved
+// ends with its work. Busy is the view's: it has work in the run shown.
+type SavedFleet struct {
+	Name    string    `json:"name"`
+	Purpose string    `json:"purpose"`
+	Since   time.Time `json:"since"`
+	Busy    bool      `json:"busy,omitempty"`
+}
+
+// fleetsFile is the saved fleets, in the project's folder of ours.
+const fleetsFile = "fleets.json"
+
+// FleetName is a fleet's name as it is kept, and whether it is one: its
+// words with one space between, three and 24 characters at most, no dash in
+// front, nothing that steers a terminal.
+func FleetName(name string) (string, bool) {
+	words := strings.Fields(name)
+	name = strings.Join(words, " ")
+	ok := len(words) > 0 && len(words) <= 3 && utf8.RuneCountInString(name) <= 24 && name[0] != '-' &&
+		!strings.ContainsFunc(name, func(r rune) bool { return r < ' ' || r == 0x7f || r == '"' })
+	return name, ok
+}
+
+// ReadFleets reads a project's saved fleets, by name. An entry whose name
+// is none, or whose purpose is not one plain line, is not a fleet: the file
+// can have come with a folder somebody else made.
+func ReadFleets(read func(path string) ([]byte, error), root string) ([]SavedFleet, error) {
+	var f struct {
+		Version int          `json:"version"`
+		Fleets  []SavedFleet `json:"fleets"`
+	}
+	err := ReadVersioned(read, filepath.Join(root, ProjectDir, fleetsFile), FileVersion, &f)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	out := f.Fleets[:0]
+	for _, s := range f.Fleets {
+		name, ok := FleetName(s.Name)
+		plain := !strings.ContainsFunc(s.Purpose, func(r rune) bool { return r < ' ' || r == 0x7f })
+		if s.Busy = false; ok && name == s.Name && plain && utf8.RuneCountInString(s.Purpose) <= 200 {
+			out = append(out, s)
+		}
+	}
+	slices.SortFunc(out, func(a, b SavedFleet) int { return strings.Compare(a.Name, b.Name) })
+	return out, err
+}
+
+// WriteFleets replaces a project's saved fleets. Its one caller is `run fleet`.
+func WriteFleets(p Files, root string, fleets []SavedFleet) error {
+	return WriteVersioned(p, filepath.Join(root, ProjectDir, fleetsFile), FileVersion, struct {
+		Version int          `json:"version"`
+		Fleets  []SavedFleet `json:"fleets"`
+	}{FileVersion, fleets})
 }

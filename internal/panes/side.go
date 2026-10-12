@@ -25,6 +25,7 @@ func (p *pane) loadSide(dirs contract.Dirs) {
 		pr := contract.SideProject{Root: root}
 		head, _ := peek(filepath.Join(root, ".git", "HEAD"))
 		pr.Branch, _ = strings.CutPrefix(strings.TrimSpace(string(head)), "ref: refs/heads/")
+		pr.Saved, _ = contract.ReadFleets(peek, root)
 		runs, _ := r.Runs(root)
 		for _, id := range runs {
 			if slices.Contains(p.closed, root+"\n"+id) {
@@ -196,6 +197,8 @@ func (p *pane) sideRow(y int, r contract.SideRow, branch string, do func()) {
 		}
 	case r.Parked:
 		rights = []string{p.glyph("■", "#") + " parked"}
+	case r.Word == contract.WordSaved:
+		rights = []string{contract.WordSaved}
 	case r.Kind == contract.RowFleet:
 		n := strconv.Itoa(r.Agents)
 		if r.Limit != contract.Unlimited {

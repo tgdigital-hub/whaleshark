@@ -464,3 +464,33 @@ func TestAFleetWithTwoGroups(t *testing.T) {
 		t.Errorf("the bar with two groups of one fleet: %v", names(rows))
 	}
 }
+
+// A fleet the person keeps has a row in the left section while it has no
+// work, worded "saved", and a line in status either way; a saved fleet that
+// is at work has its own row and no second one.
+func TestASavedFleetHasItsRowWithNoWork(t *testing.T) {
+	f := testkit.Fleets()
+	saved := []contract.SavedFleet{{Name: "billing", Purpose: "what customers pay"}, {Name: "ops portal", Purpose: "everything of the ops\x1b[31m portal"}}
+	f.In.Projects[0].Saved = saved
+	var rows []string
+	for _, r := range Side(f.In).Rows {
+		if r.Kind == contract.RowFleet {
+			rows = append(rows, r.Name+"="+r.Word)
+		}
+	}
+	if got := strings.Join(rows, " "); got != "billing= search= help pages= ops portal=saved" {
+		t.Errorf("the fleets' rows are %q", got)
+	}
+	f.View.Saved = saved
+	v := Build(f.View)
+	if len(v.Saved) != 2 || !v.Saved[0].Busy || v.Saved[1].Busy || strings.ContainsRune(v.Saved[1].Purpose, 0x1b) {
+		t.Errorf("status holds the saved fleets as %+v", v.Saved)
+	}
+	var out strings.Builder
+	Text(&out, v, Options{Width: 100})
+	for _, line := range []string{"saved fleet billing · at work · what customers pay", "saved fleet ops portal · no work now · everything of the ops"} {
+		if !strings.Contains(out.String(), line) {
+			t.Errorf("status lacks %q:\n%s", line, out.String())
+		}
+	}
+}

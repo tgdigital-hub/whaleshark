@@ -135,6 +135,8 @@ type ViewInput struct {
 	Fleets map[string]*State
 	Person PersonConfig
 	Tools  []Tool
+	// Saved is the project's saved fleets, for an orchestrator's run.
+	Saved []SavedFleet
 }
 
 // View is the one description of the screen. The panes, the plain text, the
@@ -169,6 +171,9 @@ type View struct {
 	Mode   string     `json:"mode,omitempty"`
 	Limits *FleetRoom `json:"limits,omitempty"`
 	Tools  []ToolLine `json:"tools,omitempty"`
+	// Saved is the fleets the person keeps, each with what it works on and
+	// whether it has work in this run.
+	Saved []SavedFleet `json:"saved,omitempty"`
 }
 
 // FleetRoom is how much of the limits is in use: "3 of 4 leaders · 18 of 20

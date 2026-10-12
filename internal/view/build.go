@@ -572,6 +572,11 @@ func (b *builder) around(v *contract.View) {
 				v.Limits.Agents++
 			}
 		}
+		for _, f := range in.Saved {
+			live := run.Fleets[f.Name]
+			f.Busy, f.Purpose = live != nil && live.EndedAt.IsZero(), cli.Plain(f.Purpose)
+			v.Saved = append(v.Saved, f)
+		}
 		if v.Counts.Agents = v.Limits.Agents; in.Person.Fleets.Mode == contract.Off {
 			v.Alerts = append(v.Alerts, "Fleet Mode is switched off: this job keeps its fleets until it is closed")
 		}

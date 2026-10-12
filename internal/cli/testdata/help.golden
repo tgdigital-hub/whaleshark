@@ -13,7 +13,7 @@ $ whaleshark     # as a program
   engine    the keeper that holds every pane's terminal for this login: run it, stop it, see it  (not built yet)
   set       change a setting; every one is a key here and a row of the settings screen  (not built yet)
   hook      run by an agent's own harness, never typed  (not built yet)
-  run       start, list, show, switch, close or delete a run, or bind it to this pane  (not built yet)
+  run       start, list, show, switch, close or delete a run, or bind it to this pane; keep a fleet by name with what it works on  (not built yet)
   task      add a task with its brief and its check, change it, cancel it or reset it  (not built yet)
   start     start a worker for each task, each in a tab named after it; run it in the background  (not built yet)
   wait      block until something happens, then hand out the oldest batch of events  (not built yet)
@@ -69,7 +69,8 @@ whaleshark run use <id>
 whaleshark run close [--abandon]
 whaleshark run rm <id>
 whaleshark run takeover
-  start, list, show, switch, close or delete a run, or bind it to this pane
+whaleshark run fleet ["<name>" ["<what it works on>"] [--forget]]
+  start, list, show, switch, close or delete a run, or bind it to this pane; keep a fleet by name with what it works on
 
 For:      the lead agent, the person
           run new: the lead agent, the person, a tab not bound to a run
@@ -78,10 +79,12 @@ For:      the lead agent, the person
           run list: the lead agent, the person, a tab not bound to a run
           run show: the lead agent, the person, a tab not bound to a run
           run rm: the lead agent, the person, a tab not bound to a run
+          run fleet: the lead agent, the person, a tab not bound to a run
 Flags:    --base REF
           --limit N
           --park
           --abandon
+          --forget
 Always:   --json, --run ID, --root DIR, --help, --human, --file PATH
 Exits:    0 done, 4 not found, 5 refused
 Example:  whaleshark run close
