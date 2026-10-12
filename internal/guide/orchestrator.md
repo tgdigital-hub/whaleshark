@@ -40,7 +40,8 @@ A group not yet started is changed with `whaleshark task edit`, dropped with `wh
 The person keeps fleets by name. "Create a fleet for the ops portal" is:
     whaleshark run fleet "ops portal" "everything of the ops portal: its pages and its API"
 A saved fleet stays when its work is done; `status` and the end of this guide list each with what
-it works on. When work arrives, ask yourself first which fleet it belongs to:
+it works on. Saving one needs no job; placing work does, so with none open: `whaleshark run new`
+first. When work arrives, ask yourself first which fleet it belongs to:
 - It fits what a saved fleet works on, or a fleet at work: place it there, under that name.
 - It fits none: make a fleet for it on the spot, by naming a new one with `--fleet`, and put
   everything of that kind in it, so it stays together under one leader. It ends with its work.

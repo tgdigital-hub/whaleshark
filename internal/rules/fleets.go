@@ -203,6 +203,11 @@ func (r Rules) Ended(up, low *contract.State, abandon bool, now time.Time) error
 	if err := r.CloseRun(low, abandon, now); err != nil {
 		return err
 	}
+	for _, q := range questions(up) {
+		if q.Down != nil && q.Down.Run == low.Run.ID && q.State == contract.QuestionOpen {
+			q.State = contract.QuestionClosed // nobody is left below to hear the answer
+		}
+	}
 	f := up.Run.Fleets[name]
 	f.EndedAt, f.Pane, f.Tab = now, "", ""
 	return nil

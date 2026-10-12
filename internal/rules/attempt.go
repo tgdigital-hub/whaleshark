@@ -41,7 +41,7 @@ func (r Rules) Start(s *contract.State, task string, retry, paneHoldsAgent bool,
 	case prev != nil && paneHoldsAgent:
 		return "", next(refused("pane_busy", "The tab of %s still holds an agent.", prev.ID), "whaleshark show "+t.ID+" --screen", "whaleshark close "+t.ID)
 	}
-	if err := pass(s, t, now); err != nil {
+	if err := pass(s, t, true, now); err != nil {
 		return "", err
 	}
 	if a.Kind == "" {
@@ -228,7 +228,7 @@ func (r Rules) Checking(s *contract.State, task string, c contract.Checked, now 
 		case t.BrowserCheck && len(a.Report.Evidence) == 0:
 			return refused("no_evidence", "%s needs a browser check and its report has no evidence.", t.ID)
 		}
-		if err := pass(s, t, now); err != nil {
+		if err := pass(s, t, false, now); err != nil {
 			return err
 		}
 		setState(a, contract.AttemptChecking, now)

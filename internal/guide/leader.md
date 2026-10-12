@@ -23,7 +23,9 @@ It shows your fleet at work. Then:
 - You were started to take over a fleet that was already at work: plan nothing new before
   `whaleshark wait` has handed you what waits there. Results may be waiting to be checked.
 - The line "new work for your fleet" was typed into your tab: run `whaleshark mail`. It prints
-  one more group for you, with its brief and its result file. Plan it beside the others.
+  one more group for you, with its brief and its result file. It is yours from that moment, as if
+  your prompt had named it: plan it and start its tasks at once, beside the others, and report
+  it with `--task`. Never ask whether you should, and never wait to be told again.
 
 ## Plan
 One task is one piece of work for one worker. Write its brief as a file with these five headings:
@@ -61,7 +63,9 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   Then `whaleshark close T3`: the tab goes, and a done task's copy of the code with it.
 - `check_failed`: read the log in `whaleshark show T3`, then `reject` with the reason.
 - `question`: a worker is blocked on you. If you know: `whaleshark answer q7 "<the answer>"`.
-  If you do not: `whaleshark escalate q7` hands it to the orchestrator. Never guess.
+  If you do not: `whaleshark escalate q7` hands it to the orchestrator. Never guess. That one
+  command is the whole of it: do not also write a `need` for the same question, or the person
+  is asked twice. The answer comes down to the worker by itself.
 - `answered`: an item of yours has its answer, from the orchestrator or through it. Act on it.
 - `human`: the person did something in your fleet themselves. Read it.
 - `quiet`, `blocked`: look with `whaleshark show T3 --screen`. A worker that asked in its own chat

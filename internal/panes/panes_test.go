@@ -424,6 +424,11 @@ func TestTheFourFormsAndTheStrip(t *testing.T) {
 	}
 	wd.s.Type("\x1b[I")
 	wd.shows("KEYS GO HERE · j k choose · y n o answer", "› ▲ sign-up page")
+	// On an item answered in words the line says how: letters are keys until enter.
+	wd.key("j")
+	wd.shows("› ▲ photo upload", "KEYS GO HERE · enter, your answer, enter · j k choose")
+	wd.key("k")
+	wd.shows("› ▲ sign-up page", "y n o answer")
 	wd.s.Type("\x1b[O")
 	wd.shows("click an item to answer it")
 	// A click presses the button it is on, of the item it is in.

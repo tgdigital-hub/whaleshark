@@ -506,16 +506,18 @@ func TestATwinBothWays(t *testing.T) {
 		t.Errorf("the leader's wait is not handed the answer: %+v", events2)
 	}
 
-	// The leader's attempt ends with its question open: the twin closes as
-	// any question does, and the next leader hands the first up again.
+	// The leader's attempt ends with its question open: the twin stays, for
+	// the worker below still waits; a next leader that hands the question up
+	// again finds the same twin, and nobody is told twice.
 	up, low, q = scene()
 	twin, _ = r.Twin(up, low, q, t0)
 	must(t, r.Stop(up, "G1", false, t0))
-	if up.Questions[twin].State != contract.QuestionClosed {
+	if up.Questions[twin].State != contract.QuestionOpen {
 		t.Fatalf("the twin of a leader that ended: %s", up.Questions[twin].State)
 	}
 	led(t, up, low, "G1", "w1:p6")
-	if again, err := r.Twin(up, low, q, t0); err != nil || again == twin || low.Questions[q].Up.ID != again {
+	told := len(up.Inbox.Events)
+	if again, err := r.Twin(up, low, q, t0); err != nil || again != twin || low.Questions[q].Up.ID != again || len(up.Inbox.Events) != told {
 		t.Errorf("handed up again: %q, %v", again, err)
 	}
 }
@@ -582,5 +584,45 @@ func TestAllowedALeader(t *testing.T) {
 	must(t, r.Takeover(low, contract.Binding{Pane: "w1:p9"}, t0))
 	if err := r.Allowed(low, leader, "start", ""); code(err) != "not_bound" {
 		t.Errorf("a leader whose fleet was taken over: %v", err)
+	}
+}
+
+// A leader's program ends while a worker's question it passed up waits for
+// the person: the question stays in front of the person, the answer goes
+// down to the worker as if nothing had happened, and a group that is
+// accepted still takes its own questions with it.
+func TestAQuestionPassedUpOutlivesItsLeader(t *testing.T) {
+	up, low := job(t), fleetRun("r2")
+	led(t, up, low, "G1", "w1:p2")
+	worker(t, low, "T1")
+	q, err := r.Ask(low, "T1.1", "which word?", nil, t0)
+	must(t, err)
+	twin, err := r.Twin(up, low, q, t0)
+	must(t, err)
+	must(t, r.Escalate(up, twin, t0))
+	must(t, r.Stop(up, "G1", false, after(time.Minute)))
+	tw := up.Questions[twin]
+	if tw.State != contract.QuestionOpen || tw.For != contract.ForHuman {
+		t.Fatalf("the leader's end took the question from the person: %+v", tw)
+	}
+	// It holds the worker below, not the start of the leader that takes over.
+	tw.Holds = true
+	if _, err := r.Start(up, "G1", true, false, token, agent, true, after(90*time.Second)); err != nil {
+		t.Fatalf("the group is not started again while its question waits: %v", err)
+	}
+	must(t, r.Answer(up, twin, "alpha", human, 0, after(2*time.Minute)))
+	if done, err := r.Down(up, low, twin, after(3*time.Minute)); !done || err != nil || low.Questions[q].Answer != "alpha" {
+		t.Fatalf("the answer did not go down after the leader's end: %v, %v, %+v", done, err, low.Questions[q])
+	}
+
+	up, low = job(t), fleetRun("r2")
+	led(t, up, low, "G1", "w1:p2")
+	worker(t, low, "T1")
+	q, _ = r.Ask(low, "T1.1", "which word?", nil, t0)
+	twin, err = r.Twin(up, low, q, t0)
+	must(t, err)
+	end(up, up.Attempts["G1.1"], contract.AttemptAccepted, contract.ExitReported, after(time.Minute))
+	if up.Questions[twin].State != contract.QuestionClosed {
+		t.Errorf("a group that is accepted left its question open: %+v", up.Questions[twin])
 	}
 }

@@ -341,6 +341,18 @@ func TestTheSideRoundTheRows(t *testing.T) {
 	if r := side.Rows; len(r) != 1 || r[0].Name != "my]0;xagent here" || r[0].Look != "" || !r[0].Front || side.Title != "old/blog" || !strings.Contains(side.Hint, "no job yet") {
 		t.Errorf("a tab of the person's own: %+v, hint %q", r, side.Hint)
 	}
+	// With no agent in the tab in front the hint says how one is started;
+	// with one there, what to do with it.
+	for agent, want := range map[string]string{"": "no job yet · start your agent here: claude", "claude": "no job yet · tell your agent what you want done"} {
+		for i := range f.In.Terms.Panes {
+			if p := &f.In.Terms.Panes[i]; p.Focused {
+				p.Agent = agent
+			}
+		}
+		if hint := Side(f.In).Hint; hint != want {
+			t.Errorf("with the agent %q in front the hint is %q", agent, hint)
+		}
+	}
 
 	f = testkit.Fleets()
 	f.In.Find = "SEARCH"
