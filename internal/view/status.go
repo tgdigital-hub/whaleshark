@@ -103,7 +103,7 @@ func jobs(c *contract.Call, in contract.ViewInput, every bool) []job {
 				continue
 			}
 			if s, err := c.Kit.Reader().Read(root, run); err == nil && s.Run.ClosedAt.IsZero() {
-				in.State, in.Ctx, in.Notes, in.All, in.Elsewhere = s, nil, nil, false, 0
+				in.State, in.Fleets, in.Ctx, in.Notes, in.All, in.Elsewhere = s, nil, nil, nil, false, 0
 				out = append(out, job{root, c.Kit.View(in), ""})
 			}
 		}
@@ -193,7 +193,12 @@ func usage(message string) *contract.Refusal {
 func input(c *contract.Call, s *contract.State, swept contract.Swept, snap *contract.Snapshot) contract.ViewInput {
 	in := contract.ViewInput{Now: c.Now, Caller: c.Caller.Kind, State: s, Limits: contract.ProjectDefaults(), Swept: swept, Watched: true}
 	if s != nil {
-		in.Checked = s.Run.Terms.SeenAt
+		in.Checked, in.Fleets = s.Run.Terms.SeenAt, map[string]*contract.State{}
+		for name, f := range s.Run.Fleets {
+			if low, err := c.Kit.Reader().Read(c.Root, f.Run); err == nil {
+				in.Fleets[name] = low
+			}
+		}
 	}
 	if p, err := contract.ReadProjectFile(c.Root); err == nil {
 		in.Limits = p
@@ -212,6 +217,8 @@ func input(c *contract.Call, s *contract.State, swept contract.Swept, snap *cont
 	}
 	contract.ReadVersioned(c.Kit.Platform.Peek, filepath.Join(dirs.State, contract.UIFileName), contract.FileVersion, &in.UI)
 	in.Phones, _ = contract.ReadPhones(c.Kit.Platform.Peek, dirs.State)
+	in.Person, _ = contract.ReadPerson(c.Kit.Platform.Peek, dirs.Config)
+	in.Tools, _ = contract.Tools(c.Kit.Platform, dirs)
 	if s != nil {
 		in.Ctx = contract.ReadCtx(c.Kit.Platform.Peek, dirs.State, s)
 	}

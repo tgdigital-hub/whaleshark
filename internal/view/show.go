@@ -211,8 +211,12 @@ func taskText(w io.Writer, tv *contract.TaskView, now time.Time, o Options) {
 	if n := shots(newest.Evidence); n > 0 {
 		evidence[0] = plural(n, "screenshot", "screenshots") + " · " + evidence[0]
 	}
+	fleet := ""
+	if c.Fleet != nil {
+		fleet = fleetLine(c) + " · whaleshark status --run " + clean(c.Fleet.Run)
+	}
 	for _, f := range [][2]string{
-		{"Says", says}, {"Changed", tv.Changed}, {"Check", check}, {"Site", tv.Site}, {"By hand", clean(tv.ByHand)}, {"May edit", clean(strings.Join(tv.Owns, ", "))}, {"Brief", clean(tv.Brief)},
+		{"Fleet", fleet}, {"Says", says}, {"Changed", tv.Changed}, {"Check", check}, {"Site", tv.Site}, {"By hand", clean(tv.ByHand)}, {"May edit", clean(strings.Join(tv.Owns, ", "))}, {"Brief", clean(tv.Brief)},
 		{"Result", clean(newest.Result)}, {"Check log", clean(newest.CheckLog)}, {"Evidence", strings.Join(evidence, ", ")},
 	} {
 		if f[1] != "" {
