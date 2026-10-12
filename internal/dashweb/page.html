@@ -80,8 +80,8 @@
 
 {{define "item"}}{{$p := .P}}{{$it := .Item}}
 {{- if .Count}}<p class="c-dim">held: {{.Count}} · do not disturb is on</p>{{end}}
-<article class="item{{if .Held}} held{{end}}" id="i-{{.ID}}" data-title="{{with .Fleet}}{{.}} › {{end}}{{.Name}} — {{.Look}}" data-text="{{.Text}}">
-<p><span class="mark c-{{if .Held}}dim{{else}}{{(look .Look).Colour}}{{end}}">{{(look .Look).Mark}}</span> <b class="name">{{with .Fleet}}{{.}} › {{end}}{{.Name}}</b> <span class="c-dim">{{if .Name}}· {{end}}{{.Source}} · {{age $p .Since}}</span></p>
+<article class="item{{if .Held}} held{{end}}" id="i-{{.ID}}" data-title="{{.Title}} — {{.Look}}" data-text="{{.Text}}">
+<p><span class="mark c-{{if .Held}}dim{{else}}{{(look .Look).Colour}}{{end}}">{{(look .Look).Mark}}</span> <b class="name">{{.Title}}</b> <span class="c-dim">{{if .Name}}· {{end}}{{.Source}} · {{age $p .Since}}</span></p>
 <p class="ask">{{.Text}}</p>
 <div class="answer">
 {{- if .Answer}}<span class="c-accent">{{.Answer}} · {{if .Used.IsZero}}Undo{{with left $p $it}} · <b class="left">{{.}}</b>{{end}}{{else}}used at {{clock $p .Used}}{{end}}</span> <span class="c-dim">{{by .By}}</span>{{end}}

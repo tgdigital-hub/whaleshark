@@ -452,7 +452,7 @@ func TestAFleetWithTwoGroups(t *testing.T) {
 	up.Run.Fleets["search"].Groups = append(up.Run.Fleets["search"].Groups, "G7")
 	up.Questions["q1"].Down.ID = "q9"
 	v := Build(f.View)
-	if c, _ := card(t, v, "G2"); len(worded(v)) != 3 || c.Fleet.Groups != 2 || v.Items[0].Name != "leader" || title(v.Items[0]) != "billing › leader" {
+	if c, _ := card(t, v, "G2"); len(worded(v)) != 3 || c.Fleet.Groups != 2 || v.Items[0].Name != "leader" || v.Items[0].Title() != "billing › leader" {
 		t.Errorf("two groups of one fleet: %s", indent(t, worded(v)))
 	}
 	f.View.All = true

@@ -416,18 +416,37 @@ func TestPagePaneAndPlainTextShowTheSameRows(t *testing.T) {
 	t.Setenv("WHALESHARK_MARKS", "full")
 	for _, name := range fixtures {
 		f := load(t, name)
+		agree(t, name, f, f.Input(contract.Human), `T\d+`)
+	}
+	// The morning of three fleets: a card is a fleet, on all three.
+	m := testkit.Fleets()
+	agree(t, "three fleets", &testkit.Fixture{Name: "three fleets", Now: m.View.Now, Checked: m.View.Checked, State: *m.View.State, Terms: m.View.Terms},
+		m.View, `G\d+`)
+}
+
+// agree draws one prepared run as page, as pane and as plain text and holds
+// the three to each other; id is the pattern of a card's id in plain text.
+// A run of fleets brings its fleets' runs, which are made beside it.
+func agree(t *testing.T, name string, f *testkit.Fixture, in contract.ViewInput, id string) {
+	t.Helper()
+	{
 		p := scenario.Prepare(t, f, nil)
 		view.Plug(p.Kit)
+		for _, low := range in.Fleets {
+			if err := p.Kit.Store.Create(p.Root, low); err != nil {
+				t.Fatal(err)
+			}
+		}
 		for _, kv := range p.Env(p.Own) {
 			k, v, _ := strings.Cut(kv, "=")
 			t.Setenv(k, v)
 		}
 		pg := team(f)
-		pg.View = p.Kit.View(f.Input(contract.Human))
+		pg.View = p.Kit.View(in)
 		colours := theme.Get(pg.Theme).Colours
 		out := draw(t, pg)
 		for kind, pane := range map[string]struct{ name, text, grid string }{
-			"card": {"fleet", `T\d+`, `^.(\S) (.+?)   +(\S.*)$`},
+			"card": {"fleet", id, `^.(\S) (.+?)   +(\S.*)$`},
 			"item": {"actions", `[qn]\d+`, `^ [ ›] (\S) (.+?) · ()`},
 		} {
 			s := termtest.New(70, 60)
@@ -451,7 +470,11 @@ func TestPagePaneAndPlainTextShowTheSameRows(t *testing.T) {
 				g, x := grid[i], text[i]
 				if kind == "item" {
 					row.word, g.word, x.word = "", "", ""
-				} else if strings.HasSuffix(x.word, "%") && strings.Contains(out, `value="`+strings.TrimSuffix(x.word, "%")+`"></progress> `+x.word) {
+				} else if len(in.Fleets) > 0 {
+					// A fleet's card names its leader's tool beside the fleet, as the page does in a span of its own.
+					g.name, _, _ = strings.Cut(g.name, " · ")
+				}
+				if strings.HasSuffix(x.word, "%") && strings.HasSuffix(x.word, "%") && strings.Contains(out, `value="`+strings.TrimSuffix(x.word, "%")+`"></progress> `+x.word) {
 					x.word = row.word
 				} else if strings.HasPrefix(row.word, x.word+" ") {
 					x.word = row.word // "idle 12m": plain text prints the age in its own column

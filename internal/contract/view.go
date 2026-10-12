@@ -312,6 +312,10 @@ type Item struct {
 	Next []string `json:"next,omitempty"`
 }
 
+// Title is an item's name as every screen prints it: behind its fleet where
+// the item climbed from one.
+func (it Item) Title() string { return strings.TrimPrefix(it.Fleet+" › "+it.Name, " › ") }
+
 // NextJoin is the word a printer puts between two lines of a Next list, given
 // the first of the two: "then" after a line that only prepares the next (it
 // shows, closes or lists), and "or" after any other, which is a choice.

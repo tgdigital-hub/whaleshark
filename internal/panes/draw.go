@@ -698,7 +698,7 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 		t.Put(1, y, 1, p.glyph("›", ">"), p.st("needs"))
 	}
 	t.Put(3, y, 1, p.glyph(lk.Mark, lk.Plain), p.st(lk.Colour))
-	x := 5 + t.Put(5, y, w-5, it.Name, name)
+	x := 5 + t.Put(5, y, w-5, strings.ReplaceAll(it.Title(), "›", p.glyph("›", ">")), name)
 	if x > 5 {
 		x += t.Put(x, y, w-x, " · ", p.st("dim"))
 	}

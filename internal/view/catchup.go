@@ -75,11 +75,11 @@ func away(v *contract.View, s *contract.State, events []contract.Event, limits c
 	for _, it := range append(slices.Clone(v.Items), v.Held...) {
 		switch {
 		case it.Source == sourceWorker:
-			parts = append(parts, "a question from "+title(it))
+			parts = append(parts, "a question from "+it.Title())
 		case it.Name == "" || it.Name == leadName:
 			parts = append(parts, it.Source)
 		default:
-			parts = append(parts, it.Source+": "+title(it))
+			parts = append(parts, it.Source+": "+it.Title())
 		}
 	}
 	c.Waiting = line(parts, ", ")

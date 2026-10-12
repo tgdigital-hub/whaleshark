@@ -693,9 +693,6 @@ func first(times ...time.Time) time.Time {
 	return time.Time{}
 }
 
-// title names what an item is about: the fleet it climbed from first.
-func title(it contract.Item) string { return strings.TrimPrefix(it.Fleet+" › "+it.Name, " › ") }
-
 // of is a figure of its limit, in the words every line uses.
 func of(n, limit int, what string) string {
 	if limit == contract.Unlimited {

@@ -166,7 +166,7 @@ func (p *printer) item(it contract.Item) row {
 		}
 		text += "  (" + strings.Join(options, " / ") + ")"
 	}
-	name := title(it)
+	name := it.Title()
 	if p.o.PlainMarks {
 		name = strings.ReplaceAll(name, "›", ">")
 	}
