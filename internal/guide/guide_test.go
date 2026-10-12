@@ -46,6 +46,13 @@ func texts() map[string]struct {
 		"bare prompt":   {Prompt{Bin: "whaleshark"}.Text(), contract.Worker},
 		"rules block":   {Block, contract.Orchestrator},
 		"first message": {FirstMessage, contract.Orchestrator},
+
+		"orchestrator guide": {Orchestrator, contract.Orchestrator},
+		"leader guide":       {Leader, contract.Leader},
+		"leader prompt":      {leaderPrompt().Text(), contract.Leader},
+		"bare leader prompt": {Prompt{Bin: "whaleshark", Fleet: "billing"}.Text(), contract.Leader},
+		"tools, lead":        {Tools("lead", wired(), contract.PersonDefaults()), contract.Orchestrator},
+		"tools, leader":      {Tools("leader", wired(), contract.PersonDefaults()), contract.Leader},
 	}
 }
 
@@ -83,6 +90,9 @@ func findFlag(list []contract.Flag, name string) *contract.Flag {
 func named(t *testing.T, what, text string, reader contract.CallerKind) []string {
 	t.Helper()
 	var names []string
+	if reader == contract.Leader {
+		text = never.ReplaceAllString(text, "") // TestTheLeaderGuideForbidsWhatALeaderIsRefused
+	}
 	for _, span := range spans(text) {
 		rest, prefixed := strings.CutPrefix(span, "whaleshark ")
 		words := strings.Fields(rest)
@@ -116,7 +126,11 @@ func named(t *testing.T, what, text string, reader contract.CallerKind) []string
 		if c.Phase > phase {
 			t.Errorf("%s: `%s`: built in phase %d", what, span, c.Phase)
 		}
-		if !c.May(reader, sub) {
+		allowed := c.May(reader, sub)
+		if reader == contract.Leader {
+			allowed = c.LeaderMay(sub, func(flag string) bool { return strings.Contains(rest, "--"+flag) })
+		}
+		if !allowed {
 			t.Errorf("%s: `%s`: not allowed for the %s", what, span, reader)
 		}
 		for _, s := range c.Subs {
@@ -161,6 +175,23 @@ func TestEveryCommandNamedExistsAndIsAllowed(t *testing.T) {
 		if (c.Section == "runs" || c.Section == "code") && c.Who&contract.O != 0 && !slices.Contains(got["lead guide"], c.Name) {
 			t.Errorf("the lead guide does not name %s", c.Name)
 		}
+		// The orchestrator adds no team: a team's tasks name no fleet.
+		if (c.Section == "runs" || c.Section == "code") && c.Who&contract.O != 0 && c.Name != "team" && !slices.Contains(got["orchestrator guide"], c.Name) {
+			t.Errorf("the orchestrator's guide does not name %s", c.Name)
+		}
+		// A leader's own fleet, and the three commands that go up. Of run it
+		// may only read, which its guide has no use for.
+		readers := []string{"leader guide"}
+		if c.Section == "worker" {
+			readers = append(readers, "leader prompt", "bare leader prompt")
+		} else if c.Section != "runs" && c.Section != "code" || c.Name == "run" {
+			continue
+		}
+		for _, what := range readers {
+			if c.May(contract.Leader, "") != slices.Contains(got[what], c.Name) {
+				t.Errorf("the %s names %s, or does not, against what a leader may", what, c.Name)
+			}
+		}
 		if c.Section == "worker" {
 			for _, what := range []string{"worker guide", "worker prompt", "bare prompt"} {
 				if !slices.Contains(got[what], c.Name) {
@@ -174,12 +205,18 @@ func TestEveryCommandNamedExistsAndIsAllowed(t *testing.T) {
 			t.Errorf("the rules block does not name %s", name)
 		}
 	}
+	// In Fleet Mode a task without a fleet is refused: no line shows one.
+	for _, span := range spans(Orchestrator) {
+		if strings.Contains(span, "task add ") && !strings.Contains(span, "--fleet") {
+			t.Errorf("the orchestrator's guide adds a task with no fleet: %s", span)
+		}
+	}
 }
 
 func TestHumanOnlyForbidden(t *testing.T) {
 	forbids := regexp.MustCompile("(?i)\\bnever add `--human`")
 	for what, x := range texts() {
-		if what != "first message" && !strings.Contains(x.text, "--human") {
+		if what != "first message" && !strings.HasPrefix(what, "tools") && !strings.Contains(x.text, "--human") {
 			t.Errorf("%s does not forbid --human", what)
 		}
 		for line := range strings.Lines(x.text) {

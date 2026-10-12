@@ -1,10 +1,14 @@
 // Package guide holds what agents are told, compiled in so that it matches
-// this version: the two guides, the worker's prompt and the rules block.
+// this version: the four guides, the two prompts and the rules block.
 package guide
 
 import (
+	"cmp"
 	_ "embed"
 	"io"
+	"os/exec"
+	"slices"
+	"strings"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -14,16 +18,16 @@ var (
 	Lead string
 	//go:embed worker.md
 	Worker string
+	//go:embed leader.md
+	Leader string
+	//go:embed orchestrator.md
+	Orchestrator string
+	//go:embed tools.tmpl
+	toolsText string
 )
 
 // FirstMessage is pasted to a lead agent whose tool has no instruction file.
 const FirstMessage = "Run `whaleshark guide lead` and follow it."
-
-// Phase 5 owes here: guide leader; the orchestrator's form of guide lead in
-// a run of contract.ModeFleets; the leader's prompt; two lines of the rules
-// block; and the wired tools at the end of both guides where there is more
-// than one (View.Tools). Each is compared with the command table as the
-// others are.
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
@@ -31,23 +35,45 @@ func Plug(k *contract.Kit) {
 	k.SyncText = Sync
 }
 
-// run prints one guide: the one asked for, else the caller's own.
+// run prints one guide: the one asked for, else the caller's own. A leader
+// asking for the lead agent's gets its own; in Fleet Mode, the open run's or
+// else the person's for the next, the lead agent's is the orchestrator's.
 func run(c *contract.Call) (any, error) {
-	which := "lead"
-	if c.Caller.Kind == contract.Worker {
-		which = "worker"
+	which := cmp.Or(strings.Join(c.Args, " "), map[contract.CallerKind]string{contract.Worker: "worker"}[c.Caller.Kind], "lead")
+	if c.Caller.Kind == contract.Leader && which == "lead" {
+		which = "leader"
 	}
-	if len(c.Args) > 0 {
-		which = c.Args[0]
-	}
-	text := map[string]string{"lead": Lead, "worker": Worker}[which]
-	if text == "" || len(c.Args) > 1 {
+	text := map[string]string{"lead": Lead, "worker": Worker, "leader": Leader}[which]
+	if text == "" {
 		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage",
-			Message: "guide takes one of: worker, lead",
-			Next:    []string{"whaleshark guide lead", "whaleshark guide worker"}}
+			Message: "guide takes one of: worker, lead, leader",
+			Next:    []string{"whaleshark guide lead", "whaleshark guide worker", "whaleshark guide leader"}}
+	}
+	if d, err := c.Kit.Platform.Dirs(); err == nil && which != "worker" {
+		person, _ := contract.ReadPerson(c.Kit.Platform.Peek, d.Config)
+		fleets := person.Fleets.Mode == contract.On
+		if s, err := c.Kit.Store.Read(c.Root, c.Run); c.Run != "" && err == nil && s.Run.ClosedAt.IsZero() {
+			fleets = s.Run.Mode == contract.ModeFleets
+		}
+		if which == "lead" && fleets {
+			which, text = "orchestrator", Orchestrator
+		}
+		tools, _ := contract.Tools(c.Kit.Platform, d)
+		text += Tools(which, tools, person)
 	}
 	if _, err := io.WriteString(c.Out, text); err != nil {
 		return nil, err
 	}
 	return map[string]string{"guide": which, "text": text}, nil
+}
+
+// Tools is what a guide ends with, and a leader's prompt holds, where more
+// than one agent tool is wired in with its program found: each with what it
+// tells of its states and what the person says it suits. who is the reader.
+func Tools(who string, tools []contract.Tool, person contract.PersonConfig) string {
+	tools = slices.DeleteFunc(slices.Clone(tools), func(t contract.Tool) bool {
+		_, err := exec.LookPath(t.Run[0])
+		return err != nil
+	})
+	return render(toolsText, map[string]any{"Who": who, "Tools": tools, "Person": person})
 }

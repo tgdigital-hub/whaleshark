@@ -12,6 +12,8 @@ import (
 var (
 	//go:embed prompt.tmpl
 	promptText string
+	//go:embed leader.tmpl
+	leaderText string
 	//go:embed sync.tmpl
 	syncText string
 	//go:embed browser.tmpl
@@ -21,18 +23,22 @@ var (
 // Prompt is what a worker's prompt file says. Bin is the program's path as a
 // shell takes it. Shared says that Dir is not a copy of the code of the
 // task's own. Decisions, Sync and Browser are sections, left out while empty.
+// With Fleet it is a fleet leader's: Task is the group it is started for, Run
+// the orchestrator's, Person holds the limits and Tools is every wired tool.
 type Prompt struct {
 	Bin, Run, Task, Name string
 	Dir, Brief, Result   string
 	Owns                 []string
 	Shared               bool
 	Decisions            []contract.Decision
-	Sync, Browser        string
+	Sync, Browser, Fleet string
+	Person               contract.PersonConfig
+	Tools                []contract.Tool
 }
 
-// Text renders the prompt file: the worker's whole protocol.
+// Text renders the prompt file: the worker's whole protocol, or the leader's.
 func (p Prompt) Text() string {
-	return render(promptText, struct {
+	return render(map[bool]string{false: promptText, true: leaderText}[p.Fleet != ""], struct {
 		Prompt
 		Paused string
 	}{p, contract.PausedReason})
@@ -76,8 +82,9 @@ func Sync(b contract.SyncBrief) string { return render(syncText, b) }
 
 func render(text string, data any) string {
 	t := template.Must(template.New("").Funcs(template.FuncMap{
-		"join": func(s []string) string { return strings.Join(s, ", ") },
-		"line": func(s string) string { return strings.Join(strings.Fields(s), " ") },
+		"join":  func(s []string) string { return strings.Join(s, ", ") },
+		"tools": Tools,
+		"line":  func(s string) string { return strings.Join(strings.Fields(s), " ") },
 		"names": func(s []string) string {
 			return strings.Trim(fmt.Sprintf("%q", s), "[]")
 		},
