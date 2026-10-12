@@ -145,7 +145,7 @@ lines 1700 runtask internal/runtask
 # more than their row, and the join added what an ended fleet gives up, in
 # one place for close and for cancel, and the words for a tab that is not a
 # leader's own to close.
-lines 1670 launch internal/launch
+lines 1685 launch internal/launch
 # worker: 5 more for phase 5, a leader's --task.
 lines 170 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
@@ -254,7 +254,7 @@ lines 1300 term internal/term
 # were planned, and the join added a row of the settings screen for
 # everything that is no value of a file, the agents running now, the folded
 # fleets kept, and a layout setting that moves the panes where they are.
-lines 3515 panes internal/panes
+lines 3555 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
 lines 90 theme internal/theme
 # hook: 60 more at the start of phase 2, for the settings of a second kind
@@ -390,6 +390,9 @@ skip _test.go testdata testkit
 # the trial showed missing; the button that writes a tool's rules), launch
 # +20 (the hand-over of tabs; a leader counted once), rules +15 (a question
 # passed up outlives its leader), layout +5, pick +5.
+# With the hosted machines' mends merged: panes +40 more (which tools are
+# there to start is looked for beside the loop, never by a drawing), launch
+# +15 more (groups named in one start go in the order named): 41,290.
 # 41,500 since the join of phase 5's second wave. The owner took the cap
 # away as a thing that decides what is built; it is kept as a figure that is
 # told: what is built, 40,620, rounded up to the next 500, and 500 for his
