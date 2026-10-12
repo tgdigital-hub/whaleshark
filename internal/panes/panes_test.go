@@ -419,13 +419,13 @@ func TestTheFourFormsAndTheStrip(t *testing.T) {
 	}
 
 	// The pane that has the keys says so, and its title is lit.
-	if got := wd.last(); !strings.HasPrefix(got, " ctrl+space a to answer · / all actions · ? keys") || !strings.Contains(got, "live · ") {
+	if got := wd.last(); !strings.HasPrefix(got, " click an item to answer it · keys from any tab: whaleshark init --keys") || !strings.Contains(got, "live · ") {
 		t.Errorf("without the keys the last line is %q", got)
 	}
 	wd.s.Type("\x1b[I")
 	wd.shows("KEYS GO HERE · j k choose · y n o answer", "› ▲ sign-up page")
 	wd.s.Type("\x1b[O")
-	wd.shows("ctrl+space a to answer")
+	wd.shows("click an item to answer it")
 	// A click presses the button it is on, of the item it is in.
 	wd.click("[ Approve ]")
 	wd.ran(`answer n4 --file "approve" --human`)
@@ -496,7 +496,7 @@ func TestFoldAndUnfold(t *testing.T) {
 	}
 	// Folded, the strip fills what it is left: two rows at the least.
 	wd.resize(104, 2)
-	wd.shows("ctrl+space a to answer")
+	wd.shows("click an item to answer it")
 	if rows := wd.screen(); strings.Contains(rows, "sign-up page") || !strings.Contains(wd.s.Row(0), "[ Stop all ]") || !strings.Contains(wd.last(), "live · ") {
 		t.Errorf("two rows of a folded pane show:\n%s", rows)
 	}
@@ -517,7 +517,11 @@ func TestFoldAndUnfold(t *testing.T) {
 		v.Strip.DND = true
 		v.Items = append(v.Items, holds)
 	})
-	wd.shows("+")
+	// The second item of the kind is drawn. (This waited for a "+", which
+	// the last line's own "ctrl+space" held from the start.)
+	if !wd.until(3*time.Second, func() bool { return strings.Contains(wd.s.Row(5), "site map") }) {
+		t.Fatalf("the second item that holds work up was not drawn:\n%s", wd.s.Row(5))
+	}
 	if wd.within(time.Second, "[v]") {
 		t.Fatal("the pane unfolded itself while it was not to disturb")
 	}
@@ -793,4 +797,23 @@ func TestAPaneShowsTheRunOfItsTabsLeadAgent(t *testing.T) {
 	if q := newPane(fleet, nil, k, "/project", "r1", time.Now); q.anyRun {
 		t.Fatal("a pane started with a run named would leave it")
 	}
+}
+
+// The action pane names the answer shortcut only where the shortcuts are
+// set: until `init --keys` has written them, the key it would name does
+// nothing, and the line says what does.
+func TestTheAnswerShortcutIsNamedOnlyWhereItIsSet(t *testing.T) {
+	wd := startWith(t, actions, 104, 20, nil, func(w *world) {
+		d, err := w.sys.Dirs()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.MkdirAll(d.Config, 0o700); err == nil {
+			err = os.WriteFile(contract.SettingsPath(d), []byte("[[shortcut]]\nkey = \"a\"\ntype = \"shell\"\nargv = [\"whaleshark\", \"ui\", \"answer\"]\n"), 0o600)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+	wd.shows("ctrl+space a to answer · / all actions · ? keys")
 }

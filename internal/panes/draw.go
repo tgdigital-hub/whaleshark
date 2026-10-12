@@ -598,8 +598,13 @@ func (p *pane) drawActions(now time.Time) {
 	aw := term.Width(age)
 	t.Put(max(w-aw-1, 0), h-1, w, age, ageSt)
 	defer func() {
-		p.hintLine(h-1, w-aw-3, "j k choose · y n o answer · u undo · x fold · / all actions · ? keys",
-			cmp.Or(p.engine.Keys.Command, "ctrl+space")+" a to answer · / all actions · ? keys")
+		// The shortcut is named only where it is set: until `init --keys` a
+		// click brings the keys here.
+		away := "click an item to answer it · keys from any tab: whaleshark init --keys"
+		if len(p.engine.Shortcuts) > 0 {
+			away = cmp.Or(p.engine.Keys.Command, "ctrl+space") + " a to answer · / all actions · ? keys"
+		}
+		p.hintLine(h-1, w-aw-3, "j k choose · y n o answer · u undo · x fold · / all actions · ? keys", away)
 	}()
 
 	y, room, end := 1, h-2, h-1
