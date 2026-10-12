@@ -23,7 +23,9 @@ It shows your fleet at work. Then:
 - You were started to take over a fleet that was already at work: plan nothing new before
   `whaleshark wait` has handed you what waits there. Results may be waiting to be checked.
 - The line "new work for your fleet" was typed into your tab: run `whaleshark mail`. It prints
-  one more group for you, with its brief and its result file. Plan it beside the others.
+  one more group for you, with its brief and its result file. It is yours from that moment, as if
+  your prompt had named it: plan it and start its tasks at once, beside the others, and report
+  it with `--task`. Never ask whether you should, and never wait to be told again.
 
 ## Plan
 One task is one piece of work for one worker. Write its brief as a file with these five headings:
