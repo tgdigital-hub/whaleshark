@@ -17,6 +17,9 @@ import (
 //go:embed block.md
 var Block string
 
+//go:embed block1.md
+var earlier string // the block before this one: still found, and taken out
+
 // A block is found by its two marker lines.
 const (
 	beginMark = "<!-- whaleshark:begin"
@@ -59,24 +62,25 @@ type BlockState string
 
 const (
 	Absent BlockState = "absent"
-	Ours   BlockState = "ours"   // exactly what this program writes
+	Ours   BlockState = "ours"   // exactly what this program writes, or an earlier one wrote
 	Edited BlockState = "edited" // a marker is there and the text is not ours: never touched
 )
 
-// find returns where our exact block starts a line of data, or -1.
-func find(data []byte) int {
-	if bytes.HasPrefix(data, []byte(Block)) {
-		return 0
+// find returns where a block of ours starts a line of data and how long it
+// is, or -1.
+func find(data []byte) (at, n int) {
+	for _, block := range []string{Block, earlier} {
+		if i := bytes.Index(append([]byte("\n"), data...), []byte("\n"+block)); i >= 0 {
+			return i, len(block)
+		}
 	}
-	if i := bytes.Index(data, []byte("\n"+Block)); i >= 0 {
-		return i + 1
-	}
-	return -1
+	return -1, 0
 }
 
 func state(data []byte) BlockState {
+	at, _ := find(data)
 	switch {
-	case find(data) >= 0:
+	case at >= 0:
 		return Ours
 	case bytes.Contains(data, []byte(beginMark)), bytes.Contains(data, []byte(endMark)):
 		return Edited
@@ -128,8 +132,8 @@ func Remove(p contract.Platform, path string, created bool) (before BlockState, 
 	if before = state(data); before != Ours {
 		return before, nil
 	}
-	i := find(data)
-	rest := append(data[:max(i-1, 0):max(i-1, 0)], data[i+len(Block):]...)
+	i, n := find(data)
+	rest := append(data[:max(i-1, 0):max(i-1, 0)], data[i+n:]...)
 	if created && len(rest) == 0 {
 		return Ours, os.Remove(path)
 	}
