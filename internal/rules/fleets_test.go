@@ -84,6 +84,9 @@ func sound(up *contract.State, lows ...*contract.State) string {
 // every task is one. Its fleet's name is held as a task's name is.
 func TestAGroupIsPlaced(t *testing.T) {
 	plain := newRun()
+	if err := r.AddTask(plain, contract.Task{ID: "T1", Title: "one", Check: "true", Name: " -rf"}, nil, t0); code(err) != "bad_name" || len(plain.Tasks) != 0 {
+		t.Errorf("a task given a name that is an option behind a space: %v", err)
+	}
 	err := r.AddTask(plain, contract.Task{ID: "G1", Title: "one", Check: "true", Fleet: "billing"}, nil, t0)
 	if code(err) != contract.RefusedNotFleets || exit(err) != contract.ExitRefused || len(plain.Tasks) != 0 {
 		t.Errorf("a fleet in a run without fleets: %v", err)
@@ -102,6 +105,8 @@ func TestAGroupIsPlaced(t *testing.T) {
 		{strings.Repeat("x", 25), nil, "no_fleet", ""}, {strings.Repeat("é", 24), nil, "", strings.Repeat("é", 24)},
 		{"  BILLING ", []string{"billing"}, "", "billing"}, {"help  pages", nil, "", "help pages"},
 		{"docs", []string{"Docs"}, "name_taken", ""}, {"Lead", nil, "name_taken", ""},
+		// Found by the fuzz test: the validator saw a space in front, and the name that was kept began with the dash.
+		{" -rf", nil, "no_fleet", ""}, {" - ", nil, "no_fleet", ""}, {"up-to date", nil, "", "up-to date"},
 	} {
 		s := job(t)
 		err := r.AddTask(s, contract.Task{ID: "G9", Title: "nine", Check: "true", Fleet: tc.fleet}, tc.taken, t0)

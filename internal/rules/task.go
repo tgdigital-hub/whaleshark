@@ -47,7 +47,8 @@ func (r Rules) AddTask(s *contract.State, t contract.Task, taken []string, now t
 }
 
 // name fills in and checks the name a task's tab and card carry: three words
-// and 24 characters at most, and on no other tab of the login.
+// and 24 characters at most, a given one not an option once the spaces round
+// it are gone, and on no other tab of the login.
 func name(s *contract.State, t *contract.Task, taken []string) error {
 	given := t.Name != ""
 	if !given {
@@ -55,11 +56,11 @@ func name(s *contract.State, t *contract.Task, taken []string) error {
 	}
 	words := strings.Fields(t.Name)
 	t.Name = strings.Join(words, " ")
-	if len(words) == 0 || len(words) > maxWords || utf8.RuneCountInString(t.Name) > maxName {
+	if len(words) == 0 || len(words) > maxWords || utf8.RuneCountInString(t.Name) > maxName || given && t.Name[0] == '-' {
 		if !given {
 			return refuse(contract.ExitUsage, "name_needed", "%q is too long to name a tab. Give a name of at most three words with --name.", t.Title)
 		}
-		return refuse(contract.ExitUsage, "bad_name", "A name is at most three words and %d characters: %q is not.", maxName, t.Name)
+		return refuse(contract.ExitUsage, "bad_name", "A name is at most three words and %d characters, with no dash in front: %q is not.", maxName, t.Name)
 	}
 	taken = slices.Clone(taken)
 	for id, other := range s.Tasks {

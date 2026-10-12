@@ -22,8 +22,8 @@ func place(s *contract.State, t *contract.Task, taken []string) error {
 		return nil
 	case !fleets:
 		return next(refused(contract.RefusedNotFleets, "This job has no fleets: Fleet Mode was off when it began. Switched on, it holds from the next job."), "whaleshark set fleets.mode on")
-	case len(words) == 0 || len(words) > maxWords || utf8.RuneCountInString(strings.Join(words, " ")) > maxName:
-		return next(refuse(contract.ExitUsage, "no_fleet", "In Fleet Mode every task is a group of work for a fleet, named in at most three words and %d characters: %q is not.", maxName, t.Fleet),
+	case len(words) == 0 || len(words) > maxWords || utf8.RuneCountInString(strings.Join(words, " ")) > maxName || words[0][0] == '-':
+		return next(refuse(contract.ExitUsage, "no_fleet", "In Fleet Mode every task is a group of work for a fleet, named in at most three words and %d characters, with no dash in front: %q is not.", maxName, t.Fleet),
 			"whaleshark task add "+t.ID+` "<title>" --brief FILE --check CMD --fleet "<name>"`)
 	}
 	t.Fleet, t.Placement = strings.Join(words, " "), contract.PlaceFleet
