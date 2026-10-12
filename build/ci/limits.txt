@@ -78,8 +78,8 @@ lines 1310 platform internal/platform
 # built, at 1,041, and no later package of the phase is in this folder.
 lines 1045 cli internal/cli
 # rules: 140 more for phase 5: a group's states, the limits, a question's twin.
-# 90 more at the join of its first wave. The six rules of Fleet Mode came to
-# 267 lines where 170 were planned, and what the plan had not counted is
+# 90 more at the join of its first wave. The six rules of Fleet Mode took
+# 242 lines where 170 were planned, and what the plan had not counted is
 # the refusals: a half-written twin mended, a leader that is not the one
 # the record names, a server's figure in the limits. Nothing is left to cut
 # that the row asks for; it stands at 1,825 and no later package of the
