@@ -583,6 +583,44 @@ func TestTryItRunsTheOneTestOfTheTool(t *testing.T) {
 	}
 }
 
+// What is done at a terminal and is no value of a file has its row all the
+// same: the button opens a tab and names the line, and runs nothing; whether
+// the page runs is asked of the page's own command.
+func TestTheRowsOfWhatIsDoneAtATerminal(t *testing.T) {
+	wd := startWith(t, settings, 120, 44, map[string]string{"PATH": ""}, func(*world) {})
+	at := 0
+	to := func(section string) {
+		for ; contract.Sections[at%len(contract.Sections)] != section; at++ {
+			wd.s.Key("tab")
+			wd.settle()
+		}
+		wd.shows(" " + strings.ToUpper(section) + " ")
+	}
+	to(contract.SecNudges)
+	wd.shows("Your own nudge programs: 0 · in hooks/nudge.d of your settings folder")
+	for section, row := range map[string][2]string{contract.SecKeys: {"[ Put whaleshark's own shortcuts in… ]", "init --keys"},
+		contract.SecProject: {"[ Take this project out… ]", "init --remove"}} {
+		to(section)
+		wd.shows(row[0])
+		wd.settle()
+		wd.s.ClickText(row[0])
+		wd.shows("in the new tab type: whaleshark " + row[1])
+		if !wd.until(5*time.Second, func() bool {
+			return slices.ContainsFunc(wd.double.Calls(), func(c contract.WireCall) bool { return c.Op == contract.OpTabCreate && c.Label == row[1] })
+		}) {
+			t.Errorf("%s opened no tab", row[0])
+		}
+	}
+	wd.shows("Teams this project brings: 0 in " + contract.TeamsDir)
+	if n := len(wd.children("init")); n != 0 {
+		t.Errorf("a click ran init %d times", n)
+	}
+	to(contract.SecPage)
+	wd.settle()
+	wd.s.ClickText("[ Is the page running? ]")
+	wd.ran("dash status")
+}
+
 // What `set` does of its own for phase 5: the layout's keys move the open
 // panes at once, a limit of all agents under a fleet's is taken and said,
 // and a section seen again ends its warning.

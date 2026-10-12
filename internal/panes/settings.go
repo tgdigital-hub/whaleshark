@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -82,11 +83,30 @@ func (p *pane) settingsRows() (out []setting) {
 		})
 		press("[ Take this tool out ]", func() { p.apply(setting{key: &contract.Key{}, name: "tools." + p.tool}, "remove", false) })
 	}
-	if section == contract.SecProject && len(p.limits.Held) > 0 {
-		press("[ Approve… ]", func() {
-			p.hint = "nothing is approved by a click · in the new tab type: whaleshark trust"
-			p.newTab(p.root, "trust")
+	// What is no value of a file but a thing done at a terminal, where the
+	// program asks before it writes: the button opens the tab and says the line.
+	typed := func(label, line string) {
+		press(label, func() {
+			p.hint = "nothing is changed by a click · in the new tab type: whaleshark " + line
+			p.newTab(p.root, line)
 		})
+	}
+	count := func(dir ...string) int {
+		files, _ := filepath.Glob(filepath.Join(dir...))
+		return len(files)
+	}
+	switch dirs, _ := p.k.Platform.Dirs(); {
+	case section == contract.SecNudges:
+		press(fmt.Sprintf("Your own nudge programs: %d · in hooks/nudge.d of your settings folder", count(dirs.Config, "hooks", "nudge.d", "*")), nil)
+	case section == contract.SecKeys:
+		typed("[ Put whaleshark's own shortcuts in… ]", "init --keys")
+	case section == contract.SecProject:
+		if len(p.limits.Held) > 0 {
+			typed("[ Approve… ]", "trust")
+		}
+		press(fmt.Sprintf("Teams this project brings: %d in %s · whaleshark team run NAME", count(p.root, contract.TeamsDir, "*.toml"), contract.TeamsDir), nil)
+		typed("[ Set this project up again… ]", "init")
+		typed("[ Take this project out… ]", "init --remove")
 	}
 	if section == contract.SecFleets {
 		// What the limits above are held against at this moment, in this job.
@@ -97,8 +117,13 @@ func (p *pane) settingsRows() (out []setting) {
 		press(fmt.Sprintf("Agents running now: %d%s", p.view.Counts.Agents, of), nil)
 	}
 	if section == contract.SecPage {
-		press(fmt.Sprintf("Phones may reach the page: %s · paired: %d · the page itself: whaleshark dash",
+		press(fmt.Sprintf("Phones may reach the page: %s · paired: %d · by which road: This server",
 			map[bool]string{true: contract.On, false: contract.Off}[p.phones.On], len(p.phones.Paired)), nil)
+		press("[ Is the page running? ]", func() {
+			p.child(p.cmd("dash", "status"), "", func(out []byte, said string, _ bool) {
+				p.hint = cmp.Or(strings.Join(strings.Fields(string(out)), " "), said) + " · whaleshark dash start|stop"
+			})
+		})
 		for _, ph := range p.phones.Paired {
 			press("[ Forget "+ph.Name+" ]", func() { p.act("forget-phone", map[string]string{"id": ph.ID}) })
 		}
