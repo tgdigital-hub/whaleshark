@@ -54,10 +54,19 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 	var live []*work
 	byID := map[string]*work{}
 	for _, id := range slices.Sorted(maps.Keys(s.Tasks)) {
-		t := s.Tasks[id]
-		if w := t.Worktree; w != nil && w.RemovedAt.IsZero() && at[w.Branch] != "" && t.Status != contract.TaskDone && t.Status != contract.TaskCancelled {
-			byID[id] = &work{t: t, head: at[w.Branch], files: map[string]bool{}, moved: map[string]string{}}
-			live = append(live, byID[id])
+		t, branch, key := s.Tasks[id], "", id
+		if w := t.Worktree; w != nil && w.RemovedAt.IsZero() {
+			branch = w.Branch
+		} else if f := s.Run.Fleets[t.Fleet]; f != nil && f.EndedAt.IsZero() {
+			// A fleet's branch is the branch of its groups: the first that is
+			// open stands for the fleet, and a later one is found under it.
+			if branch, key = f.Branch, "fleet "+t.Fleet; byID[key] != nil {
+				byID[id], branch = byID[key], ""
+			}
+		}
+		if at[branch] != "" && t.Status != contract.TaskDone && t.Status != contract.TaskCancelled {
+			byID[key] = &work{t: t, head: at[branch], files: map[string]bool{}, moved: map[string]string{}}
+			live, byID[id] = append(live, byID[key]), byID[key]
 		}
 	}
 	named := map[string]bool{}
@@ -69,7 +78,7 @@ func (o scanner) Scan(ctx context.Context, root string, s *contract.State, tasks
 		if err != nil {
 			return nil, err
 		}
-		named[t.ID] = true
+		named[byID[t.ID].t.ID] = true
 	}
 	fresh := func(w *work) bool { return len(named) == 0 || named[w.t.ID] }
 
@@ -246,6 +255,9 @@ func (g *repo) look(w *work, tip string, deep bool) error {
 			i++
 		}
 		w.files[tok[i+1]] = false
+	}
+	if w.t.Worktree == nil {
+		return nil // a fleet: what is not committed there is its own tasks'
 	}
 	if out, err = g.git(w.t.Worktree.Path, "", "status", "--porcelain=v1", "-z", "--untracked-files=all"); err != nil {
 		return err

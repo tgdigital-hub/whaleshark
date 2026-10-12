@@ -11,8 +11,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"golang.org/x/term"
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
@@ -34,7 +36,7 @@ const (
 type setting struct {
 	c           *contract.Call
 	in          *bufio.Reader
-	state       string // the login's state folder
+	dirs        contract.Dirs // the login's own folders
 	mine, login contract.Installed
 	Did         []string `json:"did"`
 	Problems    []string `json:"problems,omitempty"`
@@ -97,7 +99,7 @@ func setUp(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, refuse(contract.ExitEnv, "no_home", "The login's own folders cannot be found: "+err.Error()+".")
 	}
-	i := &setting{c: c, in: bufio.NewReader(c.Stdin), state: dirs.State}
+	i := &setting{c: c, in: bufio.NewReader(c.Stdin), dirs: dirs}
 	login := filepath.Join(dirs.State, installedFile)
 	if err = i.record(login, &i.login, false); err == nil {
 		if f["remove"] != nil {
@@ -220,8 +222,11 @@ func (i *setting) project() error {
 	kinds := contract.List(f["agent"]...)
 	if f["agent"] == nil && person {
 		var known []string
-		for _, row := range guide.Files {
-			known = append(known, row.Kind)
+		tools, _ := contract.Tools(k.Platform, i.dirs)
+		for _, t := range tools {
+			if t.Found() {
+				known = append(known, t.Name)
+			}
 		}
 		answer, ok := i.ask("Which agent tools do you use here? (" + strings.Join(known, ", ") + "; several with commas, none with Enter) ")
 		if kinds = strings.FieldsFunc(answer, func(r rune) bool { return r == ',' || r == ' ' }); !ok {
@@ -296,7 +301,15 @@ func (i *setting) agent(kind string) error {
 	if path, ok := guide.File(kind, home, os.Getenv); !ok {
 		i.say("%s has no instruction file we know: start your lead agent with this as its first message: %s", kind, guide.FirstMessage)
 	} else {
+		data, _ := k.Platform.Read(path)
 		before, created, err := guide.Write(k.Platform, path)
+		// A block init wrote in an earlier text is replaced by the current one.
+		if old := before == guide.Ours && at(i.login.Entries, kindBlock, path) >= 0 && !strings.Contains(string(data), guide.Block); old && err == nil {
+			if _, err = guide.Remove(k.Platform, path, false); err == nil {
+				_, _, err = guide.Write(k.Platform, path)
+			}
+			i.say("the rules in %s were an earlier version's, and are the current ones now", path)
+		}
 		switch {
 		case err != nil:
 			return err
@@ -408,7 +421,7 @@ func (i *setting) undo(e contract.InstalledEntry) error {
 // of the login's things what no other project still uses. Runs are work, and stay.
 func (i *setting) remove() error {
 	c, k, all := i.c, i.c.Kit, i.c.Flags["all"] != nil
-	listed, err := contract.ReadProjects(k.Platform.Read, i.state)
+	listed, err := contract.ReadProjects(k.Platform.Read, i.dirs.State)
 	if err != nil {
 		return err
 	}
@@ -416,14 +429,20 @@ func (i *setting) remove() error {
 	if all {
 		roots, what = append(roots, listed...), "Every project is"
 	}
+	tools, _ := contract.Tools(k.Platform, i.dirs)
 	for _, root := range roots {
-		path, mine := filepath.Join(k.Store.Dir(root, ""), installedFile), contract.Installed{}
+		path, mine, stay := filepath.Join(k.Store.Dir(root, ""), installedFile), contract.Installed{}, contract.Installed{}
 		if err = i.record(path, &mine, false); err != nil {
 			return err
 		}
 		for _, e := range mine.Entries {
 			n := at(i.login.Entries, e.Kind, e.File)
+			_, wired := contract.FindTool(tools, e.Agent)
 			switch {
+			case e.Kind == kindHook && !wired:
+				// Their form went with the tool's description: they stay, and their record with them.
+				stay.Entries = append(stay.Entries, e)
+				i.say("the hooks for %s stay in %s: it is no longer wired in, so their form is not known. Wire it in and run this again, or take them out by hand", e.Agent, e.File)
 			case e.Kind == kindHook:
 				err = k.AgentSettings.Remove(e.Agent, root)
 				i.say("the hooks for %s are out of %s", e.Agent, e.File)
@@ -439,7 +458,7 @@ func (i *setting) remove() error {
 				return err
 			}
 		}
-		if err = i.record(path, &contract.Installed{}, true); err != nil {
+		if err = i.record(path, &stay, true); err != nil {
 			return err
 		}
 		listed = slices.DeleteFunc(listed, func(r string) bool { return k.Platform.PathKey(r) == k.Platform.PathKey(root) })
@@ -450,5 +469,62 @@ func (i *setting) remove() error {
 		}
 	}
 	i.say("%s out of your list. Runs and their folders are untouched.", what)
-	return contract.WriteProjects(k.Platform, i.state, listed)
+	return contract.WriteProjects(k.Platform, i.dirs.State, listed)
+}
+
+// projectSet is the kit's ProjectSet: one key of whaleshark.toml gets its
+// value, in the line it has, else under its section's heading, which is
+// added at the end where the file has none. Every other line stays as it
+// stands, the person's comments among them, and a file that would no longer
+// read is not written. What it writes is held like any change to the file,
+// until the person approves it with trust.
+func projectSet(p contract.Platform, root string, key *contract.Key, value string) error {
+	path := filepath.Join(root, "whaleshark.toml")
+	data, err := p.Read(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	section, name, _ := strings.Cut(key.Name, ".")
+	switch key.Kind {
+	case contract.KindNumber:
+	case contract.KindList:
+		items := contract.List(value)
+		for n, item := range items {
+			items[n] = strconv.Quote(strings.TrimSpace(item))
+		}
+		value = "[" + strings.Join(items, ", ") + "]"
+	default:
+		value = strconv.Quote(value)
+	}
+	lines, head, at, in := strings.Split(strings.TrimRight(string(data), "\n"), "\n"), -1, -1, false
+	for n, line := range lines {
+		line = strings.TrimSpace(line)
+		if left, _, ok := strings.Cut(line, "="); strings.HasPrefix(line, "[") {
+			if in = strings.HasPrefix(line, "["+section+"]"); in {
+				head = n
+			}
+		} else if in && ok && strings.TrimSpace(left) == name {
+			at = n
+		}
+	}
+	switch set := name + " = " + value; {
+	case at >= 0:
+		lines[at] = set
+	case head >= 0:
+		lines = slices.Insert(lines, head+1, set)
+	default:
+		lines = append(lines, "", "["+section+"]", set)
+	}
+	text := strings.TrimLeft(strings.Join(lines, "\n"), "\n") + "\n"
+	if err := toml.Unmarshal([]byte(text), new(contract.ProjectFile)); err != nil {
+		return refuse(contract.ExitRefused, "not_written", "whaleshark.toml would no longer read with "+key.Name+" set in it ("+err.Error()+"), so nothing was written. Set it there by hand.")
+	}
+	mode := fs.FileMode(0o644)
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	}
+	if err = os.WriteFile(path+".new", []byte(text), mode); err == nil {
+		err = p.Replace(path+".new", path)
+	}
+	return err
 }

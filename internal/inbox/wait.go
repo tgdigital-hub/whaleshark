@@ -160,8 +160,8 @@ func wait(c *contract.Call) (any, error) {
 }
 
 // scan runs the overlap scan when one is due (a report from a copy of the
-// code, an accept that moved the tip) and, while a copy is at work, the deep
-// one five minutes after the last. It runs outside the record's lock under a
+// code, an accept that moved the tip) and, while a copy or a fleet is at
+// work, the deep one five minutes after the last. It runs outside the record's lock under a
 // limit of its own; a scan cut off is whole and is handed on, one that failed
 // keeps what the run had. What Found raises goes out in this wait's batch.
 func scan(k *contract.Kit, root, run string, now time.Time) {
@@ -177,7 +177,7 @@ func scan(k *contract.Kit, root, run string, now time.Time) {
 			last = s.Run.CreatedAt
 		}
 		at := func(t *contract.Task) bool {
-			return t.Worktree != nil && t.Worktree.RemovedAt.IsZero() && t.Status == contract.TaskRunning
+			return (t.Worktree != nil && t.Worktree.RemovedAt.IsZero() || t.Fleet != "") && t.Status == contract.TaskRunning
 		}
 		if now.Sub(last) < scanEvery || !slices.ContainsFunc(slices.Collect(maps.Values(s.Tasks)), at) {
 			return

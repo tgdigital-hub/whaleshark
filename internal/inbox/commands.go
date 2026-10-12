@@ -8,10 +8,6 @@ import "github.com/tgdigital-hub/whaleshark/internal/contract"
 // stampFile holds when the run was last swept.
 const stampFile = contract.SweepFile
 
-// Phase 5 owes here: the sweep's rows about a leader go to the orchestrator
-// and raise no item for the person, and a question whose twin a kill left
-// apart is finished (Rules.Down).
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Sweeper = sweeper{k}

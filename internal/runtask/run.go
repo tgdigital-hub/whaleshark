@@ -42,50 +42,80 @@ func run(c *contract.Call) (any, error) {
 		}
 		return k.Rules.Takeover(s, contract.Binding{Pane: pane}, c.Now)
 	}
+	// An orchestrator's run takes its fleets' runs with it, each closed or
+	// removed as a run is, once the command is known to be let in: no fleet
+	// goes under a job that stays.
+	var fleets []string
+	if s, lost := k.Store.Read(c.Root, id); lost == nil && k.Rules.Allowed(s, c.Caller, c.Command.Name, sub) == nil {
+		for _, f := range s.Run.Fleets {
+			fleets = append(fleets, f.Run)
+		}
+	}
+	// ended closes the run and its fleets' runs, by the rule that closes any
+	// run: asked of what was read first, the run's own record last, then
+	// done. For a removal a run that is closed already is passed over.
+	ended := func(abandon, removal bool) {
+		shut := func(s *contract.State) error { return k.Rules.CloseRun(s, abandon, c.Now) }
+		for _, write := range []bool{false, true} {
+			for _, run := range append(fleets, id) {
+				low, lost := k.Store.Read(c.Root, run)
+				switch {
+				case err != nil || (run != id || removal) && (lost != nil || !low.Run.ClosedAt.IsZero()):
+				case !write && len(fleets) > 0:
+					err = shut(low)
+				case !write:
+				case run == id:
+					err = change(c, id, sub, shut)
+				default:
+					err = k.Store.Change(c.Root, run, shut)
+				}
+			}
+		}
+	}
 	switch sub {
 	case "close":
 		said = "closed"
-		err = change(c, id, sub, func(s *contract.State) error { return k.Rules.CloseRun(s, c.Flags["abandon"] != nil, c.Now) })
+		ended(c.Flags["abandon"] != nil, false)
 	case "rm":
-		// A run still open is closed first, by the rule that closes any run.
 		said = "removed"
-		err = change(c, id, sub, func(s *contract.State) error {
-			if !s.Run.ClosedAt.IsZero() {
-				return nil
+		ended(false, true)
+		for _, id := range append(fleets, id) {
+			// A fleet's run was let in with the run above it.
+			if err == nil && id == args[0] {
+				err = change(c, id, sub, func(*contract.State) error { return nil })
 			}
-			return k.Rules.CloseRun(s, false, c.Now)
-		})
-		// What the run left in git goes first: its worktrees and the task
-		// branches proven merged, which is asked of the collected branch, then
-		// that branch if it was landed, then its port slots.
-		var s *contract.State
-		if err == nil {
-			s, err = k.Store.Read(c.Root, id)
-		}
-		var kept []string
-		if err == nil {
-			launch.Leave(k, s)
-			kept, err = k.Placement.Forget(c.Root, s)
-		}
-		unlanded := ""
-		if err == nil {
-			unlanded, err = k.Integrator.Drop(c.Root, s)
-		}
-		if err == nil {
-			root := k.Platform.PathKey(c.Root)
-			_, err = contract.FreeSlots(k.Platform, func(o contract.Slot) bool { return o.Root == root && o.Run == id })
-		}
-		if cur, _ := k.Store.Current(c.Root); err == nil && cur == id {
-			err = k.Store.SetCurrent(c.Root, "") // the number is given again, and the person's pointer must not follow it
-		}
-		if err == nil {
-			err = k.Store.Remove(c.Root, id)
-		}
-		for _, branch := range kept {
-			fmt.Fprintf(c.Out, "Kept, not proven merged: %s\n", cli.Plain(branch))
-		}
-		if unlanded != "" {
-			fmt.Fprintf(c.Out, "Kept, it holds accepted work that was not landed: %s\n", cli.Plain(unlanded))
+			// What the run left in git goes first: its worktrees and the task
+			// branches proven merged, which is asked of the collected branch, then
+			// that branch if it was landed, then its port slots.
+			var s *contract.State
+			if err == nil {
+				s, err = k.Store.Read(c.Root, id)
+			}
+			var kept []string
+			if err == nil {
+				launch.Leave(k, s)
+				kept, err = k.Placement.Forget(c.Root, s)
+			}
+			unlanded := ""
+			if err == nil {
+				unlanded, err = k.Integrator.Drop(c.Root, s)
+			}
+			if err == nil {
+				root := k.Platform.PathKey(c.Root)
+				_, err = contract.FreeSlots(k.Platform, func(o contract.Slot) bool { return o.Root == root && o.Run == id })
+			}
+			if cur, _ := k.Store.Current(c.Root); err == nil && cur == id {
+				err = k.Store.SetCurrent(c.Root, "") // the number is given again, and the person's pointer must not follow it
+			}
+			if err == nil {
+				err = k.Store.Remove(c.Root, id)
+			}
+			for _, branch := range kept {
+				fmt.Fprintf(c.Out, "Kept, not proven merged: %s\n", cli.Plain(branch))
+			}
+			if unlanded != "" {
+				fmt.Fprintf(c.Out, "Kept, it holds accepted work that was not landed: %s\n", cli.Plain(unlanded))
+			}
 		}
 	case "takeover":
 		said = "bound to this tab"
@@ -127,6 +157,9 @@ func run(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if (sub == "takeover" || sub == "use") && c.Caller.Kind != contract.Human {
+		k.Panes(k, pane)
+	}
 	fmt.Fprintf(c.Out, "Run %s is %s.\n", id, said)
 	// What a closed run leaves (its tabs with their names, its copies of
 	// the code, its branches) stays until the run is removed.
@@ -160,7 +193,15 @@ func runNew(c *contract.Call, objective string, runs []string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	limit := project.Limits.Agents
+	// Fleet Mode is the person's setting of this moment, for as long as the run
+	// lives. Its attempts are groups, of which a leader can hold several: the
+	// agents under them are held by the person's three limits, not by the run's.
+	limit, mode := project.Limits.Agents, ""
+	if dirs, err := k.Platform.Dirs(); err == nil {
+		if person, _ := contract.ReadPerson(k.Platform.Read, dirs.Config); person.Fleets.Mode == contract.On {
+			limit, mode = 1000, contract.ModeFleets
+		}
+	}
 	if v := last(c, "limit"); v != "" {
 		limit, _ = strconv.Atoi(v)
 	}
@@ -190,6 +231,7 @@ func runNew(c *contract.Call, objective string, runs []string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.Run.Mode = mode
 	if err = k.Store.Create(c.Root, s); err == nil && !park {
 		err = k.Store.SetCurrent(c.Root, s.Run.ID)
 	}
@@ -199,6 +241,8 @@ func runNew(c *contract.Call, objective string, runs []string) (any, error) {
 	fmt.Fprintf(c.Out, "Run %s is open.\n", s.Run.ID)
 	if by.Pane == "" {
 		fmt.Fprintln(c.Out, "No tab drives it yet: the lead agent binds it with `whaleshark run takeover`.")
+	} else {
+		k.Panes(k, by.Pane)
 	}
 	return map[string]string{"run": s.Run.ID, "pane": by.Pane}, nil
 }
