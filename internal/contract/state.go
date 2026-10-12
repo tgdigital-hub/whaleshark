@@ -346,8 +346,8 @@ type Progress struct {
 	Pct  int       `json:"pct"`
 	Note string    `json:"note"`
 	At   time.Time `json:"at"`
-	// Same counts the notes since the last that said anything new: the same
-	// figure and the same words.
+	// Same counts the notes that repeated the last one that said anything
+	// new, figure and words: 2 is the same note three times.
 	Same int `json:"same,omitempty"`
 }
 

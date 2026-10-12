@@ -85,7 +85,8 @@ func Guarded() Guards {
 		&contract.SetAsk{Key: "spend.guard", From: contract.On, To: contract.Off}
 	up.Inbox.Events = append(up.Inbox.Events,
 		contract.Event{Seq: 1, At: at(12, 30), Kind: "protected", Task: "G1", Text: "G1 changed protected files: db/migrations/0042_refunds.sql"},
-		contract.Event{Seq: 2, At: at(12, 20), Kind: "stuck", Task: "G1", Text: "billing › sign-up page looks stuck"},
+		contract.Event{Seq: 2, At: at(12, 20), Kind: "stuck", Task: "G1", Text: "billing › sign-up page looks stuck",
+			Data: map[string]any{"why": "stale,check", "level": contract.ToldOrchestrator, "fleet": "billing", "task": "T7"}},
 		contract.Event{Seq: 3, At: at(13, 15), Kind: "budget", Text: "33 of 40 agent-hours used"})
 	up.Counters = contract.Counters{Seq: 3, Need: 3}
 
@@ -98,7 +99,7 @@ func Guarded() Guards {
 	// open since 09:15, 09:20 and 09:30 (11h55m) less an hour one of them
 	// rested, and one that ended after 2h55m.
 	stuck := agent(billing, "T7", "sign-up page", "codex", contract.AttemptWorking, at(9, 10), 0)
-	stuck.Progress = &contract.Progress{Pct: 50, Note: "wiring the form", At: at(11, 8), Same: contract.StuckTimes}
+	stuck.Progress = &contract.Progress{Pct: 50, Note: "wiring the form", At: at(11, 8)}
 	stuck.Seen.StaleFlagged, stuck.Seen.StuckSince, stuck.Seen.StuckWhy = true, at(12, 10), "stale,check"
 	stuck.Seen.StuckTold, stuck.Seen.StuckAt = contract.ToldOrchestrator, at(12, 20)
 	billing.Tasks["T7"].CheckFails = contract.StuckTimes

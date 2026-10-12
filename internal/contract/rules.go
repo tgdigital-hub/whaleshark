@@ -209,7 +209,7 @@ type Rules interface {
 	Passed(up, low *State, attempt string, now time.Time) error
 	// SetAsked takes an agent's change of a setting that holds agents or
 	// calls the person: it opens the item (a signoff, CauseSetting, Set the
-	// change, text the setting's own description) or replaces the value in
+	// change, text the setting's label and description) or replaces the value in
 	// the one that is open for that key. A key the person left as it was in
 	// this run is refused, and not asked again.
 	SetAsked(s *State, ask SetAsk, text string, now time.Time) (id string, err error)
