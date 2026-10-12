@@ -23,7 +23,10 @@ import (
 // the word for it and the events that only bring it are left out too; and
 // so is the event that brings a session, which is the program's own word:
 // the agent run in a pane says it when it has got that far, before the
-// pane is closed or after, and on the double a run starts no program.
+// pane is closed or after, and on the double a run starts no program. The
+// dock is in both pictures and answers alike; the events of its program's
+// starts are left out, since the keeper starts that program on its own
+// clock, again whenever it ends, and the double starts none.
 func session(t *testing.T, terms contract.Terminals, root string) []string {
 	t.Helper()
 	var log []string
@@ -85,6 +88,21 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 	reason, delivery, err := terms.Notify("a notice", "with no window to show it", false)
 	say("notify", err, reason, " ", delivery)
 	say("set-keys", terms.SetKeys([]contract.KeyEntry{{Key: "shift+a", Type: "shell", Argv: []string{"whaleshark", "pause"}}}))
+	dock := first.Panes[0].ID
+	for _, word := range []string{contract.DockKeys, contract.DockBack, "away"} {
+		say("dock "+word, terms.Dock(word))
+	}
+	say("close the dock", terms.PaneClose(dock))
+	_, err = terms.Split(dock, contract.Right, 0.5)
+	say("split the dock", err)
+	say("swap with the dock", terms.Swap("p3", dock))
+	say("run in the dock", terms.Run(dock, []string{agent}))
+	_, err = terms.PaneFocus(dock, "")
+	say("the keys to the dock as to a pane", err)
+	_, err = terms.Screen(dock)
+	say("the dock's screen", err)
+	_, _, err = terms.Size(dock)
+	say("the dock's size", err)
 	say("tab-close", terms.TabClose("t3"))
 	last, err := terms.Snapshot(ctx)
 	picture("snapshot", last, err)
@@ -104,7 +122,7 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 					was = p.Terminal
 				}
 			}
-			if e.Kind != contract.EvSession && (e.Kind != contract.EvState || e.Pane.Terminal != was) {
+			if e.Kind != contract.EvSession && !e.Pane.Dock && (e.Kind != contract.EvState || e.Pane.Terminal != was) {
 				log = append(log, fmt.Sprintf("event %s: %s", e.Kind, show(e.Pane)))
 			}
 			if contract.Apply(first, e); e.Seq < last.Seq {

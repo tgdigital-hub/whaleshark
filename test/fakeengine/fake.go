@@ -3,7 +3,8 @@
 // over it unchanged: in this process through a pipe, and from other
 // processes through a socket file once Listen has been called. It keeps no
 // sizes and no layout, starts nothing for Run, and a pane's screen is what
-// was typed at it and what its fake agent printed.
+// was typed at it and what its fake agent printed. It has the dock's pane
+// in every picture, as the keeper has, and starts no program in it.
 package fakeengine
 
 import (
@@ -25,6 +26,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/engine"
+	"github.com/tgdigital-hub/whaleshark/internal/layout"
 )
 
 // hooks is the state each of an agent's own events means, as the design's
@@ -60,6 +62,7 @@ type Fake struct {
 	listener           net.Listener
 	instance           int
 	panes              []*pane
+	dock               contract.Pane       // the dock's pane, which is in no tab
 	env                map[string][]string // a tab's variables
 	focus              string
 	nTab, nPane, nTerm int
@@ -73,6 +76,7 @@ type Fake struct {
 // New returns a double with no tab in it, as a keeper has before its first window.
 func New() *Fake {
 	f := &Fake{Build: "double", Width: 120, instance: 1, env: map[string][]string{}, readers: map[chan contract.TermEvent]bool{}, scripts: map[string]string{}}
+	f.dock = contract.Pane{ID: layout.DockPane, Label: contract.SideTitle, Status: contract.StatusUnknown, Ours: true, Dock: true, Terminal: "i1.0"}
 	f.Client = &engine.Client{Dial: func(context.Context) (net.Conn, error) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -155,7 +159,9 @@ func (f *Fake) Load(s *contract.Snapshot) {
 		past(&f.nTab, rec.Tab)
 		past(&f.nTerm, rec.Terminal)
 		past(&f.nTerm, rec.Session)
-		if rec.Focused {
+		if rec.Dock { // the double's own stands
+			continue
+		} else if rec.Focused {
 			f.focus = rec.ID
 		}
 		f.panes = append(f.panes, &pane{rec: rec, screen: new(bytes.Buffer)})
@@ -209,6 +215,7 @@ func (f *Fake) Restart() {
 	defer f.mu.Unlock()
 	f.cut()
 	f.instance++
+	f.dock.Terminal = fmt.Sprintf("i%d.0", f.instance)
 	for _, p := range f.panes {
 		kill(p)
 		p.screen = new(bytes.Buffer)
@@ -289,7 +296,7 @@ func (f *Fake) emit(kind string, rec contract.Pane) {
 }
 
 func (f *Fake) snapshot() *contract.Snapshot {
-	s := &contract.Snapshot{At: contract.Now(), Instance: "i" + strconv.Itoa(f.instance), Seq: f.seq, Panes: []contract.Pane{}}
+	s := &contract.Snapshot{At: contract.Now(), Instance: "i" + strconv.Itoa(f.instance), Seq: f.seq, Panes: []contract.Pane{f.dock}}
 	for _, p := range f.panes {
 		s.Panes = append(s.Panes, p.rec)
 	}
@@ -480,7 +487,22 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 	if c.Op == contract.OpPrompt {
 		p = f.pane(c.Name)
 	}
+	// The dock is looked at and nothing else, and is told three words.
+	if id := f.dock.ID; c.Op != contract.OpDock && (c.Pane == id || c.Target == id) {
+		switch c.Op {
+		case contract.OpScreen:
+		case contract.OpSize:
+			r.W, r.H = contract.SideWidth, 40
+		default:
+			err = contract.ErrDock
+		}
+		return r, err
+	}
 	switch c.Op {
+	case contract.OpDock:
+		if c.Dir != contract.DockKeys && c.Dir != contract.DockBack && c.Dir != contract.DockFold {
+			return r, fmt.Errorf("the dock is told %s, %s or %s", contract.DockKeys, contract.DockBack, contract.DockFold)
+		}
 	case contract.OpVersion:
 		r.Text = f.Build
 	case contract.OpSnapshot, contract.OpStatus:

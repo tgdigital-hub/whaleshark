@@ -38,13 +38,15 @@ func newDesk(t *testing.T) *desk {
 	return &desk{t: t, k: k, double: f, me: first.ID}
 }
 
+// panes are the panes of the tabs: the dock, which is in every picture and
+// in no tab, is nothing ui opens, closes or counts.
 func (d *desk) panes() []contract.Pane {
 	d.t.Helper()
 	snap, err := d.double.Snapshot(context.Background())
-	if err != nil {
-		d.t.Fatal(err)
+	if err != nil || len(snap.Panes) == 0 || !snap.Panes[0].Dock {
+		d.t.Fatalf("the picture: %+v, %v", snap, err)
 	}
-	return snap.Panes
+	return snap.Panes[1:]
 }
 
 func (d *desk) ui(pane string, args ...string) (Opened, error) {

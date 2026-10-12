@@ -151,8 +151,13 @@ func TestTakesAPreparedPictureAndRestarts(t *testing.T) {
 	}
 	f.Load(fx.Terms)
 	first, events, err := f.Events(t.Context())
-	if err != nil || len(first.Panes) != len(fx.Terms.Panes) {
-		t.Fatalf("the picture has %d panes, the fixture %d (%v)", len(first.Panes), len(fx.Terms.Panes), err)
+	if err != nil || len(first.Panes) != len(fx.Terms.Panes)+1 {
+		t.Fatalf("the picture has %d panes, the fixture %d and the dock (%v)", len(first.Panes), len(fx.Terms.Panes), err)
+	}
+	// The dock is in every picture, a prepared one too, and in no tab.
+	dock := first.Panes[0]
+	if !dock.Dock || !dock.Ours || dock.Tab != "" || dock.Label != contract.SideTitle || f.PaneClose(dock.ID) != contract.ErrDock {
+		t.Errorf("the dock of the double: %+v", dock)
 	}
 	for _, want := range fx.Terms.Panes {
 		if got := pane(t, f, want.ID); got != want {
@@ -178,6 +183,9 @@ func TestTakesAPreparedPictureAndRestarts(t *testing.T) {
 	again, err := f.Snapshot(t.Context())
 	if err != nil || again.Instance == first.Instance || len(again.Panes) != len(first.Panes)+1 {
 		t.Fatalf("after the restart: %+v, %v", again, err)
+	}
+	if again.Panes[0].ID != dock.ID || again.Panes[0].Terminal == dock.Terminal {
+		t.Errorf("the dock after the restart: %+v", again.Panes[0])
 	}
 	if got := pane(t, f, opened.ID); got.Tab != opened.Tab || got.Terminal == opened.Terminal || got.Label != "one more" {
 		t.Errorf("the tab after the restart: %+v", got)

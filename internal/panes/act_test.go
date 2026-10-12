@@ -1,7 +1,6 @@
 package panes
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -933,7 +932,7 @@ func TestTheKeysGoBetweenThePanes(t *testing.T) {
 	if got := d.did(); err != nil || back.Actions != top.Actions || strings.Contains(got, "pane-close") || !strings.Contains(got, "split "+d.me+" right") {
 		t.Errorf("ui fleet on from the action pane: %+v, %v\n%s", back, err, got)
 	}
-	if snap, _ := d.double.Snapshot(context.Background()); len(snap.Panes) != 3 {
-		t.Errorf("panes: %+v", snap.Panes)
+	if left := d.panes(); len(left) != 3 {
+		t.Errorf("panes: %+v", left)
 	}
 }

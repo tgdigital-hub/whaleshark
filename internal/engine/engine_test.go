@@ -64,7 +64,9 @@ func TestEveryMethodIsOneCall(t *testing.T) {
 		{func() (any, error) { return nil, terms.Overlay([]string{"whaleshark", "ask"}, 0.5, 12) },
 			C{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ask"}, W: 0.5, H: 12}, nil},
 		{func() (any, error) { return nil, terms.PaneClose("p2") }, C{Op: contract.OpPaneClose, Pane: "p2"}, nil},
-		{func() (any, error) { s, err := terms.Snapshot(t.Context()); return len(s.Panes), err }, C{Op: contract.OpSnapshot}, 1},
+		{func() (any, error) { return nil, terms.Dock(contract.DockKeys) }, C{Op: contract.OpDock, Dir: contract.DockKeys}, nil},
+		// The pane that is left, and the dock, which is in every picture.
+		{func() (any, error) { s, err := terms.Snapshot(t.Context()); return len(s.Panes), err }, C{Op: contract.OpSnapshot}, 2},
 		{func() (any, error) { return nil, terms.TabClose("t1") }, C{Op: contract.OpTabClose, Tab: "t1"}, nil},
 	}
 	for i, s := range steps {
@@ -108,7 +110,7 @@ func TestEventsFollowThePicture(t *testing.T) {
 	f.TabCreate("", "a", nil)
 	ctx, cancel := context.WithCancel(t.Context())
 	picture, events, err := f.Events(ctx)
-	if err != nil || len(picture.Panes) != 1 || picture.Instance == "" {
+	if err != nil || len(picture.Panes) != 2 || !picture.Panes[0].Dock || picture.Instance == "" {
 		t.Fatalf("the first picture: %+v, %v", picture, err)
 	}
 	f.TabCreate("", "b", nil)
