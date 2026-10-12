@@ -205,6 +205,9 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 		// The double answers the version the keeper would, and has a window.
 		p.Double = fakeengine.New()
 		p.Double.Build, p.Double.Attached = contract.Version, true
+		// A window in which both panes open whole: run new opens them, and
+		// in a narrower one the action pane begins as its strip.
+		p.Double.Width = 200
 		t.Cleanup(p.Double.Close)
 		p.must(p.Double.Listen(socket))
 		p.Kit.Terms, p.drive = p.Double, p.Double
