@@ -197,7 +197,7 @@ func (p *printer) card(c contract.Card) row {
 	if c.Flag {
 		r.name += " " + p.mark(contract.LookNeedsYou)
 	}
-	if c.Pale {
+	if c.Pale && !strings.HasPrefix(c.News, stuckWord) {
 		r.text = strings.Replace(fmt.Sprintf("last said %s ago: %q", age(p.v.At.Sub(c.Said)), r.text), "now ago", "just now", 1)
 		if !figure {
 			r.text += " (" + pct + ")"

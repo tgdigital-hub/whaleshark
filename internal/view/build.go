@@ -46,6 +46,8 @@ type seat struct {
 	try  *contract.Attempt
 	ask  *contract.Question
 	live bool
+	// stuck: the detector's verdict stands on its last attempt (20.4).
+	stuck bool
 }
 
 type builder struct {
@@ -238,6 +240,14 @@ func (b *builder) seat(t *contract.Task) *seat {
 				c.Word = contract.WordStillRunning
 			}
 		}
+	}
+	// Going nowhere: the signs are the card's news, counted from when it last
+	// had something to show. Its look, its mark and its place stay.
+	if since := a.Seen.StuckSince; b.in.Person.Stuck.Watch && !since.IsZero() && (c.Look == contract.LookBuilding || c.Look == contract.LookIdle) {
+		if said := first(c.Said, a.StartedAt); said.Before(since) {
+			since = said
+		}
+		st.stuck, c.News = true, fmt.Sprint(stuckWord, int(b.in.Now.Sub(since).Minutes()), "m: ", contract.StuckWhy(a.Seen.StuckWhy))
 	}
 	// What a browser check left is counted on the card; show lists it (8l).
 	if r := a.Report; r != nil && shots(r.Evidence) > 0 {
@@ -435,6 +445,9 @@ func (b *builder) item(q *contract.Question, st *seat, holds, late bool) contrac
 	default:
 		it.Next = []string{answer(`"<your answer>"`)}
 	}
+	if q.From == contract.FromTool {
+		b.guarded(q, &it, answer)
+	}
 	switch {
 	case late:
 		it.Buttons = append(it.Buttons, contract.Button{Label: "Ask the lead", Action: "ask-lead"})
@@ -520,7 +533,7 @@ func (b *builder) finish(st *seat) {
 			lines = []string{"wait"}
 		}
 	case contract.LookBuilding, contract.LookPaused:
-		if lines = []string{"wait"}; c.Pale && !paused {
+		if lines = []string{"wait"}; (c.Pale || st.stuck) && !paused {
 			lines = []string{"show " + id + " --screen", "tell " + id + ` --now "report or ask"`, "stop " + id}
 		}
 	case contract.LookIdle:
@@ -585,6 +598,12 @@ func (b *builder) around(v *contract.View) {
 		if len(in.Tools) > 1 {
 			v.Tools = append(v.Tools, contract.ToolLine{Name: t.Name, Exact: t.Exact(), Held: t.Held(), Proven: t.Proven, Suits: cli.Plain(t.Suits)})
 		}
+	}
+	if line := contract.AgentChanged(in.UI.ByAgent); line != "" {
+		v.Alerts = append(v.Alerts, clean(line))
+	}
+	if run.Parent == nil && in.Person.Spend.Guard {
+		v.Lines = append(v.Lines, b.spent())
 	}
 	if slices.ContainsFunc(in.Limits.Agent.Args, unasked) {
 		v.Alerts = append(v.Alerts, "workers in this project run without permission prompts")
