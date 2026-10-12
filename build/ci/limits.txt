@@ -47,7 +47,7 @@
 # the keeper's fence refuses and the four it lets a pane make in a tab of its
 # own, the typed line for new work for a fleet, an item's title worded once
 # for every screen, and the fleets folded in the left section.
-lines 5100 contract internal/contract cmd/whaleshark
+lines 5225 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -88,7 +88,7 @@ lines 1045 cli internal/cli
 # the record names, a server's figure in the limits. Nothing is left to cut
 # that the row asks for; it stands at 1,825 and no later package of the
 # phase is in this folder. cli, hook, watch and dash pay.
-lines 1830 rules internal/rules
+lines 1845 rules internal/rules
 # store: 50 more at the start of phase 5: an orchestrator's run and a
 # fleet's are changed in one step under the project's one lock, and what a
 # fleet adds to the record passes the validator on every load. engine pays.
@@ -125,7 +125,7 @@ lines 420 guide internal/guide
 # 155 more for phase 5: a group added, a fleet's run made and ended, the
 # panes at a new run, init's question with every wired tool, and the one
 # writer of a key of the project's file.
-lines 1595 runtask internal/runtask
+lines 1700 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -145,7 +145,7 @@ lines 1595 runtask internal/runtask
 # more than their row, and the join added what an ended fleet gives up, in
 # one place for close and for cancel, and the words for a tab that is not a
 # leader's own to close.
-lines 1650 launch internal/launch
+lines 1670 launch internal/launch
 # worker: 5 more for phase 5, a leader's --task.
 lines 170 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
@@ -175,7 +175,7 @@ lines 615 inbox internal/inbox
 # sentence. The tools' lines of status, which were to give first, are out
 # of its text already. It stands at 2,683; nobody pays: this is new, and
 # is counted in the total below.
-lines 2685 view internal/view
+lines 2730 view internal/view
 # question: 30 more for phase 5, the twin made, answered down and passed up.
 # 25 more at the join of phase 5's second wave, at what was built: the
 # person's answer inside a fleet's run is told to the run above, and the twin
@@ -254,7 +254,7 @@ lines 1300 term internal/term
 # were planned, and the join added a row of the settings screen for
 # everything that is no value of a file, the agents running now, the folded
 # fleets kept, and a layout setting that moves the panes where they are.
-lines 3480 panes internal/panes
+lines 3515 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
 lines 90 theme internal/theme
 # hook: 60 more at the start of phase 2, for the settings of a second kind
@@ -332,11 +332,11 @@ lines 1380 screen internal/screen
 # 35 more at the join of phase 5's second wave, at what was built: who
 # opened a tab, kept over a restart, and the four calls the fence lets that
 # pane make there: a fleet leader starts and closes its own workers.
-lines 1925 keeper internal/keeper
+lines 1985 keeper internal/keeper
 # layout gives 135 and input 120 after the Windows proof, to platform,
 # guide, runtask and doctor: both are built whole, at 763 and 467.
 # 70 more for phase 5: the dock's place, the tab row beside it, its edge.
-lines 835 layout internal/layout
+lines 840 layout internal/layout
 # pty gives 50 to restore at the join of phase 2; it is built whole at 617.
 lines 710 pty internal/pty
 # watch: 30 more after the first real workers. An Enter that waits for the
@@ -359,7 +359,7 @@ lines 515 restore internal/restore
 # platform, and 5 to watch: built whole at 271.
 lines 280 window internal/window
 lines 270 engine internal/engine
-lines 350 pick internal/pick
+lines 355 pick internal/pick
 # overlay gives 60 at the start of phase 3: built whole at 140; and 20 at
 # the join of its first wave.
 lines 145 overlay internal/overlay
@@ -376,6 +376,20 @@ skip _test.go testdata testkit
 # the join of phase 5's first wave, which cost 185 lines more than its six
 # rows were given; the look rounds, which are in no folder's line, are 650
 # more: 40,850 if every folder fills its line.
+# After the integration of phase 5 with real agents (P5-12), nine folders at
+# what holds, 415 lines in all (the folders' lines then sum to 41,235), each
+# for what was built there:
+# contract +125 (a call that hands a tab to another pane; the main tab's
+# name and a chat's name read from a title; the file a tool reads at its
+# start; the saved fleets of a project with their reader and writer; the
+# sentence of a tool that is not wired in), runtask +105 (run fleet; the
+# main tab named at binding; a group joined to a saved fleet), keeper +60
+# (the tab that follows a chat's name; the settings screen's one frame),
+# view +45 (saved fleets in status and in the left section; the row of the
+# main agent), panes +35 (a pane rests when only a lock changed; the hints
+# the trial showed missing; the button that writes a tool's rules), launch
+# +20 (the hand-over of tabs; a leader counted once), rules +15 (a question
+# passed up outlives its leader), layout +5, pick +5.
 # 41,500 since the join of phase 5's second wave. The owner took the cap
 # away as a thing that decides what is built; it is kept as a figure that is
 # told: what is built, 40,620, rounded up to the next 500, and 500 for his

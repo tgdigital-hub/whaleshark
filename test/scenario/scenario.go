@@ -152,14 +152,20 @@ func (r *runner) record() (lines []string) {
 		for _, id := range slices.Sorted(maps.Keys(s.Attempts)) {
 			lines = append(lines, fmt.Sprintf("%sattempt %s %s", at, id, s.Attempts[id].State))
 		}
+		// "Most workers stopped together" comes by the clock, and only where
+		// agents are seen at rest by themselves: a scenario slow enough for a
+		// second sweep has it on the real keeper and never on the double. It
+		// is no part of what the two are held to.
 		for _, id := range slices.Sorted(maps.Keys(s.Questions)) {
-			lines = append(lines, fmt.Sprintf("%squestion %s %s", at, id, s.Questions[id].State))
+			if q := s.Questions[id]; q.Cause != contract.CauseTogether {
+				lines = append(lines, fmt.Sprintf("%squestion %s %s", at, id, q.State))
+			}
 		}
 		history, err := r.p.Kit.Store.History(r.p.Root, s.Run.ID)
 		r.p.must(err)
 		kinds := map[string]int{}
 		for _, e := range append(history, s.Inbox.Events...) {
-			if slices.Contains(contract.EventKinds, e.Kind) {
+			if slices.Contains(contract.EventKinds, e.Kind) && e.Kind != "together" {
 				kinds[e.Kind]++
 			}
 		}

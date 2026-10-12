@@ -482,7 +482,7 @@ func TestAFleetWithTwoGroups(t *testing.T) {
 // is at work has its own row and no second one.
 func TestASavedFleetHasItsRowWithNoWork(t *testing.T) {
 	f := testkit.Fleets()
-	saved := []contract.SavedFleet{{Name: "billing", Purpose: "what customers pay"}, {Name: "ops portal", Purpose: "everything of the ops\x1b[31m portal"}}
+	saved := []contract.SavedFleet{{Name: "billing", Purpose: "what customers pay"}, {Name: "shop front", Purpose: "everything of the shop\x1b[31m portal"}}
 	f.In.Projects[0].Saved = saved
 	var rows []string
 	for _, r := range Side(f.In).Rows {
@@ -490,7 +490,7 @@ func TestASavedFleetHasItsRowWithNoWork(t *testing.T) {
 			rows = append(rows, r.Name+"="+r.Word)
 		}
 	}
-	if got := strings.Join(rows, " "); got != "billing= search= help pages= ops portal=saved" {
+	if got := strings.Join(rows, " "); got != "billing= search= help pages= shop front=saved" {
 		t.Errorf("the fleets' rows are %q", got)
 	}
 	f.View.Saved = saved
@@ -500,7 +500,7 @@ func TestASavedFleetHasItsRowWithNoWork(t *testing.T) {
 	}
 	var out strings.Builder
 	Text(&out, v, Options{Width: 100})
-	for _, line := range []string{"saved fleet billing · at work · what customers pay", "saved fleet ops portal · no work now · everything of the ops"} {
+	for _, line := range []string{"saved fleet billing · at work · what customers pay", "saved fleet shop front · no work now · everything of the shop"} {
 		if !strings.Contains(out.String(), line) {
 			t.Errorf("status lacks %q:\n%s", line, out.String())
 		}
