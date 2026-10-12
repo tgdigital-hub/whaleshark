@@ -372,13 +372,16 @@ const (
 // Catchup is "while you were away": built from the record, the same words
 // every time. Each line is a count and what it counts.
 type Catchup struct {
-	From          time.Time `json:"from"`
-	To            time.Time `json:"to"`
-	Waiting       CatchLine `json:"waiting"`
-	Finished      CatchLine `json:"finished"`
-	CheckFailed   CatchLine `json:"check_failed"`
-	Clashes       CatchLine `json:"clashes"`
-	WentIdle      CatchLine `json:"went_idle"`
+	From        time.Time `json:"from"`
+	To          time.Time `json:"to"`
+	Waiting     CatchLine `json:"waiting"`
+	Finished    CatchLine `json:"finished"`
+	CheckFailed CatchLine `json:"check_failed"`
+	Clashes     CatchLine `json:"clashes"`
+	WentIdle    CatchLine `json:"went_idle"`
+	// Stuck is what the stuck detector told of in the time, once each, with
+	// whether it still looks stuck.
+	Stuck         CatchLine `json:"stuck"`
 	AnsweredLead  int       `json:"answered_lead"`
 	DoneAsYou     CatchLine `json:"done_as_you"`
 	StillBuilding int       `json:"still_building"`

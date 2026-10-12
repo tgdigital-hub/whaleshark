@@ -45,7 +45,7 @@ func catchup(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, unreadable("history", err)
 	}
-	block := away(v, s, append(past, s.Inbox.Events...), in.Limits, first(since, in.UI.LastHere, s.Run.CreatedAt))
+	block := away(v, s, in.Fleets, append(past, s.Inbox.Events...), in.Limits, first(since, in.UI.LastHere, s.Run.CreatedAt))
 	catchText(c.Out, block, width())
 	// The lead agent is told that the person asked, while there is a lead
 	// agent to tell: a closed run has none.
@@ -61,7 +61,7 @@ func catchup(c *contract.Call) (any, error) {
 // away builds the block from a view with every card in it, the record and
 // its events. A task stands on one line: one whose check failed is told
 // there, also once it has passed.
-func away(v *contract.View, s *contract.State, events []contract.Event, limits contract.ProjectFile, from time.Time) *contract.Catchup {
+func away(v *contract.View, s *contract.State, fleets map[string]*contract.State, events []contract.Event, limits contract.ProjectFile, from time.Time) *contract.Catchup {
 	to := v.At
 	in := func(t time.Time) bool { return t.After(from) && !t.After(to) }
 	name := func(task string) string { return clean(s.Tasks[task].Name) }
@@ -198,6 +198,31 @@ func away(v *contract.View, s *contract.State, events []contract.Event, limits c
 	}
 	c.WentIdle = line(parts, " · ")
 
+	// What looked stuck in the time, once each, and whether it still does: a
+	// verdict that cleared is in no record, only its events are. A fleet's
+	// worker is told of in the job by its fleet and its task there.
+	parts, was := nil, map[string]bool{}
+	for _, e := range events {
+		fleet, _ := e.Data["fleet"].(string)
+		below, _ := e.Data["task"].(string)
+		low := fleets[fleet]
+		if e.Kind != "stuck" || !in(e.At) || s.Tasks[e.Task] == nil || was[e.Task+" "+below] || fleet != "" && (low == nil || low.Tasks[below] == nil) {
+			continue
+		}
+		was[e.Task+" "+below] = true
+		who, run, id, state := name(e.Task), s, e.Task, "no longer stuck"
+		if fleet != "" {
+			who, run, id = clean(fleet+" › "+low.Tasks[below].Name), low, below
+		}
+		for _, a := range run.Attempts {
+			if a.Task == id && !a.Seen.StuckSince.IsZero() {
+				state = "still stuck"
+			}
+		}
+		parts = append(parts, who+"; "+state)
+	}
+	c.Stuck = line(parts, " · ")
+
 	for _, q := range s.Questions {
 		if by := q.AnsweredBy; q.For == contract.ForOrchestrator && by != nil && by.Caller == contract.Orchestrator && in(q.AnsweredAt) {
 			c.AnsweredLead++
@@ -271,9 +296,12 @@ func catchText(w io.Writer, c *contract.Catchup, width int) {
 		contract.CatchLine
 	}{
 		{"Waiting for you now", c.Waiting}, {"Finished and checked", c.Finished}, {"Check failed", c.CheckFailed},
-		{"Clashes", c.Clashes}, {"Went idle", c.WentIdle}, {"Answered by the lead", contract.CatchLine{N: c.AnsweredLead}},
+		{"Clashes", c.Clashes}, {"Went idle", c.WentIdle}, {"Looked stuck", c.Stuck}, {"Answered by the lead", contract.CatchLine{N: c.AnsweredLead}},
 		{"Done as you", c.DoneAsYou},
 	} {
+		if r.label == "Looked stuck" && r.N == 0 {
+			continue // a row of its own only for a job in which something did
+		}
 		p.line(fmt.Sprintf(" %-22s%-4d", r.label, r.N), clean(r.Text), "")
 	}
 	fmt.Fprintf(p.out, " %-22s%-4dStopped  %d   Failed  %d\n", "Still building", c.StillBuilding, c.Stopped, c.Failed)

@@ -58,10 +58,10 @@ func (b *builder) guarded(q *contract.Question, it *contract.Item, answer func(s
 		}
 		it.Buttons = append(it.Buttons, act("Show the changes", "show-changes"))
 	case contract.CauseBudget:
-		limit, open := b.in.Person.Spend.Job, 0
-		if t := b.s.Tasks[q.Task]; t != nil && t.Fleet != "" {
-			limit = b.in.Person.Spend.Fleet
-		}
+		// The button says what the answer grants: the change the item carries.
+		grant, open := cmp.Or(q.Set, &contract.SetAsk{}), 0
+		from, _ := strconv.Atoi(grant.From)
+		to, _ := strconv.Atoi(grant.To)
 		for _, s := range b.runs() {
 			for _, a := range s.Attempts {
 				if a.State.Live() {
@@ -70,7 +70,7 @@ func (b *builder) guarded(q *contract.Question, it *contract.Item, answer func(s
 			}
 		}
 		it.Text += "\n" + plural(open, "agent is", "agents are") + " held where they stand; those with nothing in hand were closed.\nNothing is lost. Nothing more is started until you say."
-		more := fmt.Sprint(max(int(math.Round(float64(limit)*contract.SpendMore)), 1), " more agent-hours")
+		more := fmt.Sprint(to-from, " more agent-hours")
 		it.Buttons = []contract.Button{{Label: more, Key: "1", Answer: contract.AnswerMore}, {Label: "No limit for this job", Key: "2", Answer: contract.AnswerNoLimit}, {Label: "Leave it held", Key: "3", Answer: contract.AnswerLeave}}
 		it.Next = []string{answer(contract.AnswerMore), answer(quote(contract.AnswerNoLimit)), answer(contract.AnswerLeave)}
 	case contract.CauseSetting:
@@ -81,6 +81,9 @@ func (b *builder) guarded(q *contract.Question, it *contract.Item, answer func(s
 		it.Next = []string{answer(contract.AnswerChange), answer(contract.AnswerLeave)}
 	case contract.CauseStuck:
 		it.Buttons = []contract.Button{act("Go there", "go"), act("Stop it", "stop"), act("Note to its leader", "note-leader")}
+		if q.Fleet != "" { // a fleet's worker: its task here is the fleet's group, and stopping that parks the fleet
+			it.Buttons = slices.Delete(it.Buttons, 1, 2)
+		}
 		it.Next = []string{"whaleshark jump " + quote(it.Task)}
 	default:
 		return

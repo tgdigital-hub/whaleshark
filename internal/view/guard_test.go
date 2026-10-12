@@ -23,8 +23,9 @@ func guardedView(by contract.CallerKind) (testkit.Guards, contract.ViewInput) {
 	g := testkit.Guarded()
 	g.Up.Run.Spend.Held = true
 	for id, q := range map[string]*contract.Question{
-		"n4": {Form: contract.FormChoice, Cause: contract.CauseBudget, Urgent: true, Text: "This job has used its 40 agent-hours"},
-		"n5": {Form: contract.FormTodo, Cause: contract.CauseStuck, Task: "G1", Text: "billing › sign-up page looks stuck for 82m: no progress note · the same check failed 3 times. Its leader and the orchestrator were told."},
+		"n4": {Form: contract.FormChoice, Cause: contract.CauseBudget, Urgent: true, Text: "This job has used its 40 agent-hours",
+			Set: &contract.SetAsk{Key: "spend.job", From: "40", To: "48"}}, // as Rules.Spend raises it: the grant is what its button offers
+		"n5": {Form: contract.FormTodo, Cause: contract.CauseStuck, Task: "G1", Attempt: "T7.1", Fleet: "billing", Text: "billing › sign-up page looks stuck for 82m: no progress note · the same check failed 3 times. Its leader and the orchestrator were told."},
 	} {
 		q.ID, q.Kind, q.For, q.From, q.State, q.CreatedAt = id, contract.KindNeed, contract.ForHuman, contract.FromTool, contract.QuestionOpen, g.Now.Add(-time.Minute)
 		g.Up.Questions[id] = q
@@ -50,7 +51,7 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 		"n3": {3, "Your agent wants to change a setting\nSpending guard:  on → off\nOff: a job runs until it is done.", []string{"Change it=change", "Leave it=leave"}},
 		"n4": {3, "This job has used its 40 agent-hours\n6 agents are held where they stand; those with nothing in hand were closed.\nNothing is lost. Nothing more is started until you say.",
 			[]string{"8 more agent-hours=more", "No limit for this job=no limit", "Leave it held=leave"}},
-		"n5": {1, "billing › sign-up page looks stuck for 82m", []string{"Go there>go", "Stop it>stop", "Note to its leader>note-leader"}},
+		"n5": {1, "billing › sign-up page looks stuck for 82m", []string{"Go there>go", "Note to its leader>note-leader"}},
 	}
 	body := text(v, Options{Width: 100})
 	for id, w := range want {
@@ -70,6 +71,11 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 		if !strings.Contains(body, " ▲ "+id+" ") || !strings.Contains(body, strings.Fields(it.News)[0]) || !strings.Contains(body, strings.TrimPrefix(it.Next[0], "whaleshark ")) {
 			t.Errorf("the text does not show %s with %q and %q:\n%s", id, it.News, it.Next, body)
 		}
+	}
+	// A worker of the job's own run can be stopped from its item.
+	in.State.Questions["n5"].Fleet = ""
+	if it := item(t, Build(in).Items, "n5"); len(it.Buttons) != 3 || it.Buttons[1].Action != "stop" {
+		t.Errorf("a stuck worker of the job itself has the buttons %+v", it.Buttons)
 	}
 	if it := item(t, v.Items, "n4"); !it.Urgent || it.Next[1] != `whaleshark answer n4 "no limit" --human` {
 		t.Errorf("the budget's item: %+v", it)
@@ -138,6 +144,29 @@ func TestGuardsOffChangeNothing(t *testing.T) {
 	lin.Person.Stuck.Watch = false
 	if c, _ := card(t, Build(lin), "T7"); c.News != "wiring the form" {
 		t.Errorf("with the detector off the card says %q", c.News)
+	}
+}
+
+// What looked stuck while the person was away is a line of the catch-up,
+// as the guides promise: a fleet's worker by its fleet, and what became of it.
+func TestCatchupSaysWhatLookedStuck(t *testing.T) {
+	g, in := guardedView(contract.Human)
+	block := func() string {
+		c := away(Build(in), g.Up, g.Low, g.Up.Inbox.Events, in.Limits, g.Now.Add(-2*time.Hour))
+		var out strings.Builder
+		catchText(&out, c, 120)
+		return out.String()
+	}
+	if got := block(); !strings.Contains(got, " Looked stuck          1   billing › sign-up page; still stuck\n") {
+		t.Errorf("a worker still stuck:\n%s", got)
+	}
+	g.Low["billing"].Attempts["T7.1"].Seen.StuckSince = time.Time{}
+	if got := block(); !strings.Contains(got, "billing › sign-up page; no longer stuck\n") {
+		t.Errorf("a worker that went on:\n%s", got)
+	}
+	g.Up.Inbox.Events = nil
+	if got := block(); strings.Contains(got, "Looked stuck") {
+		t.Errorf("nothing was stuck, and the block has a row for it:\n%s", got)
 	}
 }
 
