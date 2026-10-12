@@ -1,6 +1,7 @@
 package panes
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -88,7 +89,17 @@ func set(c *contract.Call) (any, error) {
 		// Every other key of the contract's table is set in its own file. A
 		// key that places a pane of ours moves the open panes at once.
 		if value, err = contract.Set(c, key, value); err == nil && (strings.HasPrefix(key, "panes.") || key == actions) {
-			err = k.Panes(k, c.Caller.Pane)
+			// They move within the tab they are open in, wherever the setting
+			// was changed from; with none open, beside whoever changed it.
+			at := c.Caller.Pane
+			if snap, serr := k.Terms.Snapshot(context.Background()); serr == nil {
+				for _, p := range snap.Panes {
+					if p.Ours && (p.ID == ui.FleetPane || p.ID == ui.ActionsPane) {
+						at = p.ID
+					}
+				}
+			}
+			err = k.Panes(k, at)
 		}
 		if err != nil {
 			return nil, err

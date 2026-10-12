@@ -56,7 +56,8 @@ type runner struct {
 	ack     string // the delivery id the last wait printed
 	left    []running
 	screens map[string]*screen
-	shown   *screen // the pane the pane steps act on
+	shown   *screen           // the pane the pane steps act on
+	panes   map[string]string // the two panes of ours as a panes line last found them
 }
 
 // Run plays one scenario file from its first line to its last and fails the
@@ -129,30 +130,41 @@ func RunOn(t testing.TB, on Backend, path string, pane Pane) *Project {
 
 // record is the end of a run's log: every task, attempt and question with
 // its state, and how many events of each kind the run has had.
+// The current run comes first and bare; a fleet's run of it follows, each
+// line behind the fleet's name and whether its run is closed.
 func (r *runner) record() (lines []string) {
 	if id, _ := r.p.Kit.Store.Current(r.p.Root); id == "" {
 		return nil
 	}
-	s, _ := r.p.Record()
-	for _, id := range slices.Sorted(maps.Keys(s.Tasks)) {
-		lines = append(lines, fmt.Sprintf("task %s %s, %d failures", id, s.Tasks[id].Status, s.Tasks[id].Failures))
+	top, _ := r.p.Record()
+	runs := map[string]*contract.State{"": top}
+	for _, name := range slices.Sorted(maps.Keys(top.Run.Fleets)) {
+		low, err := r.p.Kit.Store.Read(r.p.Root, top.Run.Fleets[name].Run)
+		r.p.must(err)
+		runs[fmt.Sprintf("fleet %s (closed %t): ", name, !low.Run.ClosedAt.IsZero())] = low
 	}
-	for _, id := range slices.Sorted(maps.Keys(s.Attempts)) {
-		lines = append(lines, fmt.Sprintf("attempt %s %s", id, s.Attempts[id].State))
-	}
-	for _, id := range slices.Sorted(maps.Keys(s.Questions)) {
-		lines = append(lines, fmt.Sprintf("question %s %s", id, s.Questions[id].State))
-	}
-	history, err := r.p.Kit.Store.History(r.p.Root, s.Run.ID)
-	r.p.must(err)
-	kinds := map[string]int{}
-	for _, e := range append(history, s.Inbox.Events...) {
-		if slices.Contains(contract.EventKinds, e.Kind) {
-			kinds[e.Kind]++
+	for _, at := range slices.Sorted(maps.Keys(runs)) {
+		s := runs[at]
+		for _, id := range slices.Sorted(maps.Keys(s.Tasks)) {
+			lines = append(lines, fmt.Sprintf("%stask %s %s, %d failures", at, id, s.Tasks[id].Status, s.Tasks[id].Failures))
 		}
-	}
-	for _, kind := range slices.Sorted(maps.Keys(kinds)) {
-		lines = append(lines, fmt.Sprintf("events %s %d", kind, kinds[kind]))
+		for _, id := range slices.Sorted(maps.Keys(s.Attempts)) {
+			lines = append(lines, fmt.Sprintf("%sattempt %s %s", at, id, s.Attempts[id].State))
+		}
+		for _, id := range slices.Sorted(maps.Keys(s.Questions)) {
+			lines = append(lines, fmt.Sprintf("%squestion %s %s", at, id, s.Questions[id].State))
+		}
+		history, err := r.p.Kit.Store.History(r.p.Root, s.Run.ID)
+		r.p.must(err)
+		kinds := map[string]int{}
+		for _, e := range append(history, s.Inbox.Events...) {
+			if slices.Contains(contract.EventKinds, e.Kind) {
+				kinds[e.Kind]++
+			}
+		}
+		for _, kind := range slices.Sorted(maps.Keys(kinds)) {
+			lines = append(lines, fmt.Sprintf("%sevents %s %d", at, kind, kinds[kind]))
+		}
 	}
 	return lines
 }
@@ -229,6 +241,8 @@ func (r *runner) step(kind, rest string) {
 		r.t.Setenv(contract.EnvNotices, rest)
 	case "pane":
 		r.open(rest)
+	case "panes:":
+		r.placed(rest)
 	case "click":
 		s := r.on()
 		if !s.shows(text(rest)) {
@@ -400,13 +414,57 @@ func (r *runner) kill(which func(running) bool) {
 	})
 }
 
+// placed holds the two panes of ours to what a line says of each: open,
+// closed, or moved, which is open as another pane than when a line last
+// looked. A pane is open while ui.json names it and the terminals show it
+// as a pane program of ours in the lead agent's tab.
+func (r *runner) placed(rest string) {
+	r.t.Helper()
+	dirs, err := r.p.Kit.Platform.Dirs()
+	r.p.must(err)
+	not := ""
+	for end := time.Now().Add(patience); ; time.Sleep(20 * time.Millisecond) {
+		var ui contract.UIFile
+		contract.ReadVersioned(r.p.Kit.Platform.Peek, filepath.Join(dirs.State, contract.UIFileName), contract.FileVersion, &ui)
+		snap, err := r.p.Terms().Snapshot(context.Background())
+		r.p.must(err)
+		now, lead := map[string]string{}, ""
+		for _, p := range snap.Panes {
+			if p.ID == r.p.Lead {
+				lead = p.Tab
+			}
+		}
+		for kind, id := range map[string]string{"fleet": ui.FleetPane, "actions": ui.ActionsPane} {
+			if slices.ContainsFunc(snap.Panes, func(p contract.Pane) bool { return p.ID == id && p.Ours && p.Tab == lead }) {
+				now[kind] = id
+			}
+		}
+		not = ""
+		for _, fact := range strings.Split(rest, ",") {
+			w := words(fact)
+			if len(w) != 2 || w[0] != "fleet" && w[0] != "actions" || !slices.Contains([]string{"open", "closed", "moved"}, w[1]) {
+				r.fail("a panes line is: %s", testkit.Lines["panes:"])
+			}
+			if id := now[w[0]]; (id != "") != (w[1] != "closed") || w[1] == "moved" && id == r.panes[w[0]] {
+				not = fmt.Sprintf("not so: %s (it is %q, and was %q)", strings.TrimSpace(fact), id, r.panes[w[0]])
+			}
+		}
+		if not == "" {
+			r.panes = now
+			return
+		} else if time.Now().After(end) {
+			r.fail("%s", not)
+		}
+	}
+}
+
 // where is the pane of a task's latest attempt, of an attempt, or of the lead agent.
 func (r *runner) where(name string) string {
 	r.t.Helper()
 	if name == "lead" {
 		return r.p.Lead
 	}
-	s, _ := r.p.Record()
+	s, name := r.p.in(name)
 	if t := s.Tasks[name]; t != nil && len(t.Attempts) > 0 {
 		name = t.Attempts[len(t.Attempts)-1]
 	}
@@ -427,7 +485,7 @@ func (r *runner) open(rest string) {
 		return
 	}
 	var w, h int
-	if n, _ := fmt.Sscanf(size, "%dx%d", &w, &h); n != 2 || name != "fleet" && name != "actions" {
+	if n, _ := fmt.Sscanf(size, "%dx%d", &w, &h); n != 2 || name != "fleet" && name != "actions" && name != "side" {
 		r.fail("a pane line is: %s", testkit.Lines["pane"])
 	}
 	if r.pane == nil {
@@ -489,7 +547,12 @@ func (s *screen) all() string {
 // answers with what is not so, or with nothing.
 func (r *runner) assert(fact string) string {
 	r.t.Helper()
+	// "in r2:" before a fact turns it to that run, a fleet's as a rule.
 	s, _ := r.p.Record()
+	if run, rest, ok := strings.Cut(fact, ":"); ok && strings.HasPrefix(run, "in ") {
+		s, _ = r.p.in(strings.TrimPrefix(run, "in ") + "/")
+		fact = strings.TrimSpace(rest)
+	}
 	var raw struct{ Tasks, Attempts, Questions map[string]map[string]any }
 	data, _ := json.Marshal(s)
 	json.Unmarshal(data, &raw)

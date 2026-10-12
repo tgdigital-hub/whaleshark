@@ -351,6 +351,21 @@ func (p *Project) Record() (*contract.State, string) {
 	return s, p.Kit.Store.Dir(p.Root, id)
 }
 
+// in reads the run a name is about and gives the name without it: a task,
+// an attempt or a question of a fleet's run is named "r2/T1", and one of
+// the current run by itself.
+func (p *Project) in(name string) (*contract.State, string) {
+	p.t.Helper()
+	run, id, other := strings.Cut(name, "/")
+	if !other {
+		s, _ := p.Record()
+		return s, name
+	}
+	s, err := p.Kit.Store.Read(p.Root, run)
+	p.must(err)
+	return s, id
+}
+
 // Command is the real program with these arguments, ready to be run as that
 // caller: in the project's folder, with nothing on its standard input, the
 // project's backend for the terminals, and of the variables the caller rules
@@ -370,12 +385,17 @@ func (p *Project) Command(who string, args ...string) *exec.Cmd {
 	case Page:
 		cmd.Env = append(append(cmd.Env, p.env...), contract.EnvFrom+"="+contract.WherePage)
 	default:
-		s, _ := p.Record()
-		a := s.Attempts[who]
+		s, id := p.in(who)
+		a := s.Attempts[id]
 		if a == nil {
 			p.t.Fatalf("scenario: the record has no attempt %s", who)
 		}
-		cmd.Env = append(append(cmd.Env, p.Env(a.Place.Pane)...), p.tab(s.Run.ID, a)...)
+		// A tab start opened is one deep, and a leader's worker's two.
+		depth := 1
+		if s.Run.Parent != nil {
+			depth = contract.MaxDepth
+		}
+		cmd.Env = append(append(cmd.Env, p.Env(a.Place.Pane)...), append(p.tab(s.Run.ID, a), fmt.Sprintf("%s=%d", contract.EnvDepth, depth))...)
 	}
 	return cmd
 }

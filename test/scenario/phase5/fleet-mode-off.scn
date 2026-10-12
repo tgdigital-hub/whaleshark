@@ -1,0 +1,48 @@
+# Phase 5 with Fleet Mode off, as it comes: a lead agent and three workers.
+# What a person meets that is new: both panes open by themselves when the
+# run gets its lead agent, the left section lists the workspace and its
+# agents, and a layout setting moves the panes at once. Nothing else differs:
+# no word of fleets on any screen, and a group for a fleet is refused with
+# the line that switches the mode on.
+agent T1.1: progress 40 "the form is drawn" | write-result | report done "the login page is in"
+agent T2.1: ask "Must the old link keep working?" | expect-answer yes | write-result | report done "the sign-up page is in"
+agent T3.1: hang
+
+file brief.md: Target: the shop | Change: your page | Constraints: none | Ownership: your own file | Acceptance: the check passes
+orch: init
+orch: run new "three pages"                         -> expect r1
+panes: fleet open, actions open
+task T1 "Build the login page" --name "login page" --check "exit 0" --brief brief.md
+task T2 "Build the sign-up page" --name "sign-up page" --check "exit 0" --brief brief.md
+task T3 "Write the help pages" --name "help pages" --check "exit 0" --brief brief.md
+orch: task add G1 "A group" --fleet billing --brief brief.md --check "exit 0" -> expect exit 5 "fleets.mode on"
+orch: start --ready                                 -> expect "(T1.1)" "(T2.1)" "(T3.1)"
+await: attempts T1.1 reported, T2.1 asked, T3.1 working
+orch: status                                        -> expect "login page" "asking"
+
+# The left section: the workspace, its lead agent and its agents.
+pane side: 32x30
+expect-row "WORKSPACES"
+expect-row "project"
+expect-row "login page"
+expect-row "sign-up page"
+expect-row "help pages"
+
+# The layout is a setting: each change moves the open panes at once, in the
+# lead agent's tab, though the person changes it from a tab of their own.
+human: set panes.fleet left
+panes: fleet moved, actions moved
+human: set panes.actions off
+panes: fleet moved, actions closed
+human: set panes.actions bottom
+panes: fleet moved, actions open
+
+orch: wait --timeout 10                             -> expect question q1 done
+orch: answer q1 yes
+await: attempts T2.1 reported
+orch: accept T1
+orch: accept T2
+orch: stop T3
+orch: close --settled
+orch: run close --abandon
+assert: T1 status done; T2 status done; q1 state used answer yes; no event lost; no event twice
