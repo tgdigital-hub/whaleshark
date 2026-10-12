@@ -701,3 +701,44 @@ func TestSetMovesThePanesAndSaysWhatALimitMeans(t *testing.T) {
 		t.Errorf("after its section was seen again the warning stays: %+v", ui.Changed)
 	}
 }
+
+// The left section rests. Every read of a record takes the record's lock,
+// which changes a file in the folder the left section watches: that is no
+// news and brings no new read, or the section would read for ever. A file
+// that says something still does.
+func TestALockFilesChangeIsNoNews(t *testing.T) {
+	wd, _ := sideWorld(t, 32, 40)
+	wd.shows("AGENTS · ", "sign-up page")
+	wd.settle()
+	ours := filepath.Join(wd.home, contract.ProjectDir)
+	touch := func(name string) {
+		if err := os.WriteFile(filepath.Join(ours, name), []byte(time.Now().String()), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	touch("lock") // the files are there before they are counted
+	touch("turn")
+	touch("current")
+	time.Sleep(300 * time.Millisecond)
+	before := wd.reads.Load()
+	for range 10 {
+		touch("lock")
+		touch("turn")
+		touch("worktrees.lock")
+		time.Sleep(30 * time.Millisecond)
+	}
+	time.Sleep(300 * time.Millisecond)
+	if n := wd.reads.Load() - before; n != 0 {
+		t.Errorf("the locks' changes brought %d reads of the record", n)
+	}
+	touch("current")
+	if !wd.until(3*time.Second, func() bool { return wd.reads.Load() > before }) {
+		t.Error("a file that says something brought no read")
+	}
+	for path, want := range map[string]bool{"/p/.whaleshark/lock": true, "/p/.whaleshark/turn": true, "/p/.whaleshark/runs/r1/wait.lock": true,
+		"/p/.whaleshark/current": false, "/p/.whaleshark/runs/r1/state.json": false, "/p/locksmith.txt": false} {
+		if lockFile(path) != want {
+			t.Errorf("lockFile(%s) = %v", path, !want)
+		}
+	}
+}

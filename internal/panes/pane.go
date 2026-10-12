@@ -211,16 +211,22 @@ func (p *pane) loop() bool {
 				p.leave()
 				return false
 			}
-		case _, open := <-changes:
+		case path, open := <-changes:
+			// A lock file's own change is no news: reading a record takes the
+			// lock, and a pane that read again for that would never rest.
+			news := open && !lockFile(path)
 			for more := open; more; {
 				select {
-				case _, more = <-changes:
+				case path, more = <-changes:
+					news = news || more && !lockFile(path)
 				default:
 					more = false
 				}
 			}
 			if !open {
 				p.watch = nil
+			} else if !news {
+				continue
 			}
 			p.seek = true
 			p.load()
@@ -559,6 +565,13 @@ func (p *pane) ids() []string {
 		ids = append(ids, it.ID)
 	}
 	return ids
+}
+
+// lockFile says a changed file is one of the record's locks, which every
+// reader touches.
+func lockFile(path string) bool {
+	base := filepath.Base(path)
+	return base == "lock" || base == "turn" || strings.HasSuffix(base, ".lock")
 }
 
 // event takes a key, a click or a report from the terminal, and reports
