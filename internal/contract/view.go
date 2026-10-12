@@ -171,8 +171,9 @@ type View struct {
 	Tools  []ToolLine `json:"tools,omitempty"`
 }
 
-// FleetRoom is how much of the limits is in use: "3 of 4 leaders · 15 of 20
-// agents". A limit of Unlimited is printed as that word.
+// FleetRoom is how much of the limits is in use: "3 of 4 leaders · 18 of 20
+// agents", the agents being leaders and workers together, as the limit
+// counts them. A limit of Unlimited is printed as that word.
 type FleetRoom struct {
 	Leaders    int `json:"leaders"`
 	LeadersMax int `json:"leaders_max"`
@@ -191,8 +192,8 @@ type ToolLine struct {
 }
 
 // FleetCard is what a card says when it is a fleet: the fleet's run, its
-// agents of its limit (the leader not counted), its groups that are open and
-// those to check, its tasks done of all, and whether it is parked. The
+// agents of its limit (the leader not counted), its groups that are open,
+// its own tasks to check and done of all, and whether it is parked. The
 // card's Name is the fleet's, its Agent the leader's tool, its Task the
 // group that needs something first, its Tab the leader's.
 type FleetCard struct {
