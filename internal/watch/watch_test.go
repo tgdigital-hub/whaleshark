@@ -469,7 +469,7 @@ func TestTheWordsAgainstTheRecordings(t *testing.T) {
 			scr, saw := screen.New(rec.W, rec.H), []int{nothing}
 			for _, out := range rec.Out {
 				scr.Write(out)
-				if now := kinds["claude"].read(scr.Picture().Text(), true); now != saw[len(saw)-1] {
+				if now := onScreen(claudeScreen(), scr.Picture().Text(), true); now != saw[len(saw)-1] {
 					saw = append(saw, now)
 				}
 			}
