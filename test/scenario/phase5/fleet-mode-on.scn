@@ -104,8 +104,8 @@ as-worker G2.2: wait --timeout 10                   -> expect done S1
 as-worker G2.2: accept S1                           -> expect "S1 is done, checked"
 # What the leader before it started is the new leader's now: the start
 # handed it the tabs, so it closes and stops them as its own.
-as-worker G2.2: close S1                            -> expect "search box"
-as-worker G2.2: stop S2                             -> expect "S2"
+as-worker G2.2: close S1                            -> expect "closed: search box"
+as-worker G2.2: stop S2                             -> expect "its tab: closed"
 
 # Stop all reaches the job and every fleet's run; nothing starts while it
 # holds, and resume wakes them all.

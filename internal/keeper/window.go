@@ -224,7 +224,13 @@ func (k *Keeper) compose(w *window) {
 		}
 	}
 	if o := k.over; o != nil {
-		paint(o, overlay.Box(g.Grid, w.look, overlay.Place(w.w, w.h, k.overW, k.overH), filepath.Base(o.argv[0])+" "+strings.Join(o.argv[1:], " ")), true)
+		// The settings screen is a box of its own: a second frame round it,
+		// titled with its command line, is not drawn.
+		if r := overlay.Place(w.w, w.h, k.overW, k.overH); slices.Equal(o.argv[max(len(o.argv)-3, 0):], []string{"ui", "run", "settings"}) {
+			paint(o, layout.Rect{X: r.X + 1, Y: r.Y + 1, W: max(r.W-2, 0), H: max(r.H-2, 0)}, true)
+		} else {
+			paint(o, overlay.Box(g.Grid, w.look, r, filepath.Base(o.argv[0])+" "+strings.Join(o.argv[1:], " ")), true)
+		}
 	}
 	k.pop.Draw(g.Grid, w.look, time.Now())
 	words := map[bool]string{true: " keys "}[w.in.Armed] // between the command key and the key after it

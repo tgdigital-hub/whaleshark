@@ -664,6 +664,7 @@ func (l *launcher) bring(task string) outcome {
 	if slot.Size > 0 {
 		env = append(env, slot.Env(l.block)...)
 	}
+	var found []string
 	pane, err := k.Terms.TabCreate(folder, tabName(t), env)
 	if err != nil {
 		return l.failed(r, err, "the tab could not be opened", false)
@@ -680,7 +681,6 @@ func (l *launcher) bring(task string) outcome {
 		} else {
 			low, err = l.fleetRun(t.Fleet)
 		}
-		var found []string // the tabs the leader before opened for its workers
 		if err == nil {
 			err = l.step(low, func(up, low *contract.State) error {
 				branch := ""
@@ -694,13 +694,6 @@ func (l *launcher) bring(task string) outcome {
 				}
 				return k.Rules.Lead(up, low, id, contract.Binding{Pane: pane.ID, Workspace: pane.Workspace}, branch, contract.Now())
 			})
-		}
-		// They are the new leader's now, to prompt, stop and close; a tab
-		// that is gone is nobody's.
-		for _, tab := range found {
-			if err == nil {
-				k.Terms.TabGive(tab, pane.ID)
-			}
 		}
 	}
 	free()
@@ -725,6 +718,12 @@ func (l *launcher) bring(task string) outcome {
 	}
 	if err := k.Terms.AgentStart(agent.Name, agent.Kind, pane.ID, args, startTimeout); err != nil {
 		return l.failed(r, err, "the agent did not start", errors.Is(err, contract.ErrAgentNotReady))
+	}
+	// The tabs the leader before opened for its workers are the new leader's
+	// now, to prompt, stop and close; a tab that is gone is nobody's. Only
+	// now: a pane's start of an agent ends what that pane was given before.
+	for _, tab := range found {
+		k.Terms.TabGive(tab, pane.ID)
 	}
 	prompt := filepath.Join(dir, "prompt.md")
 	// A task that was sent to bring its copy up to date and has not done so
@@ -759,7 +758,7 @@ func (l *launcher) bring(task string) outcome {
 
 // newWork is the message a leader that sits is handed a group with. The
 // line typed into its tab is the pointer to its mail.
-const newWork = "New work for your fleet: group %s %q. Its brief: %s  Its result file: %s  Report it with --task %[1]s."
+const newWork = "New work for your fleet: group %s %q. Its brief: %s  Its result file: %s  It is yours now: plan it and start its workers at once, as you did your first group, and report it with --task %[1]s."
 
 // hand gives a group to the leader that sits in its fleet's tab. No agent
 // starts, so no tab is opened: the attempt takes the leader's place, the

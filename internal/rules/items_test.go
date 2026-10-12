@@ -568,6 +568,24 @@ func TestSeen(t *testing.T) {
 			t.Errorf("the item stays when a worker carries on: %s", q.State)
 		}
 	})
+	t.Run("leaders at rest together are no sign of a limit", func(t *testing.T) {
+		s := newRun()
+		s.Run.Limit = 5
+		for _, id := range []string{"G1", "G2", "G3"} {
+			add(t, s, id)
+			a, err := r.Start(s, id, false, false, token, agent, true, t0)
+			must(t, err)
+			must(t, r.Working(s, a, t0))
+			s.Attempts[a].Leads = "r2" // each leads a fleet, and waits for its workers
+		}
+		for i, id := range []string{"G1.1", "G2.1", "G3.1"} {
+			r.Seen(s, id, pane("working"), true, limits, after(time.Minute))
+			r.Seen(s, id, pane("idle"), true, limits, after(time.Minute+time.Duration(i+1)*10*time.Second))
+		}
+		if got := kinds(s); len(got) != 0 || s.Questions["n1"] != nil {
+			t.Errorf("three leaders resting raised %v", got)
+		}
+	})
 }
 
 // 8e, the two rows about the lead agent's own pane.
