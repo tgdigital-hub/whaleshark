@@ -305,3 +305,33 @@ func fit(rows []contract.SideRow, limit int) (out []contract.SideRow) {
 	}
 	return out
 }
+
+// Steps is which of the five first steps are ticked, a bit each from the
+// first: those ui.json holds, and those the left section's input shows to
+// have happened (an agent runs in a tab; a job exists; a worker has its row;
+// the person answered, or a job is ten minutes old). The fifth is the
+// pane's to tick. show is false once they were hidden or all are ticked.
+func Steps(in contract.SideInput, ui contract.UIFile) (ticked int, show bool) {
+	ticked = ui.Steps
+	for _, p := range cmp.Or(in.Terms, &contract.Snapshot{}).Panes {
+		if p.Agent != "" {
+			ticked |= 1
+		}
+	}
+	for _, p := range in.Projects {
+		for _, s := range p.Runs {
+			if ticked |= 3; len(s.Attempts) > 0 {
+				ticked |= 4
+			}
+			if in.Now.Sub(s.Run.CreatedAt) >= contract.AwayAfter {
+				ticked |= 8
+			}
+			for _, q := range s.Questions {
+				if by := q.AnsweredBy; by != nil && by.Caller == contract.Human {
+					ticked |= 8
+				}
+			}
+		}
+	}
+	return ticked, ui.FirstSteps != contract.Off && ticked != 1<<len(contract.FirstSteps)-1
+}

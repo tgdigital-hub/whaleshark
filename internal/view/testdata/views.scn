@@ -30,3 +30,9 @@ clock +66m
 orch: catchup                       -> expect "WHILE YOU WERE AWAY   1h 06m  (21:14 to 22:20)" "Still building"
 human: catchup --since 22:00        -> expect "20m  (22:00 to 22:20)" "Done as you           0"
 human: catchup --since noon         -> expect exit 2
+
+# The log as one file: the person's alone, with what was done as them in it.
+human: log --export -               -> expect "WHO" "WHAT HAPPENED" "WHAT YOU APPROVED" "you (typed)" "catchup" "WHAT IT USED"
+orch: log --export -                -> expect exit 5 "person"
+human: log --export - --json        -> expect '"jobs"' '"approved"'
+human: log --export - extra         -> expect exit 2

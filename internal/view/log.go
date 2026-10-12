@@ -15,6 +15,9 @@ import (
 // messages prints what was said both ways and what happened, in the order
 // it happened: today's, or with --all everything, or one task's.
 func messages(c *contract.Call) (any, error) {
+	if c.Flags["export"] != nil {
+		return export(c)
+	}
 	if len(c.Args) > 0 {
 		return nil, usage("log takes no argument.")
 	}
