@@ -126,11 +126,11 @@ func TestTheDockRunsNothingButOurs(t *testing.T) {
 			t.Errorf("%s on the dock: %+v", call.Op, reply)
 		}
 	}
-	// The pane has read its program's line by now, and the line is read as
-	// one: it begins with this program's own path, as long as the system
-	// makes it, and breaks wherever the screen's width falls.
+	// The pane has read its program's line by now. The line begins with this
+	// program's own path, as long as the system makes it, and breaks wherever
+	// the screen's width falls: at a blank too, which a row does not end in.
 	r.settle()
-	if reply := c.call(contract.WireCall{Op: contract.OpScreen, Pane: dock}); !strings.Contains(strings.ReplaceAll(reply.Text, "\n", ""), "ui run side") {
+	if reply := c.call(contract.WireCall{Op: contract.OpScreen, Pane: dock}); !strings.Contains(strings.Join(strings.Fields(reply.Text), ""), "uirunside") {
 		t.Errorf("the dock's screen is not read: %q %s", reply.Text, reply.Err)
 	}
 	if r.program(dock) != was || !slices.Equal(was.spec.Argv[1:], []string{"ui", "run", "side"}) || !r.locked(func() bool { return len(r.k.panes) == 2 }) {
