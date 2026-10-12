@@ -122,19 +122,23 @@ const WordSaved = "saved"
 // SideInput is everything the left section is built from. Rows is how many
 // rows the agents panel has, 0 for no limit; Folded names the fleets the
 // person folded, as "run/fleet"; Find is what was typed to narrow the rows;
-// Changed is UIFile.Changed, which Warn is worded from.
+// Changed is UIFile.Changed, which Warn is worded from. UI is ui.json, for
+// the first steps and what an agent changed; NewVersion is VersionLine's
+// answer, which the caller reads, since the builder reads nothing.
 type SideInput struct {
-	Now      time.Time
-	Projects []SideProject
-	Terms    *Snapshot
-	Tools    []Tool
-	Person   PersonConfig
-	Rows     int
-	Folded   []string
-	Find     string
-	Changed  []string
-	Checked  time.Time
-	Notes    []string
+	Now        time.Time
+	Projects   []SideProject
+	Terms      *Snapshot
+	Tools      []Tool
+	Person     PersonConfig
+	Rows       int
+	Folded     []string
+	Find       string
+	Changed    []string
+	Checked    time.Time
+	Notes      []string
+	UI         UIFile
+	NewVersion string
 }
 
 // Side is the one description of the left section, which its pane prints
@@ -156,14 +160,20 @@ type Side struct {
 	// Title names the workspace in front. Count is set when rows were cut:
 	// "200 agents · 3 need you". Hint is the one dim line of a workspace
 	// with no job. Warn is the one line in the warning colour: "agent tool
-	// changed: hermes".
-	Title string    `json:"title"`
-	Count string    `json:"count,omitempty"`
-	Hint  string    `json:"hint,omitempty"`
-	Warn  string    `json:"warn,omitempty"`
-	Rows  []SideRow `json:"rows"`
-	Done  int       `json:"done,omitempty"`
-	Fresh Fresh     `json:"fresh"`
+	// changed: hermes", and after it what an agent changed (AgentChanged).
+	// Steps is which of FirstSteps are ticked, a bit each from the first,
+	// and StepsShown whether they are drawn: the lit one is the first not
+	// ticked. NewVersion is the dim line at the foot, empty for none.
+	Title      string    `json:"title"`
+	Count      string    `json:"count,omitempty"`
+	Hint       string    `json:"hint,omitempty"`
+	Warn       string    `json:"warn,omitempty"`
+	Rows       []SideRow `json:"rows"`
+	Done       int       `json:"done,omitempty"`
+	Fresh      Fresh     `json:"fresh"`
+	Steps      int       `json:"steps,omitempty"`
+	StepsShown bool      `json:"steps_shown,omitempty"`
+	NewVersion string    `json:"new_version,omitempty"`
 }
 
 // Workspace is one row of the upper panel: the worst look among its agents

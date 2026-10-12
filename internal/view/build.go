@@ -247,7 +247,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 		if said := first(c.Said, a.StartedAt); said.Before(since) {
 			since = said
 		}
-		st.stuck, c.News = true, fmt.Sprint(stuckWord, int(b.in.Now.Sub(since).Minutes()), "m: ", contract.StuckWhy(a.Seen.StuckWhy))
+		st.stuck, c.Stuck, c.News = true, true, fmt.Sprint(stuckWord, int(b.in.Now.Sub(since).Minutes()), "m: ", contract.StuckWhy(a.Seen.StuckWhy))
 	}
 	// What a browser check left is counted on the card; show lists it (8l).
 	if r := a.Report; r != nil && shots(r.Evidence) > 0 {
@@ -604,6 +604,7 @@ func (b *builder) around(v *contract.View) {
 	}
 	if run.Parent == nil && in.Person.Spend.Guard {
 		v.Lines = append(v.Lines, b.spent())
+		v.Spent, v.Limit = tenths(contract.Spent(in.Now, b.runs()...)), in.Person.SpendLimit(run.Spend, false)
 	}
 	if slices.ContainsFunc(in.Limits.Agent.Args, unasked) {
 		v.Alerts = append(v.Alerts, "workers in this project run without permission prompts")

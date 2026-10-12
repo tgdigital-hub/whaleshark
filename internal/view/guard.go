@@ -19,8 +19,11 @@ const stuckWord = "stuck "
 
 // hours is a length of time in agent-hours, to one place: "31.5", "40".
 func hours(d time.Duration) string {
-	return strconv.FormatFloat(math.Round(d.Hours()*10)/10, 'f', -1, 64)
+	return strconv.FormatFloat(tenths(d), 'f', -1, 64)
 }
+
+// tenths is a span in agent-hours, to one place.
+func tenths(d time.Duration) float64 { return math.Round(d.Hours()*10) / 10 }
 
 // runs is the job's run and its fleets' runs: what the spending guard counts.
 func (b *builder) runs() []*contract.State {

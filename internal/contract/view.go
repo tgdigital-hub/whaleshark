@@ -163,8 +163,12 @@ type View struct {
 	// results to check would take one by one and together, and most
 	// workers having stopped together.
 	Lines []string `json:"lines,omitempty"`
-	Strip Strip    `json:"strip"`
-	Fresh Fresh    `json:"fresh"`
+	// Spent and Limit are the spending guard's figures in agent-hours, set
+	// in a job's own view while the guard is on; Limit is Unlimited for none.
+	Spent float64 `json:"spent,omitempty"`
+	Limit int     `json:"limit,omitempty"`
+	Strip Strip   `json:"strip"`
+	Fresh Fresh   `json:"fresh"`
 	// Mode is the run's. In a run of ModeFleets a card is a fleet (its
 	// Fleet is set) and Limits is the one line of the limits. Tools is every
 	// wired tool where there is more than one: the guides end with them.
@@ -265,6 +269,9 @@ type Card struct {
 	Ctx      int    `json:"ctx"`
 	CtxKnown bool   `json:"ctx_known"`
 	News     string `json:"news"`
+	// Stuck says News is the stuck detector's line, which a screen draws in
+	// the warning colour; the card's own colour stays its look's.
+	Stuck bool `json:"stuck,omitempty"`
 	// Clash is the other task that changes the same file, and whether the
 	// two changes would conflict or only meet.
 	Clash   *Clash     `json:"clash,omitempty"`

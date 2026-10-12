@@ -106,7 +106,8 @@ func Fleets() *ThreeFleets {
 	up.Run.Fleets = map[string]*contract.Fleet{}
 	runs := []*contract.State{up}
 	fleets := map[string]*contract.State{}
-	side := &contract.Side{Version: contract.SideVersion, At: now, NeedYou: 1, Title: "shop-site", Fresh: contract.Fresh{Checked: now}}
+	// Four first steps are ticked by what the morning holds; the fifth is the pane's.
+	side := &contract.Side{Version: contract.SideVersion, At: now, NeedYou: 1, Title: "shop-site", Fresh: contract.Fresh{Checked: now}, Steps: 15, StepsShown: true}
 	side.Rows = []contract.SideRow{{Kind: contract.RowLead, Name: "orchestrator", Root: shop, Run: "r1", Tab: "t-p1"}}
 	var cards []contract.Card
 	pane := 1

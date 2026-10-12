@@ -30,7 +30,11 @@ func byLook(x, y contract.SideRow) int { return cmp.Compare(order[x.Look], order
 // the bar says nothing of an agent that the other screens do not.
 func Side(in contract.SideInput) *contract.Side {
 	out := &contract.Side{Version: contract.SideVersion, At: in.Now, Warn: contract.Warned(in.Changed), Workspaces: []contract.Workspace{}, Rows: []contract.SideRow{},
-		Fresh: contract.Fresh{Checked: in.Checked, Notes: in.Notes}}
+		Fresh: contract.Fresh{Checked: in.Checked, Notes: in.Notes}, NewVersion: clean(in.NewVersion)}
+	out.Steps, out.StepsShown = steps(in)
+	if by := contract.AgentChanged(in.UI.ByAgent); by != "" {
+		out.Warn = strings.TrimPrefix(out.Warn+" · "+clean(by), " · ")
+	}
 	snap := in.Terms
 	if snap == nil {
 		snap, out.Fresh.Notes = &contract.Snapshot{}, append([]string{"the engine is not running"}, in.Notes...)
@@ -306,12 +310,13 @@ func fit(rows []contract.SideRow, limit int) (out []contract.SideRow) {
 	return out
 }
 
-// Steps is which of the five first steps are ticked, a bit each from the
+// steps is which of the five first steps are ticked, a bit each from the
 // first: those ui.json holds, and those the left section's input shows to
 // have happened (an agent runs in a tab; a job exists; a worker has its row;
 // the person answered, or a job is ten minutes old). The fifth is the
 // pane's to tick. show is false once they were hidden or all are ticked.
-func Steps(in contract.SideInput, ui contract.UIFile) (ticked int, show bool) {
+func steps(in contract.SideInput) (ticked int, show bool) {
+	ui := in.UI
 	ticked = ui.Steps
 	for _, p := range cmp.Or(in.Terms, &contract.Snapshot{}).Panes {
 		if p.Agent != "" {

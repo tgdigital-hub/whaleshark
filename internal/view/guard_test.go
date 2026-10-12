@@ -87,6 +87,9 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 	if err := json.Unmarshal([]byte(indent(t, v)), back); err != nil || indent(t, back) != indent(t, v) {
 		t.Fatalf("the view does not come back from --json as it went (%v)", err)
 	}
+	if v.Spent != 33 || v.Limit != 40 {
+		t.Errorf("the figures of the spending guard: %v of %d", v.Spent, v.Limit)
+	}
 	if !slices.Contains(v.Lines, "spent: 33 of 40 agent-hours · held") || !slices.Contains(v.Alerts, "setting changed by your agent: theme") ||
 		!strings.Contains(body, "spent: 33 of 40 agent-hours · held") || !strings.Contains(body, "setting changed by your agent: theme") {
 		t.Errorf("the lines %q and the alerts %q, and the text:\n%s", v.Lines, v.Alerts, body)
@@ -94,7 +97,10 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 	if got, want := printed(t, v), append([]string{"▲ n1", "▲ n2", "▲ n3", "▲ n4", "▲ n5"}, marked(v)...); !slices.Equal(got, want) {
 		t.Errorf("status prints\n%v\nthe view holds\n%v", got, want)
 	}
-	side := Side(contract.SideInput{Now: g.Now, Person: g.Person, Checked: g.Now, Projects: []contract.SideProject{{Root: "shop", Runs: []*contract.State{g.Up, g.Low["billing"], g.Low["search"]}}}})
+	side := Side(contract.SideInput{Now: g.Now, Person: g.Person, Checked: g.Now, UI: in.UI, Changed: []string{"tools.hermes.run"}, NewVersion: "version 1.3 is out\x1b[2J", Projects: []contract.SideProject{{Root: "shop", Runs: []*contract.State{g.Up, g.Low["billing"], g.Low["search"]}}}})
+	if side.Warn != "agent tool changed: hermes · setting changed by your agent: theme" || side.NewVersion != clean("version 1.3 is out\x1b[2J") || strings.Contains(side.NewVersion, "\x1b") {
+		t.Errorf("the left section warns %q and says of a version %q", side.Warn, side.NewVersion)
+	}
 	for _, r := range side.Rows {
 		if c := cardOf(v, r.Task); r.Kind == contract.RowFleet && (c == nil || r.Look != c.Look) {
 			t.Errorf("the bar's row %+v is not the view's card %+v", r, c)
@@ -132,7 +138,7 @@ func TestGuardsOffChangeNothing(t *testing.T) {
 	lin := in
 	lin.State, lin.Fleets, lin.Caller = g.Low["billing"], nil, contract.Leader
 	c, _ := card(t, Build(lin), "T7")
-	if c.News != "stuck 132m: no progress note · the same check failed 3 times" || c.Look != contract.LookBuilding || len(c.Next) != 3 || c.Next[0] != "whaleshark show T7 --screen" {
+	if c.News != "stuck 132m: no progress note · the same check failed 3 times" || !c.Stuck || c.Look != contract.LookBuilding || len(c.Next) != 3 || c.Next[0] != "whaleshark show T7 --screen" {
 		t.Errorf("the stuck card: %q, %s, %q", c.News, c.Look, c.Next)
 	}
 	if body := text(Build(lin), Options{Width: 120}); !strings.Contains(body, c.News) || strings.Contains(body, "last said") && strings.Contains(body, `"stuck`) {
@@ -142,7 +148,7 @@ func TestGuardsOffChangeNothing(t *testing.T) {
 		t.Errorf("a fleet's own run has no line of the job's spending: %q", v.Lines)
 	}
 	lin.Person.Stuck.Watch = false
-	if c, _ := card(t, Build(lin), "T7"); c.News != "wiring the form" {
+	if c, _ := card(t, Build(lin), "T7"); c.News != "wiring the form" || c.Stuck {
 		t.Errorf("with the detector off the card says %q", c.News)
 	}
 }
@@ -387,7 +393,9 @@ func TestFirstSteps(t *testing.T) {
 	job := &contract.State{Run: contract.Run{ID: "r1", CreatedAt: now}, Attempts: map[string]*contract.Attempt{}, Questions: map[string]*contract.Question{}}
 	step := func(want int, show bool, ui contract.UIFile, what string) {
 		t.Helper()
-		if got, shown := Steps(in, ui); got != want || shown != show {
+		in.UI = ui
+		if out := Side(in); out.Steps != want || out.StepsShown != show {
+			got, shown := out.Steps, out.StepsShown
 			t.Errorf("%s: steps %05b shown %v, want %05b %v", what, got, shown, want, show)
 		}
 	}
