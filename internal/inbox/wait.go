@@ -1,6 +1,7 @@
 package inbox
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -189,10 +190,33 @@ func scan(k *contract.Kit, root, run string, now time.Time) {
 		found = s.Run.Findings
 	}
 	cancel()
+	var fresh []contract.Finding
 	k.Store.Change(root, run, func(s *contract.State) error {
-		k.Rules.Found(s, found, now)
+		fresh = k.Rules.Found(s, found, now)
 		return nil
 	})
+	// A new clash across fleets is told to each of the two leaders in its own
+	// run (20.10): Work is each side's task in flight, none for collected work.
+	for _, f := range fresh {
+		if len(f.Tasks) != 2 || len(f.Work) != 2 || len(f.Files) == 0 {
+			continue
+		}
+		files := f.Files[0]
+		if n := len(f.Files) - 1; n > 0 {
+			files += " and " + strconv.Itoa(n) + " more"
+		}
+		for i, work := range f.Work {
+			mine, theirs := s.Tasks[f.Tasks[i]], s.Tasks[f.Tasks[1-i]]
+			if mine == nil || theirs == nil || s.Run.Fleets[mine.Fleet] == nil {
+				continue
+			}
+			text := fmt.Sprintf("your %s and %s's %s both change %s; %s's leader has been told too", cmp.Or(work, "collected work"), theirs.Fleet, cmp.Or(f.Work[1-i], "collected work"), files, theirs.Fleet)
+			k.Store.Change(root, s.Run.Fleets[mine.Fleet].Run, func(low *contract.State) error {
+				k.Rules.Raise(low, contract.Event{Kind: "overlap", Task: work, Text: text, Data: map[string]any{"fleet": theirs.Fleet, "files": f.Files}}, now)
+				return nil
+			})
+		}
+	}
 }
 
 // stuck is the wait's to say: nothing runs, nothing can be started, checked
