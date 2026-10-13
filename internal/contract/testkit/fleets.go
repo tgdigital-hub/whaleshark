@@ -18,24 +18,24 @@ import (
 // climbed to the person; "invoice pdf" waits to be checked. The person has
 // looked at every tab this morning: nothing is unseen.
 //
-// In is what the side model is built from and Side what must come out with
+// In is what the side model is built from and Side7 what must come out with
 // every fleet unfolded but help pages and no limit of rows. View and Cards
 // are what the orchestrator's run is shown as: one card a fleet, and the
 // one item with its fleet. Cards word what a fleet's card adds and what it
 // is ordered and coloured by; how far a fleet is, its news and the times
 // are whatever the builder makes of In, and the pictures' own figures (40,
 // 55 and 75 percent) are in no record here. The package that builds the model is tested
-// against Side; the pane that draws it is tested on Side alone.
+// against Side7; the pane that draws it is tested on Side7 alone.
 //
-// Side is the model of before phase 7 and Side7 the same morning as it
-// must come out since: the workspaces are the keeper's (In.Terms.Spaces),
-// each row has the first block of its menu, and what a menu's first block
-// does is no longer among the work's own rows. Until the builder is the
-// new one it is held to Side; from then on to Side7, and Side goes.
+// Side7 is the morning as it comes out since phase 7: the workspaces are the
+// keeper's (In.Terms.Spaces), each row has the first block of its menu, and
+// what a menu's first block does is not among the work's own rows. It is
+// worked out from the model of before, which this package keeps for its own
+// tests and nobody else is held to.
 type ThreeFleets struct {
 	In    contract.SideInput
-	Side  *contract.Side
 	Side7 *contract.Side
+	old   *contract.Side
 	View  contract.ViewInput
 	Cards []contract.Card
 	Item  contract.Item
@@ -211,7 +211,7 @@ func Fleets() *ThreeFleets {
 		Swept: contract.Swept{Ran: true, At: now}, Watched: true, Fleets: fleets, Person: person, Tools: tools}
 	item := contract.Item{ID: "q1", Form: contract.FormChoice, Look: contract.LookNeedsYou, Task: "G1", Name: "refund flow", Fleet: "billing",
 		Source: "passed up by the orchestrator", Since: now.Add(-2 * time.Minute), Text: "Refund to the card, or to store credit?", Holds: true}
-	return &ThreeFleets{In: in, Side: side, Side7: seven(side, snap, map[string]int{"s1": 1}), View: view, Cards: cards, Item: item}
+	return &ThreeFleets{In: in, old: side, Side7: seven(side, snap, map[string]int{"s1": 1}), View: view, Cards: cards, Item: item}
 }
 
 // seven is a side model of before phase 7 as it must come out since, for

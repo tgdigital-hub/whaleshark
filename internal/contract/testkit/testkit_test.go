@@ -116,8 +116,8 @@ func TestThreeFleets(t *testing.T) {
 		agents += len(s.Attempts) + 1
 	}
 	up := runs["r1"]
-	if agents-3 != f.Side.Workspaces[0].Agents || up.Run.Mode != contract.ModeFleets || len(up.Run.Fleets) != 3 || len(f.Cards) != 3 {
-		t.Fatalf("%d agents and %d fleets, the model says %d", agents-3, len(up.Run.Fleets), f.Side.Workspaces[0].Agents)
+	if agents-3 != f.old.Workspaces[0].Agents || up.Run.Mode != contract.ModeFleets || len(up.Run.Fleets) != 3 || len(f.Cards) != 3 {
+		t.Fatalf("%d agents and %d fleets, the model says %d", agents-3, len(up.Run.Fleets), f.old.Workspaces[0].Agents)
 	}
 	for name, fleet := range up.Run.Fleets {
 		low, group := runs[fleet.Run], up.Tasks[fleet.Groups[0]]
@@ -128,7 +128,7 @@ func TestThreeFleets(t *testing.T) {
 		}
 	}
 	rows, fleets := 0, 0
-	for _, r := range f.Side.Rows {
+	for _, r := range f.old.Rows {
 		switch r.Kind {
 		case contract.RowFleet:
 			fleets++
@@ -138,8 +138,8 @@ func TestThreeFleets(t *testing.T) {
 			}
 		}
 	}
-	if fleets != 3 || rows != 11 || f.Side.First == nil || f.Side.First.Name != "refund flow" || f.Item.Fleet != "billing" {
-		t.Errorf("%d fleets and %d workers' rows (help pages is folded), first %+v", fleets, rows, f.Side.First)
+	if fleets != 3 || rows != 11 || f.old.First == nil || f.old.First.Name != "refund flow" || f.Item.Fleet != "billing" {
+		t.Errorf("%d fleets and %d workers' rows (help pages is folded), first %+v", fleets, rows, f.old.First)
 	}
 	if up.Questions["q1"].Down.Run != "r2" || runs["r2"].Questions["q1"].Up.Run != "r1" {
 		t.Error("the question that climbed has lost its other half")
@@ -233,7 +233,7 @@ func TestThreeSpaces(t *testing.T) {
 // what a menu's first block does no longer among the work's own rows.
 func TestThreeFleetsSincePhaseSeven(t *testing.T) {
 	f := Fleets()
-	old, now := f.Side, f.Side7
+	old, now := f.old, f.Side7
 	if len(now.Rows) != len(old.Rows) || len(now.Workspaces) != 3 || len(f.In.Terms.Spaces) != 3 || now.First.Name != old.First.Name {
 		t.Fatalf("%d rows where %d were, %d workspaces", len(now.Rows), len(old.Rows), len(now.Workspaces))
 	}
