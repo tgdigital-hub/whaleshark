@@ -229,7 +229,7 @@ func (k *Keeper) compose(w *window) {
 	if o := k.over; o != nil {
 		// The settings screen is a box of its own: a second frame round it,
 		// titled with its command line, is not drawn.
-		if r := overlay.Place(w.w, w.h, k.overW, k.overH); slices.Equal(o.argv[max(len(o.argv)-3, 0):], []string{"ui", "run", "settings"}) {
+		if r := overlay.Place(w.w, w.h, k.overW, k.overH); len(o.argv) > 3 && slices.Equal(o.argv[1:4], []string{"ui", "run", "settings"}) {
 			paint(o, layout.Rect{X: r.X + 1, Y: r.Y + 1, W: max(r.W-2, 0), H: max(r.H-2, 0)}, true)
 		} else {
 			paint(o, overlay.Box(g.Grid, w.look, r, filepath.Base(o.argv[0])+" "+strings.Join(o.argv[1:], " ")), true)

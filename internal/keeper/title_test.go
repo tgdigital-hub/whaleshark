@@ -118,13 +118,14 @@ func TestTheMainTabFollowsANameGivenToItsChat(t *testing.T) {
 }
 
 // The settings screen draws its own box: over a tab it gets no second frame
-// with its command line for a title, where any other program does.
+// with its command line for a title, where any other program does. The
+// buttons send it with the job in front named after those three words.
 func TestTheSettingsScreenHasOneFrame(t *testing.T) {
 	r := newRig(t)
 	c := r.dial()
 	w := r.window(100, 30)
 	w.shows("pane=p1")
-	if reply := c.call(contract.WireCall{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ui", "run", "settings"}, W: 80, H: 10, From: "p1"}); reply.Err != "" {
+	if reply := c.call(contract.WireCall{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ui", "run", "settings", "--root", "elsewhere", "--run", "r3"}, W: 80, H: 10, From: "p1"}); reply.Err != "" {
 		t.Fatalf("overlay: %+v", reply)
 	}
 	r.program("p2").print("the settings\r\n")
