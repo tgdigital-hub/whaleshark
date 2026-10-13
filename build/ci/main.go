@@ -35,7 +35,9 @@ var steps = []step{
 	{"build", true, func(g *gate) error { return g.goDo("build", "./...") }},
 	{"vet", true, func(g *gate) error { return g.goDo("vet", "./...") }},
 	{"fmt", true, (*gate).format},
-	{"test", true, func(g *gate) error { return g.goDo("test", "./...") }},
+	// The scenarios, each on two backends, take nine minutes on a hosted
+	// Windows machine: go's own limit of ten for a package is too near.
+	{"test", true, func(g *gate) error { return g.goDo("test", "-timeout", "25m", "./...") }},
 	{"cross", true, (*gate).cross},
 	{"lines", true, (*gate).lines},
 	{"modules", true, (*gate).modules},
