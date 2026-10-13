@@ -422,7 +422,30 @@ func TestPagePaneAndPlainTextShowTheSameRows(t *testing.T) {
 	m := testkit.Fleets()
 	agree(t, "three fleets", &testkit.Fixture{Name: "three fleets", Now: m.View.Now, Checked: m.View.Checked, State: *m.View.State, Terms: m.View.Terms},
 		m.View, `G\d+`)
+	// The afternoon with every guard on: the guards' own items in the job,
+	// and in billing's run the card of the worker that looks stuck.
+	g := testkit.Guarded()
+	terms := &contract.Snapshot{At: g.Now, Instance: "k1", Panes: []contract.Pane{{ID: g.Up.Run.Orchestrator.Pane, Tab: "lead", Label: "lead", Agent: "claude", Status: contract.StatusWorking}}}
+	for _, s := range []*contract.State{g.Up, g.Low["billing"], g.Low["search"]} {
+		for _, a := range s.Attempts {
+			if a.State.Live() {
+				terms.Panes = append(terms.Panes, contract.Pane{ID: a.Place.Pane, Tab: a.Place.Tab, Label: s.Tasks[a.Task].Name, Agent: a.Agent.Kind, Name: a.Agent.Name, Status: contract.StatusWorking})
+			}
+		}
+	}
+	guarded := func(s *contract.State, low map[string]*contract.State) (*testkit.Fixture, contract.ViewInput) {
+		return &testkit.Fixture{Name: "guarded", Now: g.Now, Checked: g.Now, State: *s, Terms: terms}, contract.ViewInput{Now: g.Now, Caller: contract.Human,
+			State: s, Fleets: low, Terms: terms, Person: g.Person, Limits: contract.ProjectDefaults(), Checked: g.Now, Swept: contract.Swept{Ran: true, At: g.Now}, Watched: true}
+	}
+	f, in := guarded(g.Up, g.Low)
+	agree(t, "the guards' items", f, in, `G\d+`)
+	f, in = guarded(g.Low["billing"], nil)
+	if agree(t, stuckWorker, f, in, `T\d+`); !strings.Contains(draw(t, func() *contract.Page { pg := team(f); pg.View = view.Build(in); return pg }()), "stuck") {
+		t.Error("billing's page has no word of its stuck worker")
+	}
 }
+
+const stuckWorker = "a stuck worker"
 
 // agree draws one prepared run as page, as pane and as plain text and holds
 // the three to each other; id is the pattern of a card's id in plain text.
@@ -463,13 +486,19 @@ func agree(t *testing.T, name string, f *testkit.Fixture, in contract.ViewInput,
 			s.Close()
 			<-done
 			page, grid, text := pageRows(t, out, kind, colours), paneRows(s, pane.grid), textRows(t, pg.View, pane.text, colours)
-			if len(page) == 0 || len(page) != len(grid) || len(page) != len(text) {
+			// billing's own run has cards and nothing for the person: its items are none on all three.
+			if len(page) == 0 && (kind == "card" || name != stuckWorker) || len(page) != len(grid) || len(page) != len(text) {
 				t.Fatalf("%s, %ss: the page shows %d, the pane %d, plain text %d\n%v\n%v\n%v", name, kind, len(page), len(grid), len(text), page, grid, text)
 			}
 			for i, row := range page {
 				g, x := grid[i], text[i]
 				if kind == "item" {
 					row.word, g.word, x.word = "", "", ""
+					// An item of the tool's own about no task has no name: the pane's
+					// row then begins with where it is from, plain text's with its form.
+					if row.name == "" && g.name == "from the tool itself" && x.name == "sign-off" {
+						g.name, x.name = "", ""
+					}
 				} else if len(in.Fleets) > 0 {
 					// A fleet's card names its leader's tool beside the fleet, as the page does in a span of its own.
 					g.name, _, _ = strings.Cut(g.name, " · ")
