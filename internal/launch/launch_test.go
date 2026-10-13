@@ -603,7 +603,7 @@ func TestAButtonsStartRunsInATabOfItsOwn(t *testing.T) {
 	}
 	made := calls(p, contract.OpTabCreate)
 	ran := calls(p, contract.OpRun)
-	if len(made) != 1 || made[0].Label != "start ready 1" || len(ran) != 1 {
+	if len(made) != 1 || made[0].Label != "start ready 1" || made[0].Space != p.Root || len(ran) != 1 {
 		t.Fatalf("the tab %+v and the program started in it %+v", made, ran)
 	}
 	// The program is started from a list of arguments: nothing is quoted
