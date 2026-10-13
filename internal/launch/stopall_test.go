@@ -183,3 +183,29 @@ func labelled(t *testing.T, p *scenario.Project, label string) (n int) {
 	}
 	return n
 }
+
+// A fleet whose leader is gone while a worker of it is still at work: the
+// fleet's group has no agent to stop, so nothing parks it, and the person's
+// stop --all stops the worker in the fleet's own run all the same. Removing
+// a workspace leaves no agent of its job running.
+func TestStopAllWhereAFleetsLeaderIsGone(t *testing.T) {
+	m := begin(t, scenario.Double)
+	m.do(scenario.Orch, 0, []string{"(G2.1)"}, "", "start", "G2")
+	m.do("G2.1", 0, nil, asLeader, "task", "add", "T1", "find T1", "--brief", "brief.md", "--check", "none")
+	m.do("G2.1", 0, []string{"(T1.1)"}, asLeader, "start", "T1")
+	err := m.p.Kit.Store.Change(m.p.Root, "r1", func(s *contract.State) error {
+		s.Attempts["G2.1"].State = contract.AttemptExited
+		return nil
+	})
+	if err != nil || m.live() != 1 || m.tabs("find T1") != 1 {
+		t.Fatalf("the leader is gone and %d agents are at work in %d tabs, expected its one worker: %v", m.live(), m.tabs("find T1"), err)
+	}
+	out := m.do(scenario.Human, 0, []string{"find T1 stopped (T1.1); its tab: closed"}, "", "stop", "--all")
+	if m.live() != 0 || m.tabs("find T1") != 0 || strings.Contains(out, "No agent is at work") {
+		t.Fatalf("after stop --all %d agents are at work and %d of the worker's tabs are open:\n%s", m.live(), m.tabs("find T1"), out)
+	}
+	if up := m.read("r1"); !up.Run.ClosedAt.IsZero() || !m.read(up.Run.Fleets["search"].Run).Run.ClosedAt.IsZero() {
+		t.Error("stop --all closed a run")
+	}
+	m.do(scenario.Human, 0, []string{"No agent is at work."}, "", "stop", "--all")
+}

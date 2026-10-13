@@ -202,8 +202,9 @@ type stopped struct {
 //
 // With --all, the person's alone, every task of the job with an agent at
 // work is stopped so, one after the other: in a job of fleets that parks
-// every fleet. A task that will not stop is passed by and named at the end.
-func stop(c *contract.Call) (any, error) {
+// every fleet, and stops what works in a fleet whose leader is gone. A task
+// that will not stop is passed by and named at the end.
+func stop(c *contract.Call) (out any, failed error) {
 	if all := c.Flags["all"] != nil; all == (len(c.Args) == 1) || len(c.Args) > 1 {
 		return nil, usage(c, "stop takes one task, or --all.")
 	} else if !all {
@@ -213,25 +214,38 @@ func stop(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	var ids []string
-	for id, t := range s.Tasks {
-		if n := len(t.Attempts); n > 0 && s.Attempts[t.Attempts[n-1]].State.Live() {
-			ids = append(ids, id)
+	// The job's own tasks, then each fleet's run: a fleet whose leader is
+	// gone is parked by no group, and its workers may be at work all the same.
+	in, done, none := []string{c.Run}, []stopped{}, true
+	for _, name := range slices.Sorted(maps.Keys(s.Run.Fleets)) {
+		in = append(in, s.Run.Fleets[name].Run)
+	}
+	for _, run := range in {
+		low := *c
+		if low.Run = run; run != c.Run {
+			if s, err = read(&low); err != nil {
+				continue // a fleet's run that cannot be read holds nothing to stop
+			}
+		}
+		var ids []string
+		for id, t := range s.Tasks {
+			if n := len(t.Attempts); n > 0 && s.Attempts[t.Attempts[n-1]].State.Live() {
+				ids = append(ids, id)
+			}
+		}
+		slices.SortFunc(ids, byID)
+		for _, id := range ids {
+			r, bad := stopOne(&low, id)
+			if none = false; bad == nil {
+				done = append(done, r)
+			}
+			failed = cmp.Or(failed, bad)
 		}
 	}
-	slices.SortFunc(ids, byID)
-	done := []stopped{}
-	for _, id := range ids {
-		r, bad := stopOne(c, id)
-		if bad == nil {
-			done = append(done, r)
-		}
-		err = cmp.Or(err, bad)
-	}
-	if len(ids) == 0 {
+	if none {
 		fmt.Fprintln(c.Out, "No agent is at work.")
 	}
-	return map[string]any{"stopped": done}, err
+	return map[string]any{"stopped": done}, failed
 }
 
 func stopOne(c *contract.Call, task string) (stopped, error) {
