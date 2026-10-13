@@ -55,6 +55,16 @@ type disk struct {
 	layout string
 }
 
+// SelfPath is the built program where WHALESHARK_SOAK_SELF names one: the
+// left section's own program then runs in the dock for the whole soak,
+// which it cannot as this test's program.
+func (d disk) SelfPath() (string, error) {
+	if self := os.Getenv(envSelf); self != "" {
+		return self, nil
+	}
+	return d.Platform.SelfPath()
+}
+
 func (d disk) Replace(tmp, final string) error {
 	if strings.HasPrefix(final, strings.TrimSuffix(d.layout, "json")) {
 		if info, err := os.Stat(tmp); err == nil {

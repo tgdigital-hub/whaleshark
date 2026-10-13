@@ -6,9 +6,12 @@
 //	WHALESHARK_SOAK=1h go test ./test/soak -count=1 -timeout 90m -v
 //
 // Without the variable the test is skipped, so that an ordinary run stays
-// fast. WHALESHARK_SOAK_PROFILE names a file for the keeper's processor
-// profile, which says where its time went; the figures of a run that is
-// profiled are a little worse than those of one that is not.
+// fast. WHALESHARK_SOAK_SELF names the built program, so that the left
+// section's own program runs in the dock meanwhile, under the login the
+// XDG variables name. WHALESHARK_SOAK_PROFILE names a file for the
+// keeper's processor profile, which says where its time went; the figures
+// of a run that is profiled are a little worse than those of one that is
+// not.
 //
 // The test's own program plays three parts, told apart by a variable: the
 // test, the keeper in a process of its own, and the program in each pane.
@@ -27,6 +30,7 @@ const (
 	envSoak    = "WHALESHARK_SOAK"
 	envRole    = "WHALESHARK_SOAK_ROLE"
 	envProfile = "WHALESHARK_SOAK_PROFILE"
+	envSelf    = "WHALESHARK_SOAK_SELF"
 )
 
 func TestMain(m *testing.M) {
