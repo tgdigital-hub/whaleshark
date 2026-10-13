@@ -29,7 +29,7 @@ func TestNoCharacterOfANoteIsMoreThanAWord(t *testing.T) {
 			t.Errorf("U+%04X: %q", r, out)
 		}
 	}
-	for _, head := range []string{"/exit", "!rm -r x", "#remember this", "\n/exit", "\x1b[200~/exit", "‮/exit", " /exit", "\t!x", "​#x"} {
+	for _, head := range []string{"/exit", "!rm -r x", "#remember this", "\n/exit", "\x1b[200~/exit", "\u202e/exit", " /exit", "\t!x", "\u200b#x"} {
 		for where, want := range sayFrom {
 			line := Said(where, head)
 			if rest, ok := strings.CutPrefix(line, want); !ok || strings.ContainsAny(line[:1], "/!#") || strings.ContainsAny(rest, "\n\r\x1b") {

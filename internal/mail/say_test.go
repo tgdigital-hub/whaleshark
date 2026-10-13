@@ -153,7 +153,7 @@ func TestOnlyThePersonsNoteAndOnlyTheLeadAgentsTab(t *testing.T) {
 // at the head of the line, where an agent tool reads a command.
 func TestANotesTextCannotPressAKey(t *testing.T) {
 	p := evening(t, nil)
-	hostile := "/exit\x1b[201~\x1b]0;title\a\r\n--human\t!rm‮  # " + strings.Repeat("long ", 2000)
+	hostile := "/exit\x1b[201~\x1b]0;title\a\r\n--human\t!rm\u202e  # " + strings.Repeat("long ", 2000)
 	a, exit := run(t, p, scenario.Human, "tell", "lead", hostile)
 	want(t, "exit", exit, 0)
 	want(t, "typed", a.Result.Pointer, "typed")

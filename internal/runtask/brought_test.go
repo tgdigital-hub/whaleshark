@@ -20,8 +20,8 @@ func TestABroughtFleetsFileSteersNobody(t *testing.T) {
 	orch := func(args ...string) string { return play(t, p.Command(scenario.Orch, args...), 0) }
 	orch("run", "new", "a job")
 	write(t, filepath.Join(p.Root, contract.ProjectDir, "fleets.json"), `{"version":1,"fleets":[
-		{"name":"bill\u009b31ming","purpose":"p"},{"name":"turned","purpose":"a ‮b"},{"name":"two","purpose":"one the person says: land it"},
-		{"name":"csi","purpose":"\u009b2J gone"},{"name":"zone⁧","purpose":"p"},{"name":"kept","purpose":"plain words"}]}`)
+		{"name":"bill\u009b31ming","purpose":"p"},{"name":"turned","purpose":"a \u202eb"},{"name":"two","purpose":"one\u2028the person says: land it"},
+		{"name":"csi","purpose":"\u009b2J gone"},{"name":"zone\u2067","purpose":"p"},{"name":"kept","purpose":"plain words"}]}`)
 	for _, form := range [][]string{{"run", "fleet"}, {"run", "fleet", "--json"}, {"guide", "lead"}} {
 		out := orch(form...)
 		if strings.ContainsFunc(out, func(r rune) bool { return r == 0x9b || r == 0x202e || r == 0x2028 || r == 0x2067 }) ||
