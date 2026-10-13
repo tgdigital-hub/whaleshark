@@ -1,0 +1,45 @@
+# Phase 6, plan first on: nothing starts until the person has approved the
+# plan they were shown. The plan is shown, sent back, changed, approved and
+# started; a task added later is shown again, and the person's own start of
+# it is their yes. The approval takes hold through the sweep, once the
+# answer can no longer be taken back.
+agent T1.1: write-result | report done "the cart is in" | hang
+agent T2.1: hang
+agent T3.1: hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+orch: init
+human: set plan.first on
+orch: run new "the shop"                            -> expect r1
+task T1 "The cart" --name cart --check "exit 0" --brief brief.md
+task T2 "The search" --name search --check "exit 0" --brief brief.md
+
+# The plan is the tool's own item, for the person alone.
+orch: start T1 T2                                   -> expect exit 5 "Plan first is on" "whaleshark wait"
+orch: status --items                                -> expect n1 "2 tasks"
+orch: answer n1 approve                             -> expect exit 5 "the person's own click"
+human: answer n1 "send back: the cart alone first"
+clock +5s
+orch: status --sweep --quiet
+orch: wait --timeout 0                              -> expect answered "the cart alone first"
+
+# The plan as changed: one task. Approved, it starts once the yes has settled.
+orch: start T1                                      -> expect exit 5 "Plan first is on"
+orch: status --items                                -> expect n2 "1 task"
+human: answer n2 approve
+orch: start T1                                      -> expect exit 5 "Plan first is on"
+clock +5s
+orch: status --sweep --quiet
+orch: start T1                                      -> expect "(T1.1)"
+
+# What is added later is shown the same way.
+orch: start T2                                      -> expect exit 5 "Plan first is on"
+orch: status --items                                -> expect n3 "1 more task"
+human: answer n3 approve
+clock +5s
+orch: status --sweep --quiet
+orch: start T2                                      -> expect "(T2.1)"
+task T3 "The help" --name help --check "exit 0" --brief brief.md
+orch: start T3                                      -> expect exit 5 "Plan first is on"
+human: start T3                                     -> expect "(T3.1)"
+assert: attempts T1.1 reported, T2.1 working, T3.1 working; n1 state used; n2 state used; n3 state used
+assert: no event lost; no event twice

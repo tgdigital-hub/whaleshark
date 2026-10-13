@@ -1,0 +1,31 @@
+# Phase 6, settings through the agent the person talks to: the orchestrator
+# lists them, changes a harmless one at once (flagged on every screen until
+# seen), asks for one that holds agents (an item; the person's "Change it"
+# changes it at the next sweep), and is refused one that names a program and
+# do not disturb until a time. A fleet's leader and a worker change nothing.
+agent G1.1: listen
+agent B1.1: hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+git
+orch: init
+human: set fleets.mode on
+orch: run new "the shop, by fleets"                 -> expect r1
+task G1 "Build billing" --name "billing one" --fleet billing --check "exit 0" --brief brief.md
+orch: start G1                                      -> expect "(G1.1)"
+as-worker G1.1: task add B1 "Refunds" --name "refund flow" --owns refunds.txt --check "exit 0" --brief brief.md
+as-worker G1.1: start B1                            -> expect "(B1.1)"
+orch: help set --json                               -> expect "spend.guard" "theme" "Off: a job runs until it is done."
+orch: set theme kelp                                -> expect "theme: kelp"
+orch: set spend.guard on                            -> expect "waiting for the person's click"
+orch: set shell /bin/zsh                            -> expect exit 5 "the person's to set"
+orch: set dnd until 9:00                            -> expect exit 5 "whaleshark set dnd on"
+as-worker G1.1: set theme reef                      -> expect exit 5
+as-worker r2/B1.1: set theme reef                   -> expect exit 5
+orch: status                                        -> expect "setting changed by your agent: theme" "your agent wants to change a setting"
+orch: answer n1 change                              -> expect exit 5 "the person's own click"
+human: answer n1 change
+clock +5s
+orch: status --sweep --quiet
+orch: status                                        -> expect "spent: 0 of 40 agent-hours"
+orch: wait --timeout 0                              -> expect answered change
+assert: n1 state used; no event lost; no event twice

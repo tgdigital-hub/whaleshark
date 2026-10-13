@@ -1,0 +1,37 @@
+# Phase 6, the stuck detector in a fleet: a worker with no progress note for
+# twice the time is told to its leader, ten minutes later to the
+# orchestrator, ten minutes later to the person as an item, and a progress
+# note clears it: the item is withdrawn.
+agent G1.1: listen
+agent B1.1: hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+git
+orch: init
+human: set fleets.mode on
+orch: run new "the shop, by fleets"                 -> expect r1
+task G1 "Build billing" --name "billing one" --fleet billing --check "exit 0" --brief brief.md
+orch: start G1                                      -> expect "(G1.1)"
+as-worker G1.1: task add B1 "Refunds" --name "refund flow" --owns refunds.txt --check "exit 0" --brief brief.md
+as-worker G1.1: start B1                            -> expect "(B1.1)"
+term-event working r2/B1.1
+clock +31m
+as-worker G1.1: status --sweep --quiet
+term-event working r2/B1.1
+clock +30m
+as-worker G1.1: status --sweep --quiet
+as-worker G1.1: wait --timeout 0                    -> expect stuck B1 "no progress note"
+term-event working r2/B1.1
+clock +10m
+as-worker G1.1: status --sweep --quiet
+orch: wait --timeout 0                              -> expect stuck "billing › refund flow looks stuck" "Its leader was told"
+orch: wait --ack last --timeout 0
+orch: status --items
+term-event working r2/B1.1
+clock +10m
+as-worker G1.1: status --sweep --quiet
+human: status --items                               -> expect n1 "billing › refund flow looks stuck"
+as-worker r2/B1.1: progress 40 "the refund form is half in"
+clock +5s
+as-worker G1.1: status --sweep --quiet
+assert: n1 state closed; in r2: attempts B1.1 working
+assert: no event lost; no event twice; in r2: no event lost

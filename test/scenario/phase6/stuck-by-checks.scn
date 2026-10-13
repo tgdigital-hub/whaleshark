@@ -1,0 +1,32 @@
+# Phase 6, the two hard signs as the real commands count them: accept fails
+# the same check three times, and the result is sent back three times. The
+# lead agent is told at once, the person ten minutes later, and the item
+# goes when the work is accepted.
+agent T1.1: write-result | report done "the page is in" | hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+orch: init
+orch: run new "the shop"                            -> expect r1
+task T1 "The page" --name page --check "test -f page.txt" --brief brief.md
+orch: start T1                                      -> expect "(T1.1)"
+await: attempts T1.1 reported
+orch: accept T1                                     -> expect exit 1
+orch: accept T1                                     -> expect exit 1
+orch: accept T1                                     -> expect exit 1
+orch: reject T1 "page.txt is not there"
+orch: status --sweep --quiet
+orch: wait --timeout 0                              -> expect stuck T1 "the same check failed 3 times"
+orch: wait --ack last --timeout 0
+as-worker T1.1: report done "the page is in now"
+orch: reject T1 "still no page.txt"
+as-worker T1.1: report done "the page is in, really"
+orch: reject T1 "and still none"
+orch: status --sweep --quiet
+term-event working T1
+clock +11m
+orch: status --sweep --quiet
+human: status --items --json                        -> expect n1 "page looks stuck" "the same check failed 3 times · sent back 3 times" "The lead agent was told"
+file page.txt: the page
+as-worker T1.1: report done "the page is there"
+orch: accept T1                                     -> expect "T1 is done, checked"
+orch: status --sweep --quiet
+assert: T1 status done; n1 state closed; no event lost; no event twice

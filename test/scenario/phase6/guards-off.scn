@@ -1,0 +1,24 @@
+# Phase 6 with every guard off: a job as it was before. A start asks nobody,
+# a file of the protected list is collected and landed unasked, sixty hours
+# of an open agent hold nothing, and no gate turns anything down. The stuck
+# detector, which comes switched on, is switched off here as the person may.
+agent T1.1: edit .env.example | commit | write-result | report done "the keys are named" | hang
+agent T2.1: hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+git
+orch: init
+human: set stuck.watch off
+orch: run new "the shop"                            -> expect r1
+task T1 "The keys" --name keys --owns .env.example --check "test -f .env.example" --brief brief.md
+task T2 "The cart" --name cart --owns cart.txt --check "test -f cart.txt" --brief brief.md
+orch: start T1 T2                                   -> expect "(T1.1)" "(T2.1)"
+await: attempts T1.1 reported
+orch: accept T1                                     -> expect "T1 is done, checked"
+term-event working T2
+clock +60h
+orch: status --sweep --quiet
+as-worker T2.1: hook gate
+orch: stop T2
+orch: task cancel T2
+human: land --local                                 -> expect "merged into main"
+assert: T1 status done; T2 status cancelled; no event lost; no event twice

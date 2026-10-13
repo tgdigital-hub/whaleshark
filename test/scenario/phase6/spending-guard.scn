@@ -1,0 +1,46 @@
+# Phase 6, the spending guard on, with fifty agent-hours for the job: at
+# four fifths the lead agent is told to wrap up, at the limit the job is
+# held (the gate of the agent at work answers, start and resume are refused,
+# the agent with nothing in hand loses its tab), the person gives ten more,
+# and at the next sweep the hold is gone: the agent at work is told to carry
+# on, and the lead agent hears of the one at a prompt that could not be told.
+agent T1.1: listen
+agent T2.1: write-result | report done "two is in" | hang
+agent T3.1: block
+agent T4.1: hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+orch: init
+human: set spend.guard on
+human: set spend.job 50
+human: set stuck.watch off
+orch: run new "the shop"                            -> expect r1
+task T1 "The cart" --name cart --check "exit 0" --brief brief.md
+task T2 "The search" --name search --check "exit 0" --brief brief.md
+task T3 "The help" --name help --check "exit 0" --brief brief.md
+task T4 "The mail" --name mail --check "exit 0" --brief brief.md
+orch: start T1 T2 T3                                -> expect "(T1.1)" "(T2.1)" "(T3.1)"
+await: attempts T1.1 working, T2.1 reported, T3.1 working
+orch: wait --for blocked --timeout 10                -> expect blocked T3
+orch: wait --ack last --timeout 0
+clock +13h20m
+orch: status --sweep --quiet
+orch: wait --timeout 0                              -> expect budget "40 of 50 agent-hours used"
+orch: wait --ack last --timeout 0
+as-worker T1.1: hook gate
+clock +3h20m
+orch: status --sweep --quiet
+as-worker T1.1: hook gate                           -> expect "agent-hours"
+orch: start T4                                      -> expect exit 5 "Nothing is started" "spending guard"
+human: resume                                       -> expect exit 5 "Nothing is resumed"
+orch: status --items                                -> expect "has used its 50 agent-hours"
+orch: wait --timeout 0                              -> expect budget held
+orch: wait --ack last --timeout 0
+orch: answer n2 more                                -> expect exit 5
+human: answer n2 more
+clock +5s
+orch: status --sweep --quiet
+as-worker T1.1: mail                                -> expect "You were paused"
+orch: status                                        -> expect "50 of 60 agent-hours"
+orch: wait --timeout 0                              -> expect resumed "not told to carry on: help (at a prompt)"
+orch: start T4                                      -> expect "(T4.1)"
+assert: attempts T1.1 working, T2.1 reported, T3.1 working, T4.1 working; n2 state used; no event lost; no event twice

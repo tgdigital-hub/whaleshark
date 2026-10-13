@@ -1,0 +1,48 @@
+# Phase 6, the spending guard with a limit for one fleet: billing reaches
+# its own agent-hour and is held alone, with a hold file in its own run; the
+# job and the fleet search go on. The person's item counts billing's agents
+# and no other's; one more agent-hour lets the fleet go.
+agent G1.1: listen
+agent G2.1: listen
+agent B1.1: listen
+agent B2.1: hang
+agent S1.1: hang
+agent S2.1: hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+git
+orch: init
+human: set fleets.mode on
+human: set spend.guard on
+human: set spend.fleet 1
+human: set stuck.watch off
+orch: run new "the shop, by fleets"                 -> expect r1
+task G1 "Build billing" --name "billing one" --fleet billing --check "exit 0" --brief brief.md
+task G2 "Build search" --name "search one" --fleet search --check "exit 0" --brief brief.md
+orch: start G1                                      -> expect "(G1.1)"
+as-worker G1.1: task add B1 "Refunds" --name "refund flow" --owns refunds.txt --check "exit 0" --brief brief.md
+as-worker G1.1: task add B2 "Invoices" --name "invoice pdf" --owns invoice.txt --check "exit 0" --brief brief.md
+as-worker G1.1: start B1                            -> expect "(B1.1)"
+clock +50m
+orch: status --sweep --quiet
+orch: wait --timeout 0                              -> expect budget billing
+orch: wait --ack last --timeout 0
+orch: start G2                                      -> expect "(G2.1)"
+as-worker G2.1: task add S1 "The box" --name "search box" --owns search.txt --check "exit 0" --brief brief.md
+as-worker G2.1: task add S2 "The ranking" --name ranking --owns rank.txt --check "exit 0" --brief brief.md
+as-worker G2.1: start S1                            -> expect "(S1.1)"
+clock +10m
+orch: status --sweep --quiet
+as-worker r2/B1.1: hook gate                        -> expect "agent-hours"
+as-worker r3/S1.1: hook gate
+as-worker G1.1: start B2                            -> expect exit 5 "spending guard"
+as-worker G2.1: start S2                            -> expect "(S2.1)"
+orch: status --items                                -> expect "billing has used its 1 agent-hours"
+human: status --items --json                        -> expect "1 agent is held"
+human: answer n1 more
+clock +5s
+orch: status --sweep --quiet
+as-worker r2/B1.1: hook gate
+as-worker r2/B1.1: mail                             -> expect "You were paused"
+as-worker G1.1: start B2                            -> expect "(B2.1)"
+assert: n1 state used; in r2: attempts B1.1 working, B2.1 working; in r3: attempts S1.1 working, S2.1 working
+assert: no event lost; no event twice; in r2: no event lost; in r3: no event lost

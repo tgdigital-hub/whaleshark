@@ -1,0 +1,35 @@
+# Phase 6, protected files on: the work goes on unhindered, the accept that
+# collects a protected file says so and asks the person, and land is refused
+# until they have approved the file as it is. Changed again after the yes,
+# it asks again.
+agent T1.1: edit .env.example | commit | write-result | report done "the keys are named" | hang
+agent T2.1: edit cart.txt | commit | write-result | report done "the cart is in" | hang
+agent T3.1: edit .env.example | commit | write-result | report done "one more key" | hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+git
+orch: init
+human: set protect.files on
+orch: run new "the shop"                            -> expect r1
+task T1 "The keys" --name keys --owns .env.example --check "test -f .env.example" --brief brief.md
+task T2 "The cart" --name cart --owns cart.txt --check "test -f cart.txt" --brief brief.md
+orch: start T1 T2                                   -> expect "(T1.1)" "(T2.1)"
+await: attempts T1.1 reported, T2.1 reported
+orch: accept T2                                     -> expect "T2 is done, checked"
+orch: accept T1                                     -> expect "T1 is done, checked" "protected files changed: .env.example" "the person is asked"
+orch: wait --timeout 0                              -> expect protected ".env.example"
+human: land --local                                 -> expect exit 5 "Nothing was landed" ".env.example"
+orch: answer n1 approve                             -> expect exit 5 "the person's own click"
+human: answer n1 approve
+clock +5s
+orch: status --sweep --quiet
+task T3 "One more key" --name "more keys" --owns .env.example --check "test -f .env.example" --brief brief.md
+orch: start T3                                      -> expect "(T3.1)"
+await: attempts T3.1 reported
+orch: accept T3                                     -> expect "the person is asked"
+human: land --local                                 -> expect exit 5 "Nothing was landed"
+human: status --items --json                        -> expect n2 "Protected files changed in this job" ".env.example" "approve this file as it is now"
+human: answer n2 approve
+clock +5s
+orch: status --sweep --quiet
+human: land --local                                 -> expect "merged into main"
+assert: T1 status done; T3 status done; n1 state used; n2 state used; no event lost; no event twice
