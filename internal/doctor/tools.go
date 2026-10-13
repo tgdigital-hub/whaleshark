@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/BurntSushi/toml"
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -21,8 +24,8 @@ const paneMemory = 5
 
 // tools is the rows of the agent tools: the login's own descriptions held
 // to being the login's alone, everything among them that is not used, and
-// of each tool that is wired in whether its program is found, what it can
-// tell of its states and whether Stop all holds it. The last row is how
+// each tool that is wired in as the guide and the settings screen word it,
+// its rank and what is known of it, with where its program is. The last row is how
 // many agents the machine's memory carries, whatever the limits allow.
 func (e *exam) tools() {
 	dir := filepath.Join(e.dirs.Config, contract.ToolsDir)
@@ -35,26 +38,16 @@ func (e *exam) tools() {
 		e.say(problem, "", "%s", fault)
 	}
 	for _, t := range tools {
-		says := "busy or quiet only"
-		if t.Exact() {
-			says = "exact states"
-		} else if t.Screen.Ready+t.Screen.Working != "" {
-			says = "states read off its screen"
-		}
-		if t.Held() {
-			says += ", held by Stop all"
-		} else {
-			says += ", not held by Stop all"
-		}
-		if !t.Proven {
-			says += ", not yet proven here"
+		line := t.Name + ": " + t.Rank() + " · " + t.Facts()
+		if t.Suits != "" {
+			line += "; suits: " + t.Suits
 		}
 		if path, err := exec.LookPath(t.Run[0]); err == nil {
-			e.say(ok, "", "the agent tool %s is wired in, %s: %s", t.Name, path, says)
+			e.say(ok, "", "the agent tool %s; found: %s", line, path)
 		} else if filepath.IsAbs(t.Run[0]) {
 			e.say(problem, "whaleshark set tools."+t.Name+".run <its program and arguments>", "the program of the agent tool %s is gone: %s", t.Name, t.Run[0])
 		} else {
-			e.say(note, "", "the agent tool %s is not installed: no %s is on your path (%s)", t.Name, t.Run[0], says)
+			e.say(note, "", "the agent tool %s; not installed: no %s is on your path", line, t.Run[0])
 		}
 	}
 	mb := 0
@@ -87,7 +80,8 @@ type Trial struct {
 const tryWait = 20 * time.Second
 
 // try is `doctor --try NAME`, which the settings screen's "Try it" runs: the
-// one test of a tool that is wired in, said step by step in one line.
+// one test of a tool that is wired in, said step by step in one line and
+// kept, with the day, as the tool's Tried, whether or not every step came.
 func try(c *contract.Call, name string) (any, error) {
 	dirs, err := c.Kit.Platform.Dirs()
 	tools, _ := contract.Tools(c.Kit.Platform, dirs)
@@ -97,21 +91,41 @@ func try(c *contract.Call, name string) (any, error) {
 			Message: contract.NotWired(name)}
 	}
 	tr, err := Try(c.Kit, t, tryWait)
-	saw := ""
-	for _, step := range []struct {
-		came bool
-		word string
-	}{{tr.Started, "started"}, {tr.Pasted, "took the paste"}, {tr.Worked, "went to work"}, {tr.Rested, "came to rest"}} {
-		if step.came {
-			saw += " · " + step.word
+	tried := contract.ToolTried{Day: c.Now.Format(time.DateOnly)}
+	for i, came := range []bool{tr.Started, tr.Pasted, tr.Worked, tr.Rested} {
+		if came {
+			tried.Saw = append(tried.Saw, contract.TriedSaw[i])
 		}
+	}
+	saw := strings.Join(append([]string{t.Name}, tried.Saw...), " · ")
+	if kerr := keep(c.Kit.Platform, dirs, t, tried); kerr != nil {
+		fmt.Fprintf(c.Err, "What was seen is not kept: %v.\n", kerr)
 	}
 	if err != nil {
 		return nil, &contract.Refusal{Exit: contract.ExitFailed, Code: "trial", Data: tr,
-			Message: cli.Plain(fmt.Sprintf("%s%s, and then: %v.", t.Name, saw, err))}
+			Message: cli.Plain(fmt.Sprintf("%s, and then: %v.", saw, err))}
 	}
-	fmt.Fprintf(c.Out, "%s%s. At rest its screen shows: %s\n", t.Name, saw, cli.Plain(tr.Rest))
+	fmt.Fprintf(c.Out, "%s. At rest its screen shows: %s\n", saw, cli.Plain(tr.Rest))
 	return tr, nil
+}
+
+// keep writes what a test saw into the tool's own file and leaves the rest
+// of that file as it stands. A built-in with no file gets one that holds its
+// label, program and hooks and no more: its screen's words and its options
+// stay the program's, for a later release to know better.
+func keep(p contract.Platform, d contract.Dirs, t contract.Tool, tried contract.ToolTried) error {
+	own := contract.Tool{Name: t.Name}
+	if data, err := p.Peek(filepath.Join(d.Config, contract.ToolsDir, t.Name+".toml")); t.Mine {
+		if err := toml.Unmarshal(data, &own); err != nil {
+			return err
+		}
+	} else if err == nil {
+		return errors.New("its file is not used, and doctor says why")
+	}
+	if own.Label, own.Hooks, own.Tried = cmp.Or(own.Label, t.Label), cmp.Or(own.Hooks, t.Hooks), tried; own.Run == nil {
+		own.Run = t.Run
+	}
+	return contract.WriteTool(p, d, own)
 }
 
 // Try is the one test of a tool that is wired in: it is started in a tab of

@@ -5,11 +5,13 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/theme"
+	"github.com/tgdigital-hub/whaleshark/internal/view"
 )
 
 // morning is Home of the orchestrator's run of the morning with three
@@ -70,7 +72,7 @@ func TestHomePrintsTheFleets(t *testing.T) {
 			}
 			for _, want := range []string{
 				fmt.Sprintf(`href="%s%s">%s</a> <span class="c-dim">· %s</span>`, contract.RouteTask, c.Task, c.Name, c.Agent),
-				fmt.Sprintf(`<span class="ctx c-dim">%d agents</span>`, c.Fleet.Agents),
+				fmt.Sprintf(`<span class="ctx c-dim">%s</span>`, c.Fleet.Working()),
 			} {
 				if !strings.Contains(out, want) {
 					t.Errorf("%s: the fleet %s has no %s", name, c.Name, want)
@@ -108,9 +110,45 @@ func TestAFleetsThirdLine(t *testing.T) {
 	if got := news(p, card); got != card.News {
 		t.Errorf("the fleet's own news reads %q", got)
 	}
-	card.Fleet.Agents = 1
+	card.Fleet.Agents, card.Fleet.Led = 1, false
 	p.View.Sections = []contract.Section{{Name: "BUILDING", Cards: []contract.Card{card}}}
 	if out := draw(t, p); !strings.Contains(out, `<span class="ctx c-dim">1 agent</span>`) || !strings.Contains(out, `<span class="news c-dim">9 of 12 pages written</span>`) {
 		t.Errorf("a fleet of one agent with news of its own:\n%s", out)
+	}
+	// Its leader is one of its agents, as the header above the cards counts.
+	card.Fleet.Led = true
+	if out := draw(t, p); !strings.Contains(out, `<span class="ctx c-dim">2 agents</span>`) {
+		t.Errorf("a fleet of a leader and one worker:\n%s", out)
+	}
+}
+
+// The afternoon with every guard on. Home of the job says what was spent of
+// the limit, in the view's own words; in the fleet whose worker looks stuck
+// the card's third line says so in the warning colour, on a phone too, where
+// a building card with nothing to say has no third line; and the catch-up
+// has a row for what looked stuck only when something did.
+func TestHomeSaysWhatWasSpentAndACardThatItLooksStuck(t *testing.T) {
+	g := testkit.Guarded()
+	in := contract.ViewInput{Now: g.Now, Caller: contract.Human, State: g.Up, Fleets: g.Low, Person: g.Person, Limits: contract.ProjectDefaults(), Checked: g.Now}
+	p := &contract.Page{Screen: contract.ScreenTeam, Theme: "reef", Token: "tok-1", View: view.Build(in)}
+	if out := draw(t, p); p.View.Spent != 33 || p.View.Limit != 40 || !strings.Contains(out, "<p>spent: 33 of 40 agent-hours</p>") || strings.Contains(out, "c-blocked\">stuck") {
+		t.Errorf("Home of the job, spent %v of %v:\n%s", p.View.Spent, p.View.Limit, out)
+	}
+	in.State, in.Fleets = g.Low["billing"], nil
+	p.View, p.Phone = view.Build(in), true
+	out := draw(t, p)
+	_, card, _ := strings.Cut(out, ` id="c-T7">`)
+	card, _, _ = strings.Cut(card, "</article>")
+	if !strings.Contains(card, `<span class="news c-blocked">stuck 132m: no progress note · the same check failed 3 times</span>`) ||
+		strings.Contains(out, `plain" id="c-T7"`) || strings.Count(out, `class="news c-blocked"`) != 1 {
+		t.Errorf("the card of the worker that looks stuck:\n%s", card)
+	}
+	p.Catchup = &contract.Catchup{From: g.Now.Add(-time.Hour), To: g.Now}
+	if out := draw(t, p); strings.Contains(out, "Looked stuck") {
+		t.Errorf("nothing looked stuck, and the catch-up has the row:\n%s", out)
+	}
+	p.Catchup.Stuck = contract.CatchLine{N: 1, Text: "sign-up page, still so"}
+	if out := draw(t, p); !strings.Contains(out, "<tr><th>Looked stuck</th><td>1</td><td>sign-up page, still so</td></tr>") {
+		t.Errorf("the catch-up of an hour in which a worker looked stuck:\n%s", out)
 	}
 }
