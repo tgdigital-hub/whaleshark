@@ -216,6 +216,28 @@ const (
 	ToldLeader, ToldOrchestrator, ToldPerson = 1, 2, 3
 )
 
+// The stuck detector's own ceilings for the three spans a project's file
+// sets with nobody's approval: four hours for the two in minutes, and a
+// quarter of an hour for the one in seconds, each eight times or so what
+// the span is as it comes.
+const (
+	WatchMinutesMost = 240
+	WatchQuietMost   = 900
+)
+
+// Watched is a project's limits as the stuck detector uses them while it is
+// on: for each of the three spans the lower of the project's figure and the
+// ceiling. A figure of nought, which holds no line, is above every ceiling:
+// no file makes the detector silent by a very long span or by none.
+func (p ProjectFile) Watched() ProjectFile {
+	for span, most := range map[*int]int{&p.Limits.StaleMinutes: WatchMinutesMost, &p.Limits.MaxMinutes: WatchMinutesMost, &p.Limits.QuietSeconds: WatchQuietMost} {
+		if *span <= 0 || *span > most {
+			*span = most
+		}
+	}
+	return p
+}
+
 // StuckWhy words an attempt's signs (AgentSeen.StuckWhy) as every screen, event and item does:
 // "no progress note · the same check failed 3 times".
 func StuckWhy(why string) string {

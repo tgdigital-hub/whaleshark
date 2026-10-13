@@ -132,7 +132,9 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	}
 	// No folder of the login's known: nothing is read beside the command, and no guard is on.
 	if d, err := k.Platform.Dirs(); err == nil {
-		l.person, _ = contract.ReadPerson(k.Platform.Peek, d.Config)
+		if l.person, _ = contract.ReadPerson(k.Platform.Peek, d.Config); l.person.Stuck.Watch {
+			l.limits = l.limits.Watched() // the detector's spans are the project's up to its own ceilings
+		}
 		l.tools, _ = contract.Tools(k.Platform, d)
 		l.ctx = contract.ReadCtx(k.Platform.Peek, d.State, s)
 	}

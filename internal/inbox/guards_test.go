@@ -160,6 +160,54 @@ func TestTheDetectorOffJudgesNobody(t *testing.T) {
 	}
 }
 
+// A project's file sets the detector's three spans with nobody's approval.
+// While the detector is on, a very long span, or none, is used as the
+// detector's own ceiling: four hours without a note is stale, four hours of
+// a task is over time, a quarter of an hour at rest is quiet. With the
+// detector off the project's figures stand as they are written.
+func TestTheDetectorsSpansHaveACeiling(t *testing.T) {
+	var p contract.ProjectFile
+	p.Limits.StaleMinutes, p.Limits.MaxMinutes, p.Limits.QuietSeconds, p.Limits.Agents = 10000, 0, 86400, 7
+	if l := p.Watched().Limits; l.StaleMinutes != 240 || l.MaxMinutes != 240 || l.QuietSeconds != 900 || l.Agents != 7 {
+		t.Errorf("spans above the ceiling, and none: %+v", l)
+	}
+	p.Limits.StaleMinutes, p.Limits.MaxMinutes, p.Limits.QuietSeconds = 30, 45, 120
+	if got := p.Watched(); got.Limits != p.Limits {
+		t.Errorf("spans under the ceiling were changed: %+v", got.Limits)
+	}
+	for _, far := range []string{"stale_minutes = 10000\nmax_minutes = 100000\nquiet_seconds = 86400", "stale_minutes = 0\nmax_minutes = 0\nquiet_seconds = 0"} {
+		for _, watch := range []bool{true, false} {
+			t.Run(fmt.Sprint(strings.Fields(far)[2], " watched ", watch), func(t *testing.T) {
+				w := played(t, crew(2), map[string]string{"W0.1": "sleep 600", "W1.1": "hang"})
+				w.T = t
+				w.person(fmt.Sprintf("[stuck]\nwatch = %t\n", watch))
+				if err := os.WriteFile(filepath.Join(w.p.Root, "whaleshark.toml"), []byte("[limits]\n"+far+"\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				w.sweep()
+				w.until("the second agent to rest", func() bool {
+					return slices.ContainsFunc(w.picture().Panes, func(p contract.Pane) bool { return p.ID == w.pane("W1.1") && p.Status == contract.StatusIdle })
+				})
+				w.sweep()
+				if w.after(14 * time.Minute); len(w.state().Inbox.Events) != 0 {
+					t.Fatalf("under every ceiling, and told: %v", kinds(w.state().Inbox.Events, ""))
+				}
+				w.after(2 * time.Minute)
+				rested := kinds(w.state().Inbox.Events, "W1.1")
+				w.after(3*time.Hour + 45*time.Minute)
+				s := w.state()
+				working, why := kinds(s.Inbox.Events, "W0.1"), s.Attempts["W0.1"].Seen.StuckWhy
+				if watch && (!slices.Equal(rested, []string{"quiet"}) || !slices.Equal(working, []string{"overtime", "stale", "stuck"}) || why != "stale,overtime") {
+					t.Errorf("with the detector on: at rest %v, at work %v, stuck by %q", rested, working, why)
+				}
+				if !watch && (len(rested) != 0 || len(working) != 0 || why != "") {
+					t.Errorf("with the detector off the project's spans stand: at rest %v, at work %v, stuck by %q", rested, working, why)
+				}
+			})
+		}
+	}
+}
+
 // The row's second check. A worker of billing is stuck: its leader is told
 // in the fleet's run; ten minutes later the orchestrator, in the job's run
 // and by the same write; ten minutes later the person, by a to-do there. A
