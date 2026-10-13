@@ -287,8 +287,8 @@ func heldBy(s *contract.State) bool { return s.Run.Paused != nil && s.Run.Paused
 // once settled, lets everything go.
 func TestTheSpendingGuardHoldsAJobAndLetsItGo(t *testing.T) {
 	w, held := afternoon(t, "[spend]\nguard = true\njob = 40\n")
-	// With the guard on the kit looks at each run's hold file at every look,
-	// held or not: one left behind is taken away.
+	// The kit looks at each run's hold file at every look, held or not: one
+	// left behind is taken away.
 	if w.job(time.Hour); heldBy(w.state()) || len(*held) != 3 || item(w.state(), contract.CauseBudget) != nil {
 		t.Fatalf("held at 39 of 40 agent-hours: %+v, %v", w.state().Run.Spend, *held)
 	}
@@ -384,7 +384,9 @@ func TestTheSpendingGuardOffChangesNothing(t *testing.T) {
 		}
 		return n
 	}
-	if s.Run.Spend != was.Run.Spend || s.Run.Paused != nil || w.of("r8").Run.Paused != nil || len(*held) != 0 || item(s, contract.CauseBudget) != nil || budget(s) != budget(was) {
+	// The kit is asked to look at each run's hold file all the same: with no
+	// hold and no file that is one read, and a file somebody left is gone.
+	if s.Run.Spend != was.Run.Spend || s.Run.Paused != nil || w.of("r8").Run.Paused != nil || len(*held) != 6 || item(s, contract.CauseBudget) != nil || budget(s) != budget(was) {
 		t.Fatalf("the guard is off: %+v, paused %+v, the kit %v, events %v", s.Run.Spend, s.Run.Paused, *held, kinds(s.Inbox.Events, ""))
 	}
 }

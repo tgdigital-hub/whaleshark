@@ -326,24 +326,19 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 }
 
 // hold brings each fleet's run in line with its job's record, tried on what
-// was read first, and has the hold file and the agents of a run follow where
-// something changed and at every look at a held run: a file taken away is back.
+// was read first, and has the hold file and the agents of every run follow
+// at every look, guard on or off: a file taken away is back, and one left
+// behind, or put there by anybody, holds no agent for longer than a sweep.
 func (sw sweeper) hold(root string, s *contract.State, l *look) {
-	// With the guard on it is every look: a file left behind by a sweep that died is taken away.
-	held := func(s *contract.State) bool {
-		return l.person.Spend.Guard || s.Run.Paused != nil && s.Run.Paused.By == contract.HeldBy
-	}
-	if l.held || held(s) {
-		sw.k.Hold(sw.k, root, s.Run.ID)
-	}
+	sw.k.Hold(sw.k, root, s.Run.ID)
 	for _, low := range l.fleets {
-		moved := sw.k.Rules.Hold(s, low, l.now) && sw.k.Store.Both(root, s.Run.ID, low.Run.ID, func(up, low *contract.State) error {
-			sw.k.Rules.Hold(up, low, l.now)
-			return nil
-		}) == nil
-		if moved || held(low) {
-			sw.k.Hold(sw.k, root, low.Run.ID)
+		if sw.k.Rules.Hold(s, low, l.now) {
+			sw.k.Store.Both(root, s.Run.ID, low.Run.ID, func(up, low *contract.State) error {
+				sw.k.Rules.Hold(up, low, l.now)
+				return nil
+			})
 		}
+		sw.k.Hold(sw.k, root, low.Run.ID)
 	}
 }
 

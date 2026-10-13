@@ -3,7 +3,7 @@
 # of an open agent hold nothing, and no gate turns anything down. The stuck
 # detector, which comes switched on, is switched off here as the person may.
 agent T1.1: edit .env.example | commit | write-result | report done "the keys are named" | hang
-agent T2.1: hang
+agent T2.1: listen
 file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
 git
 orch: init
@@ -18,6 +18,12 @@ term-event working T2
 clock +60h
 orch: status --sweep --quiet
 as-worker T2.1: hook gate
+# A hold file that somebody left in the run's folder holds nobody for longer
+# than a sweep: the next look takes it away.
+file .whaleshark/runs/r1/hold: left behind
+as-worker T2.1: hook gate                           -> expect "agent-hours"
+clock +5s
+orch: status --sweep --quiet
 orch: stop T2
 orch: task cancel T2
 human: land --local                                 -> expect "merged into main"
