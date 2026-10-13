@@ -454,7 +454,7 @@ func (k *Keeper) drop(p *pane) {
 	delete(k.panes, p.rec.ID)
 	p.quit()
 	if p == k.over {
-		k.over = nil
+		k.over, k.placed = nil, ""
 	} else if k.lay.Close(p.rec.ID) {
 		delete(k.tabs, p.rec.Tab)
 		delete(k.opened, p.rec.Tab)

@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"cmp"
 	"errors"
 	"slices"
 	"strconv"
@@ -28,13 +29,15 @@ var (
 // Node is a pane, or a split: two nodes with a dividing line of one cell
 // between them, A left of B, or above it when Down is set. Share is A's part
 // of the cells the two have together. Cells above 0 holds one of them at that
-// many cells whatever the window does: B when Last is set, else A.
+// many cells whatever the window does: B when Last is set, else A. Made is
+// what the split was opened with, its cells or else its share, for Reset.
 type Node struct {
 	Pane  string  `json:"pane,omitempty"`
 	Down  bool    `json:"down,omitempty"`
 	Share float64 `json:"share,omitempty"`
 	Cells int     `json:"cells,omitempty"`
 	Last  bool    `json:"last,omitempty"`
+	Made  float64 `json:"made,omitempty"`
 	A     *Node   `json:"a,omitempty"`
 	B     *Node   `json:"b,omitempty"`
 }
@@ -93,6 +96,12 @@ type Layout struct {
 	Over   string `json:"-"`
 	OverAt Rect   `json:"-"`
 	Dock   Dock   `json:"-"`
+	// Lit is the dividing line in the accent, its X and Y the pointer's cell:
+	// the one under the pointer, or with Held the one pressed or waiting to be
+	// put, heavy and with its size as a label, or with Said where that is set.
+	Lit  Hit    `json:"-"`
+	Held bool   `json:"-"`
+	Said string `json:"-"`
 }
 
 // Dock is the place of the one pane that is in no tab and shows beside every
@@ -291,6 +300,7 @@ func (l *Layout) Split(pane, direction string, ratio float64, fresh string) erro
 	if !s.Last {
 		s.Share = 1 - s.Share
 	}
+	s.Made = cmp.Or(float64(s.Cells), s.Share)
 	n, _ := t.Root.leaf(pane, nil)
 	if r := l.place(t, n); l.W > 0 && l.H > 0 && (s.Down && r.H < 2*LeastH+1 || !s.Down && r.W < 2*LeastW+1) {
 		return ErrNoRoom

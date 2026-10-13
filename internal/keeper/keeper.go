@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/input"
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
 	"github.com/tgdigital-hub/whaleshark/internal/overlay"
 	"github.com/tgdigital-hub/whaleshark/internal/restore"
@@ -67,6 +68,9 @@ type Keeper struct {
 	over   *pane             // the pane drawn over the tab that shows, if one is
 	overW  float64           // its width and height as they were asked for:
 	overH  float64           // shares of the window, or cells above 1
+	placed string            // set while it stands at a cell, overX, overY, of the window:
+	overX  int               // the workspace in front and the window's size as they
+	overY  int               // were then. A placed pane, a menu, is closed when either is another
 	set    contract.Settings // the person's own, read again when their file changes
 	hover  bool              // the pointer is in the dock
 	ends   []time.Time       // the last ends of the dock's program, three at most
@@ -400,6 +404,9 @@ func (k *Keeper) shown() *layout.Tab {
 // moved, a workspace may have been made, named, put in front or ended, panes
 // may have new sizes, and every window is drawn again.
 func (k *Keeper) changed() {
+	if k.placed != k.stands() {
+		k.away()
+	}
 	now, tab := "", k.shown()
 	if tab != nil {
 		now = tab.Focus
@@ -442,10 +449,57 @@ func (k *Keeper) changed() {
 	k.wake()
 }
 
-// overAt is the inside of the pane drawn over the tab, in the window used last.
+// overAt is the inside of the pane drawn over the tab, in the window used
+// last. A placed one is its program's own box, and nothing is drawn round
+// it: its corner at the cell asked for, moved left and up where the window
+// ends, and never on the tab row.
 func (k *Keeper) overAt() layout.Rect {
 	r := overlay.Place(k.lay.W, k.lay.H, k.overW, k.overH)
-	return layout.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
+	if k.placed == "" {
+		return layout.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
+	}
+	if k.overW > 1 {
+		r.W = min(int(k.overW), k.lay.W)
+	}
+	if k.overH > 1 {
+		r.H = min(int(k.overH), k.lay.H-1)
+	}
+	r.X, r.Y = max(min(k.overX, k.lay.W-r.W), 0), max(min(k.overY, k.lay.H-r.H), 1)
+	return r
+}
+
+// stands is what a placed pane is held to: the workspace in front and the
+// window's size.
+func (k *Keeper) stands() string { return fmt.Sprint(k.lay.Front, " ", k.lay.W, " ", k.lay.H) }
+
+// away closes the pane placed over the tab, if one is: at a press beside
+// it, at another size of the window, at another workspace in front, and
+// when the dock's program, which asked for it, has ended.
+func (k *Keeper) away() {
+	if o := k.over; o != nil && k.placed != "" {
+		k.drop(o)
+		go o.tty.Close()
+	}
+}
+
+// menu tells the readers of events that the menu of a tab is asked for at a
+// cell of the window: under a press, or for the key at the tab's own name
+// on the tab row. Asked for on a fleet's name it is of the fleet's first
+// tab, its leader's; the tabs opened by hand have no menu together.
+func (k *Keeper) menu(a input.Act) {
+	t := k.lay.Tab(a.Hit.Tab)
+	if t == nil || a.Hit.Kind == layout.OnGroup && t.Group == "" {
+		return
+	}
+	if a.X == 0 && a.Y == 0 {
+		a.X, a.Y = k.lay.Named(t.ID)
+	}
+	for _, o := range k.lay.Tabs {
+		if a.Hit.Kind == layout.OnGroup && o.Head && o.Group == t.Group && o.Space == t.Space {
+			t = o
+		}
+	}
+	k.tell(contract.TermEvent{Kind: contract.EvMenu, Pane: contract.Pane{Tab: t.ID}, X: a.X, Y: a.Y})
 }
 
 // popup shows words in the corner of every window for a few seconds.

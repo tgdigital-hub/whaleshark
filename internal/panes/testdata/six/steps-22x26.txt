@@ -1,8 +1,17 @@
  WHALESHARK
 
  WORKSPACES
- ▌· shop-site       1
+ ▌shop-site         1
 
+
+
+
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━
  AGENTS · shop-site
  FIRST STEPS [ hide ]
  ✔ 1 start your
@@ -11,15 +20,6 @@
  › 2 tell it what you
      want built, in
      your words
-   3 your agents
-     appear here;
-     click one to go
-     to it
-   4 what needs you
-     lands below; y
-     answers
-   5 ctrl+space s
-     settings · S
  version 1.3 is out …
  setting changed by …
  [Menu] [Settings]

@@ -49,7 +49,7 @@ func (p *pane) cmd(args ...string) []string {
 		args = append(args, "--human")
 	}
 	root, run := p.root, p.run
-	if p.kind == side && p.at.Root != "" {
+	if p.sided() && p.at.Root != "" {
 		// A row of the left section is about its own project and run; an
 		// answer goes where the question climbed to.
 		if root, run = p.at.Root, p.at.Run; args[0] == "answer" {
@@ -115,7 +115,7 @@ func result(out []byte, v any) bool {
 // sweep starts the command that looks for stalled agents. The pane never
 // looks itself and never writes: it only starts the looking, as a child.
 func (p *pane) sweep() {
-	if len(p.jobs) > 0 {
+	if len(p.jobs) > 0 || p.kind == offer {
 		return
 	}
 	// The left section has every open run of the login looked at, by one child.
@@ -195,6 +195,8 @@ func (p *pane) key(ev term.Event) bool {
 	key := ev.Key
 	p.present()
 	switch {
+	case p.kind == offer:
+		return p.offerKey(ev)
 	case key == "ctrl+c":
 		return false
 	case p.kind == settings && p.line == nil && p.over == "":
@@ -343,13 +345,7 @@ func (p *pane) act(id string, fill map[string]string) {
 			return p.k.Terms.Dock(map[bool]string{true: contract.DockKeys, false: contract.DockFold}[id == "side-keys"])
 		})
 	case id == "workspace":
-		// The projects of the login's list that no workspace shows.
-		dirs, _ := p.k.Platform.Dirs()
-		roots, _ := contract.ReadProjects(p.k.Platform.Peek, dirs.State)
-		p.roots = slices.DeleteFunc(roots, func(root string) bool {
-			return p.bar != nil && slices.ContainsFunc(p.bar.Workspaces, func(w contract.Workspace) bool { return w.Root == root })
-		})
-		p.over, p.pick = "projects", 0
+		p.over, p.pick = "projects", 0 // the projects of the login's list that no workspace shows
 	case id == "menu" || id == "keys":
 		p.fold(false)
 		p.over, p.pick = id, 0
@@ -438,7 +434,10 @@ func (p *pane) launch(a contract.Action, fill map[string]string) {
 		})
 	default:
 		p.child(p.cmd(argv...), fill["text"], func(out []byte, said string, ok bool) {
-			if lines := strings.Split(strings.TrimSpace(string(out)), "\n"); ok && a.ID == "answer" {
+			if lines := strings.Split(strings.TrimSpace(string(out)), "\n"); p.kind == offer {
+				p.ended(said, ok)
+				return
+			} else if ok && a.ID == "answer" {
 				said = "" // the item says it, and counts down how long it can be taken back
 			} else if ok && (a.ID == "show-changes" || a.ID == "open-plan") {
 				p.read, p.over, p.pick, said = lines, a.ID, 0, "" // more than a line: read as a list
@@ -533,7 +532,7 @@ func (p *pane) fold(folded bool) {
 		return
 	}
 	p.leave()
-	p.folded = folded
+	p.folded, p.resized = folded, time.Now().Add(2*twice)
 	if me, top := p.me, p.above; me != "" {
 		p.helper(func() {
 			if err := shrink(p.k.Terms, me, top, folded); err != nil {
@@ -546,7 +545,7 @@ func (p *pane) fold(folded bool) {
 
 // widen moves the fleet's edge one step and has the new width remembered.
 func (p *pane) widen(wider bool) {
-	pane := p.ui.FleetPane
+	pane := p.pair().Fleet
 	if p.kind == fleet && p.me != "" {
 		pane = p.me
 	}
@@ -569,8 +568,8 @@ func (p *pane) widen(wider bool) {
 // hand gives the keys to the other pane of ours, or with "" back to the
 // conversation.
 func (p *pane) hand(to string) {
-	ui := p.ui
-	if to == fleet && ui.FleetPane == "" || to == actions && ui.ActionsPane == "" {
+	ui := p.pair()
+	if to == fleet && ui.Fleet == "" || to == actions && ui.Actions == "" {
 		p.hint = "the " + map[string]string{fleet: "fleet", actions: "action pane"}[to] + " is closed"
 		return
 	}
@@ -631,10 +630,15 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 		}
 		return "every action", list, fmt.Sprintf("%d actions · type to search · enter runs it · esc closes", len(list))
 	case "projects":
-		for _, root := range p.roots {
-			list = append(list, entry{filepath.Base(root), "", close(func() { p.newTab(root, filepath.Base(root)) })})
+		for _, ws := range cmp.Or(p.bar, &contract.Side{}).Closed {
+			list = append(list, entry{strings.TrimSuffix(ws.Name+" · "+ws.Word, " · "), "", close(func() {
+				p.keeper(func() error {
+					_, err := p.k.Terms.SpaceOpen(ws.Root, ws.Root)
+					return err
+				})
+			})})
 		}
-		return "open a project", list, "enter opens a tab in it · esc closes"
+		return "open a project", list, "enter opens its workspace · esc closes"
 	case "teams":
 		for _, t := range p.teams {
 			run := func(goal string) { p.act("team", map[string]string{"name": t.Name, "text": goal}) }

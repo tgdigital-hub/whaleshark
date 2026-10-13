@@ -146,13 +146,15 @@ func (p *pane) draw() {
 	now, t := p.now(), p.t
 	checked := p.view.Fresh.Checked
 	p.old = !checked.IsZero() && now.Sub(checked) > contract.StaleAfter
-	p.hits, p.dirty, p.lineDrawn = p.hits[:0], false, false
+	p.hits, p.dirty, p.lineDrawn, p.menus = p.hits[:0], false, false, map[string]func(x, y int){}
 	was := p.rows
 	p.rows = make([]string, t.H)
 	for y := range t.H {
 		t.Put(0, y, t.W, strings.Repeat(" ", t.W), p.st("text"))
 	}
 	switch {
+	case p.kind == offer:
+		p.drawOffer()
 	case p.over != "":
 		p.drawOver()
 	case p.kind == side:

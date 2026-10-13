@@ -20,11 +20,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 7 owes here: the line under the pointer lit, the held line with
-// its label, a line put back, a click then a click, the menu event, the
-// placed overlay (OverAt) closed by a press beside it, and the command key
-// then a full stop.
-
 // Plug binds `engine`.
 func Plug(k *contract.Kit) { k.Handle("engine", engine) }
 

@@ -182,6 +182,7 @@ func session(t *testing.T, terms contract.Terminals, root, second string) []stri
 	last, err := terms.TabCreate(second, "", second, "--a\x1b[2Jlabel\tto clean", nil)
 	say("tab-create with a label to clean", err, show(last))
 	from("overlay from the workspace behind", behind.ID, contract.WireCall{Op: contract.OpOverlay, Argv: []string{agent, "hang"}})
+	from("overlay at a cell from the workspace behind", behind.ID, contract.WireCall{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{agent, "hang"}, W: 24, H: 4, X: 3, Y: 2})
 	from("screen of another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpScreen, Pane: behind.ID})
 	from("size of another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpSize, Pane: behind.ID})
 	from("swap with another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpSwap, Pane: "p5", Target: behind.ID})

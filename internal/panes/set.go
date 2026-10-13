@@ -76,7 +76,8 @@ func set(c *contract.Call) (any, error) {
 		if err != nil || n < 10 || n > 500 {
 			return bad("The fleet's width is a number of columns.")
 		}
-		if ui.FleetWidth = n; fit(k.Terms, c.Caller.Pane, ui.FleetPane, n) != nil {
+		snap, _ := k.Terms.Snapshot(context.Background())
+		if ui.FleetWidth = n; fit(k.Terms, c.Caller.Pane, pairOf(ui, snap, rootOf(snap, c.Caller.Pane)).Fleet, n, false, person(k, dirs).Panes.Fleet == contract.Left) != nil {
 			fmt.Fprintln(c.Out, "the open fleet keeps its width; the next one opens at this one")
 		}
 	case own == "here":
@@ -113,18 +114,24 @@ func set(c *contract.Call) (any, error) {
 	default:
 		// Every other key of the contract's table is set in its own file. A
 		// key that places a pane of ours moves the open panes at once.
-		if value, err = contract.Set(c, key, value); err == nil && (strings.HasPrefix(key, "panes.") || key == actions) {
-			// They move within the tab they are open in, wherever the setting
-			// was changed from; with none open, beside whoever changed it.
+		value, err = contract.Set(c, key, value)
+		snap, serr := k.Terms.Snapshot(context.Background())
+		pair := pairOf(ui, snap, rootOf(snap, c.Caller.Pane))
+		if err == nil && serr == nil && (strings.HasPrefix(key, "panes.") || key == actions) {
+			// They move within the tab they are open in, in the workspace the
+			// setting was changed from; with none open, beside whoever changed it.
 			at := c.Caller.Pane
-			if snap, serr := k.Terms.Snapshot(context.Background()); serr == nil {
-				for _, p := range snap.Panes {
-					if p.Ours && (p.ID == ui.FleetPane || p.ID == ui.ActionsPane) {
-						at = p.ID
-					}
+			for _, p := range snap.Panes {
+				if p.Ours && (p.ID == pair.Fleet || p.ID == pair.Actions) {
+					at = p.ID
 				}
 			}
 			err = k.Panes(k, at)
+		} else if n, _ := strconv.Atoi(value); err == nil && serr == nil && key == "actions.height" && n > 0 {
+			// A figure typed for a line moves the line at once, as a drag does.
+			if at, _ := talk(k.Terms, pair); fit(k.Terms, at, pair.Actions, n, true, person(k, dirs).Panes.Actions == contract.Top) != nil {
+				fmt.Fprintln(c.Out, "the open action pane keeps its height; the next one opens at this one")
+			}
 		}
 		if err != nil {
 			return nil, err

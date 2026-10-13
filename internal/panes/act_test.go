@@ -895,7 +895,7 @@ func TestTheKeysGoBetweenThePanes(t *testing.T) {
 	}
 	_, file, _, _ := screen(d.k)
 	for _, step := range []struct{ to, want string }{{actions, o.Actions}, {fleet, o.Fleet}, {"", d.me}, {fleet, o.Fleet}, {actions, o.Actions}} {
-		if err := hand(d.k.Terms, file, step.to); err != nil || d.focus() != step.want {
+		if err := hand(d.k.Terms, only(file), step.to); err != nil || d.focus() != step.want {
 			t.Errorf("the keys to %q went to %s, want %s (%v)", step.to, d.focus(), step.want, err)
 		}
 	}

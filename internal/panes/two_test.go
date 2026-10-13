@@ -171,7 +171,7 @@ func TestSetActionsIsAnotherNameOfTheLayoutsKey(t *testing.T) {
 		t.Errorf("set actions top: %q\n%s", out.String(), got)
 	}
 	// Opened anew, the pane is not folded: it has its whole share again.
-	if _, ui, _, _ := screen(d.k); ui.Folded || ui.ActionsPane == "" || ui.ActionsPane == o.Actions {
+	if _, ui, _, _ := screen(d.k); ui.Folded || only(ui).Actions == "" || only(ui).Actions == o.Actions {
 		t.Errorf("after the action pane moved ui.json holds %+v", ui)
 	}
 	// With no engine to ask, the setting is kept and the pane opens there next time.

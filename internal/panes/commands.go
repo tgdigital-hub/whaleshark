@@ -8,6 +8,7 @@ package panes
 
 import (
 	"cmp"
+	"context"
 	"os"
 	"os/exec"
 	"slices"
@@ -16,17 +17,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
-
-// Phase 7 owes here: the left section in two halves by contract.Side (a line
-// between every two workspaces, the heavier line on Side.Split, dragged,
-// put back and stored as UIFile.SideSplit); a right press and the full stop
-// on a row, and the menu event, opening `ui run offer` with
-// Terminals.OverlayAt; that program: the box, its keys, the typing line,
-// the questions in the contract's words with contract.KeepFirst, the rows
-// of contract.OfferActions run and their refusals shown; the plus sign
-// listing Side.Closed; the two panes of each workspace (UIFile.PairOf), the
-// fleet's width and the action pane's height stored once they have rested;
-// Side.Marks handed to Terminals.Marks.
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
@@ -37,13 +27,20 @@ func Plug(k *contract.Kit) {
 
 // ui opens and closes the two panes beside the conversation, gives the
 // action pane the keys, or, as `ui run` and `ui menu`, is the program inside
-// a pane until the pane closes or the person leaves it.
+// a pane until the pane closes or the person leaves it. `ui run offer` is the
+// menu at the pointer: for a kind of thing and its id, then its project, its
+// run and its task where it has them, a dash for one it has not, and the
+// word "row" where it opens on a row of the left section.
 func ui(c *contract.Call) (any, error) {
 	a := append(c.Args, "", "")[:max(len(c.Args), 2)]
 	one := a[0] == fleet || a[0] == actions
+	was := a
+	if a[0] == "run" && a[1] == offer && len(a) >= 4 && len(a) <= 8 {
+		a = a[:2]
+	}
 	switch {
 	case len(a) > 2:
-	case a[0] == "run" && slices.Contains([]string{fleet, actions, side, settings}, a[1]), a[0] == menu && a[1] == "":
+	case a[0] == "run" && slices.Contains([]string{fleet, actions, side, settings, offer}, a[1]) && (a[1] == offer) == (len(was) > 2), a[0] == menu && a[1] == "":
 		t, err := term.Open()
 		if err != nil {
 			return nil, err
@@ -56,6 +53,7 @@ func ui(c *contract.Call) (any, error) {
 			run = c.Run
 		}
 		p := newPane(cmp.Or(a[1], menu), t, c.Kit, c.Root, run, contract.Now)
+		p.want = was[2:]
 		if p.self, _ = c.Kit.Platform.SelfPath(); p.loop() {
 			t.Close()
 			return nil, again(p.self)
@@ -66,10 +64,11 @@ func ui(c *contract.Call) (any, error) {
 		return nil, c.Kit.Terms.Overlay([]string{self, "ui", "run", settings}, 0, 0)
 	case a[0] == actions && a[1] == "focus":
 		_, ui, _, err := screen(c.Kit)
-		if err == nil && ui.ActionsPane == "" {
+		snap, _ := c.Kit.Terms.Snapshot(context.Background())
+		if pair := pairOf(ui, snap, rootOf(snap, c.Caller.Pane)); err == nil && pair.Actions == "" {
 			err = cannot("The action pane is closed: whaleshark ui actions on")
 		} else if err == nil {
-			err = hand(c.Kit.Terms, ui, actions)
+			err = hand(c.Kit.Terms, pair, actions)
 		}
 		return nil, err
 	case a[0] == "" || a[0] == "close" && a[1] == "":

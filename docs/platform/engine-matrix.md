@@ -98,9 +98,10 @@ near side's surroundings and with no terminal, as a command typed after `ssh ser
 
 ## What is missing
 
-- **The event `menu` is named and not yet sent.** A menu asked for on the tab row is designed
-  and its call is in the interface; the keeper does not yet act on the pointer there, so no
-  such event comes. The row turns to `yes` with that part of the keeper. The keeper keeps
+- **The event `menu` is sent, and this table's test does not ask for one yet.** The keeper
+  sends it at a right press on a tab's name in a window, and at the command key then a full
+  stop; its own tests hold that. The run behind this table presses neither, so the row stays
+  `no: not seen` until that run types the key into its window. The keeper keeps
   workspaces and tells of every change to them: the row `space` was seen on macOS, and on
   Linux and Windows it is the same code, to be seen at the next run there.
 - **On Windows the program in front in a pane is worked out, not asked for**: the system has

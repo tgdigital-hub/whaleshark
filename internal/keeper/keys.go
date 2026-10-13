@@ -18,6 +18,9 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
 
+// waits is the label of a line that was clicked and not dragged.
+const waits = "click where it should go · esc"
+
 // input takes what a window's terminal reported, until its input ends. The
 // input package says what a report means and the keeper does it; a key goes
 // first to the view of the pane with the keys, which has the copy key and
@@ -64,7 +67,8 @@ func (k *Keeper) input(w *window) {
 			acts = w.in.Take(ev, v)
 		}
 		for _, a := range acts {
-			moved = moved || a.Kind == input.Row || a.Kind == input.Drag || a.Kind == input.Zoom
+			moved = moved || a.Kind == input.Row || a.Kind == input.Drag || a.Kind == input.Zoom ||
+				a.Kind == input.Put || a.Kind == input.Reset || a.Kind == input.Away
 			p := k.panes[a.Pane]
 			switch {
 			case a.Kind == input.Call:
@@ -78,8 +82,28 @@ func (k *Keeper) input(w *window) {
 				}
 			case a.Kind == input.Row:
 				k.lay.Wheel(a.Step)
-			case a.Kind == input.Drag:
-				k.lay.Drag(a.Hit, a.X, a.Y)
+			case a.Kind == input.Menu:
+				k.menu(a)
+			case a.Kind == input.Away:
+				k.away() // the settings screen stays: only a placed pane goes
+			case a.Kind == input.Lit:
+				// The line under the pointer, held, or waiting for the press
+				// that puts it: the label stands at the pointer.
+				k.lay.Lit, k.lay.Held, k.lay.Said = a.Hit, a.Step != input.Under, map[bool]string{true: waits}[a.Step == input.Waits]
+				k.lay.Lit.X, k.lay.Lit.Y = ev.X, ev.Y
+			case a.Kind == input.Drag, a.Kind == input.Put, a.Kind == input.Reset, a.Kind == input.Width:
+				if a.Kind == input.Reset {
+					k.lay.Reset(a.Hit)
+				} else if a.Kind != input.Width {
+					k.lay.Drag(a.Hit, a.X, a.Y)
+					k.lay.Lit.X, k.lay.Lit.Y = a.X, a.Y
+				}
+				// The dock's width is written when its edge has come to rest,
+				// and only a width that is another than the one written.
+				if width := k.lay.Dock.Width; a.Kind != input.Drag && (a.Kind == input.Width || a.Hit.Pane == layout.DockPane) && width != k.set.Side.Width {
+					k.set.Side.Width = width
+					after = append(after, func() { contract.Set(&contract.Call{Kit: k.kit}, "side.width", strconv.Itoa(width)) })
+				}
 			case a.Kind == input.Run && len(a.Argv) > 0:
 				// #nosec G204 -- the person's own shortcut, from their own settings file
 				cmd := exec.Command(a.Argv[0], a.Argv[1:]...)
@@ -92,9 +116,6 @@ func (k *Keeper) input(w *window) {
 			case a.Kind == input.Settings:
 				size := map[bool]float64{true: 1}[k.lay.W < 100] // the whole of a narrow window
 				k.do(contract.WireCall{Op: contract.OpOverlay, Argv: k.ours("settings"), From: a.Pane, W: size, H: size})
-			case a.Kind == input.Width:
-				width := strconv.Itoa(k.lay.Dock.Width)
-				after = append(after, func() { contract.Set(&contract.Call{Kit: k.kit}, "side.width", width) })
 			case p == nil:
 			case a.Kind == input.Zoom:
 				k.lay.Zoom(a.Pane)

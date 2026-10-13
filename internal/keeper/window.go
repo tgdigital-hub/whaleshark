@@ -131,6 +131,9 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	if k.last == w {
 		k.last = nil
 	}
+	// A line this window held or left waiting is nobody's now.
+	k.lay.Lit, k.lay.Held, k.lay.Said = layout.Hit{}, false, ""
+	k.wake()
 	k.mu.Unlock()
 }
 
@@ -177,9 +180,10 @@ func (w *window) draw(k *Keeper) {
 // compose draws the tab that shows into a window's grid: the tab row and
 // the dividing lines, each pane as the person looks at it, the name of a
 // pane program of ours in the line above it, where no program can write,
-// the pane drawn over the tab, the cursor of whichever has the keys, and
-// the pop-up. A window of another size than the panes have gets the same
-// picture cut or padded, and words on the tab row that say so.
+// the label of a held line, the pane drawn over the tab, the cursor of
+// whichever has the keys, and the pop-up. A window of another size than the
+// panes have gets the same picture cut or padded, and words on the tab row
+// that say so.
 func (k *Keeper) compose(w *window) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -226,10 +230,13 @@ func (k *Keeper) compose(w *window) {
 			g.Put(at.X+1, 2, at.W-1, "starting"+map[bool]string{true: "...", false: "…"}[w.look.Plain], w.look.Dim)
 		}
 	}
+	k.lay.Say(g.Grid, w.look)
 	if o := k.over; o != nil {
 		// The settings screen is a box of its own: a second frame round it,
-		// titled with its command line, is not drawn.
-		if r := overlay.Place(w.w, w.h, k.overW, k.overH); len(o.argv) > 3 && slices.Equal(o.argv[1:4], []string{"ui", "run", "settings"}) {
+		// titled with its command line, is not drawn. Nor round a placed pane.
+		if r := overlay.Place(w.w, w.h, k.overW, k.overH); k.placed != "" {
+			paint(o, k.overAt(), true)
+		} else if len(o.argv) > 3 && slices.Equal(o.argv[1:4], []string{"ui", "run", "settings"}) {
 			paint(o, layout.Rect{X: r.X + 1, Y: r.Y + 1, W: max(r.W-2, 0), H: max(r.H-2, 0)}, true)
 		} else {
 			paint(o, overlay.Box(g.Grid, w.look, r, filepath.Base(o.argv[0])+" "+strings.Join(o.argv[1:], " ")), true)
