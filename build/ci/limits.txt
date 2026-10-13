@@ -96,7 +96,7 @@
 # count, its menu and where the agents begin 75; the six rows a menu holds,
 # which of them on what, and the words of its questions 75; two settings, the
 # panes of each workspace in the file, a name in a task's edit, two flags 60.
-# 52 are for what the first part of the phase finds missing.
+# 47 are for what the first part of the phase finds missing.
 lines 6900 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
