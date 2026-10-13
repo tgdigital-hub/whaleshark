@@ -161,6 +161,7 @@ const heldReason = "the agent-hours are used up: the work is held until the pers
 func gate(c *contract.Call, dirs contract.Dirs, kind contract.Gate) {
 	why := contract.PausedReason
 	p, err := contract.Paused(c.Kit.Platform.Peek, dirs.State)
+	// #nosec G703 -- the tab's own variables name its own run's folder, and the file is looked for, never read
 	_, none := os.Stat(contract.HoldPath(os.Getenv(contract.EnvRoot), os.Getenv(contract.EnvRun)))
 	if p == nil && err == nil && none == nil {
 		why = heldReason
