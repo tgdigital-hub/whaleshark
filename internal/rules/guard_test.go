@@ -151,7 +151,7 @@ func TestProtectedFiles(t *testing.T) {
 	}
 	p := s.Run.Protect
 	q := s.Questions[p.Item]
-	if q == nil || q.Cause != contract.CauseProtect || q.Form != contract.FormSignoff || q.Holds || q.Task != "T1" || !strings.Contains(q.Text, files[0]) || !strings.Contains(q.Text, "(and 2 more)") {
+	if q == nil || q.Cause != contract.CauseProtect || q.Form != contract.FormSignoff || q.Holds || q.Task != "T1" || q.Text != "Protected files changed in this job" || len(p.Files) != len(files) {
 		t.Fatalf("the item: %+v", q)
 	}
 	if e := s.Inbox.Events[len(s.Inbox.Events)-1]; e.Kind != "protected" || e.Task != "T1" || !strings.Contains(e.Text, "Carry on") {

@@ -65,7 +65,11 @@ func (b *builder) guarded(q *contract.Question, it *contract.Item, answer func(s
 		grant, open := cmp.Or(q.Set, &contract.SetAsk{}), 0
 		from, _ := strconv.Atoi(grant.From)
 		to, _ := strconv.Atoi(grant.To)
-		for _, s := range b.runs() {
+		held := b.runs() // a fleet held alone: its own agents and no other's
+		if low := b.in.Fleets[cmp.Or(b.s.Tasks[q.Task], &contract.Task{}).Fleet]; low != nil {
+			held = []*contract.State{low}
+		}
+		for _, s := range held {
 			for _, a := range s.Attempts {
 				if a.State.Live() {
 					open++

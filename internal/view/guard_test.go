@@ -80,6 +80,12 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 	if it := item(t, v.Items, "n4"); !it.Urgent || it.Next[1] != `whaleshark answer n4 "no limit" --human` {
 		t.Errorf("the budget's item: %+v", it)
 	}
+	// A fleet held alone counts its own agents, not the job's.
+	in.State.Questions["n4"].Task = "G1"
+	if it := item(t, Build(in).Items, "n4"); !strings.Contains(it.Text, "\n1 agent is held where they stand") {
+		t.Errorf("the item of a fleet held alone: %q", it.Text)
+	}
+	in.State.Questions["n4"].Task = ""
 	if it := item(t, v.Items, "n3"); !strings.HasSuffix(it.Text, must(t, "spend.guard").Help) {
 		t.Errorf("a setting's item ends with the setting's own description: %q", it.Text)
 	}

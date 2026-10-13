@@ -72,7 +72,7 @@ func (r Rules) Protect(s *contract.State, task, seen string, files []string, now
 		}
 	case fresh || !pending(q):
 		p.Item = asks(s, p.Item, contract.Question{Form: contract.FormSignoff, Cause: contract.CauseProtect, Task: cmp.Or(t, &contract.Task{}).ID,
-			Text: "Protected files changed in this job: " + listed(files) + ". The job cannot be landed until you approve them as they are now."}, true, now)
+			Text: "Protected files changed in this job"}, true, now) // its first line: the view lists the files under it
 		raise(s, "protected", t, nil, cmp.Or(task, "This job")+" changed protected files: "+listed(files)+". The person must approve them before this job can land. Carry on.",
 			map[string]any{"files": files, "id": p.Item}, now)
 		return true
@@ -125,7 +125,7 @@ func (r Rules) Spend(s *contract.State, fleet string, spent time.Duration, limit
 		}
 		if more := max(1, int(float64(limit)*contract.SpendMore+0.5)); q == nil {
 			r.Need(s, contract.Question{Form: contract.FormChoice, From: contract.FromTool, Cause: contract.CauseBudget, Urgent: true, Task: group,
-				Text:    fmt.Sprintf("%s has used its %d agent-hours. Its agents are held where they stand; nothing more is started until you say.", who, limit),
+				Text:    fmt.Sprintf("%s has used its %d agent-hours", who, limit), // its first line: the view says who is held
 				Options: []string{contract.AnswerMore, contract.AnswerNoLimit, contract.AnswerLeave},
 				Set:     &contract.SetAsk{Key: key, From: strconv.Itoa(limit), To: strconv.Itoa(limit + more)}}, now)
 		}
