@@ -514,7 +514,8 @@ func TestWhatARowOffers(t *testing.T) {
 // A run is shown where its lead agent's tab is, whatever its project's
 // folder: its rows keep the project's folder, which a command needs, and
 // the workspace of that folder has no job. The projects with no workspace
-// are listed with an open job first, in the list's order otherwise.
+// are listed with an open job first, in the list's order otherwise; one
+// whose job is shown in another's workspace is not among them.
 func TestARunIsWhereItsLeadAgentIs(t *testing.T) {
 	f := testkit.Spaces()
 	for i := range f.In.Terms.Panes {
@@ -535,7 +536,7 @@ func TestARunIsWhereItsLeadAgentIs(t *testing.T) {
 	for _, c := range side.Closed {
 		closed = append(closed, c.Name+"="+c.Word)
 	}
-	if got := strings.Join(closed, " "); got != "ops-portal=job open old-site=job open · 4 stopped first= notes=" {
+	if got := strings.Join(closed, " "); got != "old-site=job open · 4 stopped first= notes=" {
 		t.Errorf("what can be opened reads %q", got)
 	}
 }

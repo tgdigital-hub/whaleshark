@@ -142,20 +142,23 @@ func TestWhereTheAgentsBegin(t *testing.T) {
 // menu runs deletes anything.
 func TestWhatAMenuHolds(t *testing.T) {
 	for _, c := range []struct {
-		kind           string
-		working, other bool
-		want           string
+		kind                string
+		working, other, tab bool
+		want                string
 	}{
-		{OfferTab, false, false, "Rename… · Close tab"},
-		{OfferAgent, true, false, "Rename… · Stop agent & close"},
-		{OfferAgent, false, false, "Rename… · Close tab"},
-		{OfferFleet, true, false, "Park the fleet · Send its leader a note"},
-		{OfferFleet, false, false, "Try again"},
-		{OfferSpace, false, false, "Rename… · Remove from list"},
-		{OfferSpace, false, true, "Remove from list"},
+		{OfferTab, false, false, true, "Rename… · Close tab"},
+		{OfferTab, false, false, false, ""},
+		{OfferAgent, true, false, true, "Rename… · Stop agent & close"},
+		{OfferAgent, true, false, false, "Rename… · Stop agent & close"},
+		{OfferAgent, false, false, true, "Rename… · Close tab"},
+		{OfferAgent, false, false, false, "Rename…"},
+		{OfferFleet, true, false, false, "Park the fleet · Send its leader a note"},
+		{OfferFleet, false, false, true, "Try again"},
+		{OfferSpace, false, false, true, "Rename… · Remove from list"},
+		{OfferSpace, false, true, true, "Remove from list"},
 	} {
 		var labels []string
-		for _, id := range OfferRows(c.kind, c.working, c.other) {
+		for _, id := range OfferRows(c.kind, c.working, c.other, c.tab) {
 			a, ok := FindAction(id)
 			if !ok {
 				t.Fatalf("%s is no row of the action table", id)
@@ -163,7 +166,7 @@ func TestWhatAMenuHolds(t *testing.T) {
 			labels = append(labels, a.Label)
 		}
 		if got := strings.Join(labels, " · "); got != c.want {
-			t.Errorf("the menu of a %s (working %v, other %v): %s, want %s", c.kind, c.working, c.other, got, c.want)
+			t.Errorf("the menu of a %s (working %v, other %v, a tab %v): %s, want %s", c.kind, c.working, c.other, c.tab, got, c.want)
 		}
 	}
 	for _, id := range []string{"rename", "rename-tab", "rename-space", "close-tab", "stop-close", "remove-space"} {

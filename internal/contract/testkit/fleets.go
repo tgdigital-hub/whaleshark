@@ -222,7 +222,7 @@ func seven(old *contract.Side, snap *contract.Snapshot, need map[string]int) *co
 	side.Workspaces, side.Rows, side.Marks = nil, nil, map[string]int{}
 	for i, w := range old.Workspaces {
 		sp := snap.Spaces[i]
-		w.ID, w.Tab, w.Need, w.Offer = sp.ID, sp.Tab, need[sp.ID], contract.OfferRows(contract.OfferSpace, false, w.Other)
+		w.ID, w.Tab, w.Need, w.Offer = sp.ID, sp.Tab, need[sp.ID], contract.OfferRows(contract.OfferSpace, false, w.Other, true)
 		tabs := map[string]bool{}
 		for _, p := range snap.Panes {
 			if p.Workspace == sp.ID {
@@ -235,17 +235,17 @@ func seven(old *contract.Side, snap *contract.Snapshot, need map[string]int) *co
 	for _, r := range old.Rows {
 		switch r.Kind {
 		case contract.RowLead:
-			r.Offer, r.Actions = contract.OfferRows(contract.OfferTab, false, false), []string{"note-lead"}
+			r.Offer, r.Actions = contract.OfferRows(contract.OfferTab, false, false, true), []string{"note-lead"}
 		case contract.RowFleet:
-			r.Offer, r.Actions = contract.OfferRows(contract.OfferFleet, !r.Parked, false), nil
+			r.Offer, r.Actions = contract.OfferRows(contract.OfferFleet, !r.Parked, false, true), nil
 		case contract.RowAgent:
-			r.Offer = contract.OfferRows(contract.OfferAgent, true, false)
+			r.Offer = contract.OfferRows(contract.OfferAgent, true, false, true)
 			r.Actions = slices.DeleteFunc(slices.Clone(r.Actions), func(id string) bool { return id == "stop" })
 			if r.Item != "" {
 				side.Marks[r.Tab]++
 			}
 		case contract.RowTab:
-			r.Offer = contract.OfferRows(contract.OfferTab, false, false)
+			r.Offer = contract.OfferRows(contract.OfferTab, false, false, true)
 		}
 		if old.First != nil && r.Name == old.First.Name {
 			first := r

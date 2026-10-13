@@ -87,10 +87,10 @@ func Spaces() *ThreeSpaces {
 	// the lead agent, as built, Need what waits for the person there, Tab
 	// the tab it shows. A row's menu: Offer, then under the line what its
 	// work offers; the row that asked offers its answer first.
-	offer := contract.OfferRows(contract.OfferSpace, false, false)
+	offer := contract.OfferRows(contract.OfferSpace, false, false, true)
 	agent := func(look contract.Look, name, task, tab string, actions ...string) contract.SideRow {
 		return contract.SideRow{Kind: contract.RowAgent, Look: look, Name: name, Root: toms, Run: "r1", Task: task, Tab: tab,
-			Offer: contract.OfferRows(contract.OfferAgent, true, false), Actions: actions}
+			Offer: contract.OfferRows(contract.OfferAgent, true, false, true), Actions: actions}
 	}
 	asked := agent(contract.LookNeedsYou, "sign-up page", "T1", "t-p2", "answer", "note")
 	asked.Item = "q1"
@@ -105,7 +105,7 @@ func Spaces() *ThreeSpaces {
 		},
 		Rows: []contract.SideRow{
 			{Kind: contract.RowLead, Name: "orchestrator", Root: toms, Run: "r1", Tab: "t-p1",
-				Offer: contract.OfferRows(contract.OfferTab, false, false), Actions: []string{"note-lead"}},
+				Offer: contract.OfferRows(contract.OfferTab, false, false, true), Actions: []string{"note-lead"}},
 			asked, keys, agent(contract.LookIdle, "help pages", "T3", "t-p4", "note"),
 		},
 		// Thirty rows, the line half-way down: row 15, as the frame has it.

@@ -72,7 +72,7 @@ func Side(in contract.SideInput) *contract.Side {
 		}
 		w := &space{Workspace: contract.Workspace{ID: sp.ID, Root: sp.Root, Name: cmp.Or(clean(sp.Name), contract.SpaceName(sp.Root)), Other: sp.Root == "",
 			Tab: sp.Tab, Tabs: count[sp.ID], Gone: sp.Root != "" && slices.Contains(in.Gone, sp.Root)}}
-		w.Offer = contract.OfferRows(contract.OfferSpace, false, w.Other)
+		w.Offer = contract.OfferRows(contract.OfferSpace, false, w.Other, true)
 		if spaces, at[sp.ID] = append(spaces, w), w; sp.Root != "" && at[sp.Root] == nil {
 			at[sp.Root] = w
 		}
@@ -83,7 +83,7 @@ func Side(in contract.SideInput) *contract.Side {
 	slices.SortStableFunc(spaces, func(x, y *space) int { return min(len(y.Root), 1) - min(len(x.Root), 1) })
 	taken := map[string]bool{"": true}
 	for _, p := range in.Projects {
-		home, runs, stopped := at[p.Root], map[string]*contract.State{}, 0
+		home, runs, stopped, shown := at[p.Root], map[string]*contract.State{}, 0, false
 		for _, s := range p.Runs {
 			if runs[s.Run.ID] = s; s.Run.Orchestrator != nil {
 				taken[tabs[s.Run.Orchestrator.Pane]] = true
@@ -98,7 +98,8 @@ func Side(in contract.SideInput) *contract.Side {
 			}
 		}
 		// A run is shown where its lead agent's tab is, else in the
-		// workspace of its project's folder, else nowhere.
+		// workspace of its project's folder, else nowhere: only then, and
+		// with no workspace of its own, is its project one that can be opened.
 		for _, s := range p.Runs {
 			if s.Run.Parent != nil && runs[s.Run.Parent.Run] != nil {
 				continue
@@ -110,12 +111,14 @@ func Side(in contract.SideInput) *contract.Side {
 			}
 			if w != nil {
 				w.run(in, p, s, runs, tabs)
-				w.job, w.loose = true, w.loose || lead == ""
+				w.job, w.loose, shown = true, w.loose || lead == "", true
 			}
 		}
 		if home != nil {
 			home.Branch, home.saved = clean(p.Branch), p.Saved
 			continue
+		} else if shown {
+			continue // its job is on the screen already, in another workspace
 		}
 		c := contract.Workspace{Root: p.Root, Name: contract.SpaceName(p.Root), Branch: clean(p.Branch)}
 		if len(p.Runs) > 0 {
@@ -130,7 +133,7 @@ func Side(in contract.SideInput) *contract.Side {
 	for _, p := range snap.Panes {
 		if w := at[p.Workspace]; !p.Dock && !p.Ours && !taken[p.Tab] && w != nil {
 			taken[p.Tab] = true
-			w.rows = append(w.rows, contract.SideRow{Kind: contract.RowTab, Name: clean(p.Label), Root: w.Root, Tab: p.Tab, Offer: contract.OfferRows(contract.OfferTab, false, false)})
+			w.rows = append(w.rows, contract.SideRow{Kind: contract.RowTab, Name: clean(p.Label), Root: w.Root, Tab: p.Tab, Offer: contract.OfferRows(contract.OfferTab, false, false, true)})
 		}
 	}
 	if front == nil {
@@ -221,11 +224,8 @@ func (w *space) run(in contract.SideInput, p contract.SideProject, s *contract.S
 			}
 		}
 		// Its menu is its tab's: the row is the record's word for who leads.
-		lead := contract.SideRow{Kind: contract.RowLead, Name: name, Root: p.Root, Run: s.Run.ID, Tab: tabs[b.Pane], Actions: []string{"note-lead"}}
-		if lead.Tab != "" {
-			lead.Offer = contract.OfferRows(contract.OfferTab, false, false)
-		}
-		w.rows = append(w.rows, lead)
+		w.rows = append(w.rows, contract.SideRow{Kind: contract.RowLead, Name: name, Root: p.Root, Run: s.Run.ID, Tab: tabs[b.Pane],
+			Offer: contract.OfferRows(contract.OfferTab, false, false, tabs[b.Pane] != ""), Actions: []string{"note-lead"}})
 	}
 	v := Build(vin)
 	var fleets [][]contract.SideRow
@@ -237,7 +237,7 @@ func (w *space) run(in contract.SideInput, p contract.SideProject, s *contract.S
 		}
 		fleet := s.Tasks[r.Task].Fleet
 		r.Kind, r.Tool, r.Agents, r.Limit, r.Parked, r.Run, r.Item = contract.RowFleet, clean(c.Agent), c.Fleet.Agents, c.Fleet.Limit, c.Fleet.Parked, c.Fleet.Run, ""
-		r.Open, r.Offer, r.Actions = !slices.Contains(in.Folded, s.Run.ID+"/"+fleet), contract.OfferRows(contract.OfferFleet, !r.Parked, false), nil
+		r.Open, r.Offer, r.Actions = !slices.Contains(in.Folded, s.Run.ID+"/"+fleet), contract.OfferRows(contract.OfferFleet, !r.Parked, false, true), nil
 		block := []contract.SideRow{r}
 		if low := vin.Fleets[fleet]; low != nil {
 			lin := vin
@@ -279,11 +279,8 @@ func (w *space) agents(v *contract.View, depth int, root string) (rows []contrac
 	for _, sec := range v.Sections {
 		for _, c := range sec.Cards {
 			r := contract.SideRow{Kind: contract.RowAgent, Depth: depth, Look: c.Look, Word: clean(c.Word), Name: clean(c.Name), Root: root, Run: v.Run,
-				Task: c.Task, Tab: c.Tab, Item: c.Item, Unseen: c.Unseen, Offer: contract.OfferRows(contract.OfferAgent, slices.Contains(c.Actions, "stop"), false),
+				Task: c.Task, Tab: c.Tab, Item: c.Item, Unseen: c.Unseen, Offer: contract.OfferRows(contract.OfferAgent, slices.Contains(c.Actions, "stop"), false, c.Tab != ""),
 				Actions: slices.DeleteFunc(slices.Clone(c.Actions), func(a string) bool { return a == "go" || a == "stop" || a == "close" })}
-			if r.Tab == "" {
-				r.Offer = slices.DeleteFunc(r.Offer, func(a string) bool { return a == "close-tab" })
-			}
 			if r.Item != "" {
 				r.Actions = answer(r.Actions)
 			}

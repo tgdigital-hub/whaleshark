@@ -184,8 +184,8 @@ type SideInput struct {
 // the tabs of no project last) and a tab's workspace is Pane.Workspace: the
 // builder asks no folder. A run is shown in the workspace its lead agent's
 // tab is of, and one with no such tab in the workspace whose Root is its
-// project's; a project with an open run and no workspace has no row and is
-// in Closed. Rows are the agents panel of the workspace in front. What needs the person is never
+// project's; a project with an open run that is shown nowhere has no row
+// and is in Closed. Rows are the agents panel of the workspace in front. What needs the person is never
 // cut from Rows; what gives way, in this order: done rows, which are only
 // ever the count Done; rows of a group that neither need him nor are in
 // front, into one RowMore; fleets not in front, folded to their line.
@@ -221,8 +221,9 @@ type Side struct {
 	// (JobOpenHere), or NoFolder. Marks is what the pane hands the keeper
 	// with Terminals.Marks: by tab, how many things wait for the person
 	// with the agent of that tab, in every workspace. Closed is what [+] lists:
-	// the login's projects that have no workspace, those with an open job
-	// first, each with Word as "job open · 4 stopped".
+	// the login's projects that have no workspace and no job shown in
+	// another's, those with an open job first, each with Word as
+	// "job open · 4 stopped".
 	More   int            `json:"more,omitempty"`
 	Split  int            `json:"split"`
 	Job    string         `json:"job,omitempty"`

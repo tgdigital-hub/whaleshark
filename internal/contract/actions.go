@@ -113,10 +113,12 @@ const FilesStay = "(your files stay)"
 // (SideRow.Actions): by what the menu is for, and by whether an agent of
 // ours is at work there (for a fleet: whether it is not parked). A fleet is
 // not renamed, and the tabs of no project have no name to give: other says
-// the workspace is that one. Only what applies is offered. With one of
+// the workspace is that one. tab says the thing has a tab: without one
+// nothing is closed, an agent at work is still stopped, and a tab's own
+// menu holds nothing. Only what applies is offered. With one of
 // these in a menu, "stop" and "close" are not among the work's own rows,
 // which are then: answer, accept, send-back, note, retry, note-lead.
-func OfferRows(kind string, working, other bool) []string {
+func OfferRows(kind string, working, other, tab bool) []string {
 	switch {
 	case kind == OfferFleet && working:
 		return []string{"park", "note-leader"}
@@ -128,10 +130,14 @@ func OfferRows(kind string, working, other bool) []string {
 		return []string{"rename-space", "remove-space"}
 	case kind == OfferAgent && working:
 		return []string{"rename", "stop-close"}
-	case kind == OfferAgent:
+	case kind == OfferAgent && tab:
 		return []string{"rename", "close-tab"}
+	case kind == OfferAgent:
+		return []string{"rename"}
+	case tab:
+		return []string{"rename-tab", "close-tab"}
 	}
-	return []string{"rename-tab", "close-tab"}
+	return nil
 }
 
 // The words of a menu's questions and of the box they stand in (21.9). A
