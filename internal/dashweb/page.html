@@ -103,13 +103,13 @@
 {{end}}{{end}}{{end}}
 
 {{define "card"}}{{$p := .P}}
-<article class="card k-{{.Colour}}{{if .Unseen}} unseen{{end}}{{if and (eq .Look "building") (not .Word) (not .Clash) (not .Fleet)}} plain{{end}}" id="c-{{.Task}}">
+<article class="card k-{{.Colour}}{{if .Unseen}} unseen{{end}}{{if and (eq .Look "building") (not .Word) (not .Clash) (not .Fleet) (not .Stuck)}} plain{{end}}" id="c-{{.Task}}">
 <span class="mark c-{{.Colour}}">{{(look .Look).Mark}}</span>
 <span><a class="name" href="{{open .Card}}">{{.Name}}</a>{{if .Fleet}} <span class="c-dim">· {{.Agent}}</span>{{end}}{{if .Flag}} <span class="c-needs">{{(needs).Mark}}</span>{{end}}</span>
 <span class="word c-{{.Colour}}">{{word $p .Card}}</span>
 <span class="bar"><progress{{if .Pale}} class="pale"{{end}} max="100" value="{{.Progress}}"></progress> {{.Progress}}%</span>
-<span class="ctx c-dim">{{if .Fleet}}{{agents .Fleet.Agents}}{{else if .CtxKnown}}ctx <progress class="c-{{ctx .Card}}" max="100" value="{{.Ctx}}"></progress> {{.Ctx}}%{{else}}ctx unknown{{end}}</span>
-<span class="news c-dim">{{news $p .Card}}</span>
+<span class="ctx c-dim">{{if .Fleet}}{{.Fleet.Working}}{{else if .CtxKnown}}ctx <progress class="c-{{ctx .Card}}" max="100" value="{{.Ctx}}"></progress> {{.Ctx}}%{{else}}ctx unknown{{end}}</span>
+<span class="news c-{{if .Stuck}}blocked{{else}}dim{{end}}">{{news $p .Card}}</span>
 </article>
 {{- end}}
 

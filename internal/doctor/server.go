@@ -108,7 +108,9 @@ func restartNeeded() string {
 // variable contract.EnvBin, and is given: setup <admin> <key file or "">;
 // harden <admin>; add <login> <first port> <key file or ""> <admin>;
 // tunnel <team> <"" or "off">; for server phone, public <login> <door>
-// <name> <tag> <"" or "off">; upgrade; status.
+// <name> <tag> <"" or "off">; upgrade; status. After status, typed by the
+// administrator on a server whose file does not forbid it, comes the line
+// of a newer release.
 func serve(c *contract.Call) (any, error) {
 	p, verb := c.Kit.Platform, strings.Join(c.Args, " ")
 	no := func(code, next, format string, a ...any) (any, error) {
@@ -199,6 +201,11 @@ func serve(c *contract.Call) (any, error) {
 	sh.Stdin, sh.Stdout, sh.Stderr, sh.Env = strings.NewReader(script), c.Out, c.Err, append(os.Environ(), contract.EnvBin+"="+self)
 	if err := sh.Run(); err != nil {
 		return nil, &contract.Refusal{Exit: contract.ExitFailed, Code: "script", Message: fmt.Sprintf("server %s did not finish (%v). The server's file is as it was, and the command is safe to run again.", verb, err)}
+	}
+	if dirs, err := p.Dirs(); verb == "status" && isRoot() && r.Notice && err == nil {
+		if line := contract.VersionLine(newest(p, dirs.State), contract.Version); line != "" {
+			fmt.Fprintln(c.Out, line)
+		}
 	}
 	if listed || verb == "add" {
 		if r.Login == nil {

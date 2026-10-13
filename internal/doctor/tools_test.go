@@ -51,16 +51,13 @@ func TestTheAgentToolsHaveTheirRows(t *testing.T) {
 	d.write(filepath.Join(tools, "loose.toml"), "run = ['agent']\nhooks = 'none'\n")
 
 	e, exit := d.doctor()
-	d.want(e, ok, "agent tool claude is wired in", "exact states, held by Stop all")
-	if l := e.line("agent tool claude"); l == nil || strings.Contains(l.Text, "proven") {
-		t.Errorf("Claude Code has run for real: %+v", l)
-	}
+	d.want(e, ok, "agent tool claude: proven · exact states · held by Stop all · context bar · picks up after a restart; suits: the default; anything; found: ")
 	// Codex is on the path of some who run this, and not of others.
-	if l := e.line("agent tool codex", "exact states, not held by Stop all, not yet proven here"); l == nil || l.Mark == problem {
+	if l := e.line("agent tool codex: ready, not proven · exact states · not held by Stop all", "experimental"); l == nil || l.Mark == problem {
 		t.Errorf("Codex's row: %+v", l)
 	}
-	d.want(e, ok, "agent tool hermes is wired in", "busy or quiet only, not held by Stop all, not yet proven here")
-	d.want(e, ok, "agent tool reader is wired in", "states read off its screen, not held by Stop all")
+	d.want(e, ok, "agent tool hermes: works as a terminal tool · busy or quiet only · not held by Stop all · experimental; found: ")
+	d.want(e, ok, "agent tool reader: works as a terminal tool · busy or quiet only", "reader")
 	d.want(e, problem, "program of the agent tool local is gone", "whaleshark set tools.local.run")
 	d.want(e, problem, "loose.toml is not used", "full path")
 	d.want(e, note, "16384 MB of memory", "about 3276 agents at 5 MB a pane")
@@ -191,12 +188,40 @@ func TestDoctorTryIsTheOneTestOfAWiredTool(t *testing.T) {
 		r, _ := err.(*contract.Refusal)
 		return out.String(), r
 	}
-	if out, r := try("hermes", &trial{rests: true}); r != nil || out != "hermes · started · took the paste · went to work · came to rest. At rest its screen shows: type here\n" {
+	if out, r := try("hermes", &trial{rests: true}); r != nil || out != "hermes · started · took its task · worked · came to rest. At rest its screen shows: type here\n" {
 		t.Errorf("a tool that passes: %q, %+v", out, r)
+	}
+	// What was seen is kept in the tool's own file with the day, the rest of
+	// the file as it stood, and doctor's row for the tool reads it back.
+	day := time.Now().Format(time.DateOnly)
+	e, _ := d.doctor()
+	d.want(e, ok, "agent tool hermes: works as a terminal tool", "tried here "+day+": started, took its task, worked, came to rest · experimental")
+	if tools, faults := contract.Tools(d.k.Platform, d.dirs); len(faults) != 0 || !slices.Equal(tools[2].Run[1:], []string{"chat"}) || tools[2].Tried.Day != day {
+		t.Errorf("hermes after its test: %+v, %v", tools, faults)
 	}
 	if _, r := try("hermes", &trial{prompt: contract.ErrPromptStalled}); r == nil || r.Exit != contract.ExitFailed || r.Code != "trial" ||
 		!strings.HasPrefix(r.Message, "hermes · started, and then: ") || !strings.Contains(r.Message, "cannot be wired in") || r.Data != (Trial{Started: true}) {
 		t.Errorf("a tool that takes no paste: %+v", r)
+	}
+	// A test that did not pass is a truth of this computer too.
+	if tools, _ := contract.Tools(d.k.Platform, d.dirs); !slices.Equal(tools[2].Tried.Saw, contract.TriedSaw[:1]) {
+		t.Errorf("after a test that failed: %+v", tools[2].Tried)
+	}
+	// A built-in's test makes a file that holds what was seen and none of
+	// what a later release may know better: its screen's words stay the program's.
+	bin := t.TempDir()
+	d.program(bin, "claude")
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for range 2 {
+		if _, r := try("claude", &trial{rests: true}); r != nil {
+			t.Fatalf("Claude Code's test: %+v", r)
+		}
+		kept, _ := os.ReadFile(filepath.Join(d.dirs.Config, contract.ToolsDir, "claude.toml"))
+		tools, faults := contract.Tools(d.k.Platform, d.dirs)
+		if len(faults) != 0 || tools[0].Rank() != contract.RankProven || len(tools[0].Tried.Saw) != 4 || tools[0].Screen.Ready == "" ||
+			strings.Contains(string(kept), "ready") || strings.Contains(string(kept), "resume") {
+			t.Fatalf("Claude Code after its test: %+v, %v\n%s", tools[0], faults, kept)
+		}
 	}
 	terms := &trial{}
 	if _, r := try("nobody", terms); r == nil || r.Code != "no_tool" || len(terms.asked) != 0 {

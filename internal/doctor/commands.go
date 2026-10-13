@@ -18,15 +18,11 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 6 owes here: a tool's rank and what its test saw (Tool.Rank, Tool.Facts; doctor
-// --try writes Tool.Tried); Kit.Notice, the one request a day, never on a
-// server; contract.ReportLine as the last line; server status's line of a
-// newer release.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("doctor", run)
 	k.Handle("server", serve)
+	k.Notice = notice
 }
 
 // What a line says of its check. A note is worth knowing and fails nothing;
@@ -103,6 +99,7 @@ func run(c *contract.Call) (any, error) {
 	e.private("your state folder", e.dirs.State)
 	e.private("your cache folder", e.dirs.Cache)
 	e.read()
+	e.version()
 	e.engine()
 	e.tools()
 	e.project()
@@ -114,6 +111,7 @@ func run(c *contract.Call) (any, error) {
 	if c.Flags["server"] != nil {
 		e.machine()
 	}
+	fmt.Fprintf(c.Out, "\n%s\nPaste this output with your report: it holds no secret.\n", contract.ReportLine)
 	if e.Problems > 0 {
 		r := &contract.Refusal{Exit: contract.ExitFailed, Code: "problems", Message: fmt.Sprintf("%d of %d checks found a problem.", e.Problems, len(e.Lines)), Data: e}
 		for _, l := range e.Lines {

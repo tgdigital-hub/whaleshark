@@ -31,7 +31,6 @@ var pages = template.Must(template.New("page.html").Funcs(template.FuncMap{
 	"scheme": scheme, "each": each, "cards": cards, "join": strings.Join, "base": filepath.Base,
 	"elsewhere": func(n int) string { return plural(n, "needs you in another job", "need you in other jobs") },
 	"needs":     func() contract.LookOf { return contract.Looks[0] },
-	"agents":    func(n int) string { return plural(n, "agent", "agents") },
 	"nudge":     func() bool { return pushKey() != "" },
 	"open":      func(c contract.Card) string { return contract.RouteTask + c.Task },
 	"shot":      func(t contract.Try, i int) string { return contract.RouteEvidence + t.Attempt + "/" + fmt.Sprint(i) },
@@ -40,8 +39,6 @@ var pages = template.Must(template.New("page.html").Funcs(template.FuncMap{
 // pushKey is the kit's own reader of the login's key for nudges, once Plug
 // has run: with no key a phone is offered no nudge of the page's own.
 var pushKey = func() string { return "" }
-
-// Phase 6 owes here: "spent" on Home and a card's stuck line.
 
 // Plug puts the screens and their fixed files into the kit; it binds nothing.
 func Plug(k *contract.Kit) {
@@ -283,13 +280,14 @@ func word(p *contract.Page, c contract.Card) string {
 
 // news is a card's third line: a change that would conflict is the news,
 // one that only meets another follows it. A fleet with no news of its own
-// says how far its tasks are.
+// says how far its tasks are, and the stuck detector's line is nobody's
+// old words.
 func news(p *contract.Page, c contract.Card) string {
 	text := c.News
 	if c.Fleet != nil && text == "" {
 		text = c.Fleet.Line()
 	}
-	if c.Pale && !c.Said.IsZero() {
+	if c.Pale && !c.Said.IsZero() && !c.Stuck {
 		text = strings.Replace("said "+age(p, c.Said)+" ago: ", "now ago", "just now", 1) + text
 	}
 	if x := c.Clash; x != nil && x.Conflicts {
@@ -395,9 +393,12 @@ func catch(c *contract.Catchup) (out struct {
 	line := func(label string, l contract.CatchLine) [3]string { return [3]string{label, fmt.Sprint(l.N), l.Text} }
 	out.Rows = [][3]string{
 		line("Waiting for you now", c.Waiting), line("Finished and checked", c.Finished), line("Check failed", c.CheckFailed),
-		line("Clashes", c.Clashes), line("Went idle", c.WentIdle), {"Answered by the lead", fmt.Sprint(c.AnsweredLead)},
+		line("Clashes", c.Clashes), line("Went idle", c.WentIdle), line("Looked stuck", c.Stuck), {"Answered by the lead", fmt.Sprint(c.AnsweredLead)},
 		line("Done as you", c.DoneAsYou),
 		{"Still building", fmt.Sprint(c.StillBuilding), fmt.Sprint("Stopped  ", c.Stopped, "   Failed  ", c.Failed)},
+	}
+	if c.Stuck.N == 0 { // a row of its own only for a job in which something did
+		out.Rows = slices.Delete(out.Rows, 5, 6)
 	}
 	return out
 }
