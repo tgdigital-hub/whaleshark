@@ -148,8 +148,26 @@ func TestPaused(t *testing.T) {
 		}
 	}
 	same(t, "strip and alerts", []any{v.Strip.Paused, v.Strip.StillRunning, v.Alerts}, []any{true, 1, []string{"all work is paused · 1 still running"}})
-	if got := text(v, Options{Width: 100}); !strings.HasPrefix(got, "all work is paused · 1 still running\nTEAM ") || !strings.Contains(got, " ‖ T10  checkout form      still running") {
+	if got := text(v, Options{Width: 100}); !strings.HasPrefix(got, "all work is paused · 1 still running\nthis tab is the lead agent's\nTEAM ") || !strings.Contains(got, " ‖ T10  checkout form      still running") {
 		t.Errorf("paused prints\n%s", got)
+	}
+}
+
+// What the rules block sends an agent to status for: a closed job is said to
+// be none on every screen, and the text says whose tab asks. A person is
+// told neither that they are a visitor nor a lead agent.
+func TestStatusSaysWhoseTabAndThatAClosedJobIsNone(t *testing.T) {
+	f := evening(t)
+	for caller, want := range map[contract.CallerKind]string{contract.Orchestrator: "this tab is the lead agent's\nTEAM ", contract.Worker: "this tab is a worker's\nTEAM ",
+		contract.Unbound: "`whaleshark run takeover`\nTEAM ", contract.Human: "TEAM "} {
+		if got := text(Build(f.Input(caller)), Options{Width: 200}); !strings.Contains(got, want) || caller == contract.Human && strings.Contains(got, "this tab") {
+			t.Errorf("%s reads\n%s", caller, got)
+		}
+	}
+	in := f.Input(contract.Unbound)
+	in.State.Run.ClosedAt = in.Now
+	if v := Build(in); !slices.Contains(v.Alerts, "this job is closed, and no job is open: `whaleshark run new` begins the next") {
+		t.Errorf("a closed job's lines on top: %q", v.Alerts)
 	}
 }
 

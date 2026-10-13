@@ -1,3 +1,4 @@
+this tab is the lead agent's
 TEAM   run r3 "new shop site" · 12 agents · 2 need you · 1
        check failed · 1 to check                 8 Oct 21:14
 

@@ -1,3 +1,5 @@
+this tab is not this job's lead agent's: a visitor's, or the lead agent's after
+`whaleshark run takeover`
 TEAM   run r3 "new shop site" · 12 agents · 2 need you · 1 check failed · 1 to
        check                                                         8 Oct 21:14
 

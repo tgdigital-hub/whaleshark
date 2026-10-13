@@ -576,6 +576,9 @@ func (b *builder) finish(st *seat) {
 // and what the age line says about its sources.
 func (b *builder) around(v *contract.View) {
 	in, run := b.in, b.s.Run
+	if !run.ClosedAt.IsZero() {
+		v.Alerts = append(v.Alerts, "this job is closed, and no job is open: `whaleshark run new` begins the next")
+	}
 	if v.Mode = run.Mode; v.Mode == contract.ModeFleets {
 		// What the limits count: a living leader, and every agent of a fleet.
 		v.Limits = &contract.FleetRoom{LeadersMax: in.Person.Fleets.Leaders, AgentsMax: in.Person.Fleets.Total}

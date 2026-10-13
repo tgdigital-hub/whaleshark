@@ -63,6 +63,11 @@ func Text(w io.Writer, v *contract.View, o Options) {
 
 	p.alerts()
 	if !o.Items {
+		// What the rules block sends an agent here to learn: whose tab this is.
+		if whose := map[contract.CallerKind]string{contract.Orchestrator: "this tab is the lead agent's", contract.Leader: "this tab is a fleet leader's", contract.Worker: "this tab is a worker's",
+			contract.Unbound: "this tab is not this job's lead agent's: a visitor's, or the lead agent's after `whaleshark run takeover`"}[v.Caller]; whose != "" {
+			p.line("", whose, "")
+		}
 		c := v.Counts
 		parts := []string{fmt.Sprintf("run %s %q", clean(v.Run), clean(v.Objective)), plural(c.Agents, "agent", "agents")}
 		for _, n := range []struct {
