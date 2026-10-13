@@ -75,7 +75,12 @@
 # 50 more for the spending guard's true count: agent-hours by pane, what a
 # fleet's ended runs used kept in the job's record, the one sum the sweep,
 # the views and the exported log ask for, and the unit's word for one.
-lines 6345 contract internal/contract cmd/whaleshark
+# 35 more for what a review of phases 5 and 6 mended, each with its test: a
+# link that stands where a protected folder would begin, a pattern of the
+# protected list that can match nothing, the one rule for a character that
+# steers a terminal in a saved fleet's name and sentence, a setting's value
+# and a tool's words, and the two keys an agent no longer sets by itself.
+lines 6380 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -310,7 +315,9 @@ lines 910 gitwt internal/gitwt
 # file does not read, and which file.
 # 10 more after the trial with real agents, at what was built (834): land
 # takes a yes just given up itself, and says so while it can be taken back.
-lines 835 integrate internal/integrate
+# 10 more for the same review: a protected path is held whatever the case of
+# its letters, and a link is looked at where a folder of the list would begin.
+lines 845 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
 # project's object folder in git's list; it stood at its line. doctor pays.
 # 50 more after the real runs of phase 2: sync sends the result of a worker
@@ -400,7 +407,9 @@ lines 1300 term internal/term
 # keys go back to the conversation after the last typed answer, what two
 # buttons print is a list to read, a click on a value chooses its row, a
 # removed run's number is read again, and a changed setting is warned of once.
-lines 4035 panes internal/panes
+# 10 more for the same review: a loaded profile says by name when it takes a
+# tool's hooks away or changes the file the rules are written into.
+lines 4045 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
 # 10 fewer at the join of phase 6's second wave: the wave needed nothing here.
 lines 80 theme internal/theme
