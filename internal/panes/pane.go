@@ -569,7 +569,8 @@ func (p *pane) build() {
 	default:
 		p.view = contract.View{Alerts: []string{"no run in this folder yet"}, Fresh: contract.Fresh{Checked: checked, Notes: notes}}
 	}
-	if w := contract.Warned(p.ui.Changed); w != "" && p.kind != side {
+	// The view of a run says it itself; with no run to view, the pane does.
+	if w := contract.Warned(p.ui.Changed); w != "" && p.kind != side && !slices.Contains(p.view.Alerts, w) {
 		p.view.Alerts = append([]string{w}, p.view.Alerts...)
 	}
 	p.cards = p.cards[:0]

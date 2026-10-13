@@ -980,3 +980,24 @@ func keysBack(t *testing.T, left int) {
 		}
 	}
 }
+
+// A setting changed from a phone is warned of once: the view of a run says
+// it, and the pane does not say it a second time above that.
+func TestASettingChangedIsWarnedOfOnce(t *testing.T) {
+	wd := startWith(t, actions, 104, 24, nil, func(wd *world) {
+		ours(wd)
+		dirs, _ := wd.sys.Dirs()
+		file := filepath.Join(dirs.State, "ui.json")
+		var ui contract.UIFile
+		contract.ReadVersioned(wd.sys.Read, file, contract.FileVersion, &ui)
+		ui.Changed = []string{"mute"}
+		if err := contract.WriteVersioned(wd.sys, file, contract.FileVersion, ui); err != nil {
+			t.Fatal(err)
+		}
+		wd.view.Alerts = []string{contract.Warned(ui.Changed)}
+	})
+	wd.shows("setting changed: mute")
+	if n := strings.Count(wd.screen(), "setting changed: mute"); n != 1 {
+		t.Errorf("the warning stands %d times:\n%s", n, wd.screen())
+	}
+}
