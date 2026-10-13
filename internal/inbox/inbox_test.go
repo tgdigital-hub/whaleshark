@@ -468,6 +468,8 @@ func TestTwentyWorkingAgentsCauseNoWrite(t *testing.T) {
 			f.Terms.Panes = append(f.Terms.Panes, p)
 		}
 	})
+	// Every guard is on, and none has anything to say.
+	w.person("[plan]\nfirst = true\n[protect]\nfiles = true\n[spend]\nguard = true\nfleet = 30\n")
 	// The first sweep of a run writes down which start of the keeper it saw.
 	rules.Plug(w.p.Kit)
 	Plug(w.p.Kit)
@@ -874,7 +876,8 @@ func TestStaleAndOvertime(t *testing.T) {
 	w.after(15 * time.Minute)
 	w.after(15 * time.Minute)
 	s := w.state()
-	if got := kinds(s.Inbox.Events, ""); !slices.Equal(got, []string{"stale", "overtime", "overtime", "stale"}) || s.Attempts["W0.1"].State != contract.AttemptWorking {
+	// Two signs at once are also the verdict of the stuck detector, once each.
+	if got := kinds(s.Inbox.Events, ""); !slices.Equal(got, []string{"stale", "overtime", "stuck", "overtime", "stale", "stuck"}) || s.Attempts["W0.1"].State != contract.AttemptWorking {
 		t.Fatalf("past the time limit, once each and nothing stopped: %v", got)
 	}
 }

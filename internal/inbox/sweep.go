@@ -62,6 +62,13 @@ type look struct {
 	dead    map[string]bool // attempts whose start nobody is bringing up any more
 	waiting bool            // a wait holds wait.lock
 	now     time.Time
+	person  contract.PersonConfig // the guards, as the person has them
+	tools   []contract.Tool
+	ctx     map[string]contract.CtxFile
+	fleets  map[string]*contract.State // a job's fleets, as read
+	up      []string                   // apply's: attempts of a fleet whose verdict the job's run is owed,
+	used    []*contract.Question       // the person's answers that became final,
+	held    bool                       // and whether the job's hold came or went
 }
 
 var errSame = errors.New("nothing changed")
@@ -118,9 +125,21 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		return ok && err == nil
 	}
 	l := &look{rules: k.Rules, panes: map[string]*contract.Pane{}, names: map[string]*contract.Pane{}, keeper: snap.Instance,
-		limits: contract.ProjectDefaults(), dead: map[string]bool{}, waiting: !free(filepath.Join(dir, contract.WaitLock)), now: now}
+		limits: contract.ProjectDefaults(), dead: map[string]bool{}, waiting: !free(filepath.Join(dir, contract.WaitLock)), now: now,
+		fleets: map[string]*contract.State{}}
 	if p, err := contract.ReadProjectFile(root); err == nil {
 		l.limits = p
+	}
+	// No folder of the login's known: nothing is read beside the command, and no guard is on.
+	if d, err := k.Platform.Dirs(); err == nil {
+		l.person, _ = contract.ReadPerson(k.Platform.Peek, d.Config)
+		l.tools, _ = contract.Tools(k.Platform, d)
+		l.ctx = contract.ReadCtx(k.Platform.Peek, d.State, s)
+	}
+	for name, f := range s.Run.Fleets {
+		if low, err := k.Store.Read(root, f.Run); err == nil {
+			l.fleets[name] = low
+		}
 	}
 	for i := range snap.Panes {
 		p := &snap.Panes[i]
@@ -136,14 +155,33 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 
 	changed, todo := l.apply(s)
 	if changed {
-		err = k.Store.Change(root, run, func(s *contract.State) error {
-			if changed, todo = l.apply(s); !changed {
+		// A climb is written in the two runs in one step, as a twin is
+		// (20.4). One that is owed only since the lock was taken is the next
+		// sweep's, which writes nothing of this one.
+		write := func(up, low *contract.State) error {
+			if changed, todo = l.apply(low); up == nil && len(l.up) > 0 {
+				changed, todo = false, nil
+			}
+			if !changed {
 				return errSame
 			}
+			for _, id := range l.up {
+				k.Rules.Passed(up, low, id, now)
+			}
 			return nil
-		})
+		}
+		if p := s.Run.Parent; p != nil && len(l.up) > 0 {
+			err = k.Store.Both(root, p.Run, run, write)
+		} else {
+			err = k.Store.Change(root, run, func(s *contract.State) error { return write(nil, s) })
+		}
 		if err != nil && !errors.Is(err, errSame) {
 			return swept, nil, err
+		}
+	}
+	for _, q := range l.used {
+		if q.Cause == contract.CauseSetting && q.Answer == contract.AnswerChange && q.Set != nil {
+			contract.Granted(k, root, *q.Set, *cmp.Or(q.AnsweredBy, &contract.Origin{}), now)
 		}
 	}
 	todo = slices.DeleteFunc(todo, func(p pointer) bool {
@@ -163,6 +201,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	if s.Run.ClosedAt.IsZero() {
 		last.Gone = sw.leaders(root, s, l, last.Gone)
 		sw.pairs(root, s, l)
+		sw.hold(root, s, l)
 	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
 		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now, By: contract.Version, Gone: last.Gone})
@@ -184,6 +223,7 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 		return false, nil
 	}
 	events := len(s.Inbox.Events)
+	l.up, l.used, l.held = nil, nil, false
 	// A version of the program that never swept this run before is an
 	// upgrade under a running job (8j). The lead agent is told once: a wait
 	// of the older program may have ended without a word.
@@ -215,6 +255,13 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 		if l.rules.Seen(s, id, pane, !l.dead[id], l.limits, l.now) {
 			changed = true
 		}
+		if l.person.Stuck.Watch && (a.State.Live() || !a.Seen.StuckSince.IsZero()) {
+			tool, _ := contract.FindTool(l.tools, a.Agent.Kind)
+			moved, up := l.rules.Going(s, id, tool.Exact(), l.ctx[a.Place.Pane], l.limits, time.Duration(l.person.Stuck.ClimbMinutes)*time.Minute, l.now)
+			if changed = changed || moved; up {
+				l.up = append(l.up, id)
+			}
+		}
 		if s.Run.Paused != nil || !resting(pane) || a.State != contract.AttemptWorking && a.State != contract.AttemptAsked {
 			continue
 		}
@@ -245,10 +292,50 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 	if n := len(s.Inbox.Events); n > events && !l.waiting && s.Run.Paused == nil && resting(lead) {
 		todo = append(todo, pointer{pane: lead.ID, text: contract.PointEvents, arg: strconv.Itoa(n)})
 	}
+	// The spending guard looks at a job and at each fleet of it (20.3): with
+	// it off there is no limit, and a hold is let go. Then the person's
+	// settled answers to the tool's own items are made final.
+	if s.Run.Parent == nil {
+		was, paused, items, runs := s.Run.Spend, s.Run.Paused == nil, len(s.Questions), []*contract.State{s}
+		for _, name := range slices.Sorted(maps.Keys(s.Run.Fleets)) {
+			f, low, had := s.Run.Fleets[name], cmp.Or(l.fleets[name], &contract.State{}), s.Run.Fleets[name].Spend
+			l.rules.Spend(s, name, contract.Spent(l.now, low), l.person.SpendLimit(had, true), l.now)
+			runs, changed = append(runs, low), changed || f.Spend != had
+		}
+		l.rules.Spend(s, "", contract.Spent(l.now, runs...), l.person.SpendLimit(was, false), l.now)
+		for _, id := range slices.Sorted(maps.Keys(s.Questions)) {
+			q := s.Questions[id]
+			if q.From != contract.FromTool || q.State != contract.QuestionAnswered || !contract.PersonOnly(q.Cause) {
+			} else if l.rules.Use(s, id, l.now); q.State == contract.QuestionUsed {
+				l.used, changed = append(l.used, q), true
+			}
+		}
+		l.held = (s.Run.Paused == nil) != paused
+		changed = changed || l.held || s.Run.Spend != was || len(s.Questions) != items
+	}
 	if changed {
 		s.Run.Terms.SeenAt = l.now
 	}
 	return changed, todo
+}
+
+// hold brings each fleet's run in line with its job's record, tried on what
+// was read first, and has the hold file and the agents of a run follow where
+// something changed and at every look at a held run: a file taken away is back.
+func (sw sweeper) hold(root string, s *contract.State, l *look) {
+	held := func(s *contract.State) bool { return s.Run.Paused != nil && s.Run.Paused.By == contract.HeldBy }
+	if l.held || held(s) {
+		sw.k.Hold(sw.k, root, s.Run.ID)
+	}
+	for _, low := range l.fleets {
+		moved := sw.k.Rules.Hold(s, low, l.now) && sw.k.Store.Both(root, s.Run.ID, low.Run.ID, func(up, low *contract.State) error {
+			sw.k.Rules.Hold(up, low, l.now)
+			return nil
+		}) == nil
+		if moved || held(low) {
+			sw.k.Hold(sw.k, root, low.Run.ID)
+		}
+	}
 }
 
 // leaders is the sweep's row for a leader whose end no attempt shows: its fleet's pane has had no
