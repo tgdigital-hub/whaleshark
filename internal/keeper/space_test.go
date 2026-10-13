@@ -245,10 +245,18 @@ func TestATabsNameIsHeldToTheRules(t *testing.T) {
 	if reply := c.call(contract.WireCall{Op: contract.OpTabRename, Tab: "t3", Label: "orchestrator"}); reply.Err != "" || tab("t3").Label != "orchestrator" || tab("t1").Chat {
 		t.Errorf("the name was free again: %+v", reply)
 	}
-	// An agent the tool started names no tab, its own neither.
 	c.call(contract.WireCall{Op: contract.OpAgentStart, Pane: "p3", Kind: "claude", Name: "quiet otter"})
-	if reply := c.call(contract.WireCall{Op: contract.OpTabRename, Tab: "t3", Label: "mine", From: "p3"}); !strings.Contains(reply.Message, "not a call for an agent") {
-		t.Errorf("an agent renamed its tab: %+v", reply)
+	// An agent the tool started names no tab, its own neither; it opens,
+	// names and closes no workspace, and says nothing of what waits.
+	for _, call := range []contract.WireCall{{Op: contract.OpTabRename, Tab: "t3", Label: "mine"}, {Op: contract.OpSpaceOpen, Space: reef},
+		{Op: contract.OpSpaceRename, Space: "s1", Label: "mine"}, {Op: contract.OpSpaceClose, Space: "s1"}, {Op: contract.OpMarks, Marks: map[string]int{"t3": 9}}} {
+		call.From = "p3"
+		if reply := c.call(call); !strings.Contains(reply.Message, "not a call for an agent") {
+			t.Errorf("%s from an agent's pane: %+v", call.Op, reply)
+		}
+	}
+	if got := r.spaces(); !strings.HasPrefix(got, fmt.Sprintf("s1 %q shows t1; s2", contract.SpaceName(reef))) || tab("t3").Label != "orchestrator" {
+		t.Errorf("a fenced call changed something: %s", got)
 	}
 }
 
