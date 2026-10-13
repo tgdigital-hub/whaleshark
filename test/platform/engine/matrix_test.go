@@ -306,8 +306,12 @@ func column(t *testing.T) (cells map[string]string, system string) {
 	row("Notify", err, reason == contract.NotifyNoWindow)
 
 	// The window is the real one, in a terminal of the engine's own making.
+	// It is opened in the made-up project's folder, as a person opens one in
+	// theirs: from the folder of this test the program would look upward and
+	// could find a project that lies round the whole tree, which is not this
+	// login's and is refused.
 	env := append(slices.DeleteFunc(os.Environ(), func(v string) bool { return strings.HasPrefix(v, "TERM=") }), "TERM=xterm-256color")
-	window, err := kit.Pty(contract.PtySpec{Argv: []string{bin, "open"}, Env: env, Cols: 120, Rows: 40})
+	window, err := kit.Pty(contract.PtySpec{Argv: []string{bin, "open"}, Dir: root, Env: env, Cols: 120, Rows: 40})
 	if err == nil {
 		go io.Copy(io.Discard, window)
 		defer window.Close()
