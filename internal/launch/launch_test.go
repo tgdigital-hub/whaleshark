@@ -768,6 +768,10 @@ func TestTwoKindsThroughStopAllAndResume(t *testing.T) {
 	if argv := started(t, p, "R2.3").Argv; slices.Contains(argv, "resume") {
 		t.Errorf("Codex went on in a conversation of Claude Code's: %q", argv)
 	}
+	// The project's arguments were approved for Claude Code, and are no other tool's.
+	if argv := started(t, p, "R2.3").Argv; slices.Contains(argv, "--permission-mode") || slices.Contains(argv, "acceptEdits") {
+		t.Errorf("Codex was given the arguments approved for Claude Code: %q", argv)
+	}
 }
 
 // In a shared folder nothing keeps two workers apart: a task whose files
@@ -812,7 +816,7 @@ func TestCodexInItsOwnCopy(t *testing.T) {
 	testkit.Commit(t, p.Root, "start", map[string]string{"b.md": brief, ".gitignore": "whaleshark.toml\n"})
 	must(t, p.Command(scenario.Orch, "init"), 0)
 	must(t, p.Command(scenario.Orch, "run", "new", "a parser"), 0)
-	approve(t, p, "[worktrees]\nport_block = 4\n[agent]\nargs = [\"--sandbox\", \"workspace-write\"]\n")
+	approve(t, p, "[worktrees]\nport_block = 4\n[agent]\ntool = \"codex\"\nargs = [\"--sandbox\", \"workspace-write\"]\n")
 	must(t, p.Command(scenario.Orch, "task", "add", "T1", "the parser", "--brief", "b.md", "--check", "none", "--agent", "codex"), 0)
 	s, run := p.Record()
 	if err := os.WriteFile(filepath.Join(run, "sync-T1.md"), []byte("Merge main first: two commits behind.\n"), 0o600); err != nil {

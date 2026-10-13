@@ -723,10 +723,13 @@ func (l *launcher) bring(task string) outcome {
 		args = append(args, tool.Folders(dir, filepath.Dir(filepath.Join(run, t.Brief)))...)
 	}
 	// The project's own arguments, which are empty until a person approved
-	// them. A project cannot know where this program lies on each machine,
-	// and a worker is told to call it by its path: {whaleshark} stands for it.
+	// them, and are for the one tool they were approved for. A project cannot
+	// know where this program lies on each machine, and a worker is told to
+	// call it by its path: {whaleshark} stands for it.
 	for _, arg := range l.project.Agent.Args {
-		args = append(args, strings.ReplaceAll(arg, "{whaleshark}", l.self))
+		if tool.Name == l.project.Agent.Tool {
+			args = append(args, strings.ReplaceAll(arg, "{whaleshark}", l.self))
+		}
 	}
 	if agent.Model != "" {
 		args = append(args, contract.Fill(tool.Model, "model", agent.Model)...)

@@ -106,8 +106,19 @@ func TestClockAndProjectFile(t *testing.T) {
 	}
 	approvals(t)
 	WriteTrust(plain{}, root, []string{"agent.args = [--x]"}, Now())
-	if p, err = ReadProjectFile(root); err != nil || p.Held != nil || !slices.Equal(p.Agent.Args, []string{"--x"}) {
+	if p, err = ReadProjectFile(root); err != nil || p.Held != nil || !slices.Equal(p.Agent.Args, []string{"--x"}) || p.Agent.Tool != DefaultTool {
 		t.Errorf("once approved, read %+v, %v", p, err)
+	}
+	// The arguments are for one tool: another tool named for them is a line
+	// of its own to approve, and until then they are nobody's.
+	os.WriteFile(filepath.Join(root, "whaleshark.toml"), []byte("[agent]\nargs = [\"--x\"]\ntool = \"codex\"\n"), 0o600)
+	lines, _ := TrustLines(root)
+	if p, err = ReadProjectFile(root); err != nil || p.Agent.Args != nil || p.Agent.Tool != DefaultTool || !slices.Equal(lines, []string{"agent.args = [--x]", "agent.tool = codex"}) {
+		t.Errorf("with another tool named for the arguments: %+v, %v, to approve %q", p.Agent, err, lines)
+	}
+	WriteTrust(plain{}, root, lines, Now())
+	if p, err = ReadProjectFile(root); err != nil || p.Agent.Tool != "codex" || !slices.Equal(p.Agent.Args, []string{"--x"}) {
+		t.Errorf("once that is approved: %+v, %v", p.Agent, err)
 	}
 	// More agents at once than usual is the person's to approve; fewer is not.
 	os.WriteFile(filepath.Join(root, "whaleshark.toml"), []byte("[limits]\nagents = 500\nstale_minutes = 5\n"), 0o600)

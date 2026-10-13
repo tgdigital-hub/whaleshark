@@ -240,8 +240,12 @@ type ProjectFile struct {
 		ScriptWindows  string `toml:"script_windows"`
 		TimeoutSeconds int    `toml:"timeout_seconds"`
 	} `toml:"setup"`
+	// Agent.Args are more arguments for the agent tool Agent.Tool names,
+	// which is DefaultTool where the file names none, and for no other tool:
+	// what one tool takes another refuses or reads as something else.
 	Agent struct {
 		Args []string `toml:"args"`
+		Tool string   `toml:"tool"`
 	} `toml:"agent"`
 	Check struct {
 		TimeoutSeconds int `toml:"timeout_seconds"`
@@ -272,6 +276,7 @@ func ProjectDefaults() ProjectFile {
 	p.Worktrees.PortBlock = 10
 	p.Setup.TimeoutSeconds = 600
 	p.Check.TimeoutSeconds = 900
+	p.Agent.Tool = DefaultTool
 	p.Land.Who = ForHuman
 	p.Limits.Agents = 20
 	p.Limits.QuietSeconds = 120
