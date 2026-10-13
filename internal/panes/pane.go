@@ -129,6 +129,7 @@ type pane struct {
 	pick             int
 	query            term.Line
 	catch            contract.Catchup
+	read             []string // what "Show the changes" or "Open the plan" printed, laid over the pane
 	teams            []saved
 	away             time.Time // when the person left, kept until they have been caught up
 	shown            contract.Card

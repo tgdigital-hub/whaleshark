@@ -1,4 +1,4 @@
- FLEET  1 agents · 0 need you      [<] [>] [x]
+ FLEET  1 agent · 0 need you       [<] [>] [x]
  setting changed by your agent: theme
 
  ◌ sign-up page                    idle 4h 10m

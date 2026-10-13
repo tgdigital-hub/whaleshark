@@ -1,4 +1,4 @@
- FLEET  1 agents · 0 n…  [<] [>] [x]
+ FLEET  1 agent · 0 ne…  [<] [>] [x]
  setting changed by your agent: the…
 
  ◌ sign-up page          idle 4h 10m

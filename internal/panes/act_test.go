@@ -1,6 +1,7 @@
 package panes
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -935,5 +936,47 @@ func TestTheKeysGoBetweenThePanes(t *testing.T) {
 	}
 	if left := d.panes(); len(left) != 3 {
 		t.Errorf("panes: %+v", left)
+	}
+}
+
+// After the last waiting item is answered in words the keys go back to the
+// conversation: the next sentence is the agent's, and no letter of it a key.
+// While something else waits they stay.
+func TestTheKeysGoBackAfterTheLastTypedAnswer(t *testing.T) {
+	for _, left := range []int{1, 2} {
+		t.Run(fmt.Sprint(left, " waiting"), func(t *testing.T) { keysBack(t, left) })
+	}
+}
+
+func keysBack(t *testing.T, left int) {
+	{
+		wd := startWith(t, actions, 104, 24, nil, func(wd *world) {
+			ours(wd)
+			// The item answered in words first, and with two another behind it.
+			slices.SortStableFunc(wd.view.Items, func(a, b contract.Item) int { return cmp.Compare(len(a.Buttons), len(b.Buttons)) })
+			if !wd.view.Items[0].Line || len(wd.view.Items[0].Buttons) > 0 {
+				t.Fatalf("the fixture has no item answered in words: %+v", wd.view.Items[0])
+			}
+			wd.view.Items = wd.view.Items[:left]
+		})
+		wd.s.Type("\x1b[I")
+		wd.shows("KEYS GO HERE")
+		before := len(wd.double.Calls())
+		wd.s.Key("enter")
+		wd.s.Settled(keyGap)
+		wd.s.Type("teal")
+		wd.s.Key("enter")
+		wd.ran("answer ")
+		back := wd.until(2*time.Second, func() bool {
+			for _, c := range wd.double.Calls()[before:] {
+				if c.Op == contract.OpPaneFocus {
+					return true
+				}
+			}
+			return false
+		})
+		if back != (left == 1) {
+			t.Errorf("with %d waiting, the keys went back: %v", left, back)
+		}
 	}
 }

@@ -258,7 +258,13 @@ func TestTheGuardsItemsAndTheirButtons(t *testing.T) {
 			wd.s.Type(press[1])
 			wd.s.Key("enter")
 		}
-		wd.ran(press[2])
+		// What the two that show something print is laid over the pane as
+		// a list to read, not cut to the last line of it.
+		if wd.ran(press[2]); strings.HasPrefix(press[2], "show ") || press[2] == "graph --human" {
+			wd.shows(strings.Trim(press[0], "[] "), "ran ", "j k scroll · esc closes")
+			wd.s.Key("esc")
+			wd.shows("Protected files changed in this job")
+		}
 	}
 }
 
@@ -463,7 +469,7 @@ func TestTheFirstStepsAreTickedOpenedAndHidden(t *testing.T) {
 	wd.click("first steps: ")
 	wd.shows("FIRST STEPS", "[ hide ]", "✔ 1 start your agent: type", "5 ctrl+space s settings · S")
 	wd.click("[ hide ]")
-	wd.ran("set ui.first_steps off")
+	wd.ran(`set ui.first_steps --file "off" --human`)
 	if !wd.until(3*time.Second, func() bool { return !strings.Contains(wd.screen(), "FIRST STEPS") }) {
 		t.Fatalf("hidden, the first steps are still drawn:\n%s", wd.screen())
 	}
@@ -472,7 +478,7 @@ func TestTheFirstStepsAreTickedOpenedAndHidden(t *testing.T) {
 	wd.s.Key("down")
 	wd.shows("KEYS GO HERE")
 	wd.s.Key("esc")
-	wd.ran("set ui.first_steps off")
+	wd.ran(`set ui.first_steps --file "off" --human`)
 }
 
 // A search that finds no setting says so, at every width, and Enter on it
@@ -495,6 +501,11 @@ func TestASearchThatFindsNoSetting(t *testing.T) {
 func TestTheSettingsScreensNewRows(t *testing.T) {
 	wd := startWith(t, settings, 120, 30, map[string]string{"PATH": ""}, func(*world) {})
 	wd.ran("set steps 16")
+	// A click on a value chooses its row: the right side then speaks of it.
+	wd.shows("› Colour scheme")
+	wd.click("[ off ]")
+	wd.ran(`set ui.first_steps --file "off" --human`)
+	wd.shows("› First steps")
 	wd.click("[ Save my settings to a file ]")
 	wd.shows("Save to the file:")
 	wd.s.Type("mine.toml")

@@ -324,7 +324,7 @@ func (p *pane) window(n, room int, height func(int) int) int {
 // person.
 func (p *pane) fleetTitle() (name, counts string) {
 	c := p.view.Counts
-	name, counts = "FLEET", fmt.Sprintf("%d agents · %d need%s you", c.Agents, c.NeedYou, map[bool]string{true: "s"}[c.NeedYou == 1])
+	name, counts = "FLEET", fmt.Sprintf("%d agent%s · %d need%s you", c.Agents, map[bool]string{false: "s"}[c.Agents == 1], c.NeedYou, map[bool]string{true: "s"}[c.NeedYou == 1])
 	if p.view.Mode == contract.ModeFleets {
 		name, counts = "FLEETS", fmt.Sprintf("%d · %s", len(p.cards), counts)
 	}

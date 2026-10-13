@@ -306,7 +306,7 @@ func (p *pane) act(id string, fill map[string]string) {
 	if a.Confirm && p.asked != id {
 		what := a.Label
 		if id == "stop-all" {
-			what = fmt.Sprintf("Stop all %d agents", p.view.Counts.Agents)
+			what = fmt.Sprintf("Stop all %d agent%s", p.view.Counts.Agents, map[bool]string{false: "s"}[p.view.Counts.Agents == 1])
 		} else if c != nil {
 			what += " " + c.Name
 		}
@@ -440,6 +440,8 @@ func (p *pane) launch(a contract.Action, fill map[string]string) {
 		p.child(p.cmd(argv...), fill["text"], func(out []byte, said string, ok bool) {
 			if lines := strings.Split(strings.TrimSpace(string(out)), "\n"); ok && a.ID == "answer" {
 				said = "" // the item says it, and counts down how long it can be taken back
+			} else if ok && (a.ID == "show-changes" || a.ID == "open-plan") {
+				p.read, p.over, p.pick, said = lines, a.ID, 0, "" // more than a line: read as a list
 			} else if ok {
 				said = lines[len(lines)-1]
 			} else if p.kind == menu {
@@ -490,6 +492,11 @@ func (p *pane) typed(ev term.Event) {
 		p.line = nil
 		p.act("answer", map[string]string{"id": p.lineFor, "text": strings.TrimSpace(p.linePre + " " + text)})
 		p.draft(p.lineFor, "")
+		// The last thing that waited is answered in words: what is typed
+		// next is for the agent, so the keys go back to the conversation.
+		if len(p.view.Items) <= 1 {
+			p.hand("")
+		}
 	}
 }
 
@@ -643,6 +650,12 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 			list = append(list, e)
 		}
 		return "saved teams", list, "enter adds its tasks to the run and starts nothing · esc closes"
+	case "show-changes", "open-plan":
+		for _, line := range p.read {
+			list = append(list, entry{text: line})
+		}
+		a, _ := contract.FindAction(p.over)
+		return a.Label, list, "j k scroll · esc closes"
 	case "catchup":
 		c := p.catch
 		row := func(label string, n int, text string) {

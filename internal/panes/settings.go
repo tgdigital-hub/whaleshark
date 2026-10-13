@@ -291,12 +291,19 @@ func (p *pane) drawSettings() {
 			t.Put(a+1, y, 1, gt, p.st("needs"))
 			st = bold(st)
 		}
+		own := len(p.hits)
 		if apart(s) && s.do != nil {
 			p.button(a+3, y, s.label, st, s.do)
 		} else if t.Put(a+3, y, b-a-4, p.short(s.label, b-a-4), st); s.do != nil {
 			p.button(edge-term.Width(s.value), y, s.value, st, s.do)
 		} else if s.key.Kind != "" {
 			p.value(s, y, a+3, edge, i == p.pick || !narrow)
+		}
+		// A click on a row's value chooses the row too: what is said at the
+		// right is then said of the setting just changed.
+		for j := own; j < len(p.hits); j++ {
+			do := p.hits[j].do
+			p.hits[j].do = func() { p.pick = i; do() }
 		}
 	}
 	if s := rows[p.pick]; b < w-1 {
