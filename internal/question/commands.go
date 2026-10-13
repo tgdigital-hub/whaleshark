@@ -18,8 +18,14 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 6 owes here: answer on an item of a cause contract.PersonOnly names:
-// the refusal's own next lines, and --relayed refused.
+// meanwhile is what an agent does while a sign-off that is the person's alone
+// waits, by the item's cause: answer adds it to the rules' refusal.
+var meanwhile = map[string]string{
+	contract.CausePlan:    "They are reading your plan: start again when you are handed answered.",
+	contract.CauseProtect: "Carry on with the work and tell them in one sentence that a sign-off waits; land waits for it.",
+	contract.CauseBudget:  "The job is held until they say whether it goes on.",
+	contract.CauseSetting: "The setting stays as it is until they click.",
+}
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
@@ -288,6 +294,10 @@ func answer(c *contract.Call) (any, error) {
 		}
 		return err
 	})
+	if r := new(*contract.Refusal); errors.As(err, r) && (*r).Code == contract.RefusedPersonOnly {
+		(*r).Message += " " + meanwhile[s.Questions[id].Cause]
+		(*r).Next = []string{"whaleshark wait"}
+	}
 	if err != nil {
 		return nil, err
 	}

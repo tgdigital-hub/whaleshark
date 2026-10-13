@@ -462,3 +462,87 @@ func TestAFleetIsSavedWithWhatItWorksOn(t *testing.T) {
 	orch(0, "run", "fleet")("kept · saved · plain")
 	orch(0, "guide", "lead")("- kept: plain")
 }
+
+// task add --owns warns across fleets (20.10): a leader that adds a task
+// whose patterns meet those of an unfinished task of another fleet of the
+// same job is told which, by fleet. It is a hint: the task is added, a
+// fleet that has ended or a task that is settled is not named, and the
+// orchestrator's own run reads nobody's.
+func TestTaskAddWarnsAcrossFleets(t *testing.T) {
+	p, _ := crew(t)
+	runtask.Plug(p.Kit)
+	write(t, filepath.Join(p.Root, "b.md"), briefText)
+	k, now := p.Kit, contract.Now()
+	theirs := func(run string, tasks ...contract.Task) {
+		t.Helper()
+		err := k.Store.Change(p.Root, run, func(s *contract.State) error {
+			for _, task := range tasks {
+				if err := k.Rules.AddTask(s, task, nil, now); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	theirs("r3", contract.Task{ID: "T1", Title: "the cart filter", Check: "none", Owns: []string{"web/cart/**"}},
+		contract.Task{ID: "T2", Title: "the index", Check: "none", Owns: []string{"search/index/*.go"}},
+		contract.Task{ID: "T3", Title: "an old one", Check: "none", Owns: []string{"web/**"}})
+	theirs("r3")
+	if err := k.Store.Change(p.Root, "r3", func(s *contract.State) error { s.Tasks["T3"].SettledAt = now; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	add := func(id string, owns ...string) (string, map[string]any) {
+		t.Helper()
+		var out bytes.Buffer
+		c := &contract.Call{Kit: k, Command: contract.Find("task"), Args: []string{"add", id, "task " + id}, Root: p.Root, Run: "r2", Now: now,
+			Flags:  map[string][]string{"brief": {filepath.Join(p.Root, "b.md")}, "check": {"none"}, "name": {"n " + id}, "shared": {""}},
+			Caller: contract.Caller{Kind: contract.Leader, Pane: runOf(t, p, "r2").Run.Orchestrator.Pane}, Stdin: strings.NewReader(""), Out: &out, Err: &out}
+		if owns != nil {
+			c.Flags["owns"] = owns
+		}
+		got, err := k.Handler("task")(c)
+		if err != nil {
+			t.Fatalf("task add %s: %v\n%s", id, err, out.String())
+		}
+		return out.String(), got.(map[string]any)
+	}
+	out, got := add("T2", "web/cart/total.js,docs")
+	if !strings.Contains(out, "T2 may change files that other fleets of this job may change too: search/T1.") || !strings.Contains(out, "No fleet owns folders") ||
+		!slices.Equal(got["meets_fleets"].([]string), []string{"search/T1"}) || runOf(t, p, "r2").Tasks["T2"] == nil {
+		t.Fatalf("billing's T2 meets search's T1:\n%s%v", out, got)
+	}
+	for id, owns := range map[string][]string{"T3": {"billing/**"}, "T4": nil} {
+		if out, got := add(id, owns...); strings.Contains(out, "other fleets") || got["meets_fleets"] != nil {
+			t.Fatalf("%s meets no other fleet:\n%s", id, out)
+		}
+	}
+	// A fleet that has ended is not at work on anything.
+	if err := k.Store.Change(p.Root, "r1", func(s *contract.State) error { s.Run.Fleets["search"].EndedAt = now; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if out, _ := add("T5", "web/cart"); strings.Contains(out, "other fleets") {
+		t.Fatalf("a fleet that has ended was named:\n%s", out)
+	}
+}
+
+// protect.also is a key of the project's file like any other, written by its
+// one writer; it only adds, so it is in force with nobody's approval.
+func TestProtectAlsoIsWrittenAndNeedsNoApproval(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	play(t, p.Command(scenario.Human, "init"), 0)
+	write(t, filepath.Join(p.Root, "whaleshark.toml"), "# ours\n[land]\ncheck = \"make test\"\n")
+	play(t, p.Command(scenario.Human, "set", "protect.also", "legal/**, db/seed.sql", "--project"), 0)
+	play(t, p.Command(scenario.Orch, "set", "protect.also", "", "--project"), 5)
+	if got, want := read(t, filepath.Join(p.Root, "whaleshark.toml")), "# ours\n[land]\ncheck = \"make test\"\n\n[protect]\nalso = [\"legal/**\", \"db/seed.sql\"]\n"; got != want {
+		t.Fatalf("the file:\n%s\nexpected:\n%s", got, want)
+	}
+	project, err := contract.ReadProjectFile(p.Root)
+	person := contract.PersonDefaults()
+	person.Protect.Files, person.Protect.Paths = true, "deploy/**"
+	if list := contract.Protected(person, project); err != nil || !slices.Equal(list, []string{"deploy/**", "legal/**", "db/seed.sql"}) || !slices.Contains(project.Held, "land.check") {
+		t.Fatalf("the list is %v, held %v, %v", list, project.Held, err)
+	}
+}

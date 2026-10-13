@@ -620,3 +620,38 @@ func TestTheToolsItems(t *testing.T) {
 		t.Fatalf("after the approval: %+v\n%s", got, items(t, p))
 	}
 }
+
+// A sign-off that is the person's alone (20.1 to 20.3, 20.18): the lead
+// agent's answer is refused, passed on or not, with what it does meanwhile
+// for that cause and the one line to run; the person's own answer is taken.
+func TestAnswerOnThePersonsOwnSignOff(t *testing.T) {
+	p := evening(t, nil)
+	now := contract.Now()
+	ids := map[string]string{}
+	edit(t, p, func(s *contract.State) error {
+		for _, cause := range []string{contract.CausePlan, contract.CauseProtect, contract.CauseBudget, contract.CauseSetting} {
+			id, err := rules.Rules{}.Need(s, contract.Question{Form: contract.FormSignoff, Cause: cause, From: contract.FromTool, Text: "the tool's own, for " + cause}, now)
+			if ids[cause] = id; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	for cause, words := range map[string]string{
+		contract.CausePlan:    "reading your plan",
+		contract.CauseProtect: "land waits for it",
+		contract.CauseBudget:  "The job is held",
+		contract.CauseSetting: "stays as it is",
+	} {
+		for _, more := range []string{"", " --relayed"} {
+			out := must(t, p, 5, scenario.Orch, "answer "+ids[cause]+" approve"+more, "the person's own click", words, "whaleshark wait")
+			if s, _ := p.Record(); s.Questions[ids[cause]].Answer != "" || strings.Contains(out, "<nil>") {
+				t.Fatalf("an agent's answer to %s was taken:\n%s", cause, out)
+			}
+		}
+	}
+	must(t, p, 0, scenario.Human, "answer "+ids[contract.CauseProtect]+" approve", "answered")
+	if s, _ := p.Record(); s.Questions[ids[contract.CauseProtect]].Answer != contract.AnswerApprove {
+		t.Fatalf("the person's own answer was not taken: %+v", s.Questions[ids[contract.CauseProtect]])
+	}
+}
