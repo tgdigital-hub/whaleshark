@@ -61,6 +61,7 @@ type server struct {
 	// pair, the refusals that slow the next, and who the road named last.
 	door     *http.Server
 	port     int
+	closed   string // why the door did not open when it was last to
 	pair     pairing
 	refusals int
 	refused  time.Time
@@ -250,6 +251,9 @@ type status struct {
 	// Caller who the road named at the door last.
 	Door   int    `json:"door,omitempty"`
 	Caller string `json:"caller,omitempty"`
+	// Closed is why the door did not open when it was last to: the port
+	// taken by another program, as the system says it.
+	Closed string `json:"closed,omitempty"`
 	// On Cloudflare's road: why the door last refused a request, the heading
 	// and field names of the last pass whose signature held, and when the
 	// door last shut itself for a minute.
@@ -282,7 +286,7 @@ func (s *server) own(w http.ResponseWriter, r *http.Request, word string, now ti
 	runtime.ReadMemStats(&m)
 	s.mu.Lock()
 	st := status{Running: word != "stop", Socket: s.sock, Version: contract.Version, Since: s.since,
-		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran, Door: s.port, Caller: s.caller, Refused: s.why, Pass: s.shape, Shut: s.shut, Decided: decided}
+		Memory: m.Sys - m.HeapReleased, Tabs: len(s.tabs), Watching: s.unlook != nil, Runs: s.ran, Door: s.port, Closed: s.closed, Caller: s.caller, Refused: s.why, Pass: s.shape, Shut: s.shut, Decided: decided}
 	s.mu.Unlock()
 	// #nosec G117 -- "pass" is the heading and the field names of a signed pass, never a value of its fields nor the pass itself
 	json.NewEncoder(w).Encode(st)

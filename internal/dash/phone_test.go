@@ -479,11 +479,22 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 	if _, err := knock(); err == nil {
 		t.Fatal("the door is open before anybody switched phone access on")
 	}
+	// Another program has the door's port: the command says so, and why, and
+	// once the port is free the same command opens the door.
+	taken, err := net.Listen("tcp4", net.JoinHostPort(contract.Loopback, strconv.Itoa(door)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := word("phone", "on"); err == nil || err.(*contract.Refusal).Code != "door_shut" || !strings.Contains(err.Error(), "the door did not open: listen tcp4") ||
+		!strings.Contains(err.Error(), "Another program has this login's port") {
+		t.Fatalf("dash phone on with the door's port taken: %v", err)
+	}
+	taken.Close()
 	said, got, err := word("phone", "on")
 	if err != nil || !got.On || got.Name != public || !strings.Contains(said, "https://"+public+"/\n") {
 		t.Fatalf("dash phone on: %v %+v %s", err, got, said)
 	}
-	if st, _ := ask(b.p.Kit, dirs, "status"); st.Door != door || !st.Running {
+	if st, _ := ask(b.p.Kit, dirs, "status"); st.Door != door || !st.Running || st.Closed != "" {
 		t.Errorf("the status with the door open: %+v", st)
 	}
 	if code, err := knock(); err != nil || code != http.StatusOK {

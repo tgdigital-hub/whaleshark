@@ -62,7 +62,8 @@ func (s *server) doors() {
 		return
 	}
 	l, err := listen("tcp4", net.JoinHostPort(contract.Loopback, strconv.Itoa(port)), port)
-	if err != nil {
+	if s.closed = ""; err != nil {
+		s.closed = err.Error()
 		return
 	}
 	s.door, s.port = &http.Server{Handler: http.HandlerFunc(s.phone), ReadHeaderTimeout: 10 * time.Second}, port
@@ -378,7 +379,11 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 	}
 	if word == "on" || word == "off" {
 		if st, ok := ask(k, dirs, "door"); word == "on" && (err != nil || !ok || st.Door == 0) {
-			return nil, refuse("door_shut", "Phone access is on, but the door did not open.", "whaleshark dash status")
+			why := "."
+			if st.Closed != "" {
+				why = ": " + st.Closed + ". Another program has this login's port; end it, then switch phone access on again."
+			}
+			return nil, refuse("door_shut", "Phone access is on, but the door did not open"+why, "whaleshark dash status")
 		}
 	}
 	if out.On {
