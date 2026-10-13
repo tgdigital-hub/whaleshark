@@ -436,6 +436,7 @@ func (f *Fake) launch(p *pane, args []string, again bool) {
 // serve answers the calls of one connection until it ends or asks for the events.
 func (f *Fake) serve(conn net.Conn) {
 	defer conn.Close()
+	conn = contract.Patient(conn) // as the keeper reads: a caller that left is noticed on every system
 	reply := func(r contract.WireReply, id uint64, err error) error {
 		if r.ID, r.Err = id, contract.ErrCode(err); err != nil && err.Error() != r.Err {
 			r.Message = err.Error()
