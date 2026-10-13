@@ -293,11 +293,6 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 	if l.rules.LeadSeen(s, lead, l.waiting, l.now) {
 		changed = true
 	}
-	// What this sweep raised reaches a lead agent that is resting and not
-	// waiting as one line in its pane.
-	if n := len(s.Inbox.Events); n > events && !l.waiting && s.Run.Paused == nil && resting(lead) {
-		todo = append(todo, pointer{pane: lead.ID, text: contract.PointEvents, arg: strconv.Itoa(n)})
-	}
 	// The spending guard looks at a job and at each fleet of it (20.3): with
 	// it off there is no limit, and a hold is let go. Then the person's
 	// settled answers to the tool's own items are made final.
@@ -318,6 +313,12 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 		}
 		l.held = (s.Run.Paused == nil) != paused
 		changed = changed || l.held || s.Run.Spend != was || len(s.Questions) != items
+	}
+	// What this sweep raised, the guard's warning at four fifths with it,
+	// reaches a lead agent that is resting and not waiting as one line in
+	// its pane.
+	if n := len(s.Inbox.Events); n > events && !l.waiting && s.Run.Paused == nil && resting(lead) {
+		todo = append(todo, pointer{pane: lead.ID, text: contract.PointEvents, arg: strconv.Itoa(n)})
 	}
 	if changed {
 		s.Run.Terms.SeenAt = l.now

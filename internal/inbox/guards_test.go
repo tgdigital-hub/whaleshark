@@ -280,6 +280,27 @@ func (w *world) job(by time.Duration) contract.Swept {
 
 func heldBy(s *contract.State) bool { return s.Run.Paused != nil && s.Run.Paused.By == contract.HeldBy }
 
+// At four fifths the orchestrator is told to wrap up, and one that rests
+// without waiting has that pointed out by a line in its pane: the warning
+// is of no use unread until the limit.
+func TestTheWarningAtFourFifthsIsPointedOut(t *testing.T) {
+	w, _ := afternoon(t, "[spend]\nguard = true\njob = 41\n")
+	w.p.Double.Drop(contract.StatusIdle, w.p.Lead)
+	// The afternoon as it was before anybody was warned.
+	w.in("r7", func(s *contract.State, _ time.Time) {
+		s.Run.Spend.Warned = false
+		s.Inbox.Events = slices.DeleteFunc(s.Inbox.Events, func(e contract.Event) bool { return e.Kind == "budget" })
+	})
+	w.job(time.Minute)
+	s := w.state()
+	if !s.Run.Spend.Warned || heldBy(s) || !slices.Contains(kinds(s.Inbox.Events, ""), "budget") {
+		t.Fatalf("at 33 of 41 agent-hours: %+v, %v", s.Run.Spend, kinds(s.Inbox.Events, ""))
+	}
+	if n := w.typed(w.p.Lead, fmt.Sprintf(string(contract.PointEvents), fmt.Sprint(len(s.Inbox.Events)))); n != 1 {
+		t.Fatalf("the pointer to the warning was typed %d times", n)
+	}
+}
+
 // The afternoon has used 33 of its 40 agent-hours with six agents open. At
 // the limit the job and both fleets are held, the hold is handed to the
 // kit for each run, and the person is asked; every look at the held job
