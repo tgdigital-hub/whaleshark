@@ -1,6 +1,7 @@
 package input
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
@@ -194,5 +195,37 @@ func TestAPressBesideThePaneOverTheTab(t *testing.T) {
 	}
 	if got := shown(take(&in, v, "\x1b[<0;51;11M")); got != `p2 <- "\x1b[<0;10;9M"` || in.put.Kind == 0 {
 		t.Errorf("a press in it: %s", got)
+	}
+}
+
+// With two tab lines the wheel over a line moves that line, the command key
+// then n and p walk the line the tab that shows is on, and a digit is a tab
+// of the second line, also while the workspace's first tab shows and that
+// line is dim.
+func TestTwoTabLinesUnderTheKeysAndTheWheel(t *testing.T) {
+	lay := &layout.Layout{}
+	for i, c := range [][2]string{{"Orchestrator", ""}, {"billing", "billing"}, {"invoices", "billing"}, {"search", "search"}, {"index", "search"}} {
+		id := string(rune('1' + i))
+		tab := lay.Add("t"+id, c[0], "p"+id)
+		tab.Group, tab.Head = c[1], c[0] == c[1]
+	}
+	lay.Fit(80, 24)
+	lay.Show("t5")
+	lay.Show("t1")
+	in, v := In{Keys: New(settings(), "darwin")}, View{Lay: lay, Modes: all(screen.Modes{})}
+	focus := func(tab string) string { return `call {"op":"tab-focus","tab":"` + tab + `"}` }
+	for _, c := range [][2]string{
+		{"\x1b[<65;30;1M", "tab row +1"}, {"\x1b[<64;30;2M", "tab row -" + strconv.Itoa(layout.Lower)}, {"\x1b[<65;30;3M", "nothing"},
+		{"\x002", focus("t5")}, {"\x003", "nothing"}, {"\x00n", focus("t2")}, {"\x00p", focus("t5")},
+	} {
+		if got := shown(take(&in, v, c[0])); got != c[1] {
+			t.Errorf("%q with the first tab in front: %s, want %s", c[0], got, c[1])
+		}
+	}
+	lay.Show("t3")
+	for _, c := range [][2]string{{"\x001", focus("t2")}, {"\x00n", focus("t2")}, {"\x00p", focus("t2")}} {
+		if got := shown(take(&in, v, c[0])); got != c[1] {
+			t.Errorf("%q with a fleet's tab in front: %s, want %s", c[0], got, c[1])
+		}
 	}
 }

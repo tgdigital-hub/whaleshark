@@ -152,23 +152,24 @@ func TestTwoTabLines(t *testing.T) {
 	if got := at("back office", 0); got.Tab != "t10" {
 		t.Errorf("a fleet's name goes to %s, not to the tab of it that showed last", got.Tab)
 	}
-	// The keys walk the line that holds the tab that shows.
-	walk := func() string {
-		w := l.Walk()
+	// The keys walk the line that holds the tab that shows; a digit is a
+	// tab of the second line, also while that line is dim.
+	walk := func(digit bool) string {
+		tabs, at := l.Walk(digit)
 		var ids []string
-		for _, tab := range w.Tabs {
+		for _, tab := range tabs {
 			ids = append(ids, tab.ID)
 		}
-		if w.Tabs[w.Active] != l.shown() || w.At(4, 0) != l.At(4, 0) {
-			t.Errorf("the tab that shows is not the one the keys are at")
+		if on := tabs[at] == l.shown(); on == (digit && l.shown().ID == "t1") {
+			t.Errorf("the tab that shows is not where the keys are: %s at %d, a digit %v", tabs[at].ID, at, digit)
 		}
 		return strings.Join(ids, " ")
 	}
-	if got := walk(); got != "t1 t6 t10 t11" {
-		t.Errorf("from the Orchestrator the keys walk %s", got)
+	if got, digits := walk(false), walk(true); got != "t1 t6 t10 t11" || digits != "t5 t9 t10" {
+		t.Errorf("from the Orchestrator the keys walk %s and the digits are %s", got, digits)
 	}
-	if l.Show("t8"); walk() != "t3 t4 t6 t8" {
-		t.Errorf("in a fleet the keys walk %s", walk())
+	if l.Show("t8"); walk(false) != "t3 t4 t6 t8" || walk(true) != "t3 t4 t6 t8" {
+		t.Errorf("in a fleet the keys walk %s and the digits are %s", walk(false), walk(true))
 	}
 	// Tabs opened by hand are one more group, the last; and a window of
 	// fewer than sixteen rows has one line with every tab on it.

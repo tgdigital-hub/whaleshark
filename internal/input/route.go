@@ -209,17 +209,24 @@ func (in *In) shortcut(key string, v View, focus string) ([]Act, bool) {
 	if a.Call.Dir == contract.DockKeys && v.Lay.Dock.Keys {
 		a.Call.Dir = contract.DockBack // pressed again, the keys go back
 	}
-	switch tabs := v.Lay.Tabs; {
-	case !ok, len(tabs) == 0 && a.Call.Op != contract.OpTabCreate && a.Kind != Run && a.Kind != Popup:
+	// The tab row is the layout's to walk: n and p step along the line the
+	// tab that shows is on, and a digit is a tab of the second line where
+	// there are two.
+	tabs, walk, at := v.Lay.Tabs, []*layout.Tab(nil), 0
+	if a.Kind == tabBy || a.Kind == tabAt {
+		walk, at = v.Lay.Walk(a.Kind == tabAt)
+	}
+	switch {
+	case !ok, len(tabs) == 0 && a.Call.Op != contract.OpTabCreate && a.Kind != Run && a.Kind != Popup, a.Kind == tabBy && len(walk) == 0:
 		return nil, true
 	case a.Kind == tabBy:
-		a.Step = (v.Lay.Active+a.Step+len(tabs))%len(tabs) + 1
+		a.Step = (at+a.Step+len(walk))%len(walk) + 1
 		fallthrough
 	case a.Kind == tabAt:
-		if a.Step > len(tabs) {
+		if a.Step > len(walk) {
 			return nil, true
 		}
-		a = Act{Kind: Call, Call: contract.WireCall{Op: contract.OpTabFocus, Tab: tabs[a.Step-1].ID}}
+		a = Act{Kind: Call, Call: contract.WireCall{Op: contract.OpTabFocus, Tab: walk[a.Step-1].ID}}
 	case a.Kind == Menu:
 		if n := v.Lay.Active; n >= 0 && n < len(tabs) {
 			a.Hit = layout.Hit{Kind: layout.OnTab, Tab: tabs[n].ID}
@@ -314,8 +321,9 @@ func (in *In) point(h layout.Hit, ev term.Event, v View, focus string, modes fun
 			return nil
 		}
 		return []Act{{Kind: Scroll, Pane: h.Pane, Step: wheel * notch}}
-	case wheel != 0 && ev.Y == 0:
-		return []Act{{Kind: Row, Step: wheel}}
+	case wheel != 0 && ev.Y >= 0 && ev.Y < v.Lay.Head():
+		// Each tab line is moved by the wheel over it.
+		return []Act{{Kind: Row, Step: wheel * [2]int{1, layout.Lower}[ev.Y]}}
 	case wheel != 0:
 		return nil
 	case in.put.Kind != 0 && v.Over == "":

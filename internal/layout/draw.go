@@ -248,25 +248,23 @@ func (l *Layout) Wheel(n int) {
 	}
 }
 
-// Walk is the layout as the keys walk it, for whoever steps from tab to tab:
-// the tabs of the workspace in front and no other; with two tab lines those
-// of the second line while a tab of it shows, and while the workspace's
-// first tab shows that tab and the one a click on each group goes to. The
-// tab that shows is its Tabs[Active], and At answers as the whole does.
-func (l *Layout) Walk() *Layout {
-	w := *l
-	w.whole, w.Tabs, w.Active = l, nil, 0
+// Walk is the tabs the keys step through and where among them the tab that
+// shows is: those of the workspace in front and no other; with two tab lines
+// those of the second line while a tab of it shows, and while the
+// workspace's first tab shows that tab and the one a click on each group
+// goes to. For a digit they are the second line's also while it is dim.
+func (l *Layout) Walk(digit bool) (tabs []*Tab, at int) {
 	names, dim := l.names()
 	line := names[0]
-	if len(names[1]) > 0 && !dim {
+	if len(names[1]) > 0 && (digit || !dim) {
 		line = names[1]
 	}
 	for i, n := range line {
-		if w.Tabs = append(w.Tabs, n.tab); n.on {
-			w.Active = i
+		if tabs = append(tabs, n.tab); n.on {
+			at = i
 		}
 	}
-	return &w
+	return tabs, at
 }
 
 // shown is the tab that shows, nil when there is none.
@@ -279,9 +277,6 @@ func (l *Layout) shown() *Tab {
 
 // At says what is under a cell of the window.
 func (l *Layout) At(x, y int) (h Hit) {
-	if l.whole != nil {
-		return l.whole.At(x, y)
-	}
 	t, head := l.shown(), l.Head()
 	if l.Over != "" && l.OverAt.has(x, y) {
 		return Hit{Kind: OnPane, Pane: l.Over, X: x - l.OverAt.X, Y: y - l.OverAt.Y}

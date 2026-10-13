@@ -90,10 +90,9 @@ type Layout struct {
 	W, H  int            `json:"-"`
 	// Over is a pane drawn over the tab that shows, and OverAt its inside:
 	// the keeper's, kept here so that At can say a click landed in it.
-	Over   string  `json:"-"`
-	OverAt Rect    `json:"-"`
-	Dock   Dock    `json:"-"`
-	whole  *Layout // what a layout made by Walk is a part of
+	Over   string `json:"-"`
+	OverAt Rect   `json:"-"`
+	Dock   Dock   `json:"-"`
 }
 
 // Dock is the place of the one pane that is in no tab and shows beside every
