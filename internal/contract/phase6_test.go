@@ -121,7 +121,8 @@ func TestAnAgentsSet(t *testing.T) {
 	Set(c, "theme", "ember")
 	var ui UIFile
 	ReadVersioned(os.ReadFile, filepath.Join(h.dir, UIFileName), FileVersion, &ui)
-	if !slices.Equal(ui.ByAgent, []SetAsk{{"theme", "kelp", "ember"}}) || len(ui.Changed) != 0 || AgentChanged(ui.ByAgent) != "setting changed by your agent: theme" {
+	// The yes came from a phone: a key that holds agents, changed away from the computer, is flagged.
+	if !slices.Equal(ui.ByAgent, []SetAsk{{"theme", "kelp", "ember"}}) || !slices.Equal(ui.Changed, []string{"spend.guard"}) || AgentChanged(ui.ByAgent) != "setting changed by your agent: theme" {
 		t.Errorf("ui.json after an agent's set: %+v", ui)
 	}
 	// What names a program, a tool taken away and a value that is none.

@@ -142,6 +142,10 @@ func set(c *contract.Call) (any, error) {
 		*onOff = value == "on" || value == "toggle" && !*onOff
 		value = map[bool]string{true: "on", false: "off"}[*onOff]
 	}
+	// Do not disturb from a phone is flagged as the table's holding keys are.
+	if c.Caller.Where == contract.WherePhone && key == "dnd" && !slices.Contains(ui.Changed, key) {
+		ui.Changed = append(ui.Changed, key)
+	}
 	ui.Version = contract.FileVersion
 	if err = contract.WriteVersioned(k.Platform, file, contract.FileVersion, ui); err != nil {
 		return nil, err

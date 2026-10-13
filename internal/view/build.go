@@ -599,8 +599,12 @@ func (b *builder) around(v *contract.View) {
 			v.Tools = append(v.Tools, contract.ToolLine{Name: t.Name, Exact: t.Exact(), Held: t.Held(), Proven: t.Proven, Suits: cli.Plain(t.Suits)})
 		}
 	}
-	if line := contract.AgentChanged(in.UI.ByAgent); line != "" {
-		v.Alerts = append(v.Alerts, clean(line))
+	// What the panes warn of, status and the page say too: a setting that runs
+	// a program, or one that holds agents changed from a phone, and an agent's.
+	for _, line := range []string{contract.Warned(in.UI.Changed), contract.AgentChanged(in.UI.ByAgent)} {
+		if line != "" {
+			v.Alerts = append(v.Alerts, clean(line))
+		}
 	}
 	if run.Parent == nil && in.Person.Spend.Guard {
 		v.Lines = append(v.Lines, b.spent())

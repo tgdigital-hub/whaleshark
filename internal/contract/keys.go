@@ -516,7 +516,7 @@ func Set(c *Call, name, value string) (string, error) {
 			ui.Version = FileVersion
 			return key.put(&ui, value)
 		})
-		return key.Of(&ui), err
+		value = key.Of(&ui)
 	case StoreTools:
 		t, _ := FindTool(tools, given[0])
 		if t.Name = given[0]; t.Hooks == "" {
@@ -563,7 +563,8 @@ func Set(c *Call, name, value string) (string, error) {
 			err = replaceFile(p, SettingsPath(d), b.Bytes())
 		}
 	}
-	if err == nil && (key.Asks == AsksRuns || agent) {
+	// A key that holds agents, changed from a phone, is flagged like one changed away from the computer.
+	if err == nil && (key.Asks == AsksRuns || agent || c.Caller.Where == WherePhone && key.Agent() == SetAsks) {
 		var ui UIFile
 		err = change(p, UIFileName, &ui, func() error {
 			if ui.Version = FileVersion; agent {

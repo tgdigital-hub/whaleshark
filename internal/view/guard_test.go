@@ -31,7 +31,7 @@ func guardedView(by contract.CallerKind) (testkit.Guards, contract.ViewInput) {
 		g.Up.Questions[id] = q
 	}
 	return g, contract.ViewInput{Now: g.Now, Caller: by, State: g.Up, Fleets: g.Low, Person: g.Person, Limits: contract.ProjectDefaults(), Checked: g.Now,
-		Swept: contract.Swept{Ran: true, At: g.Now}, Watched: true, UI: contract.UIFile{ByAgent: []contract.SetAsk{{Key: "theme", From: "reef", To: "dusk"}}}}
+		Swept: contract.Swept{Ran: true, At: g.Now}, Watched: true, UI: contract.UIFile{Changed: []string{"mute"}, ByAgent: []contract.SetAsk{{Key: "theme", From: "reef", To: "dusk"}}}}
 }
 
 // The items of the five causes are worded once: the view holds their text
@@ -96,7 +96,7 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 	if v.Spent != 33 || v.Limit != 40 {
 		t.Errorf("the figures of the spending guard: %v of %d", v.Spent, v.Limit)
 	}
-	if !slices.Contains(v.Lines, "spent: 33 of 40 agent-hours · held") || !slices.Contains(v.Alerts, "setting changed by your agent: theme") ||
+	if !slices.Contains(v.Lines, "spent: 33 of 40 agent-hours · held") || !slices.Contains(v.Alerts, "setting changed by your agent: theme") || !slices.Contains(v.Alerts, "setting changed: mute") ||
 		!strings.Contains(body, "spent: 33 of 40 agent-hours · held") || !strings.Contains(body, "setting changed by your agent: theme") {
 		t.Errorf("the lines %q and the alerts %q, and the text:\n%s", v.Lines, v.Alerts, body)
 	}

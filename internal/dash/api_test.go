@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -180,6 +181,16 @@ func TestAnAppFromItsCodeToAMessage(t *testing.T) {
 	// A whole megabyte, and one that begins like an option: it is the message.
 	b.refused("a message", post(contract.APITell, `{"text":"--now `+strings.Repeat("a", contract.TellMax-6)+`"}`), http.StatusNoContent)
 	b.refused("a setting", post(contract.APISet, `{"key":"theme","value":"kelp"}`), http.StatusNoContent)
+	// A key that holds agents or calls the person is the holder's own act
+	// from an app, and flagged on every screen; a harmless one is not.
+	b.refused("a setting that calls the person", post(contract.APISet, `{"key":"mute","value":"on"}`), http.StatusNoContent)
+	b.refused("a setting that holds agents", post(contract.APISet, `{"key":"stuck.climb_minutes","value":"15"}`), http.StatusNoContent)
+	b.refused("do not disturb", post(contract.APISet, `{"key":"dnd","value":"on"}`), http.StatusNoContent)
+	var ui contract.UIFile
+	if d, _ := b.p.Kit.Platform.Dirs(); contract.ReadVersioned(os.ReadFile, filepath.Join(d.State, contract.UIFileName), contract.FileVersion, &ui) != nil ||
+		!ui.Mute || !ui.DND || !slices.Equal(ui.Changed, []string{"mute", "stuck.climb_minutes", "dnd"}) || contract.Warned(ui.Changed) != "setting changed: mute, stuck.climb_minutes, dnd" {
+		t.Errorf("ui.json after an app's settings: %+v, warned %q", ui, contract.Warned(ui.Changed))
+	}
 	s, _ = b.p.Record()
 	if q := s.Questions["q9"]; q.Answer != "three sizes" || q.AnsweredBy == nil || q.AnsweredBy.Where != contract.WherePhone || q.AnsweredBy.Caller != contract.Human {
 		t.Errorf("the answer as recorded: %q by %+v", q.Answer, q.AnsweredBy)
