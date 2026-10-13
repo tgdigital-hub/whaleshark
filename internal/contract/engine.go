@@ -130,11 +130,11 @@ func (p *patient) Read(b []byte) (int, error) {
 		if last {
 			next = p.until
 		}
-		if err := p.Conn.SetReadDeadline(next); err != nil {
-			return 0, err
-		}
+		// What the read says is the answer, also where no deadline could
+		// be set: an in-memory pipe refuses one once its far side closed.
+		unset := p.Conn.SetReadDeadline(next)
 		n, err := p.Conn.Read(b)
-		if n > 0 || last || !errors.Is(err, os.ErrDeadlineExceeded) {
+		if n > 0 || last || unset != nil || !errors.Is(err, os.ErrDeadlineExceeded) {
 			return n, err
 		}
 	}

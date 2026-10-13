@@ -63,6 +63,16 @@ func TestAPatientReadFindsTheEnd(t *testing.T) {
 			}
 		}
 	})
+	t.Run("an end before the read begins", func(t *testing.T) {
+		t.Parallel()
+		// A pipe whose far side has closed takes no deadline any more;
+		// the read still says what happened, and that is the answer.
+		near, far := net.Pipe()
+		far.Close()
+		if _, _, err := ReadFrame(Patient(near)); !errors.Is(err, io.EOF) {
+			t.Errorf("the end was read as %v", err)
+		}
+	})
 	t.Run("a frame after a long silence", func(t *testing.T) {
 		t.Parallel()
 		near, far := net.Pipe()
