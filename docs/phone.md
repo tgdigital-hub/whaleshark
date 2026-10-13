@@ -67,7 +67,7 @@ Without a server, or beside it, `url` under `[notify]` in your own `config.toml`
 
 ## What cannot be held here, by design
 
-- Whoever acts as a paired phone can send the lead agent a note, and a note is an instruction to an agent that runs as you. "The page cannot land or trust" is true of the page only.
+- Whoever acts as a paired phone can send the lead agent a note, and a note is an instruction to an agent that runs as you: it is typed into that agent's chat as one line that begins "from your phone:", cleaned of everything but printable words and cut at 2,000 characters, and the agent reads it as yours. "The page cannot land or trust" is true of the page only.
 - Whoever can reach a door can keep its one pairing request busy. Five refusals slow the next.
 - More than twenty refused requests in a minute shut a door for a minute and raise an item. A request that carries your valid pass still goes through the shut door; whoever sends the refusals can keep the item on your screen, and no more.
 - A server you reach with `connect --terminals` can write your computer's clipboard at any moment.
