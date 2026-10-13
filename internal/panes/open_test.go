@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -55,6 +56,13 @@ func (d *desk) ui(pane string, args ...string) (Opened, error) {
 	got, err := ui(c)
 	o, _ := got.(Opened)
 	return o, err
+}
+
+// only is the one pair of panes a file holds: a desk has one workspace.
+func only(ui contract.UIFile) (pair contract.Pair) {
+	for _, pair = range ui.Panes {
+	}
+	return pair
 }
 
 // did is what the terminals were asked to change in a tab since the last
@@ -216,18 +224,21 @@ func TestUIActsInItsOwnTabOnlyAndOnItsOwnPanesOnly(t *testing.T) {
 	}
 }
 
+// The fleet opens at the width it comes with, so that its line is put back
+// to that, and is then brought to the width it was left at.
 func TestUIFitsTheFleetToTheScreen(t *testing.T) {
 	d := newDesk(t)
 	for _, c := range []struct {
 		width, kept int
 		split       string
+		then        bool
 	}{
-		{150, 0, " right 46\n"},  // in a wide window the width it comes with
-		{100, 0, " right 36\n"},  // in a narrower one the cells a card needs
-		{150, 60, " right 60\n"}, // then the width it was left at
-		{300, 20, " right 36\n"}, // never under what a card needs
-		{80, 60, " down 2\n"},    // its strip where the conversation would have too little
-		{10, 0, ""},              // and no fleet at all under forty columns
+		{150, 0, " right 46\n", false}, // in a wide window the width it comes with
+		{100, 0, " right 36\n", false}, // in a narrower one the cells a card needs
+		{150, 60, " right 46\n", true}, // then brought to the width it was left at
+		{300, 20, " right 46\n", true}, // never under what a card needs
+		{80, 60, " down 2\n", false},   // its strip where the conversation would have too little
+		{10, 0, "", false},             // and no fleet at all under forty columns
 	} {
 		d.double.Width = c.width
 		dirs, _ := d.k.Platform.Dirs()
@@ -240,6 +251,9 @@ func TestUIFitsTheFleetToTheScreen(t *testing.T) {
 		got := d.did()
 		if c.split == "" && (err == nil || got != "") || c.split != "" && (err != nil || !strings.Contains(got, c.split)) {
 			t.Errorf("on %d columns with a fleet left at %d: %v\n%s", c.width, c.kept, err, got)
+		}
+		if strings.Contains(got, "\nresize ") != c.then {
+			t.Errorf("on %d columns with a fleet left at %d the fleet was then brought to its width by\n%s", c.width, c.kept, got)
 		}
 		d.ui(d.me, "close")
 	}
@@ -273,7 +287,7 @@ func TestThePanesAreFittedAgainWhenTheWindowsWidthChanges(t *testing.T) {
 		snap, _ := wd.double.Snapshot(context.Background())
 		_, ui, _, _ := screen(wd.p.k)
 		for _, p := range snap.Panes {
-			if p.Ours && !p.Dock && (p.ID == ui.FleetPane || p.ID == ui.ActionsPane) {
+			if p.Ours && !p.Dock && (p.ID == only(ui).Fleet || p.ID == only(ui).Actions) {
 				tabs = append(tabs, p.Tab)
 			}
 		}
@@ -298,6 +312,112 @@ func TestThePanesAreFittedAgainWhenTheWindowsWidthChanges(t *testing.T) {
 		}
 		if !wd.until(10*time.Second, func() bool { return slices.Equal(tab(), home) }) {
 			t.Fatalf("at %d columns the panes stand in the tabs %q, not %q", width, tab(), home)
+		}
+	}
+}
+
+// Each workspace has its own two panes: opening them in a second workspace
+// closes nothing in the first, the file names a pair for each by the
+// workspace's folder, an older file's one pair becomes the pair of the
+// workspace it is in, and closing closes the pair of that workspace alone.
+func TestEachWorkspaceHasItsOwnTwoPanes(t *testing.T) {
+	d := newDesk(t)
+	d.double.Width = 200
+	first, err := d.ui(d.me)
+	if err != nil || first.Fleet == "" || first.Actions == "" {
+		t.Fatalf("the first workspace's panes: %+v, %v", first, err)
+	}
+	// The file as a program of before phase 7 wrote it.
+	dirs, _ := d.k.Platform.Dirs()
+	file := filepath.Join(dirs.State, "ui.json")
+	old := contract.UIFile{Versioned: contract.Versioned{Version: contract.FileVersion}, FleetPane: first.Fleet, ActionsPane: first.Actions}
+	if err := contract.WriteVersioned(d.k.Platform, file, contract.FileVersion, old); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	there, err := d.double.SpaceOpen(root, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.did()
+	second, err := d.ui(there.ID)
+	if got := d.did(); err != nil || strings.Contains(got, "pane-close") || second.Fleet == "" || second.Fleet == first.Fleet || second.Actions == first.Actions {
+		t.Fatalf("the second workspace's panes: %+v, %v\n%s", second, err, got)
+	}
+	_, ui, _, _ := screen(d.k)
+	if ui.FleetPane != "" || ui.ActionsPane != "" || len(ui.Panes) != 2 || ui.Panes[root] != contract.Pair(second) || ui.Panes[""] != contract.Pair(first) {
+		t.Errorf("the file names %+v", ui)
+	}
+	snap, _ := d.double.Snapshot(context.Background())
+	if pair := pairOf(ui, snap, rootOf(snap, second.Fleet)); pair != contract.Pair(second) || rootOf(snap, first.Actions) != "" {
+		t.Errorf("the pair of the pane's own workspace is %+v", pair)
+	}
+	// Closing in the second workspace leaves the first's pair where it is.
+	if _, err := d.ui(there.ID, "close"); err != nil {
+		t.Fatal(err)
+	}
+	if got := d.did(); !strings.Contains(got, "pane-close "+second.Fleet) || strings.Contains(got, first.Fleet) || strings.Contains(got, first.Actions+"\n") {
+		t.Errorf("closing the second workspace's panes did\n%s", got)
+	}
+	if _, ui, _, _ := screen(d.k); len(ui.Panes) != 1 || ui.Panes[""] != contract.Pair(first) {
+		t.Errorf("after the close the file names %+v", ui.Panes)
+	}
+}
+
+// measured is the terminals with the conversation's size as a test says it.
+type measured struct {
+	contract.Terminals
+	mu   *sync.Mutex
+	w, h *int
+}
+
+func (m measured) Size(pane string) (int, int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if pane == "dock" {
+		return contract.SideWidth, 40, nil
+	}
+	return *m.w, *m.h, nil
+}
+
+// A pane beside the conversation whose edge a person dragged has its size
+// written once it has rested: the fleet its width, the action pane its
+// height. A size that changed with the window, where the two together
+// measure another figure, is nobody's choice and is not written.
+func TestADraggedEdgeIsStoredOnceItHasRested(t *testing.T) {
+	for _, c := range []struct {
+		kind, key string
+		w, h      int
+		to        [2]int
+	}{{fleet, "fleet.width", 46, 30, [2]int{52, 30}}, {actions, "actions.height", 100, 12, [2]int{100, 15}}} {
+		var mu sync.Mutex
+		tw, th := 150-c.w, 43-c.h
+		wd := begin(t, c.kind, c.w, c.h, nil, func(wd *world) {
+			ours(wd)
+			wd.p.k.Terms = measured{wd.double, &mu, &tw, &th}
+		})
+		move := func(w, h, talkW, talkH int) {
+			mu.Lock()
+			tw, th = talkW, talkH
+			mu.Unlock()
+			wd.resize(w, h)
+		}
+		wd.s.Still(2 * twice) // the two are measured once the picture is there
+		// The window grew: this pane and the conversation both did.
+		move(c.w+2, c.h+2, tw+9, th+9)
+		wd.s.Still(3 * twice)
+		if got := wd.children("set " + c.key); len(got) != 0 {
+			t.Errorf("%s: a window that changed wrote %v", c.kind, got)
+		}
+		// A drag of the edge: what this pane gains the conversation loses.
+		move(c.to[0], c.to[1], tw-(c.to[0]-c.w-2), th-(c.to[1]-c.h-2))
+		want := fmt.Sprintf("set %s %d --human", c.key, max(c.to[0]*map[bool]int{true: 1}[c.kind == fleet], c.to[1]*map[bool]int{true: 1}[c.kind == actions]))
+		if got := wd.ran("set " + c.key); got != want {
+			t.Errorf("%s: the drag wrote %q, want %q", c.kind, got, want)
+		}
+		wd.s.Still(3 * twice)
+		if got := wd.children("set " + c.key); len(got) != 1 {
+			t.Errorf("%s: one drag wrote %v", c.kind, got)
 		}
 	}
 }

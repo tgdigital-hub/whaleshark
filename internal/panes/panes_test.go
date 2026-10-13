@@ -1,6 +1,7 @@
 package panes
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"maps"
@@ -85,7 +86,8 @@ type world struct {
 	in       contract.ViewInput
 	next     int // the children and the calls to the terminals a test has looked at
 	nextCall int
-	began    bool // the pane's loop runs and can be asked
+	began    bool      // the pane's loop runs and can be asked
+	done     chan bool // closed when the pane's loop has ended
 
 	mu   sync.Mutex
 	view contract.View
@@ -99,6 +101,11 @@ func start(t *testing.T, kind string, w, h int, env map[string]string) *world {
 // startWith is start with something done to the world before the pane begins.
 func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepare func(*world)) *world {
 	t.Parallel()
+	return begin(t, kind, w, h, env, prepare)
+}
+
+// begin is startWith for a test that may not run beside the others.
+func begin(t *testing.T, kind string, w, h int, env map[string]string, prepare func(*world)) *world {
 	fx, err := testkit.Load(testkit.Evening)
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +150,8 @@ func startWith(t *testing.T, kind string, w, h int, env map[string]string, prepa
 		<-done
 		wd.double.Close()
 	})
-	wd.shows(map[bool]string{true: "saved as you go", false: "live · "}[kind == settings])
+	wd.done = done
+	wd.shows(cmp.Or(map[string]string{settings: "saved as you go", offer: "─"}[kind], "live · "))
 	wd.began = true
 	return wd
 }

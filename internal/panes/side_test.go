@@ -85,7 +85,7 @@ func shot(name string, p *pane) {
 // pictures are the left section and the settings screen as the design draws
 // them for a window of 200, of 120 and of 80 columns, and the rail of a
 // window under 72: the left section 32, 22, 14 and 4 cells wide with the
-// morning of three fleets, the settings screen at the sizes of its three
+// morning of three fleets as a tree under the heavier line, the settings screen at the sizes of its three
 // pictures with Fleet Mode in front. The words are the contract's and the
 // rows the builder's; the cells are the pictures'.
 var pictures = []struct {
@@ -93,14 +93,23 @@ var pictures = []struct {
 	w, h int
 	want string
 }{
-	{side, 32, 23, `
+	{side, 32, 30, `
  WHALESHARK                  ▲1
 
  WORKSPACES                 [+]
- ▌▲ shop-site  main          19
-  ◐ blog  drafts              3
-  · other tabs                2
+ ▌shop-site  main         ▲1 19
+ ──────────────────────────────
+  blog  drafts                3
+ ──────────────────────────────
+  other tabs                  2
 
+
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  AGENTS · shop-site
   ● orchestrator
   ▾ billing           codex 5/8
@@ -111,21 +120,28 @@ var pictures = []struct {
     ◐ receipt mail     building
   ▾ search           claude 6/8
   ▌ ◐ search box       building
-    ◐ search results   building
-    ◐ filters          building
-    · 3 more
+    · 5 more
   ▸ help pages       hermes 4/8
  [ Menu ]  [ Settings ]
  live · checked 2s ago
 `},
-	{side, 22, 22, `
+	{side, 22, 30, `
  WHALESHARK        ▲1
 
  WORKSPACES
- ▌▲ shop-site      19
-  ◐ blog            3
-  · other tabs      2
+ ▌shop-site     ▲1 19
+ ────────────────────
+  blog              3
+ ────────────────────
+  other tabs        2
 
+
+
+
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━
  AGENTS · shop-site
   ● orchestrator
   ▾ billing       5/8
@@ -136,18 +152,28 @@ var pictures = []struct {
     ◐ receipt mail
   ▾ search        6/8
   ▌ ◐ search box
-    ◐ search results
-    · 4 more
+    · 5 more
   ▸ help pages    4/8
  [Menu] [Settings]
  live · 2s
 `},
-	{side, 14, 20, `
+	{side, 14, 30, `
  WHALESHAR ▲1
  WORKSPACES
- ▌▲ shop-… 19
-  ◐ blog    3
-  · other … 2
+ ▌shop… ▲1 19
+ ────────────
+  blog      3
+ ────────────
+  other ta… 2
+
+
+
+
+
+
+
+
+━━━━━━━━━━━━━━
  AGENTS
   ● orchestr…
   ▾ billing
@@ -158,8 +184,7 @@ var pictures = []struct {
    ◐ receipt…
   ▾ search
  ▌ ◐ search …
-   ◐ search …
-   · 4 more
+   · 5 more
   ▸ help pag…
  [≡] [Set]
  live · 2s
@@ -255,7 +280,7 @@ func TestTheNewScreensAreThePicturesInEverySchemeAndInNone(t *testing.T) {
 		}
 		// A terminal that cannot show the marks gets none of them.
 		p.plainMarks = true
-		if p.draw(); strings.ContainsAny(grid(p), "▌▲◐●◌◆▾▸…≡‹›┌─│└┘▮") {
+		if p.draw(); strings.ContainsAny(grid(p), "▌▲◐●◌◆▾▸…≡‹›┌─━│└┘▮") {
 			t.Errorf("%s with plain marks still draws one:\n%s", name, grid(p))
 		}
 		shot(name+"-plain", p)
@@ -432,10 +457,11 @@ func TestAClickOnARowOfTheBarThatMovedIsRefused(t *testing.T) {
 	wd.asked("tab-focus")
 }
 
-// The left section's clicks and keys: a row goes to its tab, a mark opens
-// what can be done with it, in the row's own run; the foot's buttons lay the
-// list of every action and the settings screen over the tab; typed letters
-// narrow the rows; esc gives the keys back.
+// The left section's clicks and keys: a row goes to its tab; its mark, its
+// right side and the full stop ask the keeper for the row's menu, which is
+// about the row's own run; the foot's buttons lay the list of every action
+// and the settings screen over the tab; typed letters narrow the rows; esc
+// gives the keys back.
 func TestTheBarsClicksAndKeys(t *testing.T) {
 	wd, change := sideWorld(t, 32, 40)
 	wd.shows(" WHALESHARK ", "▲2", "[ Menu ]  [ Settings ]", "[+]")
@@ -451,50 +477,33 @@ func TestTheBarsClicksAndKeys(t *testing.T) {
 	wd.over("open a project")
 	wd.shows("elsewhere")
 	wd.s.Key("enter")
-	wd.asked("tab-create")
-	// A fleet's row: its mark folds it, its right side offers what can be
-	// done, and that goes to the run above the fleet's own.
-	change(func(s *contract.Side) {
-		s.Rows = []contract.SideRow{{Kind: contract.RowLead, Name: "orchestrator", Root: wd.home, Run: "r1", Tab: "t1"},
+	wd.asked("space-open")
+	// A fleet's row: its mark folds it, its right side asks for its menu,
+	// and that is about the run above the fleet's own.
+	rows := func(home string) []contract.SideRow {
+		return []contract.SideRow{{Kind: contract.RowLead, Name: "orchestrator", Root: home, Run: "r1", Tab: "t1"},
 			{Kind: contract.RowFleet, Look: contract.LookBuilding, Name: "billing", Tool: "codex", Agents: 5, Limit: 8, Open: !slices.Contains(wd.p.shut, "r1/billing"),
-				Root: wd.home, Run: "r2", Task: "G1", Actions: []string{"park", "note-leader"}},
-			{Kind: contract.RowAgent, Depth: 1, Look: contract.LookNeedsYou, Name: "refund flow", Root: wd.home, Run: "r2", Task: "T1", Tab: "t9",
-				Item: "q1", ItemRun: "r1", Actions: []string{"answer", "stop", "note"}}}
-	})
+				Root: home, Run: "r2", Task: "G1", Offer: []string{"park", "note-leader"}},
+			{Kind: contract.RowAgent, Depth: 1, Look: contract.LookNeedsYou, Name: "refund flow", Root: home, Run: "r2", Task: "T1", Tab: "t9",
+				Item: "q1", ItemRun: "r1", Offer: []string{"rename", "stop-close"}, Actions: []string{"answer", "note"}}}
+	}
+	change(func(s *contract.Side) { s.Rows = rows(wd.home) })
 	wd.shows("▾ billing           codex 5/8", "▲ refund flow     needs you")
 	wd.click("codex 5/8")
-	wd.over("billing")
-	wd.shows("Park the fleet", "Send its leader a note")
-	wd.s.Key("enter")
-	wd.shows("Park the fleet? press it again")
-	wd.s.Key("enter")
-	if got := wd.ran("stop G1"); !strings.Contains(got, "--human") {
-		t.Errorf("park ran %q", got)
-	}
-	if log, _ := os.ReadFile(filepath.Join(wd.home, "children.log")); !strings.Contains(string(log), "stop G1 --human") {
-		t.Errorf("the children were:\n%s", log)
-	}
+	wd.asked("ui run offer fleet billing " + wd.home + " r1 G1 row")
 	wd.click("▾")
 	wd.shows("▸ billing")
 	if got := wd.ran("set shut "); !strings.HasPrefix(got, "set shut r1/billing --human") {
 		t.Errorf("a folded fleet is kept by %q", got)
 	}
-	// The keys: down and up choose, a point opens what a row offers, and an
-	// answer goes to the run its question climbed to.
+	// The keys: down and up choose, workspaces and agents as one list, and a
+	// point asks for the menu of the chosen row, folded away or not.
 	wd.s.Key("down")
 	wd.s.Key("down")
 	wd.shows("KEYS GO HERE")
 	wd.s.Key("tab")
 	wd.s.Key(".")
-	wd.over("refund flow")
-	wd.s.Key("enter")
-	wd.shows("Answer:")
-	wd.s.Type("card")
-	wd.s.Key("enter")
-	wd.ran(`answer q1 --file "card" --human`)
-	if p := wd.p; p.at.ItemRun != "r1" || !slices.Contains(p.cmd("answer", "q1"), "r1") || !slices.Contains(p.cmd("stop", "T1"), "r2") {
-		t.Errorf("the row's commands go to %v and %v", p.cmd("answer", "q1"), p.cmd("stop", "T1"))
-	}
+	wd.asked("ui run offer agent t9 " + wd.home + " r2 T1 row")
 	wd.s.Type("refu")
 	wd.shows("refu · esc back")
 	if in := wd.p.query.String(); in != "refu" {
@@ -506,6 +515,39 @@ func TestTheBarsClicksAndKeys(t *testing.T) {
 	wd.s.Key("esc")
 	wd.asked("dock " + contract.DockBack)
 	wd.shows("[ Menu ]")
+
+	// The menus those two ask for: a fleet is parked through its group, after
+	// its question, and an answer goes to the run its question climbed to.
+	menu := func(want ...string) *world {
+		return begin(t, offer, 34, 9, nil, func(wd *world) {
+			wd.p.want = append(want[:2:2], append([]string{wd.home}, want[2:]...)...)
+			wd.p.k.Side = func(in contract.SideInput) *contract.Side {
+				s := view.Side(in)
+				s.Rows = rows(wd.home)
+				return s
+			}
+		})
+	}
+	park := menu(contract.OfferFleet, "billing", "r1", "G1", "row")
+	park.shows("›Park the fleet", "Send its leader a note")
+	park.key("enter")
+	park.shows("Park the fleet billing?", "›[ Park ]  [ Keep ]")
+	park.key("enter")
+	got := park.ran("stop G1")
+	if park.ends(5 * time.Second); !strings.Contains(got, "--human") || !slices.Contains(park.p.cmd("stop", "G1"), "r1") {
+		t.Errorf("park ran %q in %v", got, park.p.cmd("stop", "G1"))
+	}
+	ask := menu(contract.OfferAgent, "t9", "r2", "T1", "row")
+	ask.shows("Answer")
+	ask.key("a")
+	ask.shows("┌ Answer ─")
+	ask.s.Type("card")
+	ask.s.Key("enter")
+	ask.ran(`answer q1 --file "card" --human`)
+	ask.ends(5 * time.Second)
+	if p := ask.p; p.at.ItemRun != "r1" || !slices.Contains(p.cmd("answer", "q1"), "r1") || !slices.Contains(p.cmd("stop", "T1"), "r2") {
+		t.Errorf("the row's commands go to %v and %v", p.cmd("answer", "q1"), p.cmd("stop", "T1"))
+	}
 }
 
 // Every setting of the contract's table is a row of the settings screen, in

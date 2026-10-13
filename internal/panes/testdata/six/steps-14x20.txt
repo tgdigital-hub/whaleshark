@@ -1,18 +1,18 @@
  WHALESHARK
  WORKSPACES
- ▌· shop-s… 1
+ ▌shop-site 1
+
+
+
+
+
+
+
+━━━━━━━━━━━━━━
  AGENTS
   no job yet
   · start
   your agent
-  here:
-  claude
-  · Orchestr…
-
-
-
-
-
  first steps…
  version 1.3…
  setting cha…
