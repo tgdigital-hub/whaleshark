@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"maps"
+	"path"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -305,6 +306,8 @@ func (k *Key) Check(value string, tools []Tool) (string, error) {
 		for i, p := range patterns {
 			if patterns[i] = strings.TrimSpace(p); patterns[i] == "" || !filepath.IsLocal(filepath.FromSlash(patterns[i])) || patterns[i][0] == '-' {
 				return bad("patterns for paths inside a project, with commas between: %.40q is none", p)
+			} else if _, err := path.Match(patterns[i], ""); err != nil {
+				return bad("%.40q is a pattern that matches nothing: a bracket or a backslash in it is not closed", p)
 			}
 		}
 		value = strings.Join(patterns, ",")
