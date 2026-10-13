@@ -20,6 +20,20 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 7 owes here, first: workspaces kept (contract.Space, in every
+// picture and told by a space event), made by OpSpaceOpen and by a window's
+// hello (OpAttach's Cwd and Space), ended with their last tab; a tab's
+// workspace and group from the pane that opened it, else from OpTabCreate's
+// Space and Group; OpTabFocus and OpPaneFocus bringing a workspace along;
+// OpSpaceRename, OpSpaceClose, and OpMarks from the dock alone; a label as
+// contract.Label has it, ErrMainTab, and a tab a person named following no
+// chat; the wall (contract.Walled, ErrSpace) and the fence's new members;
+// OpOverlay refused from behind (ErrNotFront). The double in test/fakeengine
+// does each already, and the session of test/scenario holds the two to one
+// log. Then: the line under the pointer lit, the held line with its label,
+// a line put back, a click then a click, the menu event, the placed overlay
+// (OverAt) closed by a press beside it, and the command key then a full stop.
+
 // Plug binds `engine`.
 func Plug(k *contract.Kit) { k.Handle("engine", engine) }
 

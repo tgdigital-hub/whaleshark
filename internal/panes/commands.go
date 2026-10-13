@@ -17,6 +17,17 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
 
+// Phase 7 owes here: the left section in two halves by contract.Side (a line
+// between every two workspaces, the heavier line on Side.Split, dragged,
+// put back and stored as UIFile.SideSplit); a right press and the full stop
+// on a row, and the menu event, opening `ui run offer` with
+// Terminals.OverlayAt; that program: the box, its keys, the typing line,
+// the questions in the contract's words with contract.KeepFirst, the rows
+// of contract.OfferActions run and their refusals shown; the plus sign
+// listing Side.Closed; the two panes of each workspace (UIFile.PairOf), the
+// fleet's width and the action pane's height stored once they have rested;
+// Side.Marks handed to Terminals.Marks.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("ui", ui)

@@ -18,6 +18,9 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
 
+// Phase 7 owes here: where a placed box stands (Terminals.OverlayAt): its
+// corner at a cell, moved left or up to stay inside a window of any size.
+
 // Plug binds this package's part into the kit: it has no command and stands
 // behind no interface. The keeper draws with it.
 func Plug(*contract.Kit) {}

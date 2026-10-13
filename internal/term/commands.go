@@ -6,5 +6,8 @@ package term
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
+// Phase 7 owes here: the right button read from a report (its number is 2)
+// where it was dropped, with its release and what was held with it.
+
 // Plug binds nothing: the layer has no command of its own.
 func Plug(*contract.Kit) {}

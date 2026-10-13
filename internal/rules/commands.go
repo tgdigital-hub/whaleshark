@@ -17,6 +17,10 @@ type Rules struct{}
 
 var _ contract.Rules = Rules{}
 
+// Phase 7 owes here: EditTask takes contract.TaskEdit's Name, alone in every
+// state of the task, by the rule AddTask holds a name to, against Taken;
+// and what `stop --all` asks of a run.
+
 // Plug puts the rules into the kit. The package binds no command.
 func Plug(k *contract.Kit) { k.Rules = Rules{} }
 

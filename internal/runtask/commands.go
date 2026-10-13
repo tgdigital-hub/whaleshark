@@ -11,6 +11,12 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 7 owes here: `task edit --name`: the labels of the login's other
+// open tabs as TaskEdit.Taken, the refusal that names the workspace
+// (contract.NameTaken), the change as a person's event, then the tab's
+// label with Terminals.TabRename. A fleet leader is refused it before
+// anything is written: its pane may rename no tab.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("init", setUp)

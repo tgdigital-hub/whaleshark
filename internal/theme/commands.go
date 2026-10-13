@@ -5,6 +5,9 @@ package theme
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
+// Phase 7 owes here: the marks of a heavier and of a held line, each with its
+// form for a terminal that cannot show it.
+
 // Plug binds nothing: a scheme is chosen with the set command.
 func Plug(*contract.Kit) {}
 
