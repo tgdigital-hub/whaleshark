@@ -94,6 +94,21 @@ func show(a Act) string {
 		return fmt.Sprintf("%s %q for %s", map[Kind]string{Run: "run", Popup: "popup"}[a.Kind], a.Argv, a.Pane)
 	case Scroll:
 		return fmt.Sprintf("scroll %s %+d", a.Pane, a.Step)
+	case Menu:
+		return fmt.Sprintf("menu of %s at %d,%d", a.Hit.Tab, a.X, a.Y)
+	case Put, Reset, Lit:
+		line := map[string]string{"": "line", layout.DockPane: "dock's edge"}[a.Hit.Pane]
+		switch {
+		case a.Kind == Put:
+			return fmt.Sprintf("%s put at %d,%d", line, a.X, a.Y)
+		case a.Kind == Reset:
+			return line + " back"
+		case a.Hit.Kind != layout.OnLine:
+			return "no line lit"
+		}
+		return line + " lit, " + [...]string{Under: "under the pointer", Held: "held", Waits: "waits"}[a.Step]
+	case Away:
+		return "beside it"
 	case Select:
 		return fmt.Sprintf("select in %s: %s at %d,%d", a.Pane,
 			map[term.Action]string{term.Press: "press", term.Move: "move", term.Release: "release"}[a.Action], a.X, a.Y)
@@ -233,6 +248,7 @@ func TestWhatIsWrittenIsReadBack(t *testing.T) {
 	for _, ev := range []term.Event{
 		{Button: term.Left, Action: term.Press}, {Button: term.Left, Action: term.Release}, {Button: term.Left, Action: term.Move},
 		{Button: term.Middle, Action: term.Press}, {Button: term.Middle, Action: term.Release}, {Button: term.Middle, Action: term.Move},
+		{Button: term.Right, Action: term.Press}, {Button: term.Right, Action: term.Release}, {Button: term.Right, Action: term.Move},
 		{Button: term.NoButton, Action: term.Move}, {Button: term.WheelUp, Action: term.Press}, {Button: term.WheelDown, Action: term.Press},
 	} {
 		for held := 0; held < 8; held++ {
@@ -252,6 +268,8 @@ func TestWhatIsWrittenIsReadBack(t *testing.T) {
 				switch far := at[0] > 222; {
 				case far && old != "", !far && (len(old) != 6 || old[:3] != "\x1b[M" || int(old[4])-33 != at[0] || int(old[5])-33 != at[1]):
 					t.Errorf("mouse %+v in the older form: %q", want, old)
+				case !far && ev.Action != term.Release && ev.Button <= term.Right && code&3 != (int(ev.Button)+3)&3:
+					t.Errorf("mouse %+v in the older form: code %d names another button", want, code)
 				case !far && (code&4 != 0) != ev.Shift, !far && (code&8 != 0) != ev.Alt, !far && (code&16 != 0) != ev.Ctrl,
 					!far && (code&32 != 0) != (ev.Action == term.Move), !far && ev.Action == term.Release && code&3 != 3:
 					t.Errorf("mouse %+v in the older form: code %d", want, code)
@@ -361,7 +379,9 @@ func TestTheSettingsDecide(t *testing.T) {
 }
 
 // An overlay takes every key, the command key too, and every click; a
-// click beside it does nothing.
+// press beside it, with any button, reaches no tab, no line and no pane,
+// and is told the keeper, which closes a placed one by it; the wheel
+// beside it does nothing and no line lights under the pointer.
 func TestAnOverlayTakesEverything(t *testing.T) {
 	lay := fixture()
 	in := In{Keys: New(settings(), "darwin")}
@@ -371,10 +391,14 @@ func TestAnOverlayTakesEverything(t *testing.T) {
 		"\x1b[99;9u":                       `p2 <- "\x1b[99;9u"`,
 		"\x1b[200~hi\x1b[201~":             `p2 <- "hi"`,
 		"\x1b[<0;51;11M\x1b[<0;51;11m":     `p2 <- "\x1b[<0;10;9M" | p2 <- "\x1b[<0;10;9m"`,
-		"\x1b[<0;6;6M\x1b[<0;6;6m":         "nothing",
-		"\x1b[<0;9;1M":                     "nothing",
+		"\x1b[<0;6;6M\x1b[<0;6;6m":         "beside it",
+		"\x1b[<0;9;1M":                     "beside it",
+		"\x1b[<2;9;1M\x1b[<2;9;1m":         "beside it",
+		"\x1b[<1;6;6M":                     "beside it",
 		"\x1b[<64;6;1M\x1b[<65;6;6M":       "nothing",
-		"\x1b[<0;41;11M\x1b[<32;31;11M":    "nothing",
+		"\x1b[<0;41;11M\x1b[<32;31;11M":    "beside it",
+		"\x1b[<35;41;11M":                  "nothing",
+		"\x1b[<2;51;11M\x1b[<2;51;11m":     `p2 <- "\x1b[<2;10;9M" | p2 <- "\x1b[<2;10;9m"`,
 		"\x1b[<64;51;11M":                  `p2 <- "\x1b[<64;10;9M"`,
 		"\x1b[<0;51;11M\x1b[<0;6;6m":       `p2 <- "\x1b[<0;10;9M" | p2 <- "\x1b[<0;10;9m"`,
 		"\x1b[<35;6;6M\x1b[<35;51;11M\x00": `p2 <- "\x1b[32;5u"`,

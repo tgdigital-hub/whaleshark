@@ -130,7 +130,7 @@ func Key(ev term.Event, m screen.Modes) string {
 // the pane's own top left; none when the program did not ask for that kind
 // of event, or asked for the older form and the cell is past what it can say.
 func Mouse(ev term.Event, m screen.Modes, x, y int) string {
-	code := map[term.Button]int{term.Left: 0, term.Middle: 1, term.NoButton: 3, term.WheelUp: 64, term.WheelDown: 65}[ev.Button]
+	code := map[term.Button]int{term.Left: 0, term.Middle: 1, term.Right: 2, term.NoButton: 3, term.WheelUp: 64, term.WheelDown: 65}[ev.Button]
 	switch {
 	case m.Mouse == 0, x < 0, y < 0:
 		return ""
