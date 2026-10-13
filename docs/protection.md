@@ -1,6 +1,6 @@
 # What an agent can and cannot do, and what is and is not protected
 
-Four security reviews have tried this program, each on one Mac; the fourth also tried the release: its files, its installer, its packages and the hosted jobs that make it. **None of it has been tried with a second login, on Linux or Windows, on a real server, from the public internet, or with a real phone.** What follows is what the program does, and what it cannot do for you.
+Five security reviews have tried this program, each on one Mac; the fourth also tried the release: its files, its installer, its packages and the hosted jobs that make it, and the fifth what came after: Fleet Mode and the fence between agents' tabs, the note typed into the orchestrator's chat, agent tools wired in by a description, saved fleets, settings through the orchestrator, the saved profile, the guardrails, the interface for apps and the version notice. **None of it has been tried with a second login, on Linux or Windows, on a real server, from the public internet, or with a real phone.** What follows is what the program does, and what it cannot do for you.
 
 ## The two limits
 
@@ -47,7 +47,7 @@ A second lead agent started by mistake can look and cannot change the run. `--hu
 1. Answer or dismiss an agent's permission prompt or its question whether it trusts a folder, or send any key to an agent. Stop all types nothing and ends no program: each agent stops at its next step.
 2. Start an agent with wider permissions than the project's approved settings say. It has no default that widens anything.
 3. Run a project's setup script, landing check, team file or changed agent arguments that you have not approved by content with `whaleshark trust`. A change needs approval again. The approval is kept in your login's own folder, never in the project.
-4. Use a `.whaleshark` folder your login did not make. One that came with a repository, an archive or a copy is refused by every command until you type `whaleshark init --adopt`.
+4. Use a `.whaleshark` folder your login did not make. One that came with a repository, an archive or a copy is refused by every command until you type `whaleshark init --adopt`. Adopting takes all of it on: its runs, their checks, and the sentence of each saved fleet, which your agents then read.
 5. Put work into your main branch, or push anything, outside `land`.
 6. Delete work that is not proven merged.
 7. Install software or change another login's files, outside `whaleshark server`, which only the administrator can run.
@@ -88,7 +88,7 @@ More of the same kind, for the page and the phone, is in [phone.md](phone.md); f
 
 ## What the terminal engine holds
 
-Nothing a program prints is passed on to your terminal: the keeper reads it into cells and the window draws only what the keeper composes. A program in a pane cannot retitle or lock your terminal or make it type text back, and can write your clipboard only if you allowed it (`programs` under `[clipboard]` in the engine's `settings.toml`, off unless set). The keeper opens no network port; its socket is a file only your login can open. On Windows the folder's permissions are the whole of that defence, and it is unproven on a shared Windows machine.
+Nothing a program prints is passed on to your terminal: the keeper reads it into cells and the window draws only what the keeper composes. A program in a pane cannot retitle or lock your terminal or make it type text back, and can write your clipboard only if you allowed it (`programs` under `[clipboard]` in the engine's `settings.toml`: you are asked each time unless you set it on or off, and no agent's `set` and no request from a browser changes it). The keeper opens no network port; its socket is a file only your login can open. On Windows the folder's permissions are the whole of that defence, and it is unproven on a shared Windows machine.
 
 ## Files
 
