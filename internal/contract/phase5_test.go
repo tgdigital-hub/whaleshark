@@ -400,12 +400,12 @@ func TestThePhaseFiveStandIns(t *testing.T) {
 	}
 }
 
-// What the first wave of phase 5 asked of the contract. The warning line
+// What the first packages of phase 5 asked of the contract. The warning line
 // names a changed tool once and any other setting by its key. With no
 // folder of the login's known no description is read, least of all from a
 // folder named tools where the command stands. A name is no option behind
 // spaces either. And a key says its fields under names of their own.
-func TestWhatTheFirstWaveAsked(t *testing.T) {
+func TestWhatPhaseFiveAskedOfTheContract(t *testing.T) {
 	for changed, want := range map[string]string{
 		"": "", "notify.url": "setting changed: notify.url", "tools.hermes.run": "agent tool changed: hermes",
 		"tools.hermes.run,shell,tools.hermes.env.KEY,tools.aider.run": "agent tool changed: hermes, aider · setting changed: shell",

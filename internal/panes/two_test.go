@@ -120,7 +120,7 @@ func TestAKeyOpensWhatACardOffers(t *testing.T) {
 	wd.shows("What can be done with a card")
 }
 
-// What look round 1 found: a line a command answered is read whole at the
+// A line a command answered is read whole at the
 // fleet's usual width, and so is the catch-up when it opens there.
 func TestTheFleetCutsNoAnswerShort(t *testing.T) {
 	p, _, _ := still(t, fleet, 40, 30)

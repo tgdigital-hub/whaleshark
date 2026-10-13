@@ -56,7 +56,7 @@ func TestLook(t *testing.T) {
 	}
 }
 
-// What look round 0 found: at every size a pane says as much as fits, and
+// At every size a pane says as much as fits, and
 // what it cuts it marks.
 func TestAPaneFitsWhatItSaysToItsSize(t *testing.T) {
 	shows := func(p *pane, texts ...string) {

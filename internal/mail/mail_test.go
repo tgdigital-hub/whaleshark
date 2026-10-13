@@ -102,7 +102,7 @@ func TestTellDeferredThenDelivered(t *testing.T) {
 		t.Fatalf("stored: %+v", m)
 	}
 
-	// The sweep sees the agent idle; this wave has no sweep, so the test plays it.
+	// The sweep sees the agent idle; this package has no sweep, so the test plays it.
 	if err := p.Kit.Store.Change(p.Root, s.Run.ID, func(s *contract.State) error {
 		s.Attempts["T3.1"].Seen.Status = contract.StatusIdle
 		return nil

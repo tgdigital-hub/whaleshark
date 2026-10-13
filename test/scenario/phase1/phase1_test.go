@@ -157,7 +157,7 @@ func TestTheRulesAndTheHooks(t *testing.T) {
 
 func TestTheFourFormsOfAnItem(t *testing.T) { play(t, "8n-forms.scn") }
 
-// The attempt of security review 1: from a pane no run records, with the
+// An attempt to pass for the person: from a pane no run records, with the
 // person's flag, a note to the lead agent and a task whose check is a shell
 // line. Both are in the record as the person's with the place they came
 // from, the lead agent's next wait hands both out, and "done as you" rises

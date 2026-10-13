@@ -71,7 +71,7 @@ On Ubuntu 22.04, made ready as a fresh server is: `server setup` is refused, say
 
 Not run. Each step says what must be seen. Do all of it on Ubuntu 24.04 first, then parts A and B again on Debian 12; on a fresh Ubuntu 22.04 only step 3, which must be refused with nothing changed. `robin` and `sam` are two work logins, `admin` the administrator; `$LO` stands for the IPv4 loopback address.
 
-**Waiting for the owner's yes before this can begin:** a draft release with its signed list and its apt repository (the install steps fetch from it); the connector's version and the checksum of Cloudflare's package key written into the server script; the three servers, the Cloudflare account with a domain, an iPhone and an Android phone.
+**Needed before this can begin, and not there yet:** a draft release with its signed list and its apt repository (the install steps fetch from it); the connector's version and the checksum of Cloudflare's package key written into the server script; the three servers, the Cloudflare account with a domain, an iPhone and an Android phone.
 
 ### A. From nothing, twice over
 
@@ -138,4 +138,4 @@ The whole of A is done once with `install.sh` and once, on a second fresh machin
 
 ### E. Write down
 
-Each answer beside its step, and the sentence of the documentation it changes. A recorded real pass may hold a real address: whether it may be kept in the repository is the owner's to say.
+Each answer beside its step, and the sentence of the documentation it changes. A recorded real pass may hold a real address: whether it may be kept in the repository is decided before it is put there.

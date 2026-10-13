@@ -19,59 +19,60 @@
 # door. Phases 1 and 2 each showed the shared part larger than planned and
 # the leaves smaller; screen pays 250 of it, inbox, question and overlay
 # the 210 by which it came out larger than first counted.
-# 60 more at the join of phase 3's first wave: it stood one line short of
-# full with four packages still to pass through it, and the wave's results
-# already name what they want of it (the administrator's name in the
-# server's file, a lock over a login). inbox and overlay pay.
+# 60 more when the first part of phase 3 was put together: it stood one line
+# short of full with four packages still to pass through it, and their results
+# already name what they want of it (the administrator's name in the server's
+# file, a lock over a login). inbox and overlay pay.
 # 30 more at the wiring of phase 3: what a login's phones ask of the person
 # is worded here once for every screen, with the lock over a login and the
 # versions of the program a run has met; it stood at 3,761. dashweb pays.
-# 1,190 more at the start of phase 5, where 330 were planned: the largest
-# miss of any plan here, and the reason is in what the phase shares. The
-# record's new fields, the fleet leader and the six rules of Fleet Mode 160;
-# an agent tool's description with its one reader, its checker and its
-# writer 250; the table of every setting, 62 rows, with the one reader and
-# writer of a value by its key, which no package had been given 390; the
-# forms of every region at a width and the left section's model 215; the
-# fleets in the view, the dock, a change of two runs in one step, the kit
-# 140; and 35 left for what the wave finds. install, screen, window,
-# gitwt, overlay, theme, mail, pty, dash and hook, each built whole, pay
-# 395; the rest is new and is counted in the total below.
-# 35 more at the join of phase 5's first wave, for what its six packages
-# asked: the warning line of a changed tool worded once for every screen,
-# the item a row's answer is about, a setting's fields under names a
-# program reads, a fleet card's third line in the same words on the page
-# and in the pane, and whether a tool's program is found, which the guide
-# no longer asks by itself. dashweb pays.
-# 25 more at the join of phase 5's second wave, at what was built: the calls
-# the keeper's fence refuses and the four it lets a pane make in a tab of its
-# own, the typed line for new work for a fleet, an item's title worded once
-# for every screen, and the fleets folded in the left section.
+# 1,190 more at the start of phase 5, where 330 were planned: the largest miss
+# of any plan here, and the reason is in what the phase shares. The record's
+# new fields, the fleet leader and the six rules of Fleet Mode 160; an agent
+# tool's description with its one reader, its checker and its writer 250; the
+# table of every setting, 62 rows, with the one reader and writer of a value
+# by its key, which no package had been given 390; the forms of every region
+# at a width and the left section's model 215; the fleets in the view, the
+# dock, a change of two runs in one step, the kit 140; and 35 left for what
+# the first part finds. install, screen, window, gitwt, overlay, theme, mail,
+# pty, dash and hook, each built whole, pay 395; the rest is new and is
+# counted in the total below.
+# 35 more when the first part of phase 5 was put together, for what its six
+# packages asked: the warning line of a changed tool worded once for every
+# screen, the item a row's answer is about, a setting's fields under names a
+# program reads, a fleet card's third line in the same words on the page and
+# in the pane, and whether a tool's program is found, which the guide no
+# longer asks by itself. dashweb pays.
+# 25 more when the second part of phase 5 was put together, at what was built:
+# the calls the keeper's fence refuses and the four it lets a pane make in a
+# tab of its own, the typed line for new work for a fleet, an item's title
+# worded once for every screen, and the fleets folded in the left section.
 # 1,050 more at the start of phase 6, where 315 were planned; it stood at
-# 5,218 with the integration of phase 5 in. What the 900 built are: the
-# guard rules' signatures with their words, the three guards in the record,
-# the signs and the one matcher 235; thirteen keys with their descriptions,
-# what an agent's set may change and the writer's rule for it, which the
-# plan had in three other folders, and the warning for unlimited 190; the
-# interface for apps with its pairing code, a profile and the version
-# notice 225; a tool's rank and its line, the seams of the kit, the files'
-# new fields and the rest 250. 45 were for what the first wave finds, and 23
-# left with the phone's second road. All of it is new, counted in the total.
-# 50 more at the join of phase 6's first wave, at what was built (6,165): a
-# finding across fleets names each fleet's own task; a to-do passed up from
-# a fleet names the fleet; first steps, the version line, spent and a stuck
-# card have their place in the models; the window's width as an event; the
-# tool a project's arguments are for; who may read a saved fleet's
-# sentence; a fleet's card counting its leader. 35 are for the second join.
-# 30 fewer at the join of phase 6's second wave, at what was built (6,166): one
-# line more, the flag of a setting that holds agents changed from a phone.
-# 5 more for the owner's word after the join: the kit's reader of how many
+# 5,218 with the integration of phase 5 in. What the 900 built are: the guard
+# rules' signatures with their words, the three guards in the record, the
+# signs and the one matcher 235; thirteen keys with their descriptions, what
+# an agent's set may change and the writer's rule for it, which the plan had
+# in three other folders, and the warning for unlimited 190; the interface for
+# apps with its pairing code, a profile and the version notice 225; a tool's
+# rank and its line, the seams of the kit, the files' new fields and the rest
+# 250. 45 were for what the first part finds, and 23 left with the phone's
+# second road. All of it is new, counted in the total.
+# 50 more when the first part of phase 6 was put together, at what was built
+# (6,165): a finding across fleets names each fleet's own task; a to-do passed
+# up from a fleet names the fleet; first steps, the version line, spent and a
+# stuck card have their place in the models; the window's width as an event;
+# the tool a project's arguments are for; who may read a saved fleet's
+# sentence; a fleet's card counting its leader. 35 are for the second part.
+# 30 fewer when the second part of phase 6 was put together, at what was built
+# (6,166): one line more, the flag of a setting that holds agents changed from
+# a phone.
+# 5 more for something asked for after that: the kit's reader of how many
 # agents this computer's memory holds, for the warning of unlimited.
-# 120 more for the person's note typed into the lead agent's tab, which a
-# trial with real agents asked for (a real agent declines what a command
-# prints): the line's words and cleaning, the notes that wait in the record,
-# the one function that types them in order and once, the call and what an
-# app is answered while its note waits.
+# 120 more for the person's note typed into the lead agent's tab, which a run
+# with real agents asked for (a real agent declines what a command prints):
+# the line's words and cleaning, the notes that wait in the record, the one
+# function that types them in order and once, the call and what an app is
+# answered while its note waits.
 # 50 more for the spending guard's true count: agent-hours by pane, what a
 # fleet's ended runs used kept in the job's record, the one sum the sweep,
 # the views and the exported log ask for, and the unit's word for one.
@@ -86,9 +87,9 @@
 lines 6420 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
-# its first instants. 35 more at the join of phase 1: the system's name, a
-# line run by the system's shell and the end of all it started came here
-# from the window and from accept, which are smaller by as much; the
+# its first instants. 35 more when phase 1 was put together: the system's
+# name, a line run by the system's shell and the end of all it started came
+# here from the window and from accept, which are smaller by as much; the
 # worker commands' line pays. 10 more at the start of phase 3: the fixes for
 # Windows left it three lines over; pty pays. 20 more at the integration of
 # phase 3: a change found ahead of its notice is told once, which the hosted
@@ -99,8 +100,8 @@ lines 6420 contract internal/contract cmd/whaleshark
 # path's short name; and the login's list of what Windows starts at log-on.
 # With main's own changes of the same day merged it stands at 1,305.
 # input and layout pay.
-# 10 more at the join of phase 6's first wave: a path reached through a link
-# has the key of the folder itself. It stands at 1,317.
+# 10 more when the first part of phase 6 was put together: a path reached
+# through a link has the key of the folder itself. It stands at 1,317.
 lines 1320 platform internal/platform
 # cli: 40 more at the start of phase 2. Recording what the person does left
 # it four lines short of full, with three phases still to pass through it.
@@ -116,26 +117,27 @@ lines 1320 platform internal/platform
 # program is said as busy, not as unreadable; it stands at 997. screen pays.
 # 60 more for phase 5: the fleet leader as a caller and which run each of
 # its commands goes to, a group's flag, help for every setting.
-# It gives 15 at the join of phase 5's first wave, to rules: the leader is
-# built, at 1,041, and no later package of the phase is in this folder.
+# It gives 15 when the first part of phase 5 was put together, to rules: the
+# leader is built, at 1,041, and no later package of the phase is in this
+# folder.
 # 20 more for phase 6: every setting with its value now and what an agent
 # may do with it, where to report, the line of a newer release.
 lines 1065 cli internal/cli
 # rules: 140 more for phase 5: a group's states, the limits, a question's twin.
-# 90 more at the join of its first wave. The six rules of Fleet Mode took
-# 242 lines where 170 were planned, and what the plan had not counted is
-# the refusals: a half-written twin mended, a leader that is not the one
-# the record names, a server's figure in the limits. Nothing is left to cut
-# that the row asks for; it stands at 1,825 and no later package of the
-# phase is in this folder. cli, hook, watch and dash pay.
+# 90 more when its first part was put together. The six rules of Fleet Mode
+# took 242 lines where 170 were planned, and what the plan had not counted is
+# the refusals: a half-written twin mended, a leader that is not the one the
+# record names, a server's figure in the limits. Nothing is left to cut that
+# the row asks for; it stands at 1,825 and no later package of the phase is in
+# this folder. cli, hook, watch and dash pay.
 # 180 more for phase 6: the stuck verdict and its climb 75, the plan 25,
 # protected files 20, spending and a hold 30, an agent's wish for a
 # setting 20, a group's syncs counted 10.
-# 185 more at the join of phase 6's first wave, at what was built (2,190):
-# the guards came to 346 lines where 180 were planned. What the plan did
-# not count: an answer taken back when what it was given to changes, a hold
-# or an item put back when it is taken away, a hold let go when the settings
-# no longer ask for it, the fleet's half of the climb.
+# 185 more when the first part of phase 6 was put together, at what was built
+# (2,190): the guards came to 346 lines where 180 were planned. What the plan
+# did not count: an answer taken back when what it was given to changes, a
+# hold or an item put back when it is taken away, a hold let go when the
+# settings no longer ask for it, the fleet's half of the climb.
 lines 2195 rules internal/rules
 # store: 50 more at the start of phase 5: an orchestrator's run and a
 # fleet's are changed in one step under the project's one lock, and what a
@@ -151,12 +153,12 @@ lines 565 store internal/store
 # 40 more for phase 5: the leader's guide and the orchestrator's.
 # 35 more for phase 6: the lines of the guards, of a clash across fleets
 # and of settings through the agent, in four guides.
-# 25 fewer at the join of phase 6's first wave: the guards' lines are a
-# template, which is no shipped line; it stands at 425.
+# 25 fewer when the first part of phase 6 was put together: the guards' lines
+# are a template, which is no shipped line; it stands at 425.
 lines 430 guide internal/guide
-# runtask: 100 more at the join of phase 1. init with its five forms, its
-# two records and exact removal was built at 1,036 with nothing left to cut
-# that the command set does not promise; inbox, built at a third of its
+# runtask: 100 more when phase 1 was put together. init with its five forms,
+# its two records and exact removal was built at 1,036 with nothing left to
+# cut that the command set does not promise; inbox, built at a third of its
 # line, pays.
 # 200 more at the start of phase 2: trust is built (60), and accepting
 # several at once, a run's branch and removing a run are still to come.
@@ -183,114 +185,118 @@ lines 430 guide internal/guide
 # built (1,694: saved fleets, the rules file of every tool), and 30 for
 # phase 6: accept's look at protected files, a project's additions to the
 # list, the warning across fleets.
-# 35 more at the join of phase 6's first wave: its share of phase 6 (30) is
-# counted again from what the first wave cost, where the rows that hold
-# rules ran to nearly twice their plan. It stands at 1,703.
-# 5 more at the join of phase 6's second wave: it stands at 1,760, exactly on
-# its line, with protected files looked at in accept and the warning across
-# fleets.
+# 35 more when the first part of phase 6 was put together: its share of phase
+# 6 (30) is counted again from what the first part cost, where the rows that
+# hold rules ran to nearly twice their plan. It stands at 1,703.
+# 5 more when the second part of phase 6 was put together: it stands at 1,760,
+# exactly on its line, with protected files looked at in accept and the
+# warning across fleets.
 # 5 more: run close closes the tabs of the job's ended agents.
 lines 1770 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
 # place and, on a server, a temp folder of the attempt's own; 24 were left.
-# watch pays. 20 more at the join of phase 3's first wave: an attempt's temp
-# folder is recorded and taken away again by stop, close and run rm, which
-# left it five over; overlay and inbox pay. 35 more at the wiring of phase
-# 3: the login's other projects are counted again under a lock over the
-# login when a start is written, so the server's cap is exact; it stood at
-# its line. window pays.
+# watch pays. 20 more when the first part of phase 3 was put together: an
+# attempt's temp folder is recorded and taken away again by stop, close and
+# run rm, which left it five over; overlay and inbox pay. 35 more at the
+# wiring of phase 3: the login's other projects are counted again under a lock
+# over the login when a start is written, so the server's cap is exact; it
+# stood at its line. window pays.
 # 5 more after the Windows proof: on Windows the browser line is written
 # out from the tab's own variables; it stands at 1,348. screen pays.
 # 190 more for phase 5: a group's three starts, the limits under the
 # login's lock, tools started from their descriptions, a fleet stopped.
-# 110 more at the join of phase 5's second wave, at what was built: a
-# group's three starts and the limits under the login's lock came to 85
-# more than their row, and the join added what an ended fleet gives up, in
-# one place for close and for cancel, and the words for a tab that is not a
-# leader's own to close.
+# 110 more when the second part of phase 5 was put together, at what was
+# built: a group's three starts and the limits under the login's lock came to
+# 85 more than their row, and putting it together added what an ended fleet
+# gives up, in one place for close and for cancel, and the words for a tab
+# that is not a leader's own to close.
 # 20 more at the start of phase 6, at what the integration of phase 5
 # built (1,666), and 60 for phase 6: a start under plan first, the hold
 # file, what is closed at the limit, the wake.
-# 75 more at the join of phase 6's first wave: its share of phase 6 (60) is
-# counted again at nearly twice, as the first wave's rows of its kind came
-# out; it stands at 1,688 with a project's arguments going to one tool.
-# 5 more at the join of phase 6's second wave, at what was built (1,806): the
-# wave's 105 for start under plan first and the hold, and 13 at the join for
-# the end of a hold saying whom it could not wake.
-# 5 more after the trial with real agents, at what was built (1,814): a
-# group handed to a leader that sits ends the leader's own wait, and Stop
-# all passes a closed run over before its record is asked anything.
+# 75 more when the first part of phase 6 was put together: its share of phase
+# 6 (60) is counted again at nearly twice, as the first part's rows of its
+# kind came out; it stands at 1,688 with a project's arguments going to one
+# tool.
+# 5 more when the second part of phase 6 was put together, at what was built
+# (1,806): that part's 105 for start under plan first and the hold, and 13
+# when it was put together for the end of a hold saying whom it could not
+# wake.
+# 5 more after it was run with real agents, at what was built (1,814): a group
+# handed to a leader that sits ends the leader's own wait, and Stop all passes
+# a closed run over before its record is asked anything.
 lines 1815 launch internal/launch
 # worker: 5 more for phase 5, a leader's --task.
 lines 170 worker internal/worker
-# inbox, question and notify give 150, 80 and 60: each was built at about
-# half its line in phase 1 and keeps twice what its phase 2 package is
-# sized at. inbox gives 80 more at the start of phase 3 and question 70:
-# both are built whole, at 521 and 511. inbox gives 50 more at the join of
-# phase 3's first wave, to contract and launch.
+# inbox, question and notify give 150, 80 and 60: each was built at about half
+# its line in phase 1 and keeps twice what its phase 2 package is sized at.
+# inbox gives 80 more at the start of phase 3 and question 70: both are built
+# whole, at 521 and 511. inbox gives 50 more when the first part of phase 3
+# was put together, to contract and launch.
 # 25 more for phase 5: the sweep's rows for a leader, a twin finished.
-# 20 more at the join of phase 5's second wave, at what was built: the sweep
-# points whoever rests at an answer it brought down, and leaves a leader with
-# a group at work to its attempt's own row.
+# 20 more when the second part of phase 5 was put together, at what was built:
+# the sweep points whoever rests at an answer it brought down, and leaves a
+# leader with a group at work to its attempt's own row.
 # 60 more for phase 6: the signs fed and the verdict called, a climb
 # across two runs, what is spent, a hold brought to every fleet, the
 # settled answers of the tool's own items used.
-# 50 more at the join of phase 6's first wave: the sweep's share of phase 6
-# (55: the stuck verdict asked, a hold brought in line, a settled answer
-# used, both leaders told of a clash) counted again at nearly twice. It
+# 50 more when the first part of phase 6 was put together: the sweep's share
+# of phase 6 (55: the stuck verdict asked, a hold brought in line, a settled
+# answer used, both leaders told of a clash) counted again at nearly twice. It
 # stands at 620.
-# 5 more at the join of phase 6's second wave, at what was built (729): the
-# wave's 105 stood exactly on the line, and the join adds a granted setting
-# that could not be made, said; the hold file is looked at on every sweep.
-# 5 more after the trial with real agents, at what was built (734): wait
+# 5 more when the second part of phase 6 was put together, at what was built
+# (729): that part's 105 stood exactly on the line, and putting it together
+# adds a granted setting that could not be made, said; the hold file is looked
+# at on every sweep.
+# 5 more after it was run with real agents, at what was built (734): wait
 # hands a note of the person's over as their own words.
 # 5 more: the sweep types the person's notes that waited for the lead agent
 # to rest, and wait words such a note.
 # 5 more with the guard's one sum, which the sweep now asks for by name.
 lines 745 inbox internal/inbox
-# view: 300 more at the start of phase 2. The plan, the messages and the
-# other runs of a login are three screens that 186 lines could not hold;
-# status --brief, which nobody asked for, left the command table instead of
-# being built. 160 more at the join of phase 2: views 2 came to 2,154 with
+# view: 300 more at the start of phase 2. The plan, the messages and the other
+# runs of a login are three screens that 186 lines could not hold; status
+# --brief, which nobody asked for, left the command table instead of being
+# built. 160 more when phase 2 was put together: views 2 came to 2,154 with
 # nothing cut that its row asks for, and the line that says how long the
 # waiting results take to check and what a task changed are 37 more; 69 are
-# left for the look round and the browser check. screen pays. 25 more at
-# the wiring of phase 3: show's site line and the count of screenshots took
-# the 29 that were left and 18 more. window pays.
+# left for what a look at the screens finds and the browser check. screen
+# pays. 25 more at the wiring of phase 3: show's site line and the count of
+# screenshots took the 29 that were left and 18 more. window pays.
 # 265 more for phase 5: the left section's model, a fleet as a card, the
 # wired tools' lines.
-# 135 more at the join of phase 5's first wave: the left section's model
-# alone came to 287 lines where 140 were planned, most of it the order in
-# which rows give way when they do not fit, which the plan took for a
-# sentence. The tools' lines of status, which were to give first, are out
-# of its text already. It stands at 2,683; nobody pays: this is new, and
-# is counted in the total below.
+# 135 more when the first part of phase 5 was put together: the left section's
+# model alone came to 287 lines where 140 were planned, most of it the order
+# in which rows give way when they do not fit, which the plan took for a
+# sentence. The tools' lines of status, which were to give first, are out of
+# its text already. It stands at 2,683; nobody pays: this is new, and is
+# counted in the total below.
 # 35 more at the start of phase 6, at what the integration of phase 5
 # built (2,720), and 205 for phase 6: the export 110, the plan's text 40,
 # "spent", the stuck line and the five items' words 30, the first steps
 # and the version line 25.
-# 265 more at the join of phase 6's first wave, at what was built (3,182):
-# the row came to 402 lines where 205 were planned (the export 199 for 110,
-# the plan's text with the guards' items 157 for 60), and the join added
-# what the catch-up says of stuck agents, the fields the later screens read
-# and the saved fleets of a project with no job.
-# 5 more at the join of phase 6's second wave, at what was built (3,190): a
-# fleet held alone counts its own agents in its item, and status and the
-# page carry the panes' warning line of a changed setting.
-# 15 more after the trial with real agents, at what was built (3,209):
-# status says whose tab asks and that a closed job is no job, an urgent
-# item stands first, and the exported log lists a leader once.
+# 265 more when the first part of phase 6 was put together, at what was built
+# (3,182): the row came to 402 lines where 205 were planned (the export 199
+# for 110, the plan's text with the guards' items 157 for 60), and putting it
+# together added what the catch-up says of stuck agents, the fields the later
+# screens read and the saved fleets of a project with no job.
+# 5 more when the second part of phase 6 was put together, at what was built
+# (3,190): a fleet held alone counts its own agents in its item, and status
+# and the page carry the panes' warning line of a changed setting.
+# 15 more after it was run with real agents, at what was built (3,209): status
+# says whose tab asks and that a closed job is no job, an urgent item stands
+# first, and the exported log lists a leader once.
 # 10 more: spent and the exported log read the guard's one sum, and one
 # agent-hour is worded as one.
 lines 3220 view internal/view
 # question: 30 more for phase 5, the twin made, answered down and passed up.
-# 25 more at the join of phase 5's second wave, at what was built: the
-# person's answer inside a fleet's run is told to the run above, and the twin
-# there takes the answer and the undo in the same step.
+# 25 more when the second part of phase 5 was put together, at what was built:
+# the person's answer inside a fleet's run is told to the run above, and the
+# twin there takes the answer and the undo in the same step.
 # 20 more for phase 6: an item only the person answers.
-# 5 fewer at the join of phase 6's second wave, at what was built (615).
+# 5 fewer when the second part of phase 6 was put together, at what was built
+# (615).
 lines 620 question internal/question
 # mail gives 20 at the start of phase 5, to contract: built whole at 316.
 # 15 more: tell lead queues the person's own note for the lead agent's tab
@@ -301,22 +307,23 @@ lines 375 mail internal/mail
 # programs at one moment say a thing once; it stood at its line. input,
 # built whole at 467, pays.
 lines 440 notify internal/notify
-# gitwt gives 60 at the start of phase 3: built whole at 886; and 100 at the
-# join of its first wave, to doctor: it stands at 889 with the fixes for
+# gitwt gives 60 at the start of phase 3: built whole at 886; and 100 when its
+# first part was put together, to doctor: it stands at 889 with the fixes for
 # Windows in.
 lines 910 gitwt internal/gitwt
-# integrate gives 100 of its 900: 75 to runtask, 25 to team; and 70 at the
-# join of phase 3's first wave, to doctor: built whole at 688.
+# integrate gives 100 of its 900: 75 to runtask, 25 to team; and 70 when the
+# first part of phase 3 was put together, to doctor: built whole at 688.
 # 15 more for phase 5: a fleet's work collected as a merge.
 # 55 more for phase 6: the protected files of a job and their
 # fingerprint, and land refused without the person's yes to exactly that.
-# 45 more at the join of phase 6's first wave: its share of phase 6 (46: the
-# fingerprint of the protected files as collected) counted again at nearly
-# twice. It stands at 754.
-# 25 fewer at the join of phase 6's second wave, at what was built (819).
-# 5 more for the owner's word after the join: land says that the settings
-# file does not read, and which file.
-# 10 more after the trial with real agents, at what was built (834): land
+# 45 more when the first part of phase 6 was put together: its share of phase
+# 6 (46: the fingerprint of the protected files as collected) counted again at
+# nearly twice. It stands at 754.
+# 25 fewer when the second part of phase 6 was put together, at what was built
+# (819).
+# 5 more for something asked for after that: land says that the settings file
+# does not read, and which file.
+# 10 more after it was run with real agents, at what was built (834): land
 # takes a yes just given up itself, and says so while it can be taken back.
 # 10 more for the same review: a protected path is held whatever the case of
 # its letters, and a link is looked at where a folder of the list would begin.
@@ -331,19 +338,19 @@ lines 845 integrate internal/integrate
 # 15 more for phase 5: the fleets' branches scanned as tasks' are.
 # 55 more for phase 6: the fleets' work in progress scanned across fleets,
 # 65, less the matcher of patterns, which is the contract's now.
-# 5 fewer at the join of phase 6's first wave, at what was built (917): the
-# scan across fleets, with each fleet's own task in the finding.
+# 5 fewer when the first part of phase 6 was put together, at what was built
+# (917): the scan across fleets, with each fleet's own task in the finding.
 lines 920 overlap internal/overlap
 # doctor: its 30 of the engine's share (the keeper's rows, the paste line),
 # planned since the engine decision and kept out of this file until phase 2.
 # 180 more at the start of phase 3: fifteen rows of proof for a server, seven
 # for the tunnel and the server command do not fit in the 319 that were
 # left. screen pays.
-# 320 more at the join of phase 3's first wave. The proof of a server and
-# the server command came to 611 lines where 480 were planned for them and
-# the tunnel together, with nothing cut that the row asks for: it stood at
-# 1,322. About 200 are for the tunnel's seven rows and its command, which
-# are still to come. dashweb, gitwt, integrate and evidence pay.
+# 320 more when the first part of phase 3 was put together. The proof of a
+# server and the server command came to 611 lines where 480 were planned for
+# them and the tunnel together, with nothing cut that the row asks for: it
+# stood at 1,322. About 200 are for the tunnel's seven rows and its command,
+# which are still to come. dashweb, gitwt, integrate and evidence pay.
 # 60 more after the real runs of phase 2: with the tunnel's rows and its
 # command joined it stands at 1,582. install pays.
 # 20 more after the third security review: the page's row presses one
@@ -359,54 +366,58 @@ lines 920 overlap internal/overlap
 # say whose the folder of those temp folders is; and a missing ss is said
 # as that. screen pays.
 # 30 more for phase 5: a row for each wired tool, and its one test.
-# 95 more at the join of its first wave: the rows came to 80 lines, and the
-# one test of a tool, 46, had been counted in the settings screen that
+# 95 more when its first part was put together: the rows came to 80 lines, and
+# the one test of a tool, 46, had been counted in the settings screen that
 # calls it and in no folder. It stands at 1,794; of the 95, 50 are new and
 # counted in the total below; dashweb, dash and input pay the rest.
-# 40 more at the join of phase 5's second wave, at what was built: doctor
-# --try, the one test of an agent tool as a command, which the settings
+# 40 more when the second part of phase 5 was put together, at what was built:
+# doctor --try, the one test of an agent tool as a command, which the settings
 # screen's button runs.
 # 30 more for phase 6: less 35 for the phone's second road, which took 52
 # with it when it left; a tool's rank and what its test saw 15, the one
 # request a day for the latest release 45, where to report 5.
-# 60 more at the join of phase 6's first wave: it stands at 1,785 with the
-# second road gone, and its share of phase 6 (72) is counted again at
+# 60 more when the first part of phase 6 was put together: it stands at 1,785
+# with the second road gone, and its share of phase 6 (72) is counted again at
 # nearly twice.
-# 45 fewer at the join of phase 6's second wave, at what was built (1,878).
-# 10 more for the owner's word after the join: the machine's memory read in
-# one place, for doctor's row and for the kit's figure.
+# 45 fewer when the second part of phase 6 was put together, at what was built
+# (1,878).
+# 10 more for something asked for after that: the machine's memory read in one
+# place, for doctor's row and for the kit's figure.
 lines 1890 doctor internal/doctor
 lines 1300 term internal/term
-# panes: 100 more at the join of phase 1: every row of the action table,
-# the typing line, the guards and the lists came to 2,257. worker, built at
-# 131, pays. 250 more at the start of phase 2 for its second pass (the held
-# list, a team run from the pane, what a card offers, the settings as rows
-# of the action list). Two things left that pass to make it fit: a settings
-# screen of its own, and the usage-limit line, which waits for the owner's
-# word and would then be paid from the look rounds.
+# panes: 100 more when phase 1 was put together: every row of the action
+# table, the typing line, the guards and the lists came to 2,257. worker,
+# built at 131, pays. 250 more at the start of phase 2 for its second pass
+# (the held list, a team run from the pane, what a card offers, the settings
+# as rows of the action list). Two things left that pass to make it fit: a
+# settings screen of its own, and the usage-limit line, which is not decided
+# yet and would then be paid from the lines kept for what a look at the
+# screens finds.
 # 570 more for phase 5: the left section, the settings screen with the form
 # for a tool, the fleet at the bottom and as a strip, a fleet's card, and
 # the panes opened and moved by the layout settings.
-# 360 more at the join of phase 5's second wave, at what was built: the left
-# section, the settings screen and the layouts came to 947 lines where 620
-# were planned, and the join added a row of the settings screen for
-# everything that is no value of a file, the agents running now, the folded
-# fleets kept, and a layout setting that moves the panes where they are.
+# 360 more when the second part of phase 5 was put together, at what was
+# built: the left section, the settings screen and the layouts came to 947
+# lines where 620 were planned, and putting it together added a row of the
+# settings screen for everything that is no value of a file, the agents
+# running now, the folded fleets kept, and a layout setting that moves the
+# panes where they are.
 # 15 more at the start of phase 6, at what the integration of phase 5
 # built (3,492), and 240 for phase 6: the section Guardrails with a
 # description of four lines, the ask for unlimited, the plan under its
 # item, the export row and the strip 95; the first steps 60; a profile
 # saved and loaded with every change shown 70; an agent's change of a
 # setting flagged and taken back 15.
-# 315 more at the join of phase 6's first wave. It stands at 3,595 with
-# what the join built: the two panes fitted again at a window's new width,
-# a label never cut by its values. Its share of phase 6 (240) is counted
-# again at nearly twice, as every row of its kind has come out so far.
-# 40 fewer at the join of phase 6's second wave, at what was built (4,007): the
-# wave's 379 where 240 were planned, and 33 at the join for the settings
-# screen opened on the job in front, the pairing code's row and do not
-# disturb from a phone.
-# 25 more after the trial with real agents, at what was built (4,034): the
+# 315 more when the first part of phase 6 was put together. It stands at 3,595
+# with what putting it together built: the two panes fitted again at a
+# window's new width, a label never cut by its values. Its share of phase 6
+# (240) is counted again at nearly twice, as every row of its kind has come
+# out so far.
+# 40 fewer when the second part of phase 6 was put together, at what was built
+# (4,007): that part's 379 where 240 were planned, and 33 when it was put
+# together for the settings screen opened on the job in front, the pairing
+# code's row and do not disturb from a phone.
+# 25 more after it was run with real agents, at what was built (4,034): the
 # keys go back to the conversation after the last typed answer, what two
 # buttons print is a list to read, a click on a value chooses its row, a
 # removed run's number is read again, and a changed setting is warned of once.
@@ -414,17 +425,19 @@ lines 1300 term internal/term
 # tool's hooks away or changes the file the rules are written into.
 lines 4045 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
-# 10 fewer at the join of phase 6's second wave: the wave needed nothing here.
+# 10 fewer when the second part of phase 6 was put together: that part needed
+# nothing here.
 lines 80 theme internal/theme
 # hook: 60 more at the start of phase 2, for the settings of a second kind
 # of agent; it stood at 383.
-# It gives 25 at the join of phase 5's first wave: a tool's hooks come from
-# its description, and it is built whole at 423.
+# It gives 25 when the first part of phase 5 was put together: a tool's hooks
+# come from its description, and it is built whole at 423.
 # 15 more for phase 6: the gate's second look, and a command that writes
 # the login's settings turned down.
-# 15 more at the join of phase 6's first wave, for the gate's look at a
-# guard's hold; it stands at 426.
-# 10 fewer at the join of phase 6's second wave, at what was built (440).
+# 15 more when the first part of phase 6 was put together, for the gate's look
+# at a guard's hold; it stands at 426.
+# 10 fewer when the second part of phase 6 was put together, at what was built
+# (440).
 lines 445 hook internal/hook
 # team: 25 more. It was built at 273 after three rewrites, with nothing left
 # to cut that the row or the design does not ask for; integrate pays.
@@ -436,15 +449,16 @@ lines 275 team internal/team
 # are built: its own, the shut door that lets a pass through, cost nothing.
 # It gives 45 at the start of phase 5, to contract, and keeps 20 for the
 # fleets on Home.
-# It gives 35 at the join of phase 5's first wave: the fleets on Home took
-# 7 lines of the 20, and it is built whole at 1,960.
+# It gives 35 when the first part of phase 5 was put together: the fleets on
+# Home took 7 lines of the 20, and it is built whole at 1,960.
 # 200 more for phase 6: the interface for apps, a session by a header and
 # the pairing code 210, less 9 for the phone's second road (14 left with it).
-# 200 more at the join of phase 6's first wave: it stands at 1,959 with the
-# second road gone and a door that says why it did not open, and its share
-# of phase 6 (213) is counted again at nearly twice.
-# 125 fewer at the join of phase 6's second wave, at what was built (2,239):
-# the interface for apps took 285 where its share was counted at 400.
+# 200 more when the first part of phase 6 was put together: it stands at 1,959
+# with the second road gone and a door that says why it did not open, and its
+# share of phase 6 (213) is counted again at nearly twice.
+# 125 fewer when the second part of phase 6 was put together, at what was
+# built (2,239): the interface for apps took 285 where its share was counted
+# at 400.
 # 5 more: an app is told when its note waits.
 lines 2245 dash internal/dash
 lines 350 push internal/push
@@ -459,24 +473,28 @@ lines 350 push internal/push
 # only a port the tool gives a task is forwarded, and another is said once.
 # dash pays.
 lines 540 connect internal/connect
-# evidence gives 40 at the join of phase 3's first wave: built whole at 193.
+# evidence gives 40 when the first part of phase 3 was put together: built
+# whole at 193.
 lines 210 evidence internal/evidence
-# dashweb gives 120 at the join of phase 3's first wave: the screens, the
-# phone's layout and the refusal are built, at 937; what the phone's and the
-# tunnel's passes still add is a few lines of script. It gives 60 more at
-# the wiring of phase 3, with both passes in: it stands at 955. It gives 65
-# more after the third security review, 45 to connect and 20 to doctor.
-# It gives 70 at the join of phase 5's first wave, to contract and
+# dashweb gives 120 when the first part of phase 3 was put together: the
+# screens, the phone's layout and the refusal are built, at 937; what the
+# phone's and the tunnel's passes still add is a few lines of script. It gives
+# 60 more at the wiring of phase 3, with both passes in: it stands at 955. It
+# gives 65 more after the third security review, 45 to connect and 20 to
+# doctor.
+# It gives 70 when the first part of phase 5 was put together, to contract and
 # doctor: a fleet's card on Home took 4 lines of the 50, and it stands at 962.
 # 10 more for phase 6: "spent" on Home and a card's stuck line.
-# 10 more at the join of phase 6's first wave, for spent and the stuck line
-# on the page; it stands at 964.
-# 15 fewer at the join of phase 6's second wave, at what was built (965).
+# 10 more when the first part of phase 6 was put together, for spent and the
+# stuck line on the page; it stands at 964.
+# 15 fewer when the second part of phase 6 was put together, at what was built
+# (965).
 lines 970 dashweb internal/dashweb
 # install gives 110 after the real runs of phase 2, 60 to doctor and 50 to
 # overlap: it stands at 945.
 # 20 fewer at the start of phase 6; 31 more left with the phone's second road.
-# 30 fewer at the join of phase 6's first wave, at what was built (938).
+# 30 fewer when the first part of phase 6 was put together, at what was built
+# (938).
 lines 940 install install
 
 # The engine's eleven folders. A reserve of 1,200 lines for the screen
@@ -484,10 +502,11 @@ lines 940 install install
 # that shows the need.
 # screen, watch and layout give 700, 200 and 200 at the start of phase 2.
 # Each is built whole and far under its line (1,366, 446 and 763), and keeps
-# room for the look round; the screen reader's reserve is untouched. They
-# pay for contract, cli, runtask, launch, view, panes and hook, with inbox,
-# question and notify: 1,390 lines moved, none added. 160 more to view at
-# the join of phase 2; the screen reader stands at 1,366.
+# room for what a look at the screens finds; the screen reader's reserve is
+# untouched. They pay for contract, cli, runtask, launch, view, panes and
+# hook, with inbox, question and notify: 1,390 lines moved, none added. 160
+# more to view when phase 2 was put together; the screen reader stands at
+# 1,366.
 # At the start of phase 5 install, screen, window, gitwt, overlay, theme,
 # mail, pty, dash and hook give 100, 80, 45, 30, 25, 30, 20, 10, 45 and 10:
 # 395 lines moved to contract, none added by the move. engine gives 60, 50
@@ -496,9 +515,9 @@ lines 940 install install
 # 300, 120, 100, 80, 60 and 40, each built whole and under its line, and
 # inbox, question and overlay 80, 70 and 60: 910 lines moved to contract, doctor, dash, launch, cli, runtask, notify and
 # platform, none added.
-# At the join of phase 3's first wave dashweb, gitwt, integrate, inbox,
-# evidence and overlay give 120, 100, 70, 50, 40 and 20: 400 lines moved to
-# doctor, contract and launch, none added.
+# When the first part of phase 3 was put together dashweb, gitwt, integrate,
+# inbox, evidence and overlay give 120, 100, 70, 50, 40 and 20: 400 lines
+# moved to doctor, contract and launch, none added.
 # At the wiring of phase 3 dashweb and window give 60 each: 120 lines
 # moved to contract, runtask, launch and view, none added.
 # screen gives 15 after the Windows proof, to cli, launch and guide, and 15
@@ -507,9 +526,9 @@ lines 1380 screen internal/screen
 # keeper: 70 more for phase 5, the dock: its program started and started
 # again, its place drawn while that is down, its keys, its opening over
 # the tab; and an agent started from its tool's description.
-# 35 more at the join of phase 5's second wave, at what was built: who
-# opened a tab, kept over a restart, and the four calls the fence lets that
-# pane make there: a fleet leader starts and closes its own workers.
+# 35 more when the second part of phase 5 was put together, at what was built:
+# who opened a tab, kept over a restart, and the four calls the fence lets
+# that pane make there: a fleet leader starts and closes its own workers.
 # 60 more at the start of phase 6, at what the integration of phase 5
 # built: a chat's name as its tab's, tabs handed to a new leader, the
 # settings screen in one frame. It stands at 1,981.
@@ -522,7 +541,8 @@ lines 2005 keeper internal/keeper
 # 70 more for phase 5: the dock's place, the tab row beside it, its edge.
 # 5 more at the start of phase 6, at what the integration of phase 5 built.
 lines 840 layout internal/layout
-# pty gives 50 to restore at the join of phase 2; it is built whole at 617.
+# pty gives 50 to restore when phase 2 was put together; it is built whole at
+# 617.
 lines 710 pty internal/pty
 # watch: 30 more after the first real workers. An Enter that waits for the
 # pane to show the pasted text, and is pressed again while the agent shows
@@ -530,17 +550,19 @@ lines 710 pty internal/pty
 # 5 more for letting a pane come to rest before a text is typed, which took
 # it to 584; window, built at 271, pays.
 # 30 more for phase 5: a kind of agent from its tool's description.
-# It gives 20 at the join of phase 5's first wave: its table of kinds went
-# and the description's words took its place line for line; built at 591.
+# It gives 20 when the first part of phase 5 was put together: its table of
+# kinds went and the description's words took its place line for line; built
+# at 591.
 # 15 more: a person's note typed at an agent at rest, and the word for a
 # refusal that came after the text was in the pane.
 lines 610 watch internal/watch
-# input: 25 more for phase 5, the three keys of the dock and of the
-# settings screen. It gives 5 at the join of that phase's first wave.
+# input: 25 more for phase 5, the three keys of the dock and of the settings
+# screen. It gives 5 when that phase's first part was put together.
 lines 490 input internal/input
-# restore: 50 more at the join of phase 2. Saving the layout lightly (a file
-# of lines a pane, written only for a pane that printed) came to 493.
-# 5 more at the join of phase 5's second wave: a tab's opener in the layout file.
+# restore: 50 more when phase 2 was put together. Saving the layout lightly (a
+# file of lines a pane, written only for a pane that printed) came to 493.
+# 5 more when the second part of phase 5 was put together: a tab's opener in
+# the layout file.
 lines 515 restore internal/restore
 # window gives 60 at the wiring of phase 3 and 20 at its integration, to
 # platform, and 5 to watch: built whole at 271.
@@ -548,8 +570,8 @@ lines 280 window internal/window
 lines 270 engine internal/engine
 # 5 more at the start of phase 6, at what the integration of phase 5 built.
 lines 355 pick internal/pick
-# overlay gives 60 at the start of phase 3: built whole at 140; and 20 at
-# the join of its first wave.
+# overlay gives 60 at the start of phase 3: built whole at 140; and 20 when
+# its first part was put together.
 lines 145 overlay internal/overlay
 
 # What a shipped file is: these endings, but no file or folder named in skip.
@@ -560,61 +582,60 @@ skip _test.go testdata testkit
 # project decided to build its own terminal engine and depend on no other
 # program, and 40,000 until phase 5: the left section, the settings screen
 # with every setting in it, layout as settings, Fleet Mode and many agent
-# tools. The folders above were planned at 40,015 and are at 40,200 since
-# the join of phase 5's first wave, which cost 185 lines more than its six
-# rows were given; the look rounds, which are in no folder's line, are 650
-# more: 40,850 if every folder fills its line.
-# After the integration of phase 5 with real agents (P5-12), nine folders at
-# what holds, 415 lines in all (the folders' lines then sum to 41,235), each
-# for what was built there:
-# contract +125 (a call that hands a tab to another pane; the main tab's
-# name and a chat's name read from a title; the file a tool reads at its
-# start; the saved fleets of a project with their reader and writer; the
-# sentence of a tool that is not wired in), runtask +105 (run fleet; the
-# main tab named at binding; a group joined to a saved fleet), keeper +60
-# (the tab that follows a chat's name; the settings screen's one frame),
-# view +45 (saved fleets in status and in the left section; the row of the
-# main agent), panes +35 (a pane rests when only a lock changed; the hints
-# the trial showed missing; the button that writes a tool's rules), launch
-# +20 (the hand-over of tabs; a leader counted once), rules +15 (a question
-# passed up outlives its leader), layout +5, pick +5.
+# tools. The folders above were planned at 40,015 and are at 40,200 since the
+# first part of phase 5 was put together, which cost 185 lines more than its
+# six rows were given; what a look at the screens finds, which is in no
+# folder's line, is 650 more: 40,850 if every folder fills its line.
+# After the integration of phase 5 with real agents, nine folders at what
+# holds, 415 lines in all (the folders' lines then sum to 41,235), each for
+# what was built there: contract +125 (a call that hands a tab to another
+# pane; the main tab's name and a chat's name read from a title; the file a
+# tool reads at its start; the saved fleets of a project with their reader and
+# writer; the sentence of a tool that is not wired in), runtask +105 (run
+# fleet; the main tab named at binding; a group joined to a saved fleet),
+# keeper +60 (the tab that follows a chat's name; the settings screen's one
+# frame), view +45 (saved fleets in status and in the left section; the row of
+# the main agent), panes +35 (a pane rests when only a lock changed; the hints
+# a run with real agents showed missing; the button that writes a tool's
+# rules), launch +20 (the hand-over of tabs; a leader counted once), rules +15
+# (a question passed up outlives its leader), layout +5, pick +5.
 # With the hosted machines' mends merged: panes +40 more (which tools are
 # there to start is looked for beside the loop, never by a drawing), launch
 # +15 more (groups named in one start go in the order named): 41,290.
-# 41,500 since the join of phase 5's second wave. The owner took the cap
-# away as a thing that decides what is built; it is kept as a figure that is
-# told: what is built, 40,620, rounded up to the next 500, and 500 for his
-# look round and his test days. The folders' lines above sum to 40,820.
+# 41,500 since the second part of phase 5 was put together. The cap is no
+# longer a thing that decides what is built; it is kept as a figure that is
+# told: what is built, 40,620, rounded up to the next 500, and 500 for what a
+# look at the screens and days of testing find. The folders' lines above sum
+# to 40,820.
 # 43,500 at the start of phase 6. The tree stood at 40,982 with what the
-# integration of phase 5 has built so far; the contracts of phase 6 are
-# 1,010 more (900 in the contract, 75 in notes that each package replaces
-# with its code); the folders' lines above sum to 43,320, about 1,300
-# beyond that. Phase 6 was planned at 1,460 and told as 1,460 to 2,000;
-# with the contract at three times its plan it is about 2,300 if every
-# folder fills its line. The join of its second wave sets this to what is
-# built.
-# 44,500 at the join of phase 6's first wave. The tree stands at 42,952:
-# the first wave built 800 lines where its five rows were given 500 (the
-# guard rules 346 for 180, the views 402 for 205; the scan and the guides
-# at their plan; the phone's second road took 120 with it), and the join
-# 190 for what the wave left open and what the integration of phase 5 had
-# decided. The second wave's six rows were planned at about 715; counted
+# integration of phase 5 has built so far; the contracts of phase 6 are 1,010
+# more (900 in the contract, 75 in notes that each package replaces with its
+# code); the folders' lines above sum to 43,320, about 1,300 beyond that.
+# Phase 6 was planned at 1,460 and told as 1,460 to 2,000; with the contract
+# at three times its plan it is about 2,300 if every folder fills its line.
+# Putting its second part together sets this to what is built.
+# 44,500 when the first part of phase 6 was put together. The tree stands at
+# 42,952: the first part built 800 lines where its five rows were given 500
+# (the guard rules 346 for 180, the views 402 for 205; the scan and the guides
+# at their plan; the phone's second road took 120 with it), and putting it
+# together 190 for what that part left open and what the integration of phase
+# 5 had decided. The second part's six rows were planned at about 715; counted
 # again at what rows of their kind cost in the first, they are about 1,440,
-# which makes 44,390, rounded up to the next 500. The folders' lines above
-# sum to 44,575, because each keeps the few lines it had to spare; the
-# total holds the tree as a whole. It is a figure that is told, not a cap
-# that decides what is built: no dead code, and nothing built twice.
-# 45,000 at the join of phase 6's second wave. The tree stands at 44,120:
-# the six rows built 1,114 lines (launch and the gate 119, the sweep 105,
-# accept and land 132, the panes 379, the tools' ranks and the page 94, the
-# interface for apps 285) where 715 were planned and 1,440 were counted
-# again, and the join 54 for the seams between them. Phase 6 is about 3,150 lines
-# of the tree where 1,460 were planned and 1,460 to 2,000 were told. The
-# figure is what is built rounded up to the next 500, and 500 for the
-# owner's look round. The folders' lines above are each what its folder
-# holds, to the next five. Two things of the owner's word after it, 15 lines,
+# which makes 44,390, rounded up to the next 500. The folders' lines above sum
+# to 44,575, because each keeps the few lines it had to spare; the total holds
+# the tree as a whole. It is a figure that is told, not a cap that decides
+# what is built: no dead code, and nothing built twice.
+# 45,000 when the second part of phase 6 was put together. The tree stands at
+# 44,120: the six rows built 1,114 lines (launch and the gate 119, the sweep
+# 105, accept and land 132, the panes 379, the tools' ranks and the page 94,
+# the interface for apps 285) where 715 were planned and 1,440 were counted
+# again, and putting them together 54 for the seams between them. Phase 6 is
+# about 3,150 lines of the tree where 1,460 were planned and 1,460 to 2,000
+# were told. The figure is what is built rounded up to the next 500, and 500
+# for what a look at the screens finds. The folders' lines above are each what
+# its folder holds, to the next five. Two things asked for after it, 15 lines,
 # leave the tree at 44,137 with two mends for the hosted machines.
-# The trial with real agents left it at 44,212: twenty-two small mends, 75
+# The runs with real agents left it at 44,212: twenty-two small mends, 75
 # lines, each with its test. The total stands.
 total 45000
 
