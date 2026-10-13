@@ -39,7 +39,7 @@ func (k *Keeper) input(w *window) {
 		if ev.Kind != term.Focus && (ev.Kind != term.Mouse || ev.Action == term.Press) {
 			k.use(w)
 		}
-		v := input.View{Lay: &k.lay, Modes: k.modes}
+		v := input.View{Lay: k.lay.Walk(), Modes: k.modes}
 		keys := k.panes[k.focus]
 		if k.over != nil {
 			v.Over, keys = k.over.rec.ID, k.over

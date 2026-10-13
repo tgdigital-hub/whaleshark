@@ -61,7 +61,8 @@ type Keeper struct {
 	nTab   int
 	nPane  int
 	nTerm  int
-	focus  string // the pane with the keys
+	focus  string           // the pane with the keys
+	told   []contract.Space // the workspaces as the readers of events know them
 	pop    overlay.Popup
 	over   *pane             // the pane drawn over the tab that shows, if one is
 	overW  float64           // its width and height as they were asked for:
@@ -347,12 +348,18 @@ func (k *Keeper) events(l *link, id uint64) {
 	}
 }
 
-// emit numbers a change and hands it to every reader of events.
+// emit tells every reader of events of a change to a pane or a tab.
 func (k *Keeper) emit(kind string, p contract.Pane) {
+	k.tell(contract.TermEvent{Kind: kind, Pane: p})
+}
+
+// tell numbers a change and hands it to every reader of events.
+func (k *Keeper) tell(e contract.TermEvent) {
 	k.seq++
+	e.Seq = k.seq
 	for ch, to := range k.subs {
 		select {
-		case ch <- contract.WireReply{ID: to.id, Event: &contract.TermEvent{Seq: k.seq, Kind: kind, Pane: p}}:
+		case ch <- contract.WireReply{ID: to.id, Event: &e}:
 		default:
 			// Its connection is closed too: it may be full, with the
 			// reply before this one waiting to be written.
@@ -365,12 +372,20 @@ func (k *Keeper) emit(kind string, p contract.Pane) {
 
 // snapshot is every pane as it is now, in the order contract.Apply keeps.
 func (k *Keeper) snapshot() *contract.Snapshot {
-	s := &contract.Snapshot{At: contract.Now(), Instance: k.instance, Seq: k.seq, Panes: []contract.Pane{}}
+	s := &contract.Snapshot{At: contract.Now(), Instance: k.instance, Seq: k.seq, Panes: []contract.Pane{}, Spaces: k.spaces()}
 	for _, p := range k.panes {
 		s.Panes = append(s.Panes, p.rec)
 	}
 	slices.SortFunc(s.Panes, func(a, b contract.Pane) int { return strings.Compare(a.ID, b.ID) })
 	return s
+}
+
+// spaces is the workspaces as a picture has them, in the order they were opened.
+func (k *Keeper) spaces() (out []contract.Space) {
+	for _, s := range k.lay.Spaces {
+		out = append(out, contract.Space{ID: s.ID, Root: s.Root, Name: s.Name, Named: s.Named, Tab: s.Active, Front: s.ID == k.lay.Front})
+	}
+	return out
 }
 
 // shown is the tab that shows.
@@ -382,7 +397,8 @@ func (k *Keeper) shown() *layout.Tab {
 }
 
 // changed is called after every change to the layout: the keys may have
-// moved, panes may have new sizes, and every window is drawn again.
+// moved, a workspace may have been made, named, put in front or ended, panes
+// may have new sizes, and every window is drawn again.
 func (k *Keeper) changed() {
 	now, tab := "", k.shown()
 	if tab != nil {
@@ -399,6 +415,10 @@ func (k *Keeper) changed() {
 			p.told(true)
 			k.emit(contract.EvFocus, p.rec)
 		}
+	}
+	if now := k.spaces(); !slices.Equal(now, k.told) {
+		k.told = now
+		k.tell(contract.TermEvent{Kind: contract.EvSpace, Spaces: now})
 	}
 	k.lay.Over = ""
 	if o := k.over; o != nil {

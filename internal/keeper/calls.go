@@ -14,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/layout"
 	"github.com/tgdigital-hub/whaleshark/internal/overlay"
 	"github.com/tgdigital-hub/whaleshark/internal/restore"
 )
@@ -54,6 +55,9 @@ func (k *Keeper) call(c contract.WireCall) (contract.WireReply, error) {
 	if q := k.panes[c.From]; q != nil && q.rec.Name != "" && slices.Contains(contract.Fenced, c.Op) && !k.own(c) {
 		k.mu.Unlock()
 		return contract.WireReply{}, contract.Fence(c.Op)
+	} else if k.walled(c) {
+		k.mu.Unlock()
+		return contract.WireReply{}, contract.ErrSpace
 	}
 	r, gone, err := k.do(c)
 	p := k.panes[c.Pane]
@@ -76,6 +80,79 @@ func (k *Keeper) call(c contract.WireCall) (contract.WireReply, error) {
 		err = p.watch.Say(c.Kind, c.Text)
 	}
 	return r, err
+}
+
+// walled says a call comes from a pane that holds an agent and names a
+// pane, a tab or a workspace that is not of that pane's own workspace: the
+// wall of contract.Walled. The dock is of no workspace and behind no wall.
+func (k *Keeper) walled(c contract.WireCall) bool {
+	from := k.panes[c.From]
+	if from == nil || from.rec.Agent == "" || !slices.Contains(contract.Walled, c.Op) {
+		return false
+	}
+	p, own := k.panes[c.Pane], from.rec.Workspace
+	if c.Op == contract.OpPrompt {
+		p = k.named(c.Name)
+	}
+	for _, q := range []*pane{p, k.panes[c.Target]} {
+		if q != nil && !q.rec.Dock && q.rec.Workspace != own {
+			return true
+		}
+	}
+	t := k.lay.Tab(c.Tab)
+	return t != nil && t.Space != own || c.Space != "" && c.Space != own
+}
+
+// open is the workspace of a project's folder, made where there is none.
+// The folder is the caller's word and is checked to be one; which project
+// it is of is the caller's knowledge, and no file is read for it.
+func (k *Keeper) open(root string) (*layout.Space, error) {
+	if root != "" {
+		root = filepath.Clean(root)
+	}
+	known := slices.ContainsFunc(k.lay.Spaces, func(s *layout.Space) bool { return s.Root == root })
+	if st, err := os.Stat(root); root != "" && !known && (err != nil || !st.IsDir()) {
+		return nil, fmt.Errorf("%s is no folder to open a workspace of", root)
+	}
+	return k.lay.Open(root), nil
+}
+
+// create opens a tab of one pane in a workspace, without showing it, and
+// starts the pane's program. A tab that does not start leaves nothing.
+func (k *Keeper) create(sp *layout.Space, c contract.WireCall) (*pane, error) {
+	k.nTab++
+	id := "t" + strconv.Itoa(k.nTab)
+	p := k.fresh(id, sp.ID, c.Label, c.Cwd)
+	if k.tabs[id] = c.Env; k.panes[c.From] != nil {
+		k.opened[id] = c.From
+	}
+	k.lay.AddIn(sp, id, c.Label, p.rec.ID).Group = c.Group
+	if err := k.start(p); err != nil {
+		k.lay.Remove(id)
+		delete(k.tabs, id)
+		delete(k.opened, id)
+		k.nTab--
+		k.forget(p)
+		return nil, err
+	}
+	k.emit(contract.EvOpened, p.rec)
+	return p, nil
+}
+
+// shut closes a tab whole and tells the readers of events; its terminals
+// are the caller's to end. A workspace ends with its last tab.
+func (k *Keeper) shut(tab *layout.Tab) (gone []contract.Pty) {
+	for _, id := range tab.Panes() {
+		gone = append(gone, k.panes[id].tty)
+		k.panes[id].quit()
+		delete(k.panes, id)
+		k.disown(id) // what a pane of it opened is nobody's now, as when a pane is closed alone
+	}
+	k.lay.Remove(tab.ID)
+	delete(k.tabs, tab.ID)
+	delete(k.opened, tab.ID)
+	k.emit(contract.EvTabClosed, contract.Pane{Tab: tab.ID})
+	return gone
 }
 
 // named is the pane of the agent the tool gave a name.
@@ -123,28 +200,73 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			r.Text += "; the layout was not saved: " + err.Error()
 		}
 	case contract.OpTabCreate:
-		k.nTab++
-		id := "t" + strconv.Itoa(k.nTab)
-		p = k.fresh(id, c.Label, c.Cwd)
-		k.tabs[id] = c.Env
-		if k.panes[c.From] != nil {
-			k.opened[id] = c.From
+		// From a pane the tab is of that pane's workspace and its group,
+		// whatever the call says; else of the workspace of the folder the call
+		// names, made where there is none, or with none named of the one in
+		// front. A group the call itself names begins with this tab, its
+		// leader's, while the group has none.
+		sp, from, led := k.lay.Space(k.lay.Front), k.panes[c.From], c.Group != ""
+		if from != nil && !from.rec.Dock {
+			if t := k.lay.Tab(from.rec.Tab); t != nil && t.Group != "" {
+				c.Group, led = t.Group, false
+			}
+			sp = k.lay.Space(from.rec.Workspace)
+		} else if c.Space != "" || sp == nil {
+			sp, err = k.open(c.Space)
 		}
-		k.lay.Add(id, c.Label, p.rec.ID)
-		if err = k.start(p); err != nil {
-			k.lay.Remove(id)
-			delete(k.tabs, id)
-			delete(k.opened, id)
-			k.nTab--
-			k.forget(p)
+		if sp == nil {
+			err = cmp.Or(err, contract.ErrNoPane)
 			break
 		}
-		k.emit(contract.EvOpened, p.rec)
+		led = led && !slices.ContainsFunc(k.lay.Tabs, func(t *layout.Tab) bool { return t.Space == sp.ID && t.Group == c.Group && t.Head })
+		if p, err = k.create(sp, c); err != nil {
+			break
+		}
+		k.lay.Tab(p.rec.Tab).Head = led
 		k.changed()
 		rec := p.rec
 		r.Pane = &rec
+	case contract.OpSpaceOpen:
+		sp, oerr := k.open(c.Space)
+		if err = oerr; err == nil && sp.Active == "" {
+			c.Label, c.Group, c.Env, c.From = contract.MainTab, "", nil, ""
+			if p, err = k.create(sp, c); err == nil {
+				k.lay.Tab(p.rec.Tab).Chat = true // the main agent's, until somebody names it
+			}
+		}
+		if err != nil {
+			break
+		}
+		k.lay.Show(sp.Active)
+		k.changed()
+		rec := k.panes[k.focus].rec
+		r.Pane = &rec
+	case contract.OpSpaceRename, contract.OpSpaceClose:
+		sp := k.lay.Space(c.Space)
+		if sp == nil {
+			return r, nil, contract.ErrNoPane
+		}
+		for _, t := range slices.Clone(k.lay.Tabs) {
+			if t.Space == sp.ID && c.Op == contract.OpSpaceClose {
+				gone = append(gone, k.shut(t)...)
+			}
+		}
+		if c.Op == contract.OpSpaceRename {
+			if sp.Name, sp.Named = contract.Label(c.Label), true; sp.Name == "" { // no name is the folder's again
+				sp.Name, sp.Named = contract.SpaceName(sp.Root), false
+			}
+		}
+		k.changed()
+	case contract.OpMarks:
+		// The dock's alone; a figure for a tab that is not there is dropped.
+		if c.From != layout.DockPane {
+			return r, nil, contract.Fence(c.Op)
+		}
+		k.lay.Marks = maps.Clone(c.Marks)
+		maps.DeleteFunc(k.lay.Marks, func(tab string, _ int) bool { return k.lay.Tab(tab) == nil })
+		k.wake()
 	case contract.OpSplit:
-		n := k.fresh(p.rec.Tab, p.rec.Label, p.rec.Cwd)
+		n := k.fresh(p.rec.Tab, p.rec.Workspace, p.rec.Label, p.rec.Cwd)
 		if err = k.lay.Split(c.Pane, c.Dir, c.Ratio, n.rec.ID); err == nil {
 			if err = k.start(n); err != nil {
 				k.lay.Close(n.rec.ID)
@@ -214,16 +336,21 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			err = contract.ErrAgentNotReady
 		}
 	case contract.OpOverlay:
-		if len(c.Argv) == 0 || k.over != nil {
+		// A screen of ours never opens over a project it is not about. One
+		// asked for with a place is drawn as any other until places are built.
+		from := k.panes[c.From]
+		if from != nil && !from.rec.Dock && from.rec.Workspace != k.lay.Front {
+			err = contract.ErrNotFront
+			break
+		} else if len(c.Argv) == 0 || k.over != nil {
 			err = errors.New("no program to draw over the tab, or one is there already")
 			break
 		}
 		// It runs as in the pane it was asked from, or the one with the keys.
-		from := k.panes[c.From]
 		if from == nil || from.rec.Dock {
 			from = cmp.Or(k.panes[k.focus], &pane{})
 		}
-		p = k.fresh(from.rec.Tab, from.rec.Label, from.rec.Cwd)
+		p = k.fresh(from.rec.Tab, from.rec.Workspace, from.rec.Label, from.rec.Cwd)
 		p.argv, k.over, k.overW, k.overH = c.Argv, p, cmp.Or(c.W, 0.8), cmp.Or(c.H, 0.8)
 		if err = k.start(p); err != nil {
 			k.over = nil
@@ -271,25 +398,24 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			k.opened[c.Tab] = c.Target
 			k.saved()
 		case contract.OpTabRename:
-			// A name somebody gave the tab holds; the main agent's default one
-			// follows the chat's.
-			tab.Chat = c.Label == contract.MainTab
-			k.rename(tab, c.Label)
+			// A name somebody gave the tab holds, cleaned as every label is;
+			// the main agent's default one follows the chat's, and one tab of
+			// a workspace at most reads as the main agent's.
+			label := contract.Label(c.Label)
+			if contract.IsMainTab(label) && slices.ContainsFunc(k.lay.Tabs, func(t *layout.Tab) bool {
+				return t != tab && t.Space == tab.Space && contract.IsMainTab(t.Label)
+			}) {
+				return r, nil, contract.ErrMainTab
+			}
+			tab.Chat = label == contract.MainTab
+			tab.Named = !tab.Chat
+			k.rename(tab, label)
 		case contract.OpTabFocus:
-			k.lay.Show(c.Tab)
+			k.lay.Show(c.Tab) // its workspace comes to the front with it
 			k.lay.Dock.Keys, k.lay.Dock.Open = false, false
 			k.changed()
 		case contract.OpTabClose:
-			for _, id := range tab.Panes() {
-				gone = append(gone, k.panes[id].tty)
-				k.panes[id].quit()
-				delete(k.panes, id)
-				k.disown(id) // what a pane of it opened is nobody's now, as when a pane is closed alone
-			}
-			k.lay.Remove(c.Tab)
-			delete(k.tabs, c.Tab)
-			delete(k.opened, c.Tab)
-			k.emit(contract.EvTabClosed, contract.Pane{Tab: c.Tab})
+			gone = k.shut(tab)
 			k.changed()
 		}
 	case contract.OpNotify:
