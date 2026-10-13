@@ -565,7 +565,7 @@ skip _test.go testdata testkit
 # figure is what is built rounded up to the next 500, and 500 for the
 # owner's look round. The folders' lines above are each what its folder
 # holds, to the next five. Two things of the owner's word after it, 15 lines,
-# leave the tree at 44,135.
+# leave the tree at 44,137 with two mends for the hosted machines.
 total 45000
 
 # The whole module list, not only the direct ones.
