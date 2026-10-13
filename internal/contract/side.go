@@ -152,7 +152,9 @@ const WordSaved = "saved"
 // rows the agents panel has, 0 for no limit; Height is the section's rows
 // and Split UIFile.SideSplit, from which the builder says where the heavier
 // line stands and how many workspaces the upper panel has rows for (with
-// Height 0 nothing is cut and Side.Split is 0); Folded names the fleets the
+// Height 0 nothing is cut and Side.Split is 0); Gone names the workspaces'
+// folders that are no longer on the disk, which the caller looked for,
+// since the builder reads nothing; Folded names the fleets the
 // person folded, as "run/fleet"; Find is what was typed to narrow the rows;
 // Changed is UIFile.Changed, which Warn is worded from. UI is ui.json, for
 // the first steps and what an agent changed; NewVersion is VersionLine's
@@ -173,6 +175,7 @@ type SideInput struct {
 	NewVersion string
 	Height     int
 	Split      int
+	Gone       []string
 }
 
 // Side is the one description of the left section, which its pane prints

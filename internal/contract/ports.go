@@ -178,7 +178,9 @@ const (
 	EvSpace = "space"
 	// EvMenu: a person asked for the menu of the tab Pane.Tab, at the
 	// window's cell X, Y, by a right press on the tab row or by the key for
-	// the tab that shows. It asks nothing by itself and changes no picture:
+	// the tab that shows; asked for on a fleet's name, the tab is the
+	// fleet's first, its leader's, whichever tab a click there would show.
+	// It asks nothing by itself and changes no picture:
 	// only the left section acts on it, by opening a menu there (OverlayAt),
 	// in which a person must still choose.
 	EvMenu = "menu"
