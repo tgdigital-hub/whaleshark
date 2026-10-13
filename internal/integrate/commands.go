@@ -124,7 +124,10 @@ func (g integrator) land(c *contract.Call) (any, error) {
 	}
 	person, err := contract.ReadPerson(k.Platform.Peek, dirs.Config)
 	if err != nil {
-		return nil, err
+		// Said as what it is, also to a person who never switched the guard on.
+		file := filepath.Join(dirs.Config, contract.ConfigFile)
+		return nil, refuse(contract.ExitRefused, "settings_unread", fmt.Sprintf("Nothing was landed: your settings file %s does not read (%s), so it cannot be told whether protected files are on; mend that line, or move the file away to go on with every setting as it comes, then land again.", file, cli.Line(err.Error())),
+			"whaleshark doctor")
 	}
 	seen, files, err := protected(c.Root, s, tip, contract.Protected(person, project))
 	if err == nil {

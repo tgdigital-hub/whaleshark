@@ -73,6 +73,22 @@ func TestProtectedFilesOffChangeNothing(t *testing.T) {
 	play(t, r.p.Command(scenario.Human, "land", "--local"), 0, "merged into main")
 }
 
+// A settings file that does not read holds a landing, guard on or never
+// on: the refusal says so, names the file and what to do, and the same
+// landing passes once the file reads again.
+func TestLandSaysThatTheSettingsFileDoesNotRead(t *testing.T) {
+	r := open(t, map[string]string{"a.txt": "one\n"})
+	r.collect("A", map[string]string{"a.txt": "two\n"})
+	dirs, err := r.k.Platform.Dirs()
+	must(t, err)
+	file := filepath.Join(dirs.Config, contract.ConfigFile)
+	write(t, file, "[ui\ntheme = \"kelp\"\n")
+	play(t, r.p.Command(scenario.Human, "land", "--local", "--json"), 5, "settings_unread")
+	play(t, r.p.Command(scenario.Human, "land", "--local"), 5, "Nothing was landed: your settings file "+file+" does not read", "protected files", "mend that line", "whaleshark doctor")
+	write(t, file, "[ui]\ntheme = \"kelp\"\n")
+	play(t, r.p.Command(scenario.Human, "land", "--local"), 0, "merged into main")
+}
+
 // A protected file changed, approved, changed again, landed (20.2): accept
 // goes on as ever and says one line, the person is asked, no agent can give
 // the yes, and neither way of landing passes without a yes for exactly the
