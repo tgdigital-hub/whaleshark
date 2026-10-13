@@ -21,4 +21,16 @@ func TestALinkAboveAndAPatternOfNothing(t *testing.T) {
 			t.Errorf("protect.paths %q: %v", value, err)
 		}
 	}
+	// No value of a setting and no word of a tool's description holds what
+	// steers a terminal: the second kind of control character, a mark that
+	// turns the reading direction, a line separator.
+	label, _ := FindKey("tools.<name>.label")
+	for _, r := range []rune{0x9b, 0x85, 0x202e, 0x2067, 0x2028, 0x1b, '\n'} {
+		if _, err := label.Check("fine"+string(r)+"31m", nil); err == nil {
+			t.Errorf("a value with U+%04X is taken", r)
+		}
+		if err := (Tool{Name: "ok", Run: []string{"claude"}, Hooks: HooksNone, Suits: "all" + string(r)}).Check(nil, nil); err == nil {
+			t.Errorf("a description with U+%04X is taken", r)
+		}
+	}
 }

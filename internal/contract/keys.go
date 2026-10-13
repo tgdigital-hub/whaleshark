@@ -299,7 +299,7 @@ func (k *Key) Check(value string, tools []Tool) (string, error) {
 			return bad("no tool called %.20q is wired in", value)
 		}
 	}
-	if strings.ContainsFunc(value, func(r rune) bool { return r < ' ' || r == 0x7f }) {
+	if strings.ContainsFunc(value, steers) {
 		return bad("one line, with no control character")
 	}
 	if patterns := List(value); strings.HasPrefix(k.Name, "protect.") && value != "" {

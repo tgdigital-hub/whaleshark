@@ -245,7 +245,7 @@ func (t Tool) Check(p Platform, roots []string) error {
 		}
 	}
 	for _, word := range slices.Concat(t.Run, t.Model, t.Folder, t.Resume, t.Tried.Saw, []string{t.Label, t.Suits, t.Rules, t.Tried.Day}) {
-		if strings.ContainsFunc(word, func(r rune) bool { return r < ' ' || r == 0x7f }) {
+		if strings.ContainsFunc(word, steers) {
 			return errors.New("a word of it holds a line break or a control character")
 		}
 	}
