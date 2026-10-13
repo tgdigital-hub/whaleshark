@@ -63,7 +63,9 @@
 # card have their place in the models; the window's width as an event; the
 # tool a project's arguments are for; who may read a saved fleet's
 # sentence; a fleet's card counting its leader. 35 are for the second join.
-lines 6200 contract internal/contract cmd/whaleshark
+# 30 fewer at the join of phase 6's second wave, at what was built (6,166): one
+# line more, the flag of a setting that holds agents changed from a phone.
+lines 6170 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -166,7 +168,10 @@ lines 430 guide internal/guide
 # 35 more at the join of phase 6's first wave: its share of phase 6 (30) is
 # counted again from what the first wave cost, where the rows that hold
 # rules ran to nearly twice their plan. It stands at 1,703.
-lines 1760 runtask internal/runtask
+# 5 more at the join of phase 6's second wave: it stands at 1,760, exactly on
+# its line, with protected files looked at in accept and the warning across
+# fleets.
+lines 1765 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -192,7 +197,10 @@ lines 1760 runtask internal/runtask
 # 75 more at the join of phase 6's first wave: its share of phase 6 (60) is
 # counted again at nearly twice, as the first wave's rows of its kind came
 # out; it stands at 1,688 with a project's arguments going to one tool.
-lines 1805 launch internal/launch
+# 5 more at the join of phase 6's second wave, at what was built (1,806): the
+# wave's 105 for start under plan first and the hold, and 13 at the join for
+# the end of a hold saying whom it could not wake.
+lines 1810 launch internal/launch
 # worker: 5 more for phase 5, a leader's --task.
 lines 170 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
@@ -211,7 +219,10 @@ lines 170 worker internal/worker
 # (55: the stuck verdict asked, a hold brought in line, a settled answer
 # used, both leaders told of a clash) counted again at nearly twice. It
 # stands at 620.
-lines 725 inbox internal/inbox
+# 5 more at the join of phase 6's second wave, at what was built (729): the
+# wave's 105 stood exactly on the line, and the join adds a granted setting
+# that could not be made, said; the hold file is looked at on every sweep.
+lines 730 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the
 # other runs of a login are three screens that 186 lines could not hold;
 # status --brief, which nobody asked for, left the command table instead of
@@ -238,13 +249,17 @@ lines 725 inbox internal/inbox
 # the plan's text with the guards' items 157 for 60), and the join added
 # what the catch-up says of stuck agents, the fields the later screens read
 # and the saved fleets of a project with no job.
-lines 3190 view internal/view
+# 5 more at the join of phase 6's second wave, at what was built (3,190): a
+# fleet held alone counts its own agents in its item, and status and the
+# page carry the panes' warning line of a changed setting.
+lines 3195 view internal/view
 # question: 30 more for phase 5, the twin made, answered down and passed up.
 # 25 more at the join of phase 5's second wave, at what was built: the
 # person's answer inside a fleet's run is told to the run above, and the twin
 # there takes the answer and the undo in the same step.
 # 20 more for phase 6: an item only the person answers.
-lines 625 question internal/question
+# 5 fewer at the join of phase 6's second wave, at what was built (615).
+lines 620 question internal/question
 # mail gives 20 at the start of phase 5, to contract: built whole at 316.
 lines 360 mail internal/mail
 # notify: 10 more at the start of phase 3, to hand a nudge to a paired
@@ -264,7 +279,8 @@ lines 910 gitwt internal/gitwt
 # 45 more at the join of phase 6's first wave: its share of phase 6 (46: the
 # fingerprint of the protected files as collected) counted again at nearly
 # twice. It stands at 754.
-lines 845 integrate internal/integrate
+# 25 fewer at the join of phase 6's second wave, at what was built (819).
+lines 820 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
 # project's object folder in git's list; it stood at its line. doctor pays.
 # 50 more after the real runs of phase 2: sync sends the result of a worker
@@ -316,7 +332,8 @@ lines 920 overlap internal/overlap
 # 60 more at the join of phase 6's first wave: it stands at 1,785 with the
 # second road gone, and its share of phase 6 (72) is counted again at
 # nearly twice.
-lines 1925 doctor internal/doctor
+# 45 fewer at the join of phase 6's second wave, at what was built (1,878).
+lines 1880 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
@@ -343,9 +360,14 @@ lines 1300 term internal/term
 # what the join built: the two panes fitted again at a window's new width,
 # a label never cut by its values. Its share of phase 6 (240) is counted
 # again at nearly twice, as every row of its kind has come out so far.
-lines 4050 panes internal/panes
+# 40 fewer at the join of phase 6's second wave, at what was built (4,007): the
+# wave's 379 where 240 were planned, and 33 at the join for the settings
+# screen opened on the job in front, the pairing code's row and do not
+# disturb from a phone.
+lines 4010 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
-lines 90 theme internal/theme
+# 10 fewer at the join of phase 6's second wave: the wave needed nothing here.
+lines 80 theme internal/theme
 # hook: 60 more at the start of phase 2, for the settings of a second kind
 # of agent; it stood at 383.
 # It gives 25 at the join of phase 5's first wave: a tool's hooks come from
@@ -354,7 +376,8 @@ lines 90 theme internal/theme
 # the login's settings turned down.
 # 15 more at the join of phase 6's first wave, for the gate's look at a
 # guard's hold; it stands at 426.
-lines 455 hook internal/hook
+# 10 fewer at the join of phase 6's second wave, at what was built (440).
+lines 445 hook internal/hook
 # team: 25 more. It was built at 273 after three rewrites, with nothing left
 # to cut that the row or the design does not ask for; integrate pays.
 lines 275 team internal/team
@@ -372,7 +395,9 @@ lines 275 team internal/team
 # 200 more at the join of phase 6's first wave: it stands at 1,959 with the
 # second road gone and a door that says why it did not open, and its share
 # of phase 6 (213) is counted again at nearly twice.
-lines 2365 dash internal/dash
+# 125 fewer at the join of phase 6's second wave, at what was built (2,239):
+# the interface for apps took 285 where its share was counted at 400.
+lines 2240 dash internal/dash
 lines 350 push internal/push
 # connect and install: 30 and 20 of the engine's share (the clipboard lift,
 # the keeper's service entry), planned since the engine decision and put
@@ -397,7 +422,8 @@ lines 210 evidence internal/evidence
 # 10 more for phase 6: "spent" on Home and a card's stuck line.
 # 10 more at the join of phase 6's first wave, for spent and the stuck line
 # on the page; it stands at 964.
-lines 985 dashweb internal/dashweb
+# 15 fewer at the join of phase 6's second wave, at what was built (965).
+lines 970 dashweb internal/dashweb
 # install gives 110 after the real runs of phase 2, 60 to doctor and 50 to
 # overlap: it stands at 945.
 # 20 fewer at the start of phase 6; 31 more left with the phone's second road.
@@ -524,7 +550,16 @@ skip _test.go testdata testkit
 # sum to 44,575, because each keeps the few lines it had to spare; the
 # total holds the tree as a whole. It is a figure that is told, not a cap
 # that decides what is built: no dead code, and nothing built twice.
-total 44500
+# 45,000 at the join of phase 6's second wave. The tree stands at 44,120:
+# the six rows built 1,114 lines (launch and the gate 119, the sweep 105,
+# accept and land 132, the panes 379, the tools' ranks and the page 94, the
+# interface for apps 285) where 715 were planned and 1,440 were counted
+# again, and the join 54 for the seams between them. Phase 6 is about 3,150 lines
+# of the tree where 1,460 were planned and 1,460 to 2,000 were told. The
+# figure is what is built rounded up to the next 500, and 500 for the
+# owner's look round. The folders' lines above are each what its folder
+# holds, to the next five.
+total 45000
 
 # The whole module list, not only the direct ones.
 modules 4
