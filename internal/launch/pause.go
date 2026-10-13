@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -339,6 +340,18 @@ func Hold(k *contract.Kit, root, run string) error {
 		wake, lead, err := wakeUp(k, t, s, now, func(*contract.State) (time.Time, error) { return cmp.Or(since, now), nil })
 		if err == nil {
 			err = w.tell(t, wake, lead)
+		}
+		// Nobody reads what Hold prints: whom it could not wake is said to
+		// the run's lead agent, as one more event.
+		var not []string
+		for _, s := range w.skips {
+			not = append(not, s.Name+" ("+s.Why+")")
+		}
+		if len(not) > 0 {
+			k.Store.Change(root, run, func(s *contract.State) error {
+				k.Rules.Raise(s, contract.Event{Kind: "resumed", Text: "the hold has ended; not told to carry on: " + strings.Join(not, ", ")}, now)
+				return nil
+			})
 		}
 		return err
 	}
