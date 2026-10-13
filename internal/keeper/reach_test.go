@@ -68,3 +68,31 @@ func TestAWorkerReachesNoTabButItsOwn(t *testing.T) {
 		t.Error("a split or a new tab asked for from an agent's pane moved the person's keys or the tab that shows")
 	}
 }
+
+// A tab closed whole takes with it what its panes opened from the list of
+// who opened what, as a pane closed alone does: the tabs they opened stay,
+// and are nobody's.
+func TestATabClosedWholeLeavesNoOpener(t *testing.T) {
+	r := newRig(t)
+	c := r.dial()
+	open := func(from string) contract.Pane {
+		return *c.call(contract.WireCall{Op: contract.OpTabCreate, Label: "opened", From: from}).Pane
+	}
+	you := open("")
+	leader := open(you.ID)
+	second := *c.call(contract.WireCall{Op: contract.OpSplit, Pane: leader.ID, Dir: contract.Right}).Pane
+	one, two, kept := open(leader.ID), open(second.ID), open(you.ID)
+	if !r.locked(func() bool {
+		return r.k.opened[one.Tab] == leader.ID && r.k.opened[two.Tab] == second.ID && len(r.k.opened) == 4
+	}) {
+		t.Fatal("the openers are not on record as they were made")
+	}
+	if reply := c.call(contract.WireCall{Op: contract.OpTabClose, Tab: leader.Tab}); reply.Message != "" {
+		t.Fatalf("closing the tab: %+v", reply)
+	}
+	if !r.locked(func() bool {
+		return len(r.k.opened) == 1 && r.k.opened[kept.Tab] == you.ID && r.k.panes[one.ID] != nil && r.k.panes[two.ID] != nil
+	}) {
+		r.locked(func() bool { t.Errorf("after the tab was closed whole, who opened what: %v", r.k.opened); return true })
+	}
+}

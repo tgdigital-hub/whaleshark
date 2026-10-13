@@ -284,6 +284,7 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 				gone = append(gone, k.panes[id].tty)
 				k.panes[id].quit()
 				delete(k.panes, id)
+				k.disown(id) // what a pane of it opened is nobody's now, as when a pane is closed alone
 			}
 			k.lay.Remove(c.Tab)
 			delete(k.tabs, c.Tab)
