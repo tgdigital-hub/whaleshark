@@ -229,8 +229,8 @@ func TestTheDoubleAnswersAsTheKeeper(t *testing.T) {
 
 	double := fakeengine.New()
 	defer double.Close()
-	double.TabCreate("", "", p.Root, "Lead", nil)
-	double.TabCreate("", "", p.Root, "you", nil)
+	double.TabCreate(p.Root, "", p.Root, "Lead", nil)
+	double.TabCreate(p.Root, "", p.Root, "you", nil)
 	if fake := session(t, double, p.Root, second); strings.Join(fake, "\n") != strings.Join(real, "\n") {
 		t.Errorf("the double:\n%s\n\nthe keeper:\n%s", strings.Join(fake, "\n"), strings.Join(real, "\n"))
 	}

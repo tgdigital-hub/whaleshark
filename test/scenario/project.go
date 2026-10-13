@@ -194,9 +194,9 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 	socket := filepath.Join(dir, "s")
 	if p.env = []string{contract.EnvSocket + "=" + socket}; on == Keeper && f == nil && len(scripts) == 0 {
 		p.keeper(socket, dir)
-		lead, err := p.Kit.Terms.TabCreate("", "", p.Root, "Lead", nil)
+		lead, err := p.Kit.Terms.TabCreate(p.Root, "", p.Root, "Lead", nil)
 		p.must(err)
-		own, err := p.Kit.Terms.TabCreate("", "", p.Root, "you", nil)
+		own, err := p.Kit.Terms.TabCreate(p.Root, "", p.Root, "you", nil)
 		p.must(err)
 		p.Lead, p.Own = lead.ID, own.ID
 	} else if on == Keeper {
@@ -245,8 +245,13 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 			}
 		}
 	}
+	// Every tab is of the project's workspace, as after open in its folder.
+	space := contract.Space{ID: "s1", Root: p.Root, Name: contract.SpaceName(p.Root), Front: true}
+	for i := range picture {
+		picture[i].Workspace = space.ID
+	}
 	if p.drive != nil {
-		p.drive.Load(&contract.Snapshot{Panes: picture})
+		p.drive.Load(&contract.Snapshot{Panes: picture, Spaces: []contract.Space{space}})
 	}
 	if f == nil {
 		return p
@@ -268,7 +273,7 @@ func PrepareOn(t testing.TB, on Backend, f *testkit.Fixture, scripts map[string]
 		prompt := filepath.Join(run, "attempts", a.ID, "prompt.md")
 		p.must(os.MkdirAll(filepath.Dir(prompt), 0o700))
 		p.must(os.WriteFile(prompt, []byte("Play your script.\n"), 0o600))
-		pane, err := p.Kit.Terms.TabCreate("", "", p.Root, f.State.Tasks[a.Task].Name, p.tab(f.State.Run.ID, a))
+		pane, err := p.Kit.Terms.TabCreate(p.Root, "", p.Root, f.State.Tasks[a.Task].Name, p.tab(f.State.Run.ID, a))
 		p.must(err)
 		p.must(p.Kit.Terms.AgentStart(a.Agent.Name, a.Agent.Kind, pane.ID, nil, 10*time.Second))
 		if c, ok := ctx[a.Place.Pane]; ok {

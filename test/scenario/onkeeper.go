@@ -79,7 +79,7 @@ func (k *onKeeper) Script(attempt, script string) {
 }
 
 // Load writes the picture as the keeper's layout file, a tab for each of its
-// tabs and every pane under its id, starts the keeper, which brings it back
+// tabs in its workspace and every pane under its id, starts the keeper, which brings it back
 // as it would after a restart, and starts each agent in its pane by the
 // keeper's own call: a fake agent that says it is in the picture's state.
 func (k *onKeeper) Load(s *contract.Snapshot) {
@@ -89,10 +89,13 @@ func (k *onKeeper) Load(s *contract.Snapshot) {
 	p.must(err)
 	var lay layout.Layout
 	file := &restore.File{W: 200, H: 60}
-	first := map[string]string{}
+	first, spaces := map[string]string{}, map[string]*layout.Space{}
+	for _, sp := range s.Spaces {
+		spaces[sp.ID] = lay.Open(sp.Root)
+	}
 	for _, pane := range s.Panes {
 		if in := first[pane.Tab]; in == "" {
-			lay.Add(pane.Tab, pane.Label, pane.ID)
+			lay.AddIn(spaces[pane.Workspace], pane.Tab, pane.Label, pane.ID)
 			first[pane.Tab] = pane.ID
 		} else {
 			p.must(lay.Split(in, contract.Right, 0.5, pane.ID))
