@@ -27,6 +27,11 @@ func (p *pane) loadSide(dirs contract.Dirs) {
 		pr.Branch, _ = strings.CutPrefix(strings.TrimSpace(string(head)), "ref: refs/heads/")
 		pr.Saved, _ = contract.ReadFleets(peek, root)
 		runs, _ := r.Runs(root)
+		// A removed run's number is given again: its mark goes with the run.
+		p.closed = slices.DeleteFunc(p.closed, func(mark string) bool {
+			at, id, _ := strings.Cut(mark, "\n")
+			return at == root && !slices.Contains(runs, id)
+		})
 		for _, id := range runs {
 			if slices.Contains(p.closed, root+"\n"+id) {
 				continue

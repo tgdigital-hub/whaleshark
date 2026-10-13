@@ -309,6 +309,61 @@ func (l listed) Runs(root string) ([]string, error) {
 	return map[bool][]string{true: {"r3"}}[root == l.dir], nil
 }
 
+// renumbered is a project whose one run is closed, removed, and then open
+// again under the same number, as the next run after a removal is.
+type renumbered struct {
+	reader
+	mu   *sync.Mutex
+	runs *[]string
+	shut *bool
+}
+
+func (r renumbered) Runs(string) ([]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(*r.runs), nil
+}
+
+func (r renumbered) Read(root, id string) (*contract.State, error) {
+	s, err := r.reader.Read(root, id)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err == nil && *r.shut {
+		closed := *s
+		closed.Run.ClosedAt = time.Now()
+		return &closed, nil
+	}
+	return s, err
+}
+
+// The left section reads no closed run twice. A run's number is given again
+// once the run is removed, and the run that then carries it is shown: seen
+// with real agents, where a fleet under a reused number had no workers.
+func TestARemovedRunsNumberIsReadAgain(t *testing.T) {
+	var mu sync.Mutex
+	runs, shut := []string{"r3"}, true
+	wd := startWith(t, side, 32, 40, nil, func(wd *world) {
+		dirs, _ := wd.sys.Dirs()
+		if err := contract.WriteProjects(wd.sys, dirs.State, []string{wd.home}); err != nil {
+			t.Fatal(err)
+		}
+		wd.p.k.Store = renumbered{wd.p.k.Store.(reader), &mu, &runs, &shut}
+		wd.p.k.Side = view.Side
+	})
+	wd.shows("other tabs", "· site map") // closed: its tabs are tabs like any other
+	for _, step := range []func(){func() { runs = nil }, func() { runs, shut = []string{"r3"}, false }} {
+		mu.Lock()
+		step()
+		mu.Unlock()
+		// Removing a run and making one both change the folder of the runs.
+		if err := os.WriteFile(filepath.Join(wd.home, contract.ProjectDir, "runs", fmt.Sprint("moved-", len(runs))), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	wd.shows("▲ sign-up page", "◐ site map")
+}
+
 // sideWorld is the left section in its loop: the evening's run in a project
 // of the login's list, the real builder, and tweak for what a test changes
 // in the model before it is drawn.
