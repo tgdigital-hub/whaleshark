@@ -738,7 +738,11 @@ module golang.org/x/sys
 module golang.org/x/term
 
 # The program file, in bytes, for each system it is built for.
-size 15000000
+# 16,000,000 when the first part of phase 7 was put together, from the
+# 15,000,000 the line was first set to: each workspace with its own tabs, the
+# menus and two tab lines have come since, and the file for Windows, the
+# largest of the five, stood at 15,024,128.
+size 16000000
 target darwin/arm64
 target darwin/amd64
 target linux/amd64
