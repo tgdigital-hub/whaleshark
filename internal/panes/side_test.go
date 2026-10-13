@@ -33,6 +33,7 @@ func bar(t *testing.T, w, h int) *pane {
 	p := newPane(side, termtest.New(w, h).Term, k, "", "", func() time.Time { return f.In.Now.Add(2 * time.Second) })
 	p.plainMarks, p.me, p.in, p.picture, p.cfg, p.shut = false, "", f.In, f.In.Terms, f.In.Person, f.In.Folded
 	p.filesOK, p.termsOK, p.watch = f.In.Now, f.In.Now, noticed{}
+	p.ui.FirstSteps = contract.Off // a login whose first steps are long done
 	p.draw()
 	return p
 }
@@ -206,13 +207,13 @@ var pictures = []struct {
 │   Layout           │                                                                                     │
 │   Nudges           │   Fleet Mode                                                        ( off ) [ on ]  │
 │   Keys             │ › Fleet leaders at once                             [ - ]  4  [ + ]  [ unlimited ]  │
-│   Scrolling & copy │     How many fleets may run side by side. Takes hold at the next start; nothing ru… │
-│ ▌ Fleet Mode       │   Agents in one fleet                               [ - ]  8  [ + ]  [ unlimited ]  │
-│   Guardrails       │   Agents in all                                     [ - ] 20  [ + ]  [ unlimited ]  │
-│   Agent tools      │   A leader's tool                                                     [ claude ▾ ]  │
-│   This project     │   A worker's tool                                               [ the leader's ▾ ]  │
-│   Page & phone     │                                                                                     │
-│   This server      │   Agents running now: 0 of 20                                                       │
+│   Scrolling & copy │   Agents in one fleet                               [ - ]  8  [ + ]  [ unlimited ]  │
+│ ▌ Fleet Mode       │   Agents in all                                     [ - ] 20  [ + ]  [ unlimited ]  │
+│   Guardrails       │   A leader's tool                                                     [ claude ▾ ]  │
+│   Agent tools      │   A worker's tool                                               [ the leader's ▾ ]  │
+│   This project     │ ─────────────────────────────────────────────────────────────────────────────────── │
+│   Page & phone     │ How many fleets may run side by side. Takes hold at the next start; nothing running │
+│   This server      │ is stopped.                                                                         │
 │ / find a setting · j k choose · ← → or a click change · enter type a value · u undo · e… saved as you go │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 `},
@@ -222,12 +223,12 @@ var pictures = []struct {
 │                                                                          │
 │   Fleet Mode                                                     ‹ off › │
 │ › Fleet leaders at once                   [ - ]  4  [ + ]  [ unlimited ] │
-│     How many fleets may run side by side. Takes hold at the next start;… │
 │   Agents in one fleet                                              ‹ 8 › │
 │   Agents in all                                                   ‹ 20 › │
 │   A leader's tool                                             ‹ claude › │
-│   A worker's tool                                       ‹ the leader's › │
-│   Agents running now: 0 of 20                                            │
+│ ──────────────────────────────────────────────────────────────────────── │
+│ How many fleets may run side by side. Takes hold at the next start;      │
+│ nothing running is stopped.                                              │
 │ / find · j k · ← → change · u undo · esc close           saved as you go │
 └──────────────────────────────────────────────────────────────────────────┘
 `},
@@ -481,8 +482,11 @@ func TestEverySettingIsARowChangedByAKeyAndByAClick(t *testing.T) {
 		act()
 		if !wd.until(6*time.Second, func() bool {
 			switch _, _, typing, asks := ask(); {
-			case !typing && !asks && !typed && time.Since(at) > 700*time.Millisecond && len(wd.children("")) == wd.next:
+			case !typing && !asks && !typed && (strings.Contains(wd.screen(), movedSaid) ||
+				!strings.HasSuffix(s.key.Values, "|unlimited") && time.Since(at) > 700*time.Millisecond && len(wd.children("")) == wd.next):
 				// The rows had just moved by themselves, and the click was refused.
+				// A row whose click asks first is clicked again only where the pane
+				// says so: a slow pane's question is no refusal.
 				wd.settle()
 				at = time.Now()
 				act()
@@ -491,7 +495,7 @@ func TestEverySettingIsARowChangedByAKeyAndByAClick(t *testing.T) {
 				wd.s.Type("9:00")
 				wd.s.Key("enter")
 			case asks && !used:
-				if used = true; !strings.Contains(wd.screen(), "this runs a program, exactly: ") || !strings.Contains(wd.screen(), "[ Use it ]") {
+				if used = true; !strings.Contains(wd.screen(), "[ Use unlimited ]") && (!strings.Contains(wd.screen(), "this runs a program, exactly: ") || !strings.Contains(wd.screen(), "[ Use it ]")) {
 					t.Errorf("%s: a value that runs a program is not shown first:\n%s", s.name, wd.screen())
 				}
 				wd.s.Key("y")

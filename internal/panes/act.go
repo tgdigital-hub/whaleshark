@@ -141,6 +141,15 @@ func (p *pane) present() {
 	}
 }
 
+// ticked notes first steps that have happened, a bit each, in ui.json: once,
+// and only while the steps are still to be shown.
+func (p *pane) ticked(steps int) {
+	if p.ui.FirstSteps != contract.Off && steps&^(p.ui.Steps|p.stepped) != 0 {
+		p.stepped |= steps
+		p.child(p.cmd("set", "steps", strconv.Itoa(steps)), "", p.quiet)
+	}
+}
+
 // picked is the selected item of the action pane, and cardOf the card of a
 // task; nil with none.
 func (p *pane) picked() *contract.Item {
@@ -626,6 +635,9 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 		row("Check failed", c.CheckFailed.N, c.CheckFailed.Text)
 		row("Clashes", c.Clashes.N, c.Clashes.Text)
 		row("Went idle", c.WentIdle.N, c.WentIdle.Text)
+		if c.Stuck.N != 0 {
+			row("Looked stuck", c.Stuck.N, c.Stuck.Text)
+		}
 		row("Answered by the lead", c.AnsweredLead, "")
 		row("Done as you", c.DoneAsYou.N, c.DoneAsYou.Text)
 		row("Still building", c.StillBuilding, fmt.Sprintf("Stopped %d   Failed %d", c.Stopped, c.Failed))

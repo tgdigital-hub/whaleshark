@@ -98,6 +98,20 @@ func wrap(s string, w int) []string {
 	return append(lines, line)
 }
 
+// textLines is a text as it is drawn in w cells, line by line as it was
+// worded: a line that fits stands as it is, columns and all, and a longer
+// one is broken at its spaces.
+func textLines(text string, w int) (out []string) {
+	for _, l := range strings.Split(text, "\n") {
+		if term.Width(l) <= w {
+			out = append(out, l)
+		} else {
+			out = append(out, wrap(l, w)...)
+		}
+	}
+	return out
+}
+
 // cut shortens a text to w cells and says so in its last cell.
 func (p *pane) cut(s string, w int) string {
 	if term.Width(s) <= w || w < 1 {
@@ -148,6 +162,9 @@ func (p *pane) draw() {
 		p.drawFleet(now)
 	default:
 		p.drawActions(now)
+	}
+	if p.over == menu || p.kind == settings {
+		p.ticked(1 << 4) // the fifth first step: Settings or the list of actions was opened
 	}
 	// The click guard's book: a row that shows another thing than before,
 	// and not because the person scrolled or chose, has moved by itself.
@@ -572,7 +589,7 @@ func (p *pane) card(c contract.Card, x0, w, y, rows int, narrow bool, now time.T
 	}
 	if rows > 2 {
 		news := c.News
-		if c.Pale && !c.Said.IsZero() {
+		if c.Pale && !c.Said.IsZero() && !c.Stuck {
 			news = strings.Replace("said "+ago(now.Sub(c.Said))+" ago: ", "now ago", "just now", 1) + news
 		}
 		// A change that would conflict is the news; one that only meets
@@ -582,7 +599,7 @@ func (p *pane) card(c contract.Card, x0, w, y, rows int, narrow bool, now time.T
 		} else if x != nil {
 			news += " · also changes " + x.File
 		}
-		put(3, y+2, w-3, p.cut(news, w-3), st("dim"))
+		put(3, y+2, w-3, p.cut(news, w-3), st(map[bool]string{true: "blocked", false: "dim"}[c.Stuck]))
 	}
 }
 
@@ -621,6 +638,11 @@ func (p *pane) drawActions(now time.Time) {
 			y, room = y+1, room-1
 		}
 	}
+	// What is spent stands in the strip, and under it where the strip is too short.
+	if line := spent(p.view); line != "" && !strings.Contains(t.Row(0), line) && room > 0 {
+		t.Put(1, y, w-1, line, p.st("text"))
+		y, room = y+1, room-1
+	}
 	// A draft whose item was answered somewhere else stays in view until it
 	// is dismissed; the last answers are one row, opened with [show].
 	for _, it := range p.view.Answered {
@@ -644,7 +666,8 @@ func (p *pane) drawActions(now time.Time) {
 		if p.folded || room < 3 {
 			return 1
 		}
-		n := 2 + min(len(wrap(items[i].Text, w-6)), max(room-3, 1))
+		k := buttonRows(items[i], w)
+		n := 1 + k + min(len(textLines(items[i].Text, w-6)), max(room-2-k, 1))
 		if p.heldAt(items[i].ID) == 0 {
 			n++ // the line that says how many are held
 		}
@@ -714,8 +737,8 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 	if x > 5 {
 		x += t.Put(x, y, w-x, " · ", p.st("dim"))
 	}
-	if rows == 1 {
-		t.Put(x, y, w-x, p.cut(it.Text, w-x-1), text)
+	if first, _, _ := strings.Cut(it.Text, "\n"); rows == 1 {
+		t.Put(x, y, w-x, p.cut(first, w-x-1), text)
 		return
 	}
 	since := "now"
@@ -723,14 +746,14 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 		since = ago(d)
 	}
 	t.Put(x, y, w-x, p.cut(it.Source+" · "+since, w-x-1), p.st("dim"))
-	lines := wrap(it.Text, w-6)
-	if n := rows - 2; len(lines) > n {
+	lines, k := textLines(it.Text, w-6), buttonRows(it, w)
+	if n := rows - 1 - k; len(lines) > n {
 		lines[n-1] = p.cut(lines[n-1]+" "+lines[n], w-6)
 	}
-	for i, l := range lines[:min(len(lines), rows-2)] {
+	for i, l := range lines[:min(len(lines), rows-1-k)] {
 		t.Put(5, y+1+i, w-6, l, text)
 	}
-	x, y = 5, y+rows-1
+	x, y = 5, y+rows-k
 	draft := p.ui.Drafts[it.ID]
 	switch {
 	case p.line != nil && p.lineFor == it.ID:
@@ -749,11 +772,37 @@ func (p *pane) item(it contract.Item, y, rows int, now time.Time) {
 		p.hits = append(p.hits, hit{x, y, w - x, 1, false, func() { p.open(it.ID, "") }})
 	}
 	for _, b := range it.Buttons {
+		if it.Answer == "" && x > 5 && x+term.Width(b.Label)+4 > w-1 {
+			x, y = 5, y+1
+		}
 		x += p.button(x, y, "[ "+b.Label+" ]", text, func() { p.press(it, b) }) + 2
 	}
 	if draft != "" && len(it.Buttons) > 0 && it.Answer == "" {
 		t.Put(x, y, w-x-1, p.cut("· typed: "+draft, w-x-1), p.st("dim"))
 	}
+}
+
+// spent is the spending guard's line as the view words it, or nothing.
+func spent(v contract.View) string {
+	for _, l := range v.Lines {
+		if strings.HasPrefix(l, "spent: ") {
+			return l
+		}
+	}
+	return ""
+}
+
+// buttonRows is how many rows an item's buttons take in w cells: one that
+// does not fit beside the others begins the next row.
+func buttonRows(it contract.Item, w int) int {
+	rows, x := 1, 5
+	for _, b := range it.Buttons {
+		if bw := term.Width(b.Label) + 4; x > 5 && x+bw > w-1 {
+			rows, x = rows+1, 5
+		}
+		x += term.Width(b.Label) + 6
+	}
+	return rows
 }
 
 // strip is the first row of the action pane and all of it that is always
@@ -775,6 +824,9 @@ func (p *pane) strip(now time.Time) {
 	var more []string // what else the strip says, what matters most first
 	if s.Paused {
 		more = append(more, " · paused")
+	}
+	if line := spent(v); line != "" {
+		more = append(more, " · "+line)
 	}
 	if s.StillRunning > 0 {
 		more = append(more, fmt.Sprintf(" · %d still running", s.StillRunning))

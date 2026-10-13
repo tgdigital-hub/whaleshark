@@ -1,0 +1,15 @@
+┌─ settings ───────────────────────────────────────────────────────────────────────────────────────────────┐
+│                    │                                                                                     │
+│ ▌ Look             │ LOOK                                                        yours, on this computer │
+│   Layout           │                                                                                     │
+│   Nudges           │   Colour scheme            ( reef ) [ kelp ] [ ember ] [ paper ] [ mono ] [ none ]  │
+│   Keys             │   Marks                                                         ( auto ) [ plain ]  │
+│   Scrolling & copy │ › First steps                                                       [ off ] ( on )  │
+│   Fleet Mode       │                                                                                     │
+│   Guardrails       │   [ Save my settings to a file ]                                                    │
+│   Agent tools      │   [ Load settings from a file… ]                                                    │
+│   This project     │ ─────────────────────────────────────────────────────────────────────────────────── │
+│   Page & phone     │ Five lines in the left section that show a newcomer what to type and where. They    │
+│   This server      │ tick themselves off and go away. Switch on to see them again.                       │
+│ / find a setting · j k choose · ← → or a click change · enter type a value · u undo · e… saved as you go │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘

@@ -1,0 +1,12 @@
+ FLEET  1 agents · 0 n…  [<] [>] [x]
+ setting changed by your agent: the…
+
+ ◌ sign-up page          idle 4h 10m
+   █████████░░░░░░░░  50%    ctx   ?
+   stuck 132m: no progress note · t…
+
+
+
+
+
+ 0 done [show] · live · 2s

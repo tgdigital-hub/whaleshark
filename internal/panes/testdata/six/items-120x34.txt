@@ -1,0 +1,34 @@
+ ACTIONS  5 waiting · 0 hold work up · spent: 33 of 40 agent-hours · held         [Stop all] [Catch up] [DND] [Mute] [v]
+ setting changed by your agent: theme
+
+   ▲ from the tool itself · 19m
+     Plan for "the October list" · 1 more thing for help pages
+     [ Approve ]  [ Send back ]  [ Open the plan ]
+   ▲ billing · from the tool itself · 15m
+     Protected files changed in this job
+     db/migrations/0042_refunds.sql
+     .env.example
+     The job cannot be landed until you approve these 2 files as they are now.
+     [ Approve ]  [ Send back ]  [ Show the changes ]
+   ▲ from the tool itself · 10m
+     Your agent wants to change a setting
+     Spending guard:  on → off
+     Off: a job runs until it is done. On: WhaleShark counts agent-hours (one agent open for one hour) and, at your
+     limit, holds the job's agents where they are and asks you whether to go on. Tokens and money are not counted:
+     agent tools do not report them reliably.
+     [ Change it ]  [ Leave it ]
+   ▲ from the tool itself · 1m
+     This job has used its 40 agent-hours
+     6 agents are held where they stand; those with nothing in hand were closed.
+     Nothing is lost. Nothing more is started until you say.
+     [ 8 more agent-hours ]  [ No limit for this job ]  [ Leave it held ]
+   ▲ billing · from the tool itself · 1m
+     billing › sign-up page looks stuck for 82m: no progress note · the same check failed 3 times. Its leader and the
+     orchestrator were told.
+     [ Go there ]  [ Note to its leader ]
+
+
+
+
+
+ click an item to answer it · keys from any tab: whaleshark init --keys                                       live · 2s

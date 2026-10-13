@@ -1,0 +1,19 @@
+┌─ settings ───────────────────────────────────────────────────────────────────────────────────────────────┐
+│                    │                                                                                     │
+│   Look             │ FLEET MODE                                                  yours, on this computer │
+│   Layout           │                                                                                     │
+│   Nudges           │   Fleet Mode                                                        ( off ) [ on ]  │
+│   Keys             │   Fleet leaders at once                             [ - ]  4  [ + ]  [ unlimited ]  │
+│   Scrolling & copy │   Agents in one fleet                               [ - ]  8  [ + ]  [ unlimited ]  │
+│ ▌ Fleet Mode       │ › Agents in all                                     [ - ] 20  [ + ]  [ unlimited ]  │
+│   Guardrails       │   A leader's tool                                                     [ claude ▾ ]  │
+│   Agent tools      │   A worker's tool                                               [ the leader's ▾ ]  │
+│   This project     │                                                                                     │
+│   Page & phone     │   Agents running now: 0 of 20                                                       │
+│   This server      │ ─────────────────────────────────────────────────────────────────────────────────── │
+│                    │ No limit on agents in all.                                                          │
+│                    │ WhaleShark will start as many agents as it is asked for. What still stands in the   │
+│                    │ way: this computer's memory and your plan's usage.                                  │
+│                    │ The spending guard is off.                                                          │
+│ [ Use unlimited ]  [ Keep 20 ]                                                                           │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘

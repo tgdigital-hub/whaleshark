@@ -22,28 +22,44 @@ func screen(k *contract.Kit) (dirs contract.Dirs, ui contract.UIFile, file strin
 }
 
 // set changes a setting. Most are a row of the contract's table and are set
-// there; here are the ways of its own: a time for do not disturb, an open
-// pane that moves or is fitted, and a pane's own marks: folded, here, seen,
-// shut <run>/<fleet> and draft.<item> for a half-typed answer.
+// there; here are the ways of its own: a profile saved or loaded, a time for
+// do not disturb, an open pane that moves or is fitted, and a pane's own
+// marks: folded, here, seen, steps, shut <run>/<fleet> and draft.<item> for
+// a half-typed answer. They are the person's: any other caller's change is
+// the table's to decide, or an agent could set by a way of ours what the
+// table has it ask for.
 func set(c *contract.Call) (any, error) {
 	k := c.Kit
 	bad := func(format string, a ...any) (any, error) {
 		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: fmt.Sprintf(format, a...), Next: []string{"whaleshark help set"}}
 	}
-	if len(c.Args) == 0 {
+	human := c.Caller.Kind == contract.Human
+	if file := c.Flags["save"]; human && file != nil {
+		return save(c, file[len(file)-1])
+	} else if file = c.Flags["load"]; human && file != nil {
+		return load(c, file[len(file)-1])
+	} else if len(c.Args) == 0 {
 		return bad("Usage: whaleshark %s", c.Command.Usage)
 	}
 	key, value := c.Args[0], strings.Join(c.Args[1:], " ")
+	own := key
+	if !human && key == "dnd" && strings.HasPrefix(value, "until") {
+		// The table's writer knows do not disturb as on or off: asked for
+		// with a time, the person's yes would switch it off.
+		return nil, &contract.Refusal{Exit: contract.ExitRefused, Code: "human_only", Message: "Do not disturb until a time is the person's to set. You can ask for it without one: whaleshark set dnd on"}
+	} else if !human {
+		own = ""
+	}
 	dirs, ui, file, err := screen(k)
 	if err != nil {
 		return nil, err
 	}
-	draft, isDraft := strings.CutPrefix(key, "draft.")
+	draft, isDraft := strings.CutPrefix(own, "draft.")
 	var onOff *bool
 	switch {
-	case key == "folded":
+	case own == "folded":
 		onOff = &ui.Folded
-	case key == "dnd" && strings.HasPrefix(value, "until"):
+	case own == "dnd" && strings.HasPrefix(value, "until"):
 		at, err := time.ParseInLocation("15:04", strings.TrimSpace(value[len("until"):]), c.Now.Location())
 		if err != nil {
 			return bad("Do not disturb takes a time of day: whaleshark set dnd until 9:00")
@@ -53,9 +69,9 @@ func set(c *contract.Call) (any, error) {
 		if !ui.DNDUntil.After(c.Now) {
 			ui.DNDUntil = ui.DNDUntil.AddDate(0, 0, 1)
 		}
-	case key == "dnd":
+	case own == "dnd":
 		onOff, ui.DNDUntil = &ui.DND, time.Time{}
-	case key == "fleet.width":
+	case own == "fleet.width":
 		n, err := strconv.Atoi(value)
 		if err != nil || n < 10 || n > 500 {
 			return bad("The fleet's width is a number of columns.")
@@ -63,21 +79,30 @@ func set(c *contract.Call) (any, error) {
 		if ui.FleetWidth = n; fit(k.Terms, c.Caller.Pane, ui.FleetPane, n) != nil {
 			fmt.Fprintln(c.Out, "the open fleet keeps its width; the next one opens at this one")
 		}
-	case key == "here":
+	case own == "here":
 		ui.LastHere = c.Now
-	case key == "shut":
+	case own == "shut":
 		// A fleet of the left section is folded, or one that was is opened.
 		if at := slices.Index(ui.Shut, value); at >= 0 {
 			ui.Shut = slices.Delete(ui.Shut, at, at+1)
 		} else {
 			ui.Shut = append(ui.Shut, value)
 		}
-	case key == "seen":
-		// The settings screen showed a section again: its warnings end.
-		ui.Changed = slices.DeleteFunc(ui.Changed, func(name string) bool {
+	case own == "seen":
+		// The settings screen showed a section again: its warnings end, of
+		// what runs a program and of what an agent changed.
+		gone := func(name string) bool {
 			row, _ := contract.FindKey(name)
 			return row == nil || row.Section == value
-		})
+		}
+		ui.Changed = slices.DeleteFunc(ui.Changed, gone)
+		ui.ByAgent = slices.DeleteFunc(ui.ByAgent, func(a contract.SetAsk) bool { return gone(a.Key) })
+	case own == "ui.first_steps" && value == contract.On:
+		ui.FirstSteps, ui.Steps = value, 0 // switched on again, they begin again
+	case own == "steps":
+		// The first steps that have happened, a bit each: never taken back.
+		n, _ := strconv.Atoi(value)
+		ui.Steps |= n
 	case isDraft && value == "":
 		delete(ui.Drafts, draft)
 	case isDraft:
@@ -121,7 +146,7 @@ func set(c *contract.Call) (any, error) {
 	if err = contract.WriteVersioned(k.Platform, file, contract.FileVersion, ui); err != nil {
 		return nil, err
 	}
-	if key != "here" && key != "seen" && key != "folded" && key != "shut" && !isDraft {
+	if key != "here" && key != "seen" && key != "steps" && key != "folded" && key != "shut" && !isDraft {
 		fmt.Fprintln(c.Out, key+": "+value)
 	}
 	return map[string]string{"key": key, "value": value}, nil

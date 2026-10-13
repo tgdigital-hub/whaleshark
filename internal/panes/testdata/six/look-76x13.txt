@@ -1,0 +1,13 @@
+┌─ settings ───────────────────────────────────────────────────────────────┐
+│ ‹ This server    LOOK    Layout ›   (1 of 11)                            │
+│                                                                          │
+│   Colour scheme                                                 ‹ reef › │
+│   Marks                                                         ‹ auto › │
+│ › First steps                                             [ off ] ( on ) │
+│   [ Save my settings to a file ]                                         │
+│ ──────────────────────────────────────────────────────────────────────── │
+│ Five lines in the left section that show a newcomer what to type and     │
+│ where. They tick themselves off and go away. Switch on to see them       │
+│ again.                                                                   │
+│ / find · j k · ← → change · u undo · esc close           saved as you go │
+└──────────────────────────────────────────────────────────────────────────┘

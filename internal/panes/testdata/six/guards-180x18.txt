@@ -1,0 +1,18 @@
+┌─ settings ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                      │                                                                                                    │                                                      │
+│   Look               │ GUARDRAILS                                                                 yours, on this computer │ Protected files                                      │
+│   Layout             │                                                                                                    │                                                      │
+│   Nudges             │   Plan first, then start                                                           ( off ) [ on ]  │ Off: every change is checked and landed like any     │
+│   Keys               │ › Protected files                                                                  ( off ) [ on ]  │ other. On: when a job changes a file on your list,   │
+│   Scrolling & copy   │   Your protected list                                [ .env*,**/migrations/**,**/secrets/**,.g… ]  │ the work goes on as usual, but the job cannot be     │
+│   Fleet Mode         │   Spending guard                                                                   ( off ) [ on ]  │ landed until you have looked at those files and      │
+│ ▌ Guardrails         │   Agent-hours a job may use                                        [ - ] 40  [ + ]  [ unlimited ]  │ approved them. Agents are never slowed or stopped by │
+│   Agent tools        │   Agent-hours one fleet may use                                          [ - ] unlimited ⚠  [ + ]  │ this.                                                │
+│   This project       │   Stuck detector                                                                   [ off ] ( on )  │                                                      │
+│   Page & phone       │   Minutes before it is passed up                                                  [ - ] 10  [ + ]  │ It came as off.                                      │
+│   This server        │   The log of this job                                                                  [ Export ]  │                                                      │
+│                      │                                                                                                    │                                                      │
+│                      │   [ Put this section back as it came ]                                                             │                                                      │
+│                      │                                                                                                    │                                                      │
+│ / find a setting · j k choose · ← → or a click change · enter type a value · u undo · esc close                                                                  saved as you go │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

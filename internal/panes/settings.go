@@ -15,7 +15,8 @@ import (
 
 // setting is one row of the settings screen: a key of contract.Keys under
 // the name `set` takes, with its value as its file holds it, or with do a
-// button of its section. to is the value a row asks about, or u puts back.
+// button of its section, which stands at the right of its label where it
+// has a value too. to is the value a row asks about, or u puts back.
 type setting struct {
 	key                    *contract.Key
 	name, label, value, to string
@@ -106,6 +107,19 @@ func (p *pane) settingsRows() (out []setting) {
 		return len(files)
 	}
 	switch dirs, _ := p.k.Platform.Dirs(); {
+	case section == contract.SecLook:
+		// The profile: saved by one child, and loaded at a terminal, since it asks.
+		press("[ Save my settings to a file ]", func() {
+			p.ask("Save to the file", func(file string) {
+				p.child(p.cmd("set", "--save", file), "", func(out []byte, said string, _ bool) {
+					p.hint = cmp.Or(said, strings.Join(strings.Split(strings.TrimSpace(string(out)), "\n"), " · "))
+				})
+			})
+		})
+		typed("[ Load settings from a file… ]", "set --load FILE")
+	case section == contract.SecGuards && !p.finding:
+		out = append(out, setting{key: &contract.Key{Help: "Who did what, what you approved and what it used, as one plain file you can keep or send."},
+			label: "The log of this job", value: "[ Export ]", do: func() { p.act("export", nil) }})
 	case section == contract.SecNudges:
 		press(fmt.Sprintf("Your own nudge programs: %d · in hooks/nudge.d of your settings folder", count(dirs.Config, "hooks", "nudge.d", "*")), nil)
 	case section == contract.SecKeys:
@@ -180,10 +194,24 @@ func (p *pane) drawSettings() {
 		}
 	}
 	rows := p.settingsRows()
+	if len(rows) == 0 {
+		rows = []setting{{key: &contract.Key{}, label: "no setting is called that"}}
+	}
 	p.pick = max(min(p.pick, len(rows)-1), 0)
-	// The warning of a setting that runs a program ends when its section is seen again.
-	if changed := func(s setting) bool { return slices.Contains(p.ui.Changed, s.name) }; p.saw != p.sect && slices.ContainsFunc(rows, changed) {
-		p.child(p.cmd("set", "seen", contract.Sections[p.sect]), "", p.quiet)
+	// The warning of a setting that runs a program, and of one an agent
+	// changed, ends when its section is seen again; the agent's change is
+	// said once more here, and u takes it back.
+	if p.saw != p.sect {
+		seen := slices.ContainsFunc(rows, func(s setting) bool { return slices.Contains(p.ui.Changed, s.name) })
+		for _, a := range p.ui.ByAgent {
+			if k, _ := contract.FindKey(a.Key); k != nil && k.Section == contract.Sections[p.sect] {
+				p.undone, seen = append(p.undone, setting{key: k, name: a.Key, to: a.From}), true
+				p.hint = "your agent changed " + k.Label + ": " + a.From + " → " + a.To + " · u takes it back"
+			}
+		}
+		if seen {
+			p.child(p.cmd("set", "seen", contract.Sections[p.sect]), "", p.quiet)
+		}
 	}
 	p.saw = p.sect
 	turn := func(to int) func() {
@@ -222,12 +250,28 @@ func (p *pane) drawSettings() {
 	if narrow {
 		edge = b - 1
 	}
-	for i := max(p.pick-(h-4-y), 0); i < len(rows) && y < h-2; i, y = i+1, y+1 {
-		s, st, help := rows[i], text, rows[i].key.Help
-		if s.key.Asks == contract.AsksAdmin {
-			help = contract.AdminLine
+	// Under the rows, which it never moves: the description of the row in
+	// front, wrapped to the width there is and four lines at most, or what a
+	// change of it asks first. A wide screen has a column for it.
+	width, end := b-a-2, h-2
+	if b < w-1 {
+		width = 52
+	}
+	said, warn := p.says(rows[p.pick], width)
+	if b == w-1 && len(said) > 4 && !warn {
+		said = append(said[:3], p.short(strings.Join(said[3:], " "), width))
+	}
+	if b == w-1 && len(said) > 0 {
+		end -= len(said) + 1
+		t.Put(a+1, end, b-a-2, strings.Repeat(string(box[1]), b-a-2), frame)
+		for i, l := range said {
+			t.Put(a+1, end+1+i, b-a-2, l, map[bool]term.Style{true: bold(p.st("blocked")), false: dim}[warn])
 		}
-		if s.key.Kind == "" && i > 0 && rows[i-1].key.Kind != "" && y+1 < h-2 {
+	}
+	apart := func(s setting) bool { return s.key.Kind == "" && s.value == "" }
+	for i := max(p.pick-(end-2-y), 0); i < len(rows) && y < end; i, y = i+1, y+1 {
+		s, st := rows[i], text
+		if apart(s) && i > 0 && !apart(rows[i-1]) && y+1 < end {
 			y++ // a section's buttons stand apart from its settings
 		}
 		p.mark(y, 1, s.name+s.label)
@@ -236,23 +280,25 @@ func (p *pane) drawSettings() {
 			t.Put(a+1, y, 1, gt, p.st("needs"))
 			st = bold(st)
 		}
-		if s.do != nil {
+		if apart(s) && s.do != nil {
 			p.button(a+3, y, s.label, st, s.do)
-		} else if t.Put(a+3, y, b-a-4, p.short(s.label, b-a-4), st); s.key.Kind != "" {
+		} else if t.Put(a+3, y, b-a-4, p.short(s.label, b-a-4), st); s.do != nil {
+			p.button(edge-term.Width(s.value), y, s.value, st, s.do)
+		} else if s.key.Kind != "" {
 			p.value(s, y, a+3, edge, i == p.pick || !narrow)
-		}
-		if i == p.pick && b == w-1 && help != "" && y+1 < h-2 {
-			y++
-			t.Put(a+5, y, b-a-6, p.short(help, b-a-6), dim)
 		}
 	}
 	if s := rows[p.pick]; b < w-1 {
-		lines := append([]string{s.label, ""}, wrap(s.key.Help, 52)...)
+		lines := append([]string{s.label, ""}, said...)
 		if s.key.Default != "" {
 			lines = append(lines, "", "It came as "+s.key.Default+".")
 		}
 		for i, l := range lines[:min(len(lines), h-4)] {
-			t.Put(b+2, 2+i, 52, l, map[bool]term.Style{true: bold(text), false: dim}[i == 0])
+			st := map[bool]term.Style{true: bold(text), false: dim}[i == 0]
+			if warn && i > 1 && i < 2+len(said) {
+				st = bold(p.st("blocked"))
+			}
+			t.Put(b+2, 2+i, 52, l, st)
 		}
 	}
 	keys, saved := "/ find a setting · j k choose · ← → or a click change · enter type a value · u undo · esc close", "saved as you go"
@@ -262,15 +308,51 @@ func (p *pane) drawSettings() {
 	keys = p.glyph(keys, strings.Replace(keys, "← →", "< >", 1))
 	switch y, room := h-2, w-20; {
 	case p.pending != nil:
-		x := 3 + t.Put(2, y, w-34, p.short("this runs a program, exactly: "+p.pending.to, w-34), bold(p.st("blocked")))
-		x += 1 + p.button(x, y, "[ Use it ]", text, func() { p.settingsKey(term.Event{Key: "y"}) })
-		p.button(x, y, "[ Leave it ]", text, func() { p.pending = nil })
+		x, yes, no := 2, "[ Use it ]", "[ Leave it ]"
+		if p.pending.lifts(p.pending.to) {
+			yes, no = "[ Use unlimited ]", "[ Keep "+p.pending.value+" ]"
+		} else {
+			x += 1 + t.Put(2, y, w-34, p.short("this runs a program, exactly: "+p.pending.to, w-34), bold(p.st("blocked")))
+		}
+		x += 2 + p.button(x, y, yes, text, func() { p.settingsKey(term.Event{Key: "y"}) })
+		p.button(x, y, no, text, func() { p.pending = nil })
 	case p.line != nil || p.hint != "":
 		p.hintLine(y, w-2, "", "")
 	default:
 		t.Put(2, y, room, p.short(keys, room), dim)
 		t.Put(w-2-len(saved), y, len(saved), saved, dim)
 	}
+}
+
+// lifts reports whether v takes a limit away from this row: the one change
+// of a plain value that asks first.
+func (s setting) lifts(v string) bool {
+	return v == "unlimited" && s.value != v && strings.HasSuffix(s.key.Values, "|unlimited")
+}
+
+// says is what the screen says of the row in front, in lines of w cells:
+// the warning a limit being taken away asks with (warn), or the row's
+// description, which begins with that warning's first two sentences for as
+// long as the limit is away.
+func (p *pane) says(s setting, w int) (lines []string, warn bool) {
+	server, _ := contract.ReadServer(p.k.Platform.Peek)
+	unlimited := func(k *contract.Key) []string {
+		return k.UnlimitedWarning(0, server.Cap(contract.Me()), p.cfg.Spend.Guard)
+	}
+	help := s.key.Help
+	switch q := p.pending; {
+	case q != nil && q.lifts(q.to):
+		for _, l := range unlimited(q.key) {
+			lines = append(lines, wrap(l, w)...)
+		}
+		return lines, true
+	case s.key.Asks == contract.AsksAdmin:
+		return slices.DeleteFunc(append(wrap(help, w), contract.AdminLine), func(l string) bool { return l == "" }), false
+	case s.value == "unlimited":
+		two := strings.SplitAfterN(strings.Join(unlimited(s.key), " "), ". ", 3)
+		help = strings.TrimSpace(strings.Join(two[:min(len(two), 2)], "")) + " " + help
+	}
+	return slices.DeleteFunc(wrap(help, w), func(l string) bool { return l == "" }), false
 }
 
 // choices is what a row can be set to by a click: the two of a switch, a
@@ -305,6 +387,8 @@ func (p *pane) value(s setting, y, from, edge int, whole bool) {
 	k, show, c := s.key, s.value, p.choices(s)
 	if k.Kind == contract.KindTool && show == contract.FleetWorkerLeader {
 		show = "the leader's"
+	} else if show == "unlimited" {
+		show += p.glyph(" ⚠", " !") // its mark, for as long as it is set
 	}
 	var parts []part
 	if k.Asks == contract.AsksApproval && len(p.limits.Held) > 0 {
@@ -330,7 +414,7 @@ func (p *pane) value(s setting, y, from, edge int, whole bool) {
 		}
 	case k.Kind == contract.KindNumber:
 		parts = append(parts, part{"[ - ]", func() { p.step(s, -1) }}, part{fmt.Sprintf(" %2s  ", show), nil}, part{"[ + ]", func() { p.step(s, 1) }})
-		if strings.HasSuffix(k.Values, "|unlimited") {
+		if strings.HasSuffix(k.Values, "|unlimited") && s.value != "unlimited" {
 			parts = append(parts, part{"  ", nil}, part{"[ unlimited ]", func() { p.change(s, "unlimited") }})
 		}
 	default:
@@ -350,6 +434,8 @@ func (p *pane) value(s setting, y, from, edge int, whole bool) {
 			x += p.button(x, y, q.text, st, q.do)
 		case q.text[0] == '(':
 			x += p.t.Put(x, y, edge-x, q.text, bold(p.st("accent")))
+		case s.value == "unlimited":
+			x += p.t.Put(x, y, edge-x, q.text, bold(p.st("blocked")))
 		default:
 			x += p.t.Put(x, y, edge-x, q.text, st)
 		}
@@ -393,8 +479,8 @@ func (p *pane) step(s setting, by int) {
 }
 
 // change sets a row. A row that stands for many has its name typed first; a
-// value that runs a program is shown exactly and asked about once; the
-// administrator's is never set here.
+// value that runs a program is shown exactly and asked about once, and so
+// is a limit taken away; the administrator's is never set here.
 func (p *pane) change(s setting, v string) {
 	if strings.HasSuffix(s.name, ".") {
 		name, rest, _ := strings.Cut(v, " ")
@@ -405,7 +491,7 @@ func (p *pane) change(s setting, v string) {
 		p.tool = v
 	case s.key.Asks == contract.AsksAdmin:
 		p.hint = contract.AdminLine
-	case s.key.Asks == contract.AsksRuns && v != "":
+	case s.key.Asks == contract.AsksRuns && v != "", s.lifts(v):
 		p.pending = &s
 	default:
 		p.apply(s, v, true)
@@ -466,7 +552,7 @@ func (p *pane) settingsKey(ev term.Event) bool {
 		s := p.undone[len(p.undone)-1]
 		p.undone = p.undone[:len(p.undone)-1]
 		p.apply(s, s.to, false)
-	case key == "enter" || by[key] != 0:
+	case (key == "enter" || by[key] != 0) && len(rows) > 0:
 		p.step(rows[p.pick], by[key])
 	}
 	return true

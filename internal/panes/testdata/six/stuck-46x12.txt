@@ -1,0 +1,12 @@
+ FLEET  1 agents · 0 need you      [<] [>] [x]
+ setting changed by your agent: theme
+
+ ◌ sign-up page                    idle 4h 10m
+   ███████████░░░░░░░░░░  50%      ctx unknown
+   stuck 132m: no progress note · the same ch…
+
+
+
+ 0 done today  [show]
+ enter go there · f hide · [ ] width
+ live · checked 2s ago
