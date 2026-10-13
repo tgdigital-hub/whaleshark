@@ -535,7 +535,7 @@ func (p *pane) card(c contract.Card, x0, w, y, rows int, narrow bool, now time.T
 	ctx, cells := "  ctx unknown", (c.Ctx+10)/20
 	switch {
 	case c.Fleet != nil:
-		ctx, c.News = fmt.Sprintf("%d agents", c.Fleet.Agents), cmp.Or(c.News, c.Fleet.Line())
+		ctx, c.News = c.Fleet.Working(), cmp.Or(c.News, c.Fleet.Line())
 	case narrow && c.CtxKnown:
 		ctx = fmt.Sprintf("ctx %2d%%", c.Ctx)
 	case narrow:

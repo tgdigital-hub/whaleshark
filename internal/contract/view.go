@@ -201,7 +201,8 @@ type ToolLine struct {
 }
 
 // FleetCard is what a card says when it is a fleet: the fleet's run, its
-// agents of its limit (the leader not counted), its groups that are open,
+// agents of its limit (the leader not counted; Led says it has one, and
+// Working counts it), its groups that are open,
 // its own tasks to check and done of all, and whether it is parked. The
 // card's Name is the fleet's, its Agent the leader's tool, its Task the
 // group that needs something first, its Tab the leader's.
@@ -214,6 +215,16 @@ type FleetCard struct {
 	Done    int    `json:"done"`
 	Of      int    `json:"of"`
 	Parked  bool   `json:"parked,omitempty"`
+	Led     bool   `json:"led,omitempty"`
+}
+
+// Working is how many agents a fleet's card says it has: its workers and,
+// while it has one, its leader, as the header above the cards counts them.
+func (f *FleetCard) Working() string {
+	if n := f.Agents + map[bool]int{true: 1}[f.Led]; n != 1 {
+		return fmt.Sprint(n, " agents")
+	}
+	return "1 agent"
 }
 
 // Line is the third line of a fleet's card that has no news of its own: how

@@ -259,7 +259,7 @@ func (b *builder) seat(t *contract.Task) *seat {
 // fleet is what a card says of its fleet: the agents of the fleet's own run
 // and how far that run is, and the groups of this run it still holds.
 func (b *builder) fleet(name string, f *contract.Fleet) *contract.FleetCard {
-	fc := &contract.FleetCard{Run: f.Run, Limit: b.in.Person.Fleets.Agents, Parked: f.Pane == "" && f.EndedAt.IsZero()}
+	fc := &contract.FleetCard{Run: f.Run, Limit: b.in.Person.Fleets.Agents, Parked: f.Pane == "" && f.EndedAt.IsZero(), Led: f.Pane != ""}
 	for _, id := range f.Groups {
 		if g := b.s.Tasks[id]; g != nil && g.Status != contract.TaskDone && g.Status != contract.TaskCancelled {
 			fc.Groups++

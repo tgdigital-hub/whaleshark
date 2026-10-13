@@ -441,3 +441,13 @@ func TestWhatTheFirstWaveAsked(t *testing.T) {
 		t.Errorf("a key as JSON: %s", got)
 	}
 }
+
+// A fleet's card counts its leader with its workers: one that only its
+// leader works in has one agent, not none.
+func TestAFleetsCardCountsItsLeader(t *testing.T) {
+	for want, f := range map[string]FleetCard{"1 agent": {Led: true}, "6 agents": {Agents: 5, Led: true}, "0 agents": {Parked: true}, "2 agents": {Agents: 2}} {
+		if got := f.Working(); got != want {
+			t.Errorf("%+v says %q, want %q", f, got, want)
+		}
+	}
+}

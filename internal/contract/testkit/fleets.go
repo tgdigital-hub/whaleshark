@@ -128,7 +128,7 @@ func Fleets() *ThreeFleets {
 		row := contract.SideRow{Kind: contract.RowFleet, Look: contract.LookBuilding, Name: f.name, Tool: f.tool, Agents: len(f.workers),
 			Limit: person.Fleets.Agents, Open: open, Root: shop, Run: f.run, Task: f.group, Tab: a.Place.Tab, Actions: []string{"park", "note-leader"}}
 		card := contract.Card{Task: f.group, Name: f.name, Look: contract.LookBuilding, Colour: "building", Agent: f.tool, Tab: a.Place.Tab, Try: 1,
-			Fleet: &contract.FleetCard{Run: f.run, Agents: len(f.workers), Limit: person.Fleets.Agents, Groups: 1, Of: len(f.workers)}}
+			Fleet: &contract.FleetCard{Run: f.run, Agents: len(f.workers), Limit: person.Fleets.Agents, Groups: 1, Of: len(f.workers), Led: true}}
 		var under []contract.SideRow
 		for i, w := range f.workers {
 			pane++

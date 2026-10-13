@@ -288,8 +288,8 @@ func TestTheFleetAsAStripAtTheBottomAndWithFleets(t *testing.T) {
 	low.draw()
 	shows("fleet-bottom-97-page-2", low, "page 2 of 2", "site map")
 	three := fleetOf(t, 46, 20, true, contract.Right)
-	shows("fleets-46", three, "FLEETS  3 · 18 agents · 1 needs…  [<] [>] [x]", "▲ billing · codex                   needs you", "5 agents",
-		"refund to the card, or to store credit?", "◐ search · claude                    building", "0 of 6 done", "◐ help pages · hermes                building",
+	shows("fleets-46", three, "FLEETS  3 · 18 agents · 1 needs…  [<] [>] [x]", "▲ billing · codex                   needs you", "6 agents", // five workers and their leader: the cards sum to the header's 18
+		"refund to the card, or to store credit?", "◐ search · claude                    building", "7 agents", "0 of 6 done", "◐ help pages · hermes                building",
 		"0 fleets finished today  [show]", "live · checked 2s ago")
 	shows("fleets-36", fleetOf(t, 36, 20, true, contract.Right), "FLEETS  3 · 18 agents…  [<] [>] [x]", "0 of 4 done")
 	shows("fleet-36", fleetOf(t, 36, 30, false, contract.Right), "FLEET  12 agents · 2 …  [<] [>] [x]")
@@ -768,4 +768,31 @@ func TestTheFirstClickOnTryItTakes(t *testing.T) {
 	wd.shows("[ Try it ]")
 	wd.s.ClickText("[ Try it ]")
 	wd.ran("doctor --try ")
+}
+
+// At every width a setting's label stands whole beside its value, as the
+// picture has it: 94 columns is the settings screen in a window of 120.
+func TestASettingsLabelIsNotCutByItsValues(t *testing.T) {
+	for _, w := range []int{94, 120, 170} {
+		t.Run(fmt.Sprint(w), func(t *testing.T) {
+			wd := startWith(t, settings, w, 44, map[string]string{"PATH": ""}, func(*world) {})
+			for i, section := range contract.Sections {
+				wd.shows(" " + strings.ToUpper(section) + " ")
+				got := make(chan []setting)
+				go wd.p.tell(news{do: func() { got <- wd.p.settingsRows() }})
+				for _, s := range <-got {
+					if s.key.Kind != "" && term.Width(s.label) < w-40 {
+						wd.shows(" " + s.label + " ")
+					}
+				}
+				if section == contract.SecLook && w == 94 {
+					wd.shows("Colour scheme")
+					wd.shows(wd.p.glyph("‹ reef ›", "< reef >"))
+				}
+				if i < len(contract.Sections)-1 {
+					wd.s.Key("tab")
+				}
+			}
+		})
+	}
 }

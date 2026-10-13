@@ -239,7 +239,7 @@ func (p *pane) drawSettings() {
 		if s.do != nil {
 			p.button(a+3, y, s.label, st, s.do)
 		} else if t.Put(a+3, y, b-a-4, p.short(s.label, b-a-4), st); s.key.Kind != "" {
-			p.value(s, y, edge, i == p.pick || !narrow)
+			p.value(s, y, a+3, edge, i == p.pick || !narrow)
 		}
 		if i == p.pick && b == w-1 && help != "" && y+1 < h-2 {
 			y++
@@ -294,7 +294,10 @@ func (p *pane) choices(s setting) []string {
 // value draws a row's value ending at edge, as what can be clicked: a choice
 // shows every value with the one in force in round brackets, a number its
 // minus and plus, anything else what a click types over; or the value alone.
-func (p *pane) value(s setting, y, edge int, whole bool) {
+// A label is never cut by its values: a row too short for both shows the
+// value in force alone, shortened to what the label leaves, and a click
+// takes the next.
+func (p *pane) value(s setting, y, from, edge int, whole bool) {
 	type part struct {
 		text string
 		do   func()
@@ -336,6 +339,10 @@ func (p *pane) value(s setting, y, edge int, whole bool) {
 	x := edge
 	for _, q := range parts {
 		x -= term.Width(q.text)
+	}
+	if room := edge - from - term.Width(s.label) - 2; edge-x > room && k.Asks != contract.AsksAdmin {
+		alone := p.glyph("‹ ", "< ") + p.short(cmp.Or(show, "not set"), max(room-4, 1)) + p.glyph(" ›", " >")
+		parts, x = []part{{alone, func() { p.step(s, 1) }}}, edge-term.Width(alone)
 	}
 	for _, q := range parts {
 		switch st := p.st("text"); {
