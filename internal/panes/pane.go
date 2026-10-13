@@ -185,7 +185,8 @@ type pane struct {
 	th         *thing
 	asking     string
 	keep, done bool
-	busy       bool // a row's work is under way
+	busy       bool   // a row's work is under way
+	boxed      [2]int // the size of its box the keeper was last asked for
 	until      time.Time
 	// The size of a pane beside the conversation: how often it changed, and
 	// what the two together measured when it last rested.

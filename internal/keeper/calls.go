@@ -350,7 +350,13 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		if p != nil {
 			at = k.place(p)
 		}
-		if from != nil && !from.rec.Dock && from.rec.Workspace != k.lay.Front {
+		if from != nil && from == k.over && k.placed != "" && c.Dir == contract.OverAt && len(c.Argv) == 0 {
+			// The placed pane's own program asks for another size of its
+			// box: the corner stays, and the box is moved to stay inside.
+			k.overW, k.overH = cmp.Or(c.W, k.overW), cmp.Or(c.H, k.overH)
+			k.changed()
+			break
+		} else if from != nil && !from.rec.Dock && from.rec.Workspace != k.lay.Front {
 			err = contract.ErrNotFront
 			break
 		} else if len(c.Argv) == 0 || k.over != nil {

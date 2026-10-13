@@ -18,8 +18,9 @@ const (
 	twice = 500 * time.Millisecond
 	// A refusal stands in a menu's box for saidFor, and then the box closes.
 	saidFor = 2 * time.Second
-	// The least a menu's box is wide, and the box of a typing line.
-	menuWide, lineWide = 24, 30
+	// The least a menu's box is wide, the box of a typing line, and the box
+	// of a refusal.
+	menuWide, lineWide, saidWide = 24, 30, 34
 )
 
 // thing is what a menu was opened for: a tab, an agent, a fleet or a
@@ -170,26 +171,27 @@ func (th thing) menu() (w, h int) {
 	return w, h
 }
 
-// box is the size of the pane a menu is opened in: its own box, or the
-// largest of what a row of it turns the box into, since a pane over the tab
-// keeps the size it was opened with.
-func (th thing) box() (w, h int) {
-	w, h = th.menu()
-	for _, id := range slices.Concat(th.first, th.work) {
-		a, _ := contract.FindAction(id)
-		if text, _, _ := th.asks(id); text != "" {
-			box, words := askWide(id)
-			w, h = max(w, box), max(h, len(wrap(text, words))+3)
-		} else if strings.HasPrefix(id, "rename") || slices.Contains(a.Run, "{file}") {
-			w, h = max(w, lineWide), max(h, 4)
-		}
+// box is the size of the box as it stands now: the menu's own, or what a
+// taken row turned it into. The pane is the box and nothing beside it, so
+// that no cell of the conversation under it is blanked for nothing.
+func (p *pane) box() (w, h int) {
+	switch {
+	case !p.until.IsZero():
+		return saidWide, len(wrap(p.hint, saidWide-3)) + 2
+	case p.line != nil:
+		return lineWide, 4
+	case p.asking != "":
+		wide, words := askWide(p.asking)
+		ask, _, _ := p.th.asks(p.asking)
+		return wide, len(wrap(ask, words)) + 3
 	}
-	return w, h
+	return p.th.menu()
 }
 
 // offerAt opens the menu of a thing with its corner at a cell of pane, or
 // of the window with none named: the keeper lays the program over the tab,
-// in a pane as large as the menu and what its rows turn it into.
+// in a pane as large as the menu's own box. For what a row turns the box
+// into the program asks the keeper for another size itself.
 func (p *pane) offerAt(pane, kind, id string, about contract.SideRow, full bool, x, y int) {
 	th, ok := p.thingOf(kind, id, about, full)
 	if !ok {
@@ -199,7 +201,7 @@ func (p *pane) offerAt(pane, kind, id string, about contract.SideRow, full bool,
 	if full {
 		argv = append(argv, "row")
 	}
-	w, h := th.box()
+	w, h := th.menu()
 	p.keeper(func() error { return p.k.Terms.OverlayAt(argv, float64(w), float64(h), pane, max(x, 0), max(y, 0)) })
 }
 
@@ -236,6 +238,17 @@ func (p *pane) drawOffer() {
 		return
 	}
 	t, th := p.t, p.th
+	// The keeper is asked for the box's size when it is another than the
+	// pane was opened with, or was last asked for.
+	W, H := p.box()
+	if mw, mh := th.menu(); p.boxed == [2]int{} {
+		p.boxed = [2]int{mw, mh}
+	}
+	if p.boxed != [2]int{W, H} {
+		p.boxed = [2]int{W, H}
+		p.helper(func() { _ = p.k.Terms.OverlayAt(nil, float64(W), float64(H), "", 0, 0) })
+	}
+	W = min(W, t.W)
 	frame, text, dim, accent := p.st("frame"), p.st("text"), p.st("dim"), p.st("accent")
 	c := []rune(p.glyph("┌─┐│└┘├┤›", "+-+|++++>"))
 	box := func(w, h int, title string) {
@@ -250,7 +263,7 @@ func (p *pane) drawOffer() {
 			t.Put(1, 0, w-2, " "+title+" ", bold(text))
 		}
 	}
-	switch W := t.W; {
+	switch {
 	case !p.until.IsZero():
 		lines := wrap(p.hint, W-3)
 		box(W, len(lines)+2, "")
@@ -258,13 +271,11 @@ func (p *pane) drawOffer() {
 			t.Put(2, 1+i, W-3, l, text)
 		}
 	case p.line != nil:
-		W = min(W, lineWide)
-		box(W, 4, strings.TrimSuffix(p.linePre, ":"))
+		box(W, H, strings.TrimSuffix(p.linePre, ":"))
 		p.line.Draw(t.Grid, 2, 1, W-4, text, true)
 		t.Put(2, 2, W-4, p.cut(cmp.Or(p.hint, contract.RenameKeys), W-4), dim)
 	case p.asking != "":
-		wide, words := askWide(p.asking)
-		W = min(W, wide)
+		_, words := askWide(p.asking)
 		ask, doing, _ := th.asks(p.asking)
 		lines := wrap(ask, min(words, W-3))
 		box(W, len(lines)+3, "")
@@ -285,7 +296,6 @@ func (p *pane) drawOffer() {
 			x += 2 + t.Put(x+1, y, W-x-2, words, st)
 		}
 	default:
-		W, H := th.menu()
 		box(W, H, "")
 		y := 1
 		for i, id := range slices.Concat(th.first, th.work) {

@@ -861,7 +861,9 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 	case contract.OpOverlay:
 		// A screen of ours never opens over a project it is not about.
 		q := f.pane(c.From)
-		if sp := f.front(); q != nil && sp != nil && q.rec.Workspace != sp.ID {
+		if q != nil && q == f.over && f.placed != "" && c.Dir == contract.OverAt && len(c.Argv) == 0 {
+			return r, nil // the placed pane's own program asks for another size of its box
+		} else if sp := f.front(); q != nil && sp != nil && q.rec.Workspace != sp.ID {
 			return r, contract.ErrNotFront
 		} else if len(c.Argv) == 0 || f.over != nil {
 			return r, errors.New("no program to draw over the tab, or one is there already")

@@ -366,7 +366,8 @@ type Terminals interface {
 	// under a right press, under a row's key, or under whatever else a
 	// terminal leaves a person to ask with. A press beside the box closes
 	// it and is used up; so do a change of the window's size and of the
-	// workspace in front.
+	// workspace in front. Asked with no program by the program in the box,
+	// it gives that box another size where it stands.
 	OverlayAt(argv []string, w, h float64, pane string, x, y int) error
 	// SpaceOpen puts the workspace of a project's folder in front, made
 	// with one tab labelled MainTab in cwd where there is none; an empty

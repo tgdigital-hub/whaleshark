@@ -30,11 +30,19 @@ func boxOf(t *testing.T, w, h int, want ...string) *pane {
 }
 
 // sized is a menu's program in a pane of the size the left section asks the
-// keeper for.
+// keeper for: the menu's own box.
 func sized(t *testing.T, want ...string) *pane {
 	p := boxOf(t, 60, 20, want...)
-	w, h := p.th.box()
+	w, h := p.th.menu()
 	return boxOf(t, w, h, want...)
+}
+
+// turned draws a menu's program again in a pane of the size it has asked
+// the keeper for by now, as the keeper gives it.
+func turned(p *pane) {
+	p.draw()
+	p.t.Resize(p.boxed[0], p.boxed[1])
+	p.draw()
 }
 
 const toms, ops = "/work/tomsleeps", "/work/ops-portal"
@@ -100,7 +108,7 @@ func TestTheMenusAreTheFrames(t *testing.T) {
 func TestWhatATakenRowTurnsTheBoxInto(t *testing.T) {
 	p := sized(t, contract.OfferAgent, "t-p2", toms, "r1", "T1")
 	press(p, "enter")
-	p.draw()
+	turned(p)
 	if got, want := strings.TrimRight(grid(p), "\n"), `
 ┌ Rename ────────────────────┐
 │ sign-up page               │
@@ -110,7 +118,7 @@ func TestWhatATakenRowTurnsTheBoxInto(t *testing.T) {
 	}
 	p = sized(t, contract.OfferAgent, "t-p2", toms, "r1", "T1")
 	press(p, "s")
-	p.draw()
+	turned(p)
 	if got, want := strings.TrimRight(grid(p), "\n"), `
 ┌────────────────────────────────┐
 │ Stop sign-up page and close    │
@@ -122,7 +130,7 @@ func TestWhatATakenRowTurnsTheBoxInto(t *testing.T) {
 	}
 	p = sized(t, contract.OfferSpace, "s3", ops, "-", "-")
 	press(p, "down", "enter")
-	p.draw()
+	turned(p)
 	if got, want := strings.TrimRight(grid(p), "\n"), `
 ┌──────────────────────────────────┐
 │ Remove ops-portal from the list? │
@@ -133,6 +141,17 @@ func TestWhatATakenRowTurnsTheBoxInto(t *testing.T) {
 │  [ Remove ] ›[ Keep ]            │
 └──────────────────────────────────┘`; got != strings.TrimPrefix(want, "\n") {
 		t.Errorf("the question of a remove is\n%s\nwant%s", got, want)
+	}
+	// The pane is the box at each of its sizes: nothing of it stands beside
+	// the frame, where the conversation would be blanked.
+	for _, keys := range [][]string{nil, {"enter"}, {"s"}} {
+		p := sized(t, contract.OfferAgent, "t-p2", toms, "r1", "T1", "row")
+		press(p, keys...)
+		turned(p)
+		w, h := p.box()
+		if p.t.W != w || p.t.H != h || !strings.HasSuffix(p.t.Row(0), "┐") || !strings.HasPrefix(p.t.Row(h-1), "└") || !strings.HasSuffix(p.t.Row(h-1), "┘") {
+			t.Errorf("after %v the pane is %d by %d and the box %d by %d:\n%s", keys, p.t.W, p.t.H, w, h, grid(p))
+		}
 	}
 	// The arrows and Tab go between the two buttons; Escape keeps.
 	if press(p, "left"); p.keep {
@@ -281,14 +300,34 @@ func TestAMenuStopsAnAgentAndShowsARefusal(t *testing.T) {
 	wd := spaced(t, offer, 34, 9, agentMenu("sign-up page"))
 	wd.shows("Stop agent & close")
 	os.WriteFile(filepath.Join(wd.home, "refuse"), []byte("That task is being accepted."), 0o600)
+	// The keeper is asked for the size of what the box turns into, each
+	// time it turns: the pane is the box, and nothing beside it.
+	asked := func(w, h float64) {
+		t.Helper()
+		for end := time.Now().Add(5 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+			var last contract.WireCall
+			for _, c := range wd.double.Calls() {
+				if c.Op == contract.OpOverlay && len(c.Argv) == 0 {
+					last = c
+				}
+			}
+			if last.Dir == contract.OverAt && last.W == w && last.H == h {
+				return
+			} else if time.Now().After(end) {
+				t.Fatalf("the keeper was last asked for a box of %v by %v, not %v by %v", last.W, last.H, w, h)
+			}
+		}
+	}
 	wd.key("down", "enter")
 	wd.shows("›[ Stop & close ]  [ Keep ]", "its tab?")
+	asked(34, 6)
 	task := wd.rowOf("sign-up page").Task
 	wd.key("enter")
 	if got := wd.ran("stop " + task); got != "stop "+task+" --human" {
 		t.Errorf("the stop ran %q", got)
 	}
 	wd.shows("That task is being")
+	asked(saidWide, 3)
 	at := time.Now()
 	wd.ends(saidFor + 3*time.Second)
 	if time.Since(at) < saidFor/2 {
@@ -453,7 +492,7 @@ func TestTheLeftSectionOpensTheMenuOfTheThingUnderIt(t *testing.T) {
 	}
 	var th thing
 	wd.inLoop(func(p *pane) { th, _ = p.thingOf(contract.OfferAgent, r.Tab, r, true) })
-	if w, h := th.box(); c.W != float64(w) || c.H != float64(h) || w < 34 || h < len(r.Offer)+len(r.Actions)+3 {
+	if w, h := th.menu(); c.W != float64(w) || c.H != float64(h) || w < menuWide || h != len(r.Offer)+len(r.Actions)+3 {
 		t.Errorf("the menu's pane is %v by %v, the thing's box %d by %d", c.W, c.H, w, h)
 	}
 	// A workspace's row, and the tabs of no project.

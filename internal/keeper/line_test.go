@@ -373,3 +373,89 @@ func TestAPlacedPaneOverTheTab(t *testing.T) {
 		t.Error("a pane over the tab with no place was closed by a press beside it or a new size")
 	}
 }
+
+// The program in a placed pane may ask for another size of its box, and
+// nobody else may: the corner stays, the box is moved to stay inside the
+// window, and outside the box every cell of the window is the tab's own,
+// what it was before the pane stood there, at every size the box had.
+func TestAPlacedPaneTakesAnotherSize(t *testing.T) {
+	r := dockRig(t)
+	c := r.dial()
+	w := r.window(200, 30)
+	r.sized(c, layout.DockPane, contract.SideWidth, 30)
+	r.program("p1").print(strings.Repeat("the conversation ", 400))
+	r.settle()
+	w.shows("the conversation")
+	box := func() (at layout.Rect, id string) {
+		r.locked(func() bool {
+			if r.k.over != nil {
+				at, id = r.k.overAt(), r.k.over.rec.ID
+			}
+			return true
+		})
+		return at, id
+	}
+	bare := w.text()
+	stands := func(what string, want layout.Rect) {
+		t.Helper()
+		at, id := box()
+		if at != want {
+			t.Fatalf("%s: the box stands at %+v, not %+v", what, at, want)
+		}
+		r.sized(c, id, want.W, want.H)
+		r.program(id).print("\x1b[2J\x1b[H" + strings.Repeat("#", want.W*want.H))
+		r.until(what+": the box drawn and every cell beside it the tab's own", func() bool {
+			text := w.text()
+			return strings.Count(text, "#") == want.W*want.H && cellsOf(text, want) == cellsOf(bare, want)
+		})
+	}
+	ask := func(from string, w, h float64) string {
+		return c.call(contract.WireCall{Op: contract.OpOverlay, Dir: contract.OverAt, W: w, H: h, From: from}).Err
+	}
+	if reply := c.call(contract.WireCall{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{"the-menu"}, W: 24, H: 4, X: 60, Y: 5, From: layout.DockPane}); reply.Err != "" {
+		t.Fatal(reply)
+	}
+	stands("as it opened", layout.Rect{X: 60, Y: 5, W: 24, H: 4})
+	_, id := box()
+	// Nobody but the program in the box: the dock and a pane of the tab are refused.
+	if ask(layout.DockPane, 36, 8) == "" || ask("p1", 36, 8) == "" || ask("", 36, 8) == "" {
+		t.Error("another pane gave the placed pane another size")
+	}
+	if ask(id, 36, 8) != "" {
+		t.Fatal("the program in the box was refused another size")
+	}
+	stands("larger", layout.Rect{X: 60, Y: 5, W: 36, H: 8})
+	if ask(id, 30, 4) != "" {
+		t.Fatal("the program in the box was refused a smaller size")
+	}
+	stands("smaller again", layout.Rect{X: 60, Y: 5, W: 30, H: 4})
+	// Too large for where it stands: moved left and up, never off the window.
+	if ask(id, 180, 27) != "" {
+		t.Fatal("refused")
+	}
+	stands("moved to stay inside", layout.Rect{X: 20, Y: 3, W: 180, H: 27})
+	w.click(5, 1)
+	r.until("the box closed and the window as it was", func() bool { _, id := box(); return id == "" && w.text() == bare })
+	// A pane with no place has its size from whoever opened it.
+	if reply := c.call(contract.WireCall{Op: contract.OpOverlay, Argv: []string{"a-screen"}, W: 30, H: 5, From: layout.DockPane}); reply.Err != "" {
+		t.Fatal(reply)
+	}
+	if _, id := box(); ask(id, 36, 8) == "" {
+		t.Error("a pane with no place was given another size")
+	}
+}
+
+// cellsOf is every cell of a window's text of 200 by 30 that is outside a box.
+func cellsOf(text string, but layout.Rect) string {
+	lines := append(strings.Split(text, "\n"), make([]string, 30)...)
+	var b strings.Builder
+	for y := range 30 {
+		row := append([]rune(lines[y]), []rune(strings.Repeat(" ", 200))...)
+		for x := range 200 {
+			if x < but.X || x >= but.X+but.W || y < but.Y || y >= but.Y+but.H {
+				b.WriteRune(row[x])
+			}
+		}
+	}
+	return b.String()
+}
