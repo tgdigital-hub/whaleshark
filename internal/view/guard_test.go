@@ -267,6 +267,32 @@ func exported(t *testing.T, by contract.CallerKind, json bool, args ...string) (
 	return c, out.String(), result, err
 }
 
+// A leader that holds two groups is one agent in one tab: the log lists and
+// counts it once. Seen with real agents, where one leader stood eight times.
+func TestExportListsALeaderOnce(t *testing.T) {
+	c, out := morning(t, contract.On, "log", "-")
+	c.Flags, c.Caller.Kind = map[string][]string{"export": {""}}, contract.Human
+	up := c.Kit.Store.(fleetStore).runs[0]
+	for id, a := range up.Attempts {
+		if t := up.Tasks[a.Task]; a.Leads != "" && t.Fleet == "billing" {
+			second, task := *a, *t
+			second.ID, second.Task, task.ID = "G9.1", "G9", "G9"
+			up.Attempts["G9.1"], up.Tasks["G9"] = &second, &task
+			_ = id
+			break
+		}
+	}
+	if up.Attempts["G9.1"] == nil {
+		t.Fatal("the morning has no leader of billing")
+	}
+	if _, err := c.Kit.Handler("log")(c); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); strings.Count(got, "  billing           fleet leader") != 1 || !strings.Contains(got, " · 18 agents · ") {
+		t.Errorf("a leader with two groups in the log:\n%s", got)
+	}
+}
+
 // The export of the morning of three fleets, part by part as the design's
 // picture has it, and line for line as the file kept here.
 func TestExportOfThreeFleets(t *testing.T) {
