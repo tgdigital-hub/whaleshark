@@ -742,3 +742,30 @@ func TestALockFilesChangeIsNoNews(t *testing.T) {
 		}
 	}
 }
+
+// A click a person makes on a button must take, the first time: the
+// question about a value that runs a program, clicked the moment it shows.
+func TestTheFirstClickOnUseItTakes(t *testing.T) {
+	wd := startWith(t, settings, 120, 44, map[string]string{"PATH": ""}, func(*world) {})
+	for range slices.Index(contract.Sections, contract.SecScroll) {
+		wd.s.Key("tab")
+	}
+	wd.shows(" " + strings.ToUpper(contract.SecScroll) + " ")
+	wd.key("j", "j", "j", "enter")
+	wd.s.Type("zsh -l")
+	wd.s.Key("enter")
+	wd.shows("[ Use it ]")
+	wd.s.ClickText("[ Use it ]")
+	wd.ran("set shell")
+}
+
+// The same of a section's own button, clicked the moment its section shows.
+func TestTheFirstClickOnTryItTakes(t *testing.T) {
+	wd := startWith(t, settings, 120, 44, map[string]string{"PATH": ""}, func(*world) {})
+	for range slices.Index(contract.Sections, contract.SecTools) {
+		wd.s.Key("tab")
+	}
+	wd.shows("[ Try it ]")
+	wd.s.ClickText("[ Try it ]")
+	wd.ran("doctor --try ")
+}

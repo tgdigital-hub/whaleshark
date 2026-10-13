@@ -336,3 +336,22 @@ func TestAChangedSettingsFileIsNoticed(t *testing.T) {
 		return r.locked(func() bool { return len(r.k.lay.Tabs) > 1 })
 	})
 }
+
+// A click on a program drawn over the tab, which asked for the mouse, is
+// passed to it the first time: also straight after a line was typed there.
+func TestTheFirstClickOnAPaneOverTheTabIsPassedOn(t *testing.T) {
+	r := newRig(t)
+	c := r.dial()
+	w := r.window(100, 30)
+	w.shows("pane=p1")
+	if reply := c.call(contract.WireCall{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ui", "settings"}, W: 80, H: 10, From: "p1"}); reply.Err != "" {
+		t.Fatalf("overlay: %+v", reply)
+	}
+	x, y := w.shows("┌")
+	r.program("p2").print("\x1b[?1000h\x1b[?1002h\x1b[?1003h\x1b[?1006h")
+	r.until("the program's wish for the mouse to be read", func() bool { return r.locked(func() bool { return r.k.modes("p2").Mouse != 0 }) })
+	w.types("/opt/tool/run\r")
+	r.got("p2", "/opt/tool/run\r")
+	w.click(x+5, y+3)
+	r.got("p2", "/opt/tool/run\r\x1b[<0;5;3M\x1b[<0;5;3m")
+}
