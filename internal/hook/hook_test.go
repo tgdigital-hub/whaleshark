@@ -705,3 +705,76 @@ func TestEnsureSetsTheStateHooks(t *testing.T) {
 		t.Errorf("after the removal the file holds %v, and held %v", after, before)
 	}
 }
+
+// The spending guard's hold is a file in the run's folder, found from the
+// tab's own variables: a worker of that run is held by it as by Stop all,
+// with the guard's own word, and a worker of another run is not.
+func TestGateLooksForTheHoldOfItsOwnRun(t *testing.T) {
+	l := newLogin(t)
+	t.Setenv(contract.EnvPane, "w1:p2")
+	t.Setenv(contract.EnvAttempt, "T3.1")
+	t.Setenv(contract.EnvRun, "r2")
+	write(t, contract.HoldPath(l.root, "r3"), "")
+	if out := l.hook(step("echo second"), "gate"); out != "" {
+		t.Fatalf("another run's hold held this worker: %q", out)
+	}
+	hold := contract.HoldPath(l.root, "r2")
+	write(t, hold, "")
+	out := l.hook(step("echo second"), "gate")
+	var a answer
+	if err := json.Unmarshal([]byte(out), &a); err != nil {
+		t.Fatalf("%q: %v", out, err)
+	}
+	if a.Continue == nil || *a.Continue || a.StopReason != heldReason || a.Specific.Decision != "deny" || a.Specific.Reason != heldReason {
+		t.Errorf("the hold does not end the turn with the guard's word: %s", out)
+	}
+	// Stop all over a hold speaks as Stop all; the lead agent is never held.
+	l.pause()
+	if out := l.hook(step("echo second"), "gate"); !strings.Contains(out, contract.PausedReason) || strings.Contains(out, heldReason) {
+		t.Errorf("paused and held, the gate said %q", out)
+	}
+	if err := os.Remove(filepath.Join(l.state, "paused")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(contract.EnvAttempt, "")
+	if out := l.hook(step("echo second"), "gate"); out != "" {
+		t.Errorf("a caller that is no worker was held: %q", out)
+	}
+	t.Setenv(contract.EnvAttempt, "T3.1")
+	if err := os.Remove(hold); err != nil {
+		t.Fatal(err)
+	}
+	if out := l.hook(step("echo second"), "gate"); out != "" {
+		t.Errorf("with the hold taken away the gate said %q", out)
+	}
+}
+
+// A worker's command line that names the login's settings folder is turned
+// down, however the shell would write the home folder; any other folder is not.
+func TestGateTurnsDownTheSettingsFolder(t *testing.T) {
+	l := newLogin(t)
+	t.Setenv(contract.EnvPane, "w1:p2")
+	t.Setenv(contract.EnvAttempt, "T3.1")
+	dirs, err := l.k.Platform.Dirs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(dirs.Config, contract.ConfigFile)
+	short, cut := strings.CutPrefix(file, l.home)
+	if !cut {
+		t.Fatalf("the settings folder %s is not under the home folder %s", dirs.Config, l.home)
+	}
+	for command, refused := range map[string]bool{
+		"echo 'guard = false' >> " + file: true,
+		"sed -i s/on/off/ ~" + short:      true,
+		`cat "$HOME` + short + `"`:        true,
+		"ls " + dirs.State:                false,
+		"cat " + filepath.Base(file):      false,
+	} {
+		out := l.hook(step(command), "gate")
+		var a answer
+		if json.Unmarshal([]byte(out), &a); refused != (a.Specific.Decision == "deny" && strings.HasPrefix(a.Specific.Reason, "The settings folder")) || a.Continue != nil {
+			t.Errorf("%q: the gate said %q", command, out)
+		}
+	}
+}

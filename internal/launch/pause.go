@@ -1,10 +1,12 @@
 package launch
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"maps"
+	"os"
 	"slices"
 	"time"
 
@@ -160,12 +162,15 @@ func resume(c *contract.Call) (any, error) {
 	here, _ := targets(c, dirs.State, false)
 	var todo []target
 	states := map[target]*contract.State{}
-	others := false
+	others, over := false, false
 	for _, t := range all {
 		s, err := k.Store.Read(t.root, t.run)
-		switch {
+		switch in := everywhere || slices.Contains(here, t); {
 		case err != nil || s.Run.Paused == nil:
-		case everywhere || slices.Contains(here, t):
+		case guarded(s):
+			// The guard's hold is no mark's: it stays, whatever else is resumed.
+			over = over || in
+		case in:
 			if err := k.Rules.Allowed(s, c.Caller, c.Command.Name, ""); err != nil {
 				return nil, err
 			}
@@ -179,6 +184,9 @@ func resume(c *contract.Call) (any, error) {
 		return nil, err
 	}
 	switch {
+	case len(todo) == 0 && mark == nil && over:
+		job, _ := k.Store.Read(c.Root, c.Run)
+		return nil, overBudget(c, job, "Nothing is resumed")
 	case len(todo) == 0 && (mark == nil || others):
 		return nil, refuse(contract.ExitRefused, "not_paused", "Nothing here is paused.")
 	case others:
@@ -191,58 +199,24 @@ func resume(c *contract.Call) (any, error) {
 	if err := contract.SetPaused(k.Platform, dirs.State, nil); err != nil {
 		return nil, err
 	}
-	snap, snapErr := k.Terms.Snapshot(context.Background())
-	told, skips := []string{}, []skipped{}
-	typed := map[string]bool{} // a leader's tab is the place of each of its groups and its fleet's lead: one line is enough
-	var next time.Time
+	w := waker{k: k, typed: map[string]bool{}}
+	w.snap, w.err = k.Terms.Snapshot(context.Background())
 	for _, t := range todo {
-		limits, _ := contract.ReadProjectFile(t.root)
-		gap := time.Duration(0)
-		if n := limits.Limits.ResumePerSecond; n > 0 {
-			gap = time.Second / time.Duration(n)
+		wake, lead, err := wakeUp(k, t, states[t], c.Now, func(s *contract.State) (since time.Time, err error) {
+			if err = k.Rules.Allowed(s, c.Caller, c.Command.Name, ""); err == nil && s.Run.Paused != nil {
+				since = s.Run.Paused.At
+				err = k.Rules.Resume(s, c.Now)
+			}
+			return since, err
+		})
+		if err == nil {
+			err = w.tell(t, wake, lead)
 		}
-		wake, lead, err := wakeUp(c, t, states[t])
 		if err != nil {
 			return nil, refusal(err)
 		}
-		var pointed []woken
-		for _, w := range wake {
-			err := snapErr
-			if p := paneOf(snap, w.pane); err == nil && p != nil && p.Status == contract.StatusBlocked {
-				err = contract.ErrAgentBlocked
-			}
-			if err == nil && !typed[w.pane] {
-				time.Sleep(time.Until(next))
-				next = time.Now().Add(gap)
-				err = k.Terms.Point(w.pane, contract.PointResumed, "")
-				typed[w.pane] = err == nil
-			}
-			switch {
-			case err == nil:
-				told, pointed = append(told, w.name), append(pointed, w)
-			case errors.Is(err, contract.ErrAgentBlocked):
-				skips = append(skips, skipped{w.name, atPrompt})
-			default:
-				skips = append(skips, skipped{w.name, err.Error()})
-			}
-		}
-		if lead != "" && snapErr == nil && !typed[lead] {
-			if err := k.Terms.Point(lead, contract.PointLeadOn, ""); err != nil {
-				skips = append(skips, skipped{"the lead agent", err.Error()})
-			}
-		}
-		if len(pointed) > 0 {
-			err = k.Store.Change(t.root, t.run, func(s *contract.State) error {
-				for _, w := range pointed {
-					k.Rules.Pointed(s, w.attempt, w.seq, contract.Now())
-				}
-				return nil
-			})
-			if err != nil {
-				return nil, refusal(err)
-			}
-		}
 	}
+	told, skips := w.told, w.skips
 	fmt.Fprintf(c.Out, "Resumed. %d agents were told to read their mail and carry on.\n", len(told))
 	for _, s := range skips {
 		if s.Why == atPrompt {
@@ -254,11 +228,129 @@ func resume(c *contract.Call) (any, error) {
 	return map[string]any{"told": told, "skipped": skips}, nil
 }
 
-// wakeUp clears one run's pause and puts the message into the mail of every
-// worker that was held. seen is the run as it was read a moment ago: from it
-// comes which worker has an answer waiting that no ask of its own will fetch.
-func wakeUp(c *contract.Call, t target, seen *contract.State) (wake []woken, lead string, err error) {
-	k := c.Kit
+// waker types the pointer to its mail into the tab of each agent that is
+// woken, a few a second, over one run after another.
+type waker struct {
+	k     *contract.Kit
+	snap  *contract.Snapshot
+	err   error           // the terminals could not be asked
+	typed map[string]bool // a leader's tab is the place of each of its groups and its fleet's lead: one line is enough
+	next  time.Time
+	told  []string
+	skips []skipped
+}
+
+func (w *waker) tell(t target, wake []woken, lead string) error {
+	k := w.k
+	limits, _ := contract.ReadProjectFile(t.root)
+	gap := time.Duration(0)
+	if n := limits.Limits.ResumePerSecond; n > 0 {
+		gap = time.Second / time.Duration(n)
+	}
+	var pointed []woken
+	for _, to := range wake {
+		err := w.err
+		if p := paneOf(w.snap, to.pane); err == nil && p != nil && p.Status == contract.StatusBlocked {
+			err = contract.ErrAgentBlocked
+		}
+		if err == nil && !w.typed[to.pane] {
+			time.Sleep(time.Until(w.next))
+			w.next = time.Now().Add(gap)
+			err = k.Terms.Point(to.pane, contract.PointResumed, "")
+			w.typed[to.pane] = err == nil
+		}
+		switch {
+		case err == nil:
+			w.told, pointed = append(w.told, to.name), append(pointed, to)
+		case errors.Is(err, contract.ErrAgentBlocked):
+			w.skips = append(w.skips, skipped{to.name, atPrompt})
+		default:
+			w.skips = append(w.skips, skipped{to.name, err.Error()})
+		}
+	}
+	if lead != "" && w.err == nil && !w.typed[lead] {
+		if err := k.Terms.Point(lead, contract.PointLeadOn, ""); err != nil {
+			w.skips = append(w.skips, skipped{"the lead agent", err.Error()})
+		}
+	}
+	if len(pointed) == 0 {
+		return nil
+	}
+	return k.Store.Change(t.root, t.run, func(s *contract.State) error {
+		for _, to := range pointed {
+			k.Rules.Pointed(s, to.attempt, to.seq, contract.Now())
+		}
+		return nil
+	})
+}
+
+// guarded reports whether the spending guard holds a run.
+func guarded(s *contract.State) bool {
+	return s != nil && s.Run.Paused != nil && s.Run.Paused.By == contract.HeldBy
+}
+
+// overBudget is what a start and a resume end with where the spending guard
+// holds: more agent-hours are the person's alone to give, with the line that
+// answers the job's item, and a resume without them would be held again at
+// the sweep's next look.
+func overBudget(c *contract.Call, job *contract.State, what string) *contract.Refusal {
+	r := refuse(contract.ExitRefused, contract.RefusedOverBudget, "%s: the spending guard holds this run at its limit of agent-hours until the person answers its item.", what)
+	r.Next = []string{"whaleshark wait"}
+	for id, q := range cmp.Or(job, &contract.State{}).Questions {
+		if c.Caller.Kind == contract.Human && q.Cause == contract.CauseBudget && q.State == contract.QuestionOpen {
+			r.Next = []string{line(c, "answer "+id+` "`+contract.AnswerMore+`"`)}
+		}
+	}
+	return r
+}
+
+// Hold brings a run's hold file and its agents in line with its record.
+// Held by the spending guard, the file is written with the moment of the
+// hold in it, and whoever writes it closes the tab of each agent with
+// nothing in hand: one that has reported and waits to be checked, or whose
+// task is done. Its work is committed and its copy of the code stays. An
+// agent at work is left to its gate, and a leader sits on. Not held, the
+// file goes, and whoever took it away wakes the run's agents as resume does,
+// unless a pause of the person's holds them still.
+func Hold(k *contract.Kit, root, run string) error {
+	s, err := k.Store.Read(root, run)
+	if err != nil {
+		return err
+	}
+	file := contract.HoldPath(root, run)
+	at, none := k.Platform.Peek(file)
+	switch t := (target{root, run}); {
+	case guarded(s) && none != nil:
+		if err := os.WriteFile(file, []byte(s.Run.Paused.At.Format(time.RFC3339)), 0o600); err != nil {
+			return err
+		}
+		snap, err := k.Terms.Snapshot(context.Background())
+		for _, a := range s.Attempts {
+			if task := s.Tasks[a.Task]; a.Leads == "" && (a.State == contract.AttemptReported || task.Status == contract.TaskDone) {
+				shut(k, snap, tabName(task), a.Place)
+			}
+		}
+		return err
+	case !guarded(s) && none == nil && os.Remove(file) == nil && s.Run.Paused == nil:
+		now := contract.Now()
+		since, _ := time.Parse(time.RFC3339, string(at))
+		w := waker{k: k, typed: map[string]bool{}}
+		w.snap, w.err = k.Terms.Snapshot(context.Background())
+		wake, lead, err := wakeUp(k, t, s, now, func(*contract.State) (time.Time, error) { return cmp.Or(since, now), nil })
+		if err == nil {
+			err = w.tell(t, wake, lead)
+		}
+		return err
+	}
+	return nil
+}
+
+// wakeUp puts the message into the mail of every worker of one run that was
+// held; begin, under the run's lock, ends what held them and says since
+// when, or with no moment that nobody is to be woken. seen is the run as it
+// was read a moment ago: from it comes which worker has an answer waiting
+// that no ask of its own will fetch.
+func wakeUp(k *contract.Kit, t target, seen *contract.State, now time.Time, begin func(*contract.State) (time.Time, error)) (wake []woken, lead string, err error) {
 	answered := map[string]string{}
 	for id, q := range seen.Questions {
 		if q.Kind != contract.KindAsk || q.State != contract.QuestionAnswered {
@@ -276,12 +368,8 @@ func wakeUp(c *contract.Call, t target, seen *contract.State) (wake []woken, lea
 	}
 	err = k.Store.Change(t.root, t.run, func(s *contract.State) error {
 		wake = nil
-		err := k.Rules.Allowed(s, c.Caller, c.Command.Name, "")
-		if err != nil || s.Run.Paused == nil {
-			return err
-		}
-		since := s.Run.Paused.At
-		if err := k.Rules.Resume(s, c.Now); err != nil {
+		since, err := begin(s)
+		if err != nil || since.IsZero() {
 			return err
 		}
 		ids := make([]string, 0, len(s.Attempts))
@@ -294,11 +382,11 @@ func wakeUp(c *contract.Call, t target, seen *contract.State) (wake []woken, lea
 		for _, id := range ids {
 			a := s.Attempts[id]
 			text := fmt.Sprintf("You were paused at %s and resumed at %s. Run `git status` first, then carry on from where you stopped.",
-				since.Local().Format("15:04"), c.Now.Local().Format("15:04"))
+				since.Local().Format("15:04"), now.Local().Format("15:04"))
 			if q := answered[id]; q != "" {
 				text += " Your question " + q + " has its answer: run `whaleshark ask --resume " + q + "`."
 			}
-			seq, err := k.Rules.Tell(s, a.Task, text, "", c.Now)
+			seq, err := k.Rules.Tell(s, a.Task, text, "", now)
 			if err != nil {
 				return err
 			}
