@@ -335,6 +335,18 @@ func TestCallers(t *testing.T) {
 	}
 }
 
+// With the last job closed there is nothing to take over: an agent that
+// starts in a fresh tab is told that no run is open and how one begins. A
+// real one was told to take the closed job over, and stopped to ask.
+func TestAClosedJobIsNoRunToTakeOver(t *testing.T) {
+	k, store := world(t)
+	store.current = "r1" // closed
+	r, exit := refusal(t, k, other, "wait")
+	if exit != contract.ExitRefused || r.Code != "not_bound" || r.Message != "No run is open here: r1 is closed." || !slices.Equal(r.Next, []string{`whaleshark run new "<objective>"`}) {
+		t.Errorf("exit %d: %+v", exit, r)
+	}
+}
+
 // A next line with --human reaches the person and nobody else.
 func TestHumanNeverShown(t *testing.T) {
 	for _, w := range []scene{lead, other, person} {

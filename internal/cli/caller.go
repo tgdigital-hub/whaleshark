@@ -269,6 +269,9 @@ func permit(c *contract.Call, sub string) *contract.Refusal {
 			r := refuse("not_bound", "Only the tab a run is bound to may change it.")
 			if r.Next = []string{"whaleshark run takeover"}; c.Run == "" {
 				r.Message, r.Next = "No run is open here.", []string{`whaleshark run new "<objective>"`}
+			} else if s, err := c.Kit.Reader().Read(c.Root, c.Run); err == nil && !s.Run.ClosedAt.IsZero() {
+				// The last job is closed: there is nothing to take over.
+				r.Message, r.Next = "No run is open here: "+c.Run+" is closed.", []string{`whaleshark run new "<objective>"`}
 			}
 			return r
 		}
