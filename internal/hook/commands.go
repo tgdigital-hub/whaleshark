@@ -179,7 +179,8 @@ func gate(c *contract.Call, dirs contract.Dirs, kind contract.Gate) {
 	// The settings are the person's: a command line that names the login's
 	// settings folder, also from the home folder as a shell writes it, is
 	// turned down. It stops the plain way and no other.
-	if home, _ := os.UserHomeDir(); dirs.Config != "" && strings.Contains(strings.NewReplacer("~", home, "$HOME", home).Replace(m.Input.Command), dirs.Config) {
+	// The line is also read as written: a Windows path may hold a "~" of its own.
+	if home, _ := os.UserHomeDir(); dirs.Config != "" && strings.Contains(m.Input.Command+"\n"+strings.NewReplacer("~", home, "$HOME", home).Replace(m.Input.Command), dirs.Config) {
 		fmt.Fprintf(c.Out, refusal, "The settings folder is the person's to change, not an agent's. Leave it as it is.")
 		return
 	}
