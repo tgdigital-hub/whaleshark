@@ -231,6 +231,10 @@ func play(t *testing.T, on scenario.Backend) []string {
 		len(two.Mail) != 1 || !strings.HasPrefix(two.Mail[0].Text, "New work for your fleet: group G5") || !slices.Equal(up.Run.Fleets["billing"].Groups, []string{"G1", "G5"}) {
 		t.Fatalf("G5 did not go to the leader of billing: %+v, fleet %+v", two, up.Run.Fleets["billing"])
 	}
+	// The leader's own wait ends with it: its fleet's run holds the event.
+	if ev := m.read("r2").Inbox.Events; len(ev) == 0 || ev[len(ev)-1].Kind != "work" || !strings.Contains(ev[len(ev)-1].Text, "group G5: whaleshark mail") {
+		t.Fatalf("the fleet's run was not told of G5: %+v", ev)
+	}
 
 	// Billing's leader starts its two workers from its own tab, which the
 	// keeper's fence lets it do in a tab it opened itself; a third is over

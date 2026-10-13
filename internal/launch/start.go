@@ -819,6 +819,9 @@ func (l *launcher) hand(r outcome, t *contract.Task, low, id, hash string, agent
 		if err == nil {
 			seq, err = k.Rules.Tell(up, t.ID, text, "", contract.Now())
 			r.Tab, pane = up.Attempts[id].Place.Tab, up.Attempts[id].Place.Pane
+			// A leader that waits on its fleet hears it there: a line typed
+			// into a tab whose agent sits in a long wait is read after it.
+			k.Rules.Raise(low, contract.Event{Kind: "work", Text: fmt.Sprintf("the orchestrator handed your fleet group %s: whaleshark mail", t.ID)}, contract.Now())
 		}
 		return err
 	})

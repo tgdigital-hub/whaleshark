@@ -89,6 +89,8 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   it: `whaleshark need todo "Approve the project's settings: whaleshark trust"`.
 - `stuck`: nothing can run: a task waits on one that failed or was cancelled. Edit, reset or cancel.
 - `upgraded`: the program was upgraded under the job. Nothing is lost: start `wait` again.
+- `work`: the orchestrator handed your fleet another group. `whaleshark mail` holds it: plan it
+  and start its workers at once.
 - `paused`: the person pressed Stop all. Start nothing and change nothing until `resumed`.
   `still_running` names a worker that works on through the pause.
 Several results at once are checked together with `whaleshark accept T1 T2 T3`, where the project
