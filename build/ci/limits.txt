@@ -215,7 +215,10 @@ lines 430 guide internal/guide
 # 65 more for phase 7: a task's new name with its event, the refusal that
 # names the workspace, and the tab's label following. Counted at twice its
 # plan, as every part of this kind has come out.
-lines 1840 runtask internal/runtask
+# 40 more when the first part of phase 7 was put together: the new name was
+# built at 61 lines where 30 were counted, and the folder stood at its line
+# exactly (1,840) with the phase's second part still to come.
+lines 1880 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -598,7 +601,9 @@ lines 2510 keeper internal/keeper
 # the tab row of the workspace in front on one line or two with counts 300;
 # the lit and the held line, the label, a line put back to what it was opened
 # with 140. Counted at twice its plan, as every part of this kind has come
-# out.
+# out. When the first part of phase 7 was put together it stood at 1,148: the
+# keys ask it which tabs they walk, so it keeps no narrowed copy of itself,
+# and the 140 for the lines stand whole. The line stays.
 lines 1290 layout internal/layout
 # pty gives 50 to restore when phase 2 was put together; it is built whole at
 # 617.
@@ -721,7 +726,8 @@ skip _test.go testdata testkit
 # folder's line above holds its share twice: the lines sum to 47,845, and the
 # phase is about 3,000 lines if every folder fills its line. Putting its parts
 # together sets this to what is built. It is a figure that is told, not a cap
-# that decides what is built.
+# that decides what is built. With the first part put together the tree
+# stands at 45,943 and the lines sum to 47,885: runtask's 40.
 total 48000
 
 # The whole module list, not only the direct ones.
