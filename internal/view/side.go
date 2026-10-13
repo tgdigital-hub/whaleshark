@@ -89,6 +89,14 @@ func Side(in contract.SideInput) *contract.Side {
 	var front *space
 	spaces = slices.DeleteFunc(spaces, func(w *space) bool { return !w.job && len(w.rows) == 0 })
 	for _, w := range spaces {
+		// With no job open, the fleets the person keeps there stand all the same.
+		for _, p := range in.Projects {
+			for _, f := range p.Saved {
+				if p.Root == w.Root && !w.job && in.Person.Fleets.Mode == contract.On {
+					w.rows = append(w.rows, contract.SideRow{Kind: contract.RowFleet, Name: clean(f.Name), Word: contract.WordSaved, Root: w.Root})
+				}
+			}
+		}
 		w.sum(focus)
 		if out.NeedYou += w.need; out.First == nil {
 			out.First = w.first

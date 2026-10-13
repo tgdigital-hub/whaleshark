@@ -493,6 +493,21 @@ func TestASavedFleetHasItsRowWithNoWork(t *testing.T) {
 	if got := strings.Join(rows, " "); got != "billing= search= help pages= shop front=saved" {
 		t.Errorf("the fleets' rows are %q", got)
 	}
+	// With no job open they stand all the same, each "saved", while Fleet
+	// Mode is on; a project that shows for no other reason shows for these.
+	rows = nil
+	f.In.Projects[0].Runs, f.In.Terms = nil, &contract.Snapshot{Panes: []contract.Pane{{ID: "p1", Tab: "t1", Label: "a shell", Cwd: f.In.Projects[0].Root, Focused: true}}}
+	for _, r := range Side(f.In).Rows {
+		rows = append(rows, r.Kind+" "+r.Name+"="+r.Word)
+	}
+	if got := strings.Join(rows, " · "); got != "tab a shell= · fleet billing=saved · fleet shop front=saved" {
+		t.Errorf("with no job the rows are %q", got)
+	}
+	f.In.Person.Fleets.Mode = contract.Off
+	if side := Side(f.In); len(side.Rows) != 1 {
+		t.Errorf("with Fleet Mode off and no job the rows are %+v", side.Rows)
+	}
+	f = testkit.Fleets()
 	f.View.Saved = saved
 	v := Build(f.View)
 	if len(v.Saved) != 2 || !v.Saved[0].Busy || v.Saved[1].Busy || strings.ContainsRune(v.Saved[1].Purpose, 0x1b) {
