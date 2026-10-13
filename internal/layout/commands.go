@@ -6,8 +6,5 @@ package layout
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
-// Phase 7 owes here: the line that is lit or held and its label, and a line
-// put back to what its split was opened with.
-
 // Plug binds nothing: the keeper holds a Layout and calls it.
 func Plug(*contract.Kit) {}

@@ -340,7 +340,8 @@ var (
 // Draw puts the tab row, the line under it and the dividing lines of the
 // tab that shows into a grid; the panes' own pictures go into their places.
 // A line is one cell, shared by the panes on both sides, and those round the
-// pane that has the keys are in the accent. On the tab row the name that
+// pane that has the keys are in the accent, and so is the line that is lit;
+// held, it is heavy (in plain text "#"). On the tab row the name that
 // shows is in the accent and bold; a second line begins with a corner under
 // the first line's start, and is dim while no tab of it shows.
 func (l *Layout) Draw(g *term.Grid, k Look) {
@@ -414,6 +415,14 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 		}
 	}
 	at := func(x, y int) bool { return x >= 0 && y >= 0 && x < l.W && y < l.H && ends[y*l.W+x] != 0 }
+	// The lit line is in the accent; held, it is heavy over its whole length.
+	line, split, _ := l.held()
+	across, thick := split != nil && split.Down, [3]string{"┃", "┳", "┻"}
+	if k.Plain {
+		thick = [3]string{"#", "#", "#"}
+	} else if across {
+		thick = [3]string{"━", "┣", "┫"}
+	}
 	for i, e := range ends {
 		if e == 0 {
 			continue
@@ -424,10 +433,56 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 				e |= 1 << j
 			}
 		}
-		st := k.Frame
-		if keys.has(x, y) {
+		st, text := k.Frame, glyphs[e]
+		if keys.has(x, y) || line.has(x, y) {
 			st = k.Accent
 		}
-		g.Put(x, y, 1, glyphs[e], st)
+		if l.Held && line.has(x, y) {
+			text = thick[0]
+		}
+		g.Put(x, y, 1, text, st)
 	}
+	// The two ends of a held line, where other lines meet it: left and right
+	// of one that runs across, else above and below.
+	a := map[bool]int{true: 1}[across]
+	for i, c := range [2][2]int{{line.X - a, line.Y - 1 + a}, {line.X + a*line.W, line.Y + (1-a)*line.H}} {
+		if l.Held && line.W > 0 && at(c[0], c[1]) {
+			g.Put(c[0], c[1], 1, thick[1+i], k.Accent)
+		}
+	}
+}
+
+// Say writes the label of the held line, after the panes are drawn: beside
+// a line that runs down, on one that runs across, at the pointer.
+func (l *Layout) Say(g *term.Grid, k Look) {
+	line, n, _ := l.held()
+	text := l.said()
+	if !l.Held || line.W == 0 {
+		return
+	} else if k.Plain {
+		text = strings.NewReplacer("◀▶", "<>", "▲▼", "^v", "·", "-").Replace(text)
+	}
+	w := term.Width(text)
+	x, y := line.X+1, max(min(l.Lit.Y, line.Y+line.H-1), line.Y)
+	if n != nil && n.Down {
+		text, w = " "+text+" ", min(w+2, line.W)
+		x, y = max(min(l.Lit.X-w/2, line.X+line.W-w), line.X), line.Y
+	} else if x+w > l.W {
+		x = max(line.X-w, 0)
+	}
+	g.Put(x, y, w, text, k.Accent)
+}
+
+// Named is the cell a tab's own name begins at on the tab row, and the
+// row's first cell where the row has no room for the name.
+func (l *Layout) Named(tab string) (x, y int) {
+	rows, _ := l.rows()
+	for y, row := range rows {
+		for _, s := range row {
+			if s.tab != nil && s.tab.ID == tab && !s.group {
+				return s.x, y
+			}
+		}
+	}
+	return l.area().X + 1, 0
 }

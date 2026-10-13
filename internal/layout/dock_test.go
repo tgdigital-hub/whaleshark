@@ -120,13 +120,14 @@ func TestTheRailFoldedAndOpen(t *testing.T) {
 
 // A drag of the dock's edge sets the width, at either edge: never under
 // contract.SideMin, never over contract.SideMax, never past what leaves the
-// tab contract.TalkMin columns; and it unfolds a folded dock.
+// tab contract.TalkMin columns; it unfolds a folded dock; and in a window
+// whose width gives the dock one width whatever is set, it sets none.
 func TestADragOfTheDocksEdge(t *testing.T) {
 	for _, c := range []struct {
 		w, x, want int
 		right      bool
-	}{{200, 40, 40, false}, {200, 2, 16, false}, {200, 199, 60, false}, {100, 70, 49, false}, {60, 30, 16, false},
-		{200, 159, 40, true}, {200, 199, 16, true}, {200, 0, 60, true}, {100, 10, 49, true}} {
+	}{{200, 40, 40, false}, {200, 2, 16, false}, {200, 199, 60, false}, {180, 170, 60, false}, {100, 70, 28, false}, {60, 30, 28, false},
+		{200, 159, 40, true}, {200, 199, 16, true}, {200, 0, 60, true}, {100, 10, 28, true}} {
 		l := docked(Dock{On: true, Width: 28, Right: c.right, Fold: true}, c.w, 20)
 		edge := contract.SideRail
 		if c.right {

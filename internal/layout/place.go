@@ -1,6 +1,8 @@
 package layout
 
 import (
+	"cmp"
+	"fmt"
 	"math"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -274,13 +276,18 @@ func (l *Layout) Resize(pane, direction string, amount float64) error {
 // Drag moves the dividing line a press landed on to the cell the pointer is
 // on now. The hit is one of the layout as it is: once a pane has opened or
 // closed, At is asked again. The dock's edge sets its width, unfolded, within
-// the contract's limits and never past what leaves a tab contract.TalkMin.
+// the contract's limits, never past what leaves a tab contract.TalkMin, and
+// held to what this window's width gives the dock: where that is no other
+// width than it shows already, the set width stays as it is.
 func (l *Layout) Drag(h Hit, x, y int) {
 	if h.Kind == OnLine && h.Pane == DockPane {
 		if l.Dock.Right {
 			x = l.W - 1 - x
 		}
-		l.Dock.Width, l.Dock.Fold = max(min(x, contract.SideMax, l.W-1-contract.TalkMin), contract.SideMin), false
+		if to := l.fit(x); to != l.fit(l.Dock.Width) {
+			l.Dock.Width = to
+		}
+		l.Dock.Fold = false
 		return
 	}
 	if h.line == nil || l.Active >= len(l.Tabs) {
@@ -293,4 +300,76 @@ func (l *Layout) Drag(h Hit, x, y int) {
 			n.move(r, x-r.X)
 		}
 	})
+}
+
+// fit is the width the dock shows in this window when it is set to w.
+func (l *Layout) fit(w int) int {
+	return contract.Fit(l.W, contract.Layout{Side: max(min(w, contract.SideMax, l.W-1-contract.TalkMin), contract.SideMin)}).Side
+}
+
+// Reset puts a dividing line back to how it came: the dock's edge to the
+// contract's width, a split's line to what the split was opened with, a
+// half where an older file does not say.
+func (l *Layout) Reset(h Hit) {
+	switch n := h.line; {
+	case h.Kind == OnLine && h.Pane == DockPane:
+		l.Dock.Width, l.Dock.Fold = contract.SideWidth, false
+	case n == nil || n.A == nil:
+	case n.Cells > 0:
+		n.Cells = cmp.Or(int(n.Made), n.Cells)
+	default:
+		n.Share = min(cmp.Or(n.Made, 0.5), 1)
+	}
+}
+
+// held is the place of the line that is lit, none where the layout has that
+// line no more; for a split's line also the split and its place.
+func (l *Layout) held() (line Rect, n *Node, in Rect) {
+	t := l.shown()
+	switch {
+	case l.Lit.Kind != OnLine:
+	case l.Lit.Pane == DockPane:
+		_, line, _, _ = l.side()
+	case t != nil && t.Zoom == "":
+		walk(t.Root, l.area(), func(o *Node, r Rect) {
+			if o == l.Lit.line && o.A != nil {
+				_, _, line = o.cut(r)
+				n, in = o, r
+			}
+		})
+	}
+	return line, n, in
+}
+
+// said is the label of the held line: the size it gives, of the dock, or of
+// the side of a split that is held to its cells, else the first; and the
+// limit the line stands at.
+func (l *Layout) said() string {
+	line, n, in := l.held()
+	if l.Said != "" || line.W == 0 {
+		return l.Said
+	}
+	dock, _, _, _ := l.side()
+	size, lo, hi, unit, most := dock.W, l.fit(0), l.fit(contract.SideMax), "◀▶ %d columns", " · the most"
+	if n == nil && lo == hi {
+		return "fixed at this window size"
+	} else if n == nil && hi < contract.SideMax {
+		most += " at this window size"
+	} else if n != nil {
+		a, b, _ := n.cut(in)
+		free := a.W + b.W
+		if size = a.W; n.Down {
+			free, size, unit = a.H+b.H, a.H, "▲▼ %d rows"
+		}
+		if lo, hi = n.A.least(n.Down), free-n.B.least(n.Down); n.Cells > 0 && n.Last {
+			size, lo, hi = free-size, free-hi, free-lo
+		}
+	}
+	text := fmt.Sprintf(unit, size)
+	if lo < hi && size <= lo {
+		return text + " · the least"
+	} else if lo < hi && size >= hi {
+		return text + most
+	}
+	return text
 }
