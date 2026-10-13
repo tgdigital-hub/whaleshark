@@ -282,6 +282,14 @@ func (f *Fake) open(tab, label, cwd string) *pane {
 
 // emit numbers a change and hands it to every reader of events. One that
 // has fallen too far behind is closed, and reads a new picture.
+// Window gives the window another width, as a person dragging its edge does.
+func (f *Fake) Window(width int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.Width = width
+	f.emit(contract.EvWindow, contract.Pane{})
+}
+
 func (f *Fake) emit(kind string, rec contract.Pane) {
 	if f.quiet {
 		return

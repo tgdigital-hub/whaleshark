@@ -114,6 +114,24 @@ func Panes(k *contract.Kit, pane string) error {
 	return err
 }
 
+// refit lays the two panes out again for a window that took another width,
+// in the tab they stand in, and opens nothing where neither is open: the
+// file names them, and a pane it names that is gone stands for nothing.
+func refit(k *contract.Kit) error {
+	_, ui, _, err := screen(k)
+	for _, ours := range []string{ui.FleetPane, ui.ActionsPane} {
+		if err != nil || ours == "" {
+			continue
+		}
+		_, err = place(&contract.Call{Kit: k, Caller: contract.Caller{Pane: ours}, Out: io.Discard}, nil)
+		if r := new(contract.Refusal); !errors.As(err, &r) || r.Code != "no_panes" {
+			return err
+		}
+		err = nil
+	}
+	return err
+}
+
 // place opens and closes our two panes beside the pane the command was run
 // in; one that is open in another tab is closed there first. want says, for
 // one of ours and whether it is open, whether it shall be; with none it is

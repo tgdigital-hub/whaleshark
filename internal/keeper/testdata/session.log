@@ -128,6 +128,7 @@
 {"op":"snapshot"}
   < {"snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}]}}
 !window 120 40
+  * {"kind":"window","pane":{"pane":"","tab":"","workspace":"","terminal":"","label":"","cwd":"","status":""}}
 {"op":"status"}
   < {"text":"pid N, 2 tabs, 4 panes, 1 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app","focused":true}]}}
 {"op":"size","pane":"p1"}
@@ -195,6 +196,7 @@
 {"op":"set-keys"}
   < {}
 !window 60 20
+  * {"kind":"window","pane":{"pane":"","tab":"","workspace":"","terminal":"","label":"","cwd":"","status":""}}
 {"op":"status"}
   < {"text":"pid N, 2 tabs, 6 panes, 2 windows","snapshot":{"at":"0001-01-01T00:00:00Z","instance":"one","panes":[{"pane":"p1","tab":"t1","workspace":"","terminal":"one.1","label":"fix login bug","cwd":"/work/app"},{"pane":"p2","tab":"t2","workspace":"","terminal":"one.2","label":"tests for login","cwd":"/work/site"},{"pane":"p3","tab":"t1","workspace":"","terminal":"one.5","label":"fix login bug","cwd":"/work/app","ours":true},{"pane":"p4","tab":"t1","workspace":"","terminal":"one.4","label":"fix login bug","cwd":"/work/app"},{"pane":"p5","tab":"t2","workspace":"","terminal":"one.6","label":"tests for login","cwd":"/work/site"},{"pane":"p6","tab":"t2","workspace":"","terminal":"one.7","label":"tests for login","cwd":"/work/site","focused":true}]}}
 {"op":"size","pane":"p2"}

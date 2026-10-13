@@ -112,6 +112,9 @@ const (
 	EvFolder    = "folder"
 	EvSession   = "session"
 	EvTabClosed = "tab-closed"
+	// EvWindow says the window took another width; it names no pane and
+	// changes no picture. The left section fits the two panes again by it.
+	EvWindow = "window"
 )
 
 // TermEvent is one change, in the order it happened: Seq counts up by one.
@@ -123,6 +126,9 @@ type TermEvent struct {
 
 // Apply brings a picture up to date with one event of Events.
 func Apply(s *Snapshot, e TermEvent) {
+	if e.Kind == EvWindow {
+		return
+	}
 	byID := func(a, b Pane) int { return strings.Compare(a.ID, b.ID) }
 	panes, found := make([]Pane, 0, len(s.Panes)+1), false
 	for _, p := range s.Panes {

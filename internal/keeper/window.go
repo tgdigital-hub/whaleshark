@@ -138,7 +138,10 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 func (k *Keeper) use(w *window) {
 	if k.last != w {
 		k.last = w
-		k.lay.Fit(w.w, w.h)
+		was := k.lay.W
+		if k.lay.Fit(w.w, w.h); k.lay.W != was {
+			k.emit(contract.EvWindow, contract.Pane{})
+		}
 		k.changed()
 	}
 }

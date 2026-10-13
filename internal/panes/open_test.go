@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
@@ -241,5 +242,62 @@ func TestUIFitsTheFleetToTheScreen(t *testing.T) {
 			t.Errorf("on %d columns with a fleet left at %d: %v\n%s", c.width, c.kept, err, got)
 		}
 		d.ui(d.me, "close")
+	}
+}
+
+// The window's width changes: the left section, which is always there, fits
+// the two panes to it again once the width rests, in the tab they stand in
+// and in the form Fit gives that width. With no pane of ours open nothing is
+// opened.
+func TestThePanesAreFittedAgainWhenTheWindowsWidthChanges(t *testing.T) {
+	wd := start(t, side, 40, 30, nil)
+	splits := func(from int) (lines []string) {
+		for _, c := range wd.double.Calls()[from:] {
+			if c.Op == contract.OpSplit {
+				lines = append(lines, said(c))
+			}
+		}
+		return lines
+	}
+	wd.double.Window(150)
+	rested := make(chan bool)
+	wd.p.tell(news{do: func() { wd.p.tick(1); wd.p.tick(1); close(rested) }})
+	if <-rested; len(splits(0)) != 0 {
+		t.Fatalf("with no pane of ours open the new width opened %q", splits(0))
+	}
+	if err := Panes(wd.p.k, ""); err != nil {
+		t.Fatal(err)
+	}
+	// The tabs our two panes stand in, once the file names the two that are open.
+	tab := func() (tabs []string) {
+		snap, _ := wd.double.Snapshot(context.Background())
+		_, ui, _, _ := screen(wd.p.k)
+		for _, p := range snap.Panes {
+			if p.Ours && !p.Dock && (p.ID == ui.FleetPane || p.ID == ui.ActionsPane) {
+				tabs = append(tabs, p.Tab)
+			}
+		}
+		return tabs
+	}
+	home := tab()
+	if len(home) != 2 || home[0] != home[1] {
+		t.Fatalf("the two panes opened in the tabs %q", home)
+	}
+	lay := contract.Layout{Fleet: contract.Right, Actions: contract.PersonDefaults().Panes.Actions, Side: contract.SideWidth}
+	for _, width := range []int{70, 200, 110} {
+		form, seen := contract.Fit(width+contract.SideWidth+1, lay), len(wd.double.Calls())
+		want := fmt.Sprint(" right ", form.Fleet)
+		if form.FleetForm == contract.FormStrip {
+			want = fmt.Sprint(" down ", stripRows)
+		}
+		wd.double.Window(width)
+		if !wd.until(10*time.Second, func() bool {
+			return slices.ContainsFunc(splits(seen), func(line string) bool { return strings.Contains(line, want) })
+		}) {
+			t.Fatalf("at %d columns the fleet was not opened again with %q: %q", width, want, splits(seen))
+		}
+		if !wd.until(10*time.Second, func() bool { return slices.Equal(tab(), home) }) {
+			t.Fatalf("at %d columns the panes stand in the tabs %q, not %q", width, tab(), home)
+		}
 	}
 }

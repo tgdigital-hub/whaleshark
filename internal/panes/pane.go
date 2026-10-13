@@ -108,6 +108,7 @@ type pane struct {
 	jobs       chan func()
 	waiting    int
 	again      bool // the program file was replaced: the pane starts itself again
+	refit      int  // ticks until the two panes are fitted to the window's new width; 0 for none owed
 	swept      contract.Swept
 	sweptAt    time.Time
 	here       time.Time
@@ -301,6 +302,12 @@ func (p *pane) terms(m news) {
 		if m.look == 0 {
 			p.picture = nil
 		}
+	case m.ev.Kind == contract.EvWindow:
+		// The window's width changed. Once it has rested for a tick the two
+		// panes are fitted again; the left section does it, being always there.
+		if p.kind == side {
+			p.refit = 2
+		}
 	case m.ev.Kind != "":
 		if p.picture != nil {
 			contract.Apply(p.picture, m.ev)
@@ -350,6 +357,11 @@ func (p *pane) compare(snap *contract.Snapshot, look int) {
 // checked, and every fifth second the keeper is asked for a snapshot.
 func (p *pane) tick(n int) {
 	p.stale, p.dirty = true, true
+	if p.refit > 0 {
+		if p.refit--; p.refit == 0 {
+			p.keeper(func() error { return refit(p.k) })
+		}
+	}
 	if p.watch == nil || p.run == "" && p.kind != side {
 		p.load()
 	}

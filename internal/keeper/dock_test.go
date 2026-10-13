@@ -425,3 +425,41 @@ func TestAnAgentIsStartedFromItsToolsDescription(t *testing.T) {
 		t.Error("a refused start changed the pane, or a tool's variables reached another pane")
 	}
 }
+
+// A window's new width is told to whoever listens, once for a width; a new
+// height alone is not, since no form of the panes follows from it.
+func TestAWindowsNewWidthIsTold(t *testing.T) {
+	r := dockRig(t)
+	c, watch := r.dial(), r.dial()
+	watch.send(contract.WireCall{Op: contract.OpEvents})
+	watch.reply()
+	w := r.window(120, 30)
+	// What is told until a tab opens: the kinds, in order.
+	until := func(label string) (kinds []string) {
+		for {
+			ev := watch.reply().Event
+			if kinds = append(kinds, ev.Kind); ev.Kind == contract.EvOpened && ev.Pane.Label == label {
+				return kinds
+			}
+		}
+	}
+	if got := until(contract.MainTab); !slices.Equal(got, []string{contract.EvWindow, contract.EvOpened}) {
+		t.Fatalf("a window attached to nothing, and what was told is %q", got)
+	}
+	w.send(contract.WireCall{Op: contract.OpWindowSize, W: 120, H: 40})
+	r.sized(c, layout.DockPane, 22, 40)
+	w.send(contract.WireCall{Op: contract.OpWindowSize, W: 99, H: 40})
+	r.sized(c, layout.DockPane, 14, 40)
+	c.call(contract.WireCall{Op: contract.OpTabCreate, Label: "two"})
+	count := func(kinds []string) (n int) {
+		for _, kind := range kinds {
+			if kind == contract.EvWindow {
+				n++
+			}
+		}
+		return n
+	}
+	if got := until("two"); count(got) != 1 {
+		t.Errorf("after a taller and then a narrower window what was told is %q", got)
+	}
+}
