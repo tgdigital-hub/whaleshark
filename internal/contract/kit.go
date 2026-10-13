@@ -84,6 +84,9 @@ type Kit struct {
 	// agents are woken a few at a time. The sweep calls it when Rules.Spend
 	// or Rules.Hold changed something, and at every look at a held run.
 	Hold func(k *Kit, root, run string) error
+	// Machine is how many agents doctor reckons this computer's memory
+	// holds, for the warning of unlimited; 0 where it cannot be told.
+	Machine func() int
 	// Notice asks, at most once a day and never on a server, for the latest
 	// release and keeps the answer (VersionSeen). The window calls it when a
 	// person opens it, beside its work, and waits for nothing.
@@ -117,7 +120,7 @@ func NewKit() *Kit {
 		Integrator: NoIntegrator{}, Overlap: NoOverlap{}, Notifier: NoNotifier{},
 		Evidence: NoEvidence{}, AgentSettings: NoAgentSettings{}, Sweeper: NoSweeper{},
 		View: noView, Side: noSide, ProjectSet: noProjectSet, Panes: func(*Kit, string) error { return nil },
-		PlanText: noPlanText, Hold: func(*Kit, string, string) error { return nil }, Notice: func(*Kit) {}, SyncText: noSyncText, Page: noPage, Asset: noAsset, Push: noPush, PushKey: func() string { return "" }, Main: listOnly, handlers: map[string]Handler{},
+		PlanText: noPlanText, Hold: func(*Kit, string, string) error { return nil }, Notice: func(*Kit) {}, Machine: func() int { return 0 }, SyncText: noSyncText, Page: noPage, Asset: noAsset, Push: noPush, PushKey: func() string { return "" }, Main: listOnly, handlers: map[string]Handler{},
 	}
 }
 

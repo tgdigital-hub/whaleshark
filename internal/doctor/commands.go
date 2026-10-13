@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -23,6 +24,7 @@ func Plug(k *contract.Kit) {
 	k.Handle("doctor", run)
 	k.Handle("server", serve)
 	k.Notice = notice
+	k.Machine = sync.OnceValue(func() int { return memory() / agentMemory })
 }
 
 // What a line says of its check. A note is worth knowing and fails nothing;

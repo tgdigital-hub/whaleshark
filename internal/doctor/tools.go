@@ -50,7 +50,18 @@ func (e *exam) tools() {
 			e.say(note, "", "the agent tool %s; not installed: no %s is on your path", line, t.Run[0])
 		}
 	}
-	mb := 0
+	mb := memory()
+	if mb == 0 {
+		e.say(note, "", "how many agents this machine's memory carries cannot be told on this system")
+	} else {
+		e.say(note, "", "this machine has %d MB of memory: the engine carries about %d agents at %d MB a pane, an agent's own program not counted", mb, mb/paneMemory, paneMemory)
+	}
+}
+
+// memory is this machine's memory in megabytes, 0 where the system does
+// not say. The kit's Machine is it by agentMemory: what the warning of
+// unlimited names as "about N agents here".
+func memory() (mb int) {
 	info, _ := os.ReadFile(sysRoot + "/proc/meminfo")
 	if _, rest, found := strings.Cut(string(info), "MemTotal:"); found {
 		fmt.Sscan(rest, &mb)
@@ -59,11 +70,7 @@ func (e *exam) tools() {
 		fmt.Sscan(out, &mb)
 		mb >>= 20
 	}
-	if mb == 0 {
-		e.say(note, "", "how many agents this machine's memory carries cannot be told on this system")
-	} else {
-		e.say(note, "", "this machine has %d MB of memory: the engine carries about %d agents at %d MB a pane, an agent's own program not counted", mb, mb/paneMemory, paneMemory)
-	}
+	return mb
 }
 
 // Trial is what the one test of a tool saw, step by step, and the last line

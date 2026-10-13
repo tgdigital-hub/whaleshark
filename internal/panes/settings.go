@@ -348,7 +348,7 @@ func (s setting) lifts(v string) bool {
 func (p *pane) says(s setting, w int) (lines []string, warn bool) {
 	server, _ := contract.ReadServer(p.k.Platform.Peek)
 	unlimited := func(k *contract.Key) []string {
-		return k.UnlimitedWarning(0, server.Cap(contract.Me()), p.cfg.Spend.Guard)
+		return k.UnlimitedWarning(p.k.Machine(), server.Cap(contract.Me()), p.cfg.Spend.Guard)
 	}
 	help := s.key.Help
 	switch q := p.pending; {

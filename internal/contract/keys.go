@@ -502,7 +502,7 @@ func Set(c *Call, name, value string) (string, error) {
 	}
 	if cfg, _ := ReadPerson(p.Peek, d.Config); value == strconv.Itoa(Unlimited) && c.Err != nil {
 		server, _ := ReadServer(p.Peek)
-		for _, line := range key.UnlimitedWarning(0, server.Cap(Me()), cfg.Spend.Guard) {
+		for _, line := range key.UnlimitedWarning(c.Kit.Machine(), server.Cap(Me()), cfg.Spend.Guard) {
 			fmt.Fprintln(c.Err, line)
 		}
 	}

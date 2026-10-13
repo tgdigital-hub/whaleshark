@@ -92,9 +92,19 @@ func TestMemoryThatCannotBeTold(t *testing.T) {
 	sysRoot = t.TempDir() // which has no figure: this machine's own is not asked
 	e, _ := d.doctor()
 	d.want(e, note, "memory carries cannot be told")
+	// The warning of unlimited reads the same reckoning through the kit: no
+	// figure where the system gives none, and else memory by what an agent takes.
+	none, k := contract.NewKit(), contract.NewKit()
+	if Plug(none); none.Machine() != 0 {
+		t.Errorf("with no memory told the kit says %d agents", none.Machine())
+	}
 	d.write(filepath.Join(sysRoot, "proc", "meminfo"), "MemTotal:        8388608 kB\nMemAvailable:    1000000 kB\n")
 	e, _ = d.doctor()
 	d.want(e, note, "8192 MB of memory", "about 1638 agents")
+	fleets, _ := contract.FindKey("fleets.total")
+	if Plug(k); k.Machine() != 16 || !strings.Contains(strings.Join(fleets.UnlimitedWarning(k.Machine(), 0, true), " "), "this computer's memory (about 16 agents here) and your plan's usage") {
+		t.Errorf("the kit says %d agents, and the warning %q", k.Machine(), fleets.UnlimitedWarning(k.Machine(), 0, true))
+	}
 }
 
 // trial is the keeper for the one test of a tool: an agent that starts,

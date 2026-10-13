@@ -112,7 +112,7 @@ func load(c *contract.Call, file string) (any, error) {
 	server, _ := contract.ReadServer(p.Peek)
 	for _, d := range plain {
 		say("  " + d.key.Label + " (" + d.name + "): " + cmp.Or(d.from, "not set") + " → " + d.to)
-		for _, line := range d.key.UnlimitedWarning(0, server.Cap(contract.Me()), pr.Config.Spend.Guard) {
+		for _, line := range d.key.UnlimitedWarning(c.Kit.Machine(), server.Cap(contract.Me()), pr.Config.Spend.Guard) {
 			if d.to == "unlimited" {
 				fmt.Fprintln(c.Out, "      "+line)
 			}
