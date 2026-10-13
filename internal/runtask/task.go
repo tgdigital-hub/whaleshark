@@ -34,16 +34,28 @@ func task(c *contract.Call) (any, error) {
 		}
 	}
 	var changed []string
-	for _, flag := range []string{"brief", "check", "owns", "after"} {
+	for _, flag := range []string{"name", "brief", "check", "owns", "after"} {
 		if f[flag] != nil {
 			changed = append(changed, flag)
 		}
 	}
+	rename := sub == "edit" && f["name"] != nil
 	switch {
 	case sub == "add":
 		return taskAdd(c, args[0], args[1], data)
 	case sub == "edit" && changed == nil:
-		return nil, usage(c, "task edit changes one or more of --brief, --check, --owns and --after.")
+		return nil, usage(c, "task edit changes one or more of --name, --brief, --check, --owns and --after.")
+	case rename && c.Caller.Kind == contract.Leader:
+		// Its pane may rename no tab: the record and the tab would say two names.
+		return nil, refuse(contract.ExitRefused, contract.RefusedLeader, "A fleet leader renames no task: the orchestrator does, or the person.")
+	}
+	var picture *contract.Snapshot
+	if rename {
+		if err = cli.Valid("name", last(c, "name"), ""); err != nil {
+			return nil, usage(c, "%v.", err)
+		} else if picture, err = k.Terms.Snapshot(context.Background()); err != nil {
+			fmt.Fprintln(c.Err, "The open tabs could not be asked, so the name was compared with this run's tasks only.")
+		}
 	}
 	var t contract.Task
 	var ready []string
@@ -79,9 +91,22 @@ func task(c *contract.Call) (any, error) {
 			if data != nil { // the rule is told of a new brief; its text is written by keep
 				edit.Brief = &found.Brief
 			}
+			was, name := found.Name, last(c, "name")
+			tabs := ownTabs(s, found, picture)
+			if rename {
+				edit.Name, edit.Taken = &name, labels(picture, tabs)
+			}
 			if ready, err = k.Rules.EditTask(s, found.ID, edit, c.Now); err == nil && data != nil {
 				err = keep(c, found, data)
 			}
+			// The tabs follow under the lock: one that will not take the
+			// name leaves the record as it was.
+			for i := 0; err == nil && i < len(tabs) && found.Name != was; i++ {
+				if err = k.Terms.TabRename(tabs[i], found.Name); errors.Is(err, contract.ErrNoPane) {
+					err = nil // closed since it was seen
+				}
+			}
+			err = inSpace(err, picture, name)
 		}
 		t = *found
 		return err
@@ -121,7 +146,49 @@ func task(c *contract.Call) (any, error) {
 	if len(ready) > 0 {
 		fmt.Fprintf(c.Out, "Ready now: %s.\n", strings.Join(ready, ", "))
 	}
-	return map[string]any{"id": t.ID, "status": t.Status, "ready": ready}, nil
+	return map[string]any{"id": t.ID, "name": t.Name, "status": t.Status, "ready": ready}, nil
+}
+
+// ownTabs are the tabs a task's attempts were given that still carry its
+// name: what a rename renames, and whose label is not another's. A group's
+// tab is its fleet's, which has no other name.
+func ownTabs(s *contract.State, t *contract.Task, picture *contract.Snapshot) (tabs []string) {
+	for _, id := range t.Attempts {
+		place := s.Attempts[id].Place
+		for _, p := range cmp.Or(picture, &contract.Snapshot{}).Panes {
+			if place.OpenedByUs && p.ID == place.Pane && p.Tab == place.Tab && p.Label == t.Name && t.Fleet == "" && !slices.Contains(tabs, p.Tab) {
+				tabs = append(tabs, p.Tab)
+			}
+		}
+	}
+	return tabs
+}
+
+// labels are the labels of every open tab but these.
+func labels(picture *contract.Snapshot, but []string) (taken []string) {
+	for _, p := range cmp.Or(picture, &contract.Snapshot{}).Panes {
+		if !slices.Contains(but, p.Tab) {
+			taken = append(taken, p.Label)
+		}
+	}
+	return taken
+}
+
+// inSpace says of a name a tab has which workspace that tab is of.
+func inSpace(err error, picture *contract.Snapshot, name string) error {
+	var r *contract.Refusal
+	if !errors.As(err, &r) || r.Code != "name_taken" || picture == nil {
+		return err
+	}
+	name = strings.Join(strings.Fields(name), " ")
+	for _, p := range picture.Panes {
+		for _, sp := range picture.Spaces {
+			if strings.EqualFold(p.Label, name) && sp.ID == p.Workspace {
+				r.Message = fmt.Sprintf(contract.NameTaken, name, cmp.Or(sp.Name, contract.SpaceName(sp.Root)))
+			}
+		}
+	}
+	return r
 }
 
 // headings are what a brief must hold, each at the start of a line.
