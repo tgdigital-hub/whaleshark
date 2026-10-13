@@ -51,7 +51,7 @@ A second lead agent started by mistake can look and cannot change the run. `--hu
 6. Delete work that is not proven merged.
 7. Install software or change another login's files, outside `whaleshark server`, which only the administrator can run.
 8. Restart, stop or retry an agent on a guess.
-9. Send anything about you anywhere. There is no telemetry, no crash upload and no update check. The only calls out are ones you set up (a notice address, a paired phone's nudge, on the Cloudflare road its public keys and one request of `doctor` to your own public name) or typed (`land --pr`, `connect`).
+9. Send anything about you anywhere. There is no telemetry and no crash upload, and nothing is ever downloaded or installed for you. One call out is made unasked, and can be switched off: with "Tell me when a new version is out" on, as it comes (Settings › Nudges, or `whaleshark set update.notice off`), the window asks GitHub once a day for the number of the latest release. It is one request to this project's own releases address, carrying the program's name and nothing else, no version, no identifier; the answer is read for a version number and followed nowhere. GitHub sees the address the request comes from, as any site does. On a server no login's window asks: only the administrator's own `sudo whaleshark server status` does. The only other calls out are ones you set up (a notice address, a paired phone's nudge, on the Cloudflare road its public keys and one request of `doctor` to your own public name) or typed (`land --pr`, `connect`).
 
 ## The real wall: what you give the login
 
