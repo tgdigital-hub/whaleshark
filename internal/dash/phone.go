@@ -104,15 +104,25 @@ func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
-	if !s.asked(w, r, "https://", strings.HasPrefix(path, contract.RouteDo) || post && path == contract.RoutePush) {
+	// An app names no origin: a request that names one is a browser's, and
+	// only the page's own is let through to the interface.
+	api := path == contract.RouteAPI || strings.HasPrefix(path, contract.APIv1+"/")
+	if origin := r.Header.Get("Origin"); api && origin != "" && origin != "https://"+r.Host {
+		reply(w, http.StatusForbidden, said("wrong_origin", "That request did not come from an app."))
+		return
+	} else if !api && !s.asked(w, r, "https://", strings.HasPrefix(path, contract.RouteDo) || post && path == contract.RoutePush) {
 		return
 	}
 	if name, asset := strings.CutPrefix(path, contract.RouteAsset); asset {
 		s.asset(w, name)
 		return
 	}
+	// An app's session is its header and a browser's its cookie, and neither
+	// is taken in the other's place.
 	secret := ""
-	if c, err := r.Cookie(bound + s.cookie); err == nil {
+	if c, err := r.Cookie(bound + s.cookie); api {
+		secret = r.Header.Get(contract.HeaderApp)
+	} else if err == nil {
 		secret = c.Value
 	}
 	s.mu.Lock()
@@ -121,18 +131,29 @@ func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 	hash := contract.TokenHash(secret)
 	at := slices.IndexFunc(phones.Paired, func(p contract.Phone) bool { return secret != "" && same(p.Session, hash) })
 	if at < 0 || now.Sub(phones.Paired[at].SeenAt) >= sessionLife {
-		s.knock(w, r, who, hash, now)
+		if api {
+			s.stranger(w, r, who, now)
+		} else {
+			s.knock(w, r, who, hash, now)
+		}
 		return
 	}
 	ph := phones.Paired[at]
-	if ph.Identity != who {
-		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: said("other_identity", "This phone was paired by somebody else.")})
+	if no := said("other_identity", "This phone was paired by somebody else."); ph.Identity != who && api {
+		reply(w, http.StatusForbidden, no)
+		return
+	} else if ph.Identity != who {
+		s.draw(w, http.StatusForbidden, &contract.Page{Screen: contract.ScreenRefused, Said: no})
 		return
 	}
-	if now.Sub(ph.SeenAt) >= seenEvery && s.record(ph.ID, func(p *contract.Phone) { p.SeenAt = now }) == nil {
+	if now.Sub(ph.SeenAt) >= seenEvery && s.record(ph.ID, func(p *contract.Phone) { p.SeenAt = now }) == nil && !api {
 		s.bake(w, secret)
 	}
 	r = r.WithContext(context.WithValue(r.Context(), viaPhone{}, ph.ID))
+	if api {
+		s.app(w, r, ph)
+		return
+	}
 	switch path {
 	case contract.RoutePair:
 		http.Redirect(w, r, contract.RouteTeam, http.StatusSeeOther)
@@ -188,13 +209,11 @@ func (s *server) knock(w http.ResponseWriter, r *http.Request, who, hash string,
 	case p.hash == hash:
 		s.pair, code = pairing{}, http.StatusForbidden
 		no = said("pairing_over", "That number was refused or ran out. Load this page again for a new one.")
-	case s.refusals >= slowFrom && now.Sub(s.refused) < time.Second<<min(s.refusals-slowFrom, slowMost):
-		no = said("pairing_slow", "Too many phones were refused: wait a little.")
+	case s.slowed(now):
+		no = pairingSlow
 	default:
-		var n [4]byte
-		rand.Read(n[:])
-		secret, six := rand.Text(), binary.BigEndian.Uint32(n[:])%1_000_000
-		p = pairing{number: fmt.Sprintf("%03d %03d", six/1000, six%1000), hash: contract.TokenHash(secret), who: who, name: "a browser", at: now}
+		secret := rand.Text()
+		p = pairing{number: number(), hash: contract.TokenHash(secret), who: who, name: "a browser", at: now}
 		for _, kind := range []string{"iPhone", "iPad", "Android"} {
 			if strings.Contains(r.UserAgent(), kind) {
 				p.name = kind
@@ -215,6 +234,21 @@ func (s *server) knock(w http.ResponseWriter, r *http.Request, who, hash string,
 		return
 	}
 	s.draw(w, http.StatusOK, &contract.Page{Screen: contract.ScreenPair, Phone: true, Pair: p.number})
+}
+
+var pairingSlow = said("pairing_slow", "Too many phones were refused: wait a little.")
+
+// slowed reports whether pairing waits after five refusals; mu is held.
+func (s *server) slowed(now time.Time) bool {
+	return s.refusals >= slowFrom && now.Sub(s.refused) < time.Second<<min(s.refusals-slowFrom, slowMost)
+}
+
+// number is the six digits both screens show.
+func number() string {
+	var n [4]byte
+	rand.Read(n[:])
+	six := binary.BigEndian.Uint32(n[:]) % 1_000_000
+	return fmt.Sprintf("%03d %03d", six/1000, six%1000)
 }
 
 // decide is the person's answer to the phone that asks, given where they
@@ -306,6 +340,8 @@ type listed struct {
 	Phones []paired `json:"phones"`
 	// Asking is the phone that asks to be paired now, if one does.
 	Asking *contract.Pairing `json:"asking,omitempty"`
+	// Code is the pairing code for an app, as `on` has just made it.
+	Code string `json:"code,omitempty"`
 }
 
 type paired struct {
@@ -351,10 +387,14 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 	case word == "on" && (err != nil || !public):
 		return nil, refuse("no_door", "This login has no door for a phone: the administrator of a server sets one.", "sudo whaleshark server phone --user "+login)
 	}
-	found := word != "forget"
+	found, code := word != "forget", rand.Text()
 	err = contract.ChangePhones(k.Platform, func(list *contract.Phones) error {
 		if word == "on" || word == "off" {
-			list.On = word == "on"
+			// A new code with every `on`, and none while the door is closed:
+			// only its hash is kept.
+			if list.On, list.Code = word == "on", nil; list.On {
+				list.Code = &contract.PairCode{Hash: contract.TokenHash(code), Until: contract.Now().Add(contract.PairCodeLife)}
+			}
 		}
 		list.Paired = slices.DeleteFunc(list.Paired, func(p contract.Phone) bool {
 			found = found || p.ID == id
@@ -391,7 +431,8 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 	}
 	switch word {
 	case "on":
-		line = "The door for your phone is open. In any browser, open\n  https://" + a.Name + "/\nlog in at Cloudflare, and approve its number on the page here: whaleshark dash url"
+		out.Code = contract.PairText(a.Name, code)
+		line = "The door for your phone is open. In any browser, open\n  https://" + a.Name + "/\nlog in at Cloudflare, and approve its number on the page here: whaleshark dash url\nAn app pairs with this code, good once and for one minute, and then asks for the same approval:\n  " + out.Code
 	case "off":
 		line = "The door for phones is closed. Paired phones stay paired."
 	case "forget":

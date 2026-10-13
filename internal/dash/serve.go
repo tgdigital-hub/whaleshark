@@ -176,7 +176,11 @@ func head(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Referrer-Policy", "same-origin")
 	h.Set("Cache-Control", "no-store")
-	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+	most := int64(maxBody)
+	if r.URL.Path == contract.APIv1+contract.APITell {
+		most = 2 * contract.TellMax // the message's megabyte, as JSON writes it
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, most)
 }
 
 // asked checks where a request comes from and how it asks: its origin, if

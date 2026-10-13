@@ -494,6 +494,13 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 	if err != nil || !got.On || got.Name != public || !strings.Contains(said, "https://"+public+"/\n") {
 		t.Fatalf("dash phone on: %v %+v %s", err, got, said)
 	}
+	// With the door comes a pairing code for an app: shown once, kept as its
+	// hash, good for a minute; closing the door takes it away.
+	shown, isCode := strings.CutPrefix(got.Code, contract.PairText(public, ""))
+	if list, _ := contract.ReadPhones(b.p.Kit.Platform.Read, dirs.State); !isCode || !strings.HasSuffix(said, "\n  "+got.Code+"\n") || !list.Code.Good(shown, contract.Now()) ||
+		list.Code.Good(shown, contract.Now().Add(contract.PairCodeLife)) || strings.Contains(fmt.Sprint(list), shown) {
+		t.Errorf("the pairing code of dash phone on: %q in %s, kept as %+v", got.Code, said, list.Code)
+	}
 	if st, _ := ask(b.p.Kit, dirs, "status"); st.Door != door || !st.Running || st.Closed != "" {
 		t.Errorf("the status with the door open: %+v", st)
 	}
@@ -561,7 +568,7 @@ func TestTheDoorIsOpenOnlyWhilePhoneAccessIsOn(t *testing.T) {
 	if _, got, err = word("phone", "forget", "ph1"); err != nil || len(got.Phones) != 0 || !got.On {
 		t.Errorf("dash phone forget: %v %+v", err, got)
 	}
-	if said, got, err = word("phone", "off"); err != nil || got.On || !strings.Contains(said, "closed") {
+	if said, got, err = word("phone", "off"); err != nil || got.On || !strings.Contains(said, "closed") || got.Code != "" || phones().Code != nil {
 		t.Fatalf("dash phone off: %v %+v %s", err, got, said)
 	}
 	if code, err := knock(); err == nil {
