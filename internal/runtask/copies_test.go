@@ -249,10 +249,11 @@ func TestCommitFirstAndSetup(t *testing.T) {
 	}
 }
 
-// What a closed run leaves behind (a copy of the code, a branch, a tab that
-// holds its task's name) is cleared by the lead agent from the tab the run
-// was bound to, with the command each refusal on the way names; no other
-// agent's tab may, and the person may from anywhere.
+// Closing a run closes the tabs of its ended agents, so no tab holds a
+// task's name after its job. What the closed run still leaves behind (a
+// copy of the code, a branch) is cleared by the lead agent from the tab the
+// run was bound to, with the command each refusal on the way names; no
+// other agent's tab may, and the person may from anywhere.
 func TestAClosedRunIsClearedFromItsOwnTab(t *testing.T) {
 	h := open(t, map[string]string{"A.1": "hang"})
 	h.add(map[string]string{"A": "none"}, "A")
@@ -269,20 +270,35 @@ func TestAClosedRunIsClearedFromItsOwnTab(t *testing.T) {
 	h.orch(0, "stop", "A", "--keep-tab")()
 	// A retry while the old tab holds its agent names the command that closes it.
 	h.orch(5, "start", "A", "--retry")("still holds an agent", "Next: whaleshark close A")
+	if said, _ := h.p.Command(scenario.Unbound, "doctor").CombinedOutput(); !strings.Contains(string(said), "holds the agent of an attempt that has ended") {
+		t.Errorf("doctor does not say that a kept tab holds an ended attempt's agent:\n%s", said)
+	}
 	h.orch(0, "run", "close", "--abandon")("Run r1 is closed", "Next: whaleshark run rm r1")
-	if !slices.Contains(tabs(), "part A") || !strings.Contains(h.git("worktree", "list"), "r1-A") {
-		t.Fatalf("the closed run left no tab or no copy to clear: %v\n%s", tabs(), h.git("worktree", "list"))
+	if slices.Contains(tabs(), "part A") || !strings.Contains(h.git("worktree", "list"), "r1-A") {
+		t.Fatalf("the closed run left its agent's tab, or no copy to clear: %v\n%s", tabs(), h.git("worktree", "list"))
 	}
 
 	// The lead agent's tab is bound to nothing now. What it tries says where to go.
 	h.orch(5, "close", "--settled")("No run is open here: r1 is closed.", `Next: whaleshark run new "<objective>"`)
 	h.orch(5, "run", "takeover")("Run r1 is closed", `Next: whaleshark run new "<objective>"`)
 	h.orch(0, "run", "new", "the next")("Run r2 is open")
+	// A tab of the closed run's that is still there (an older program
+	// closed the run, or the tab could not be closed) keeps its task's name
+	// taken; with the tab gone the name is free again.
+	kept, err := h.p.Kit.Terms.TabCreate(h.p.Root, "part A", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	h.orch(5, "task", "add", "A", "the A part", "--name", "Part a", "--brief", "b.md", "--check", "none")(
 		"is taken", "A tab of run r1, which is closed, still carries it", "Next: whaleshark run rm r1")
+	if err := h.p.Kit.Terms.TabClose(kept.Tab); err != nil {
+		t.Fatal(err)
+	}
+	h.orch(0, "task", "add", "A", "the A part", "--name", "Part a", "--brief", "b.md", "--check", "none")("is ready")
+	h.orch(0, "task", "cancel", "A")()
 	said, _ := h.p.Command(scenario.Unbound, "doctor").CombinedOutput() // the stand-in's socket is a problem of its own
 	out := string(said)
-	for _, want := range []string{"run r1 is closed and still holds the copies of the code of 1 task", "whaleshark run rm r1", "holds the agent of an attempt that has ended"} {
+	for _, want := range []string{"run r1 is closed and still holds the copies of the code of 1 task", "whaleshark run rm r1"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("doctor does not say %q:\n%s", want, out)
 		}

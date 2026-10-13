@@ -83,6 +83,13 @@ func run(c *contract.Call) (any, error) {
 	case "close":
 		said = "closed"
 		ended(c.Flags["abandon"] != nil, false)
+		// The tabs of its ended agents go with the job, as at a removal; the
+		// copies of the code stay until then.
+		for _, run := range append(fleets, id) {
+			if s, lost := k.Store.Read(c.Root, run); err == nil && lost == nil {
+				launch.Leave(k, s)
+			}
+		}
 	case "rm":
 		said = "removed"
 		ended(false, true)
