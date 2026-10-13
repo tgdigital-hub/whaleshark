@@ -135,7 +135,8 @@ func (Rules) Answer(s *contract.State, id, text string, by contract.Origin, sett
 	case q.For == contract.ForHuman && by.Caller != contract.Human && by.Where != contract.WhereRelayed:
 		return refused("for_human", "%s is for the person. Pass on what they told you with --relayed.", q.ID)
 	case !ok:
-		return refuse(contract.ExitUsage, "bad_answer", "That is not an answer a %s takes.", q.Form)
+		takes := map[string]string{contract.FormChoice: `one of its choices, or "other: <your words>"`, contract.FormSignoff: `approve, or "send back: <why>"`, contract.FormTodo: `done, or "cannot: <why>"`}
+		return refuse(contract.ExitUsage, "bad_answer", "That is not an answer a %s takes: it takes %s.", q.Form, takes[q.Form])
 	case q.Answer == text:
 		return nil
 	case q.State == contract.QuestionUsed:

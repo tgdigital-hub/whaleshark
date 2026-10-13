@@ -27,7 +27,7 @@ human: answer n7 approve
 
 # A to-do is done, or cannot be done, with the reason.
 orch: need todo "Sign in to the mail service" --urgent -> expect n8
-human: answer n8 approve                     -> expect exit 2 "not an answer a todo takes"
+human: answer n8 approve                     -> expect exit 2 "not an answer a todo takes: it takes done, or" "cannot: <why>"
 human: answer n8 "cannot:"                   -> expect exit 2
 human: answer n8 done
 orch: need todo "Renew the name of the site" -> expect n9
