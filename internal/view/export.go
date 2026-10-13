@@ -55,14 +55,15 @@ func logOf(c *contract.Call, id string, jobs bool) *jobLog {
 		return nil
 	}
 	l := &jobLog{Project: clean(filepath.Base(c.Root)), Run: id, Objective: clean(s.Run.Objective), From: s.Run.CreatedAt, Exported: c.Now, Who: []entry{{Who: "orchestrator", What: "your own agent"}}}
-	var spent, longest time.Duration
+	var longest time.Duration
+	lows := map[string]*contract.State{}
 	for _, fleet := range append([]string{""}, slices.Sorted(maps.Keys(s.Run.Fleets))...) {
 		low, lead, pre := s, "orchestrator", ""
 		if fleet != "" {
 			if low, err = r.Read(c.Root, s.Run.Fleets[fleet].Run); err != nil {
 				continue
 			}
-			lead, pre = clean(fleet), clean(fleet)+"/"
+			lead, pre, lows[fleet] = clean(fleet), clean(fleet)+"/", low
 		}
 		for _, id := range slices.Sorted(maps.Keys(low.Attempts)) {
 			a, name, role := low.Attempts[id], pre+id, "worker"
@@ -74,7 +75,7 @@ func logOf(c *contract.Call, id string, jobs bool) *jobLog {
 				l.Who, l.Agents = append(l.Who, who), l.Agents+1
 			}
 			one := contract.Spent(c.Now, &contract.State{Run: low.Run, Attempts: map[string]*contract.Attempt{id: a}})
-			if spent += one; one > longest {
+			if one > longest {
 				longest, l.Longest = one, name+", "+age(one)
 			}
 		}
@@ -112,6 +113,8 @@ func logOf(c *contract.Call, id string, jobs bool) *jobLog {
 	}
 	slices.SortStableFunc(l.Happened, func(x, y entry) int { return x.At.Compare(y.At) })
 	slices.SortStableFunc(l.Approved, func(x, y entry) int { return x.At.Compare(y.At) })
+	// What it used is the guard's own count: by tab, with a fleet's ended runs.
+	spent, _ := contract.JobSpent(c.Now, s, lows)
 	if l.To, l.Hours = l.From, spent.Hours(); len(l.Happened) > 0 {
 		l.To = l.Happened[len(l.Happened)-1].At
 	}
@@ -141,7 +144,8 @@ func (l *jobLog) text(out *bytes.Buffer, loc *time.Location) {
 		approved[i] = e.At.In(loc).Format(clock) + " " + e.What
 	}
 	fmt.Fprintf(out, "WHAT YOU APPROVED\n  %s        (%d: %d by you, %d passed on in your name)\n", strings.Join(approved, " · "), len(approved), len(approved)-l.Relayed, l.Relayed)
-	fmt.Fprintf(out, "WHAT IT USED\n  %s agent-hours · %s · longest: %s\n", hours(time.Duration(l.Hours*float64(time.Hour))), plural(l.Agents, "agent", "agents"), l.Longest)
+	used := hours(time.Duration(l.Hours * float64(time.Hour)))
+	fmt.Fprintf(out, "WHAT IT USED\n  %s %s · %s · longest: %s\n", used, contract.HourWord(used), plural(l.Agents, "agent", "agents"), l.Longest)
 }
 
 // export is log --export: the job's log, or with --all that of every job

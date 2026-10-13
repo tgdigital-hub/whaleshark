@@ -618,7 +618,8 @@ func (b *builder) around(v *contract.View) {
 	}
 	if run.Parent == nil && in.Person.Spend.Guard {
 		v.Lines = append(v.Lines, b.spent())
-		v.Spent, v.Limit = tenths(contract.Spent(in.Now, b.runs()...)), in.Person.SpendLimit(run.Spend, false)
+		job, _ := contract.JobSpent(in.Now, b.s, in.Fleets)
+		v.Spent, v.Limit = tenths(job), in.Person.SpendLimit(run.Spend, false)
 	}
 	if slices.ContainsFunc(in.Limits.Agent.Args, unasked) {
 		v.Alerts = append(v.Alerts, "workers in this project run without permission prompts")

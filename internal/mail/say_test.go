@@ -182,10 +182,19 @@ func TestANotesTextCannotPressAKey(t *testing.T) {
 func TestTwoNotesAtOnceAndAPausedJob(t *testing.T) {
 	p := evening(t, nil)
 	var both sync.WaitGroup
-	for _, text := range []string{"the first of two", "the second of two"} {
-		both.Go(func() { p.Command(scenario.Human, "tell", "lead", text).Run() })
+	outs := make([]string, 2)
+	for i, text := range []string{"the first of two", "the second of two"} {
+		both.Go(func() {
+			out, _ := p.Command(scenario.Human, "tell", "lead", text).CombinedOutput()
+			outs[i] = string(out)
+		})
 	}
 	both.Wait()
+	// Each is told of its own note: one was typed, the other waits behind
+	// the work the first set the agent to.
+	if all := strings.Join(outs, ""); strings.Count(all, "It is typed into") != 1 || strings.Count(all, "It waits, and is typed into") != 1 {
+		t.Fatalf("what the two senders were told:\n%s", all)
+	}
 	rest(t, p)
 	s, _ := p.Record()
 	var order []string

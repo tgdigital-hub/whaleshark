@@ -33,11 +33,13 @@ func (b *builder) runs() []*contract.State {
 // spent is the spending guard's one line: "spent: 31.5 of 40 agent-hours",
 // with "held" while the guard holds the job.
 func (b *builder) spent() string {
-	line, sp := "spent: "+hours(contract.Spent(b.in.Now, b.runs()...)), b.s.Run.Spend
+	job, _ := contract.JobSpent(b.in.Now, b.s, b.in.Fleets)
+	line, last, sp := "spent: "+hours(job), hours(job), b.s.Run.Spend
 	if limit := b.in.Person.SpendLimit(sp, false); limit != contract.Unlimited {
-		line += fmt.Sprint(" of ", limit)
+		last = strconv.Itoa(limit)
+		line += " of " + last
 	}
-	if line += " agent-hours"; sp.Held {
+	if line += " " + contract.HourWord(last); sp.Held {
 		line += " · held"
 	}
 	return line
@@ -77,7 +79,7 @@ func (b *builder) guarded(q *contract.Question, it *contract.Item, answer func(s
 			}
 		}
 		it.Text += "\n" + plural(open, "agent is", "agents are") + " held where they stand; those with nothing in hand were closed.\nNothing is lost. Nothing more is started until you say."
-		more := fmt.Sprint(to-from, " more agent-hours")
+		more := fmt.Sprint(to-from, " more ", contract.HourWord(strconv.Itoa(to-from)))
 		it.Buttons = []contract.Button{{Label: more, Key: "1", Answer: contract.AnswerMore}, {Label: "No limit for this job", Key: "2", Answer: contract.AnswerNoLimit}, {Label: "Leave it held", Key: "3", Answer: contract.AnswerLeave}}
 		it.Next = []string{answer(contract.AnswerMore), answer(quote(contract.AnswerNoLimit)), answer(contract.AnswerLeave)}
 	case contract.CauseSetting:

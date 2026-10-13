@@ -84,6 +84,9 @@ type Fleet struct {
 	Since   time.Time `json:"since"`
 	Groups  []string  `json:"groups,omitempty"`
 	EndedAt time.Time `json:"ended_at,omitzero"`
+	// Used is the agent-hours of this fleet's runs that have ended, written
+	// when a run ends and kept when the fleet is led again in a new one.
+	Used time.Duration `json:"used,omitempty"`
 	// Spend is the spending guard on this fleet alone.
 	Spend Spend `json:"spend,omitzero"`
 }

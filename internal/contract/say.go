@@ -3,6 +3,7 @@ package contract
 import (
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -55,13 +56,13 @@ func Said(where, text string) string {
 
 var errSaid = errors.New("no note waits")
 
-// Say types the notes of a run that wait, the oldest first, and answers how
-// many still wait and what the first of them waits for. One caller at a time
+// Say types the notes of a run that wait, the oldest first, and answers
+// which still wait and what the first of them waits for. One caller at a time
 // does it: wait says whether to stand in line or to leave it to whoever is
 // at it. A note leaves the record before it is typed and comes back only when
 // the keeper says that nothing was typed, so none is typed twice; and none
 // is typed while the person has paused the job.
-func Say(k *Kit, root, run string, wait bool) (left int, why error) {
+func Say(k *Kit, root, run string, wait bool) (left []Note, why error) {
 	path := filepath.Join(k.Store.Dir(root, run), SayLock)
 	unlock, free, err := k.Platform.TryLock(path)
 	if err == nil && !free && wait {
@@ -69,15 +70,15 @@ func Say(k *Kit, root, run string, wait bool) (left int, why error) {
 		free = err == nil
 	}
 	if err != nil || !free {
-		return -1, err
+		return nil, err
 	}
 	defer unlock()
 	for {
 		var n Note
 		pane := ""
 		err := k.Store.Change(root, run, func(s *State) error {
-			switch left = len(s.Inbox.Say); {
-			case left == 0:
+			switch left = slices.Clone(s.Inbox.Say); {
+			case len(left) == 0:
 				return errSaid
 			case s.Run.Paused != nil:
 				return errors.New("the person has paused all work")
@@ -88,7 +89,7 @@ func Say(k *Kit, root, run string, wait bool) (left int, why error) {
 			return nil
 		})
 		if errors.Is(err, errSaid) {
-			return 0, nil
+			return nil, nil
 		} else if err != nil {
 			return left, err
 		}
@@ -99,7 +100,7 @@ func Say(k *Kit, root, run string, wait bool) (left int, why error) {
 		}
 		k.Store.Change(root, run, func(s *State) error {
 			s.Inbox.Say = append([]Note{n}, s.Inbox.Say...)
-			left = len(s.Inbox.Say)
+			left = slices.Clone(s.Inbox.Say)
 			return nil
 		})
 		return left, err

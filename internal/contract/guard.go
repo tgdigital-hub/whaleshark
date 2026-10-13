@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"cmp"
 	"path"
 	"path/filepath"
 	"slices"
@@ -68,10 +69,14 @@ func HoldPath(root, run string) string {
 // Spent is the time agents were open in these runs: for each attempt its
 // end, or now, or the moment its run was paused, less its start, less what
 // it rested under earlier holds. An agent-hour is one hour of it; a leader
-// counts, the person's own orchestrator is no attempt and does not.
+// counts, the person's own orchestrator is no attempt and does not. It is
+// counted by pane, as the limits count agents: a leader that holds two
+// groups at once is one agent in one tab, and its hours are counted once.
 func Spent(now time.Time, runs ...*State) (spent time.Duration) {
+	type span struct{ from, to time.Time }
+	panes := map[string][]span{}
 	for _, s := range runs {
-		for _, a := range s.Attempts {
+		for id, a := range s.Attempts {
 			end := now
 			if !a.EndedAt.IsZero() {
 				end = a.EndedAt
@@ -81,12 +86,54 @@ func Spent(now time.Time, runs ...*State) (spent time.Duration) {
 			if p := s.Run.Paused; p != nil && p.At.Before(end) {
 				end = p.At
 			}
-			if d := end.Sub(a.StartedAt) - a.Rested; d > 0 && !a.StartedAt.IsZero() {
-				spent += d
+			if end = end.Add(-a.Rested); !a.StartedAt.IsZero() && end.After(a.StartedAt) {
+				// An attempt with no pane on record is an agent of its own.
+				pane := cmp.Or(a.Place.Pane, s.Run.ID+"/"+id)
+				panes[pane] = append(panes[pane], span{a.StartedAt, end})
+			}
+		}
+	}
+	for _, spans := range panes {
+		slices.SortFunc(spans, func(x, y span) int { return x.from.Compare(y.from) })
+		var till time.Time
+		for _, sp := range spans {
+			if sp.from.Before(till) {
+				sp.from = till
+			}
+			if sp.to.After(sp.from) {
+				spent, till = spent+sp.to.Sub(sp.from), sp.to
 			}
 		}
 	}
 	return spent
+}
+
+// JobSpent is what a job has spent and what each fleet of it has: fleets is
+// each fleet's run by the fleet's name. A run of a fleet that has ended
+// counts by what the job's record carries of it (Fleet.Used), so a fleet
+// that is given work again, in a new run, forgets nothing.
+func JobSpent(now time.Time, s *State, fleets map[string]*State) (job time.Duration, each map[string]time.Duration) {
+	runs, each := []*State{s}, map[string]time.Duration{}
+	for name, f := range s.Run.Fleets {
+		low := cmp.Or(fleets[name], &State{})
+		if f.EndedAt.IsZero() {
+			runs, each[name] = append(runs, low), f.Used+Spent(now, low)
+			job += f.Used
+		} else {
+			each[name] = cmp.Or(f.Used, Spent(now, low)) // none kept: a record from before Used was
+			job += each[name]
+		}
+	}
+	return job + Spent(now, runs...), each
+}
+
+// HourWord is the unit after a figure of agent-hours: "1 agent-hour",
+// "0.5 agent-hours", "2 agent-hours".
+func HourWord(figure string) string {
+	if figure == "1" {
+		return "agent-hour"
+	}
+	return "agent-hours"
 }
 
 // SpendLimit is the agent-hours a job may use, or one fleet of it: the

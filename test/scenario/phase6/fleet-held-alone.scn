@@ -36,7 +36,7 @@ as-worker r2/B1.1: hook gate                        -> expect "agent-hours"
 as-worker r3/S1.1: hook gate
 as-worker G1.1: start B2                            -> expect exit 5 "spending guard"
 as-worker G2.1: start S2                            -> expect "(S2.1)"
-orch: status --items                                -> expect "billing has used its 1 agent-hours"
+orch: status --items                                -> expect "billing has used its 1 agent-hour"
 human: status --items --json                        -> expect "1 agent is held"
 human: answer n1 more
 clock +5s

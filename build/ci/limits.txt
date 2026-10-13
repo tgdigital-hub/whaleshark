@@ -72,10 +72,13 @@
 # prints): the line's words and cleaning, the notes that wait in the record,
 # the one function that types them in order and once, the call and what an
 # app is answered while its note waits.
+# 50 more for the spending guard's true count: agent-hours by pane, what a
+# fleet's ended runs used kept in the job's record, the one sum the sweep,
+# the views and the exported log ask for, and the unit's word for one.
 # 40 more for the reader that asks again: on Windows a read that is waiting
 # when the other side closes a unix socket is not always told, so every
 # reader of the keeper's socket, on either side, reads through it.
-lines 6335 contract internal/contract cmd/whaleshark
+lines 6385 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -181,7 +184,8 @@ lines 430 guide internal/guide
 # 5 more at the join of phase 6's second wave: it stands at 1,760, exactly on
 # its line, with protected files looked at in accept and the warning across
 # fleets.
-lines 1765 runtask internal/runtask
+# 5 more: run close closes the tabs of the job's ended agents.
+lines 1770 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -239,7 +243,8 @@ lines 170 worker internal/worker
 # hands a note of the person's over as their own words.
 # 5 more: the sweep types the person's notes that waited for the lead agent
 # to rest, and wait words such a note.
-lines 740 inbox internal/inbox
+# 5 more with the guard's one sum, which the sweep now asks for by name.
+lines 745 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the
 # other runs of a login are three screens that 186 lines could not hold;
 # status --brief, which nobody asked for, left the command table instead of
@@ -272,7 +277,9 @@ lines 740 inbox internal/inbox
 # 15 more after the trial with real agents, at what was built (3,209):
 # status says whose tab asks and that a closed job is no job, an urgent
 # item stands first, and the exported log lists a leader once.
-lines 3210 view internal/view
+# 10 more: spent and the exported log read the guard's one sum, and one
+# agent-hour is worded as one.
+lines 3220 view internal/view
 # question: 30 more for phase 5, the twin made, answered down and passed up.
 # 25 more at the join of phase 5's second wave, at what was built: the
 # person's answer inside a fleet's run is told to the run above, and the twin
