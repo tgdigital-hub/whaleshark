@@ -491,7 +491,9 @@ func agree(t *testing.T, name string, f *testkit.Fixture, in contract.ViewInput,
 	}
 }
 
-// A run of 200 tasks is drawn in well under a tenth of a second.
+// A run of 200 tasks is drawn in well under a tenth of a second: the best
+// of ten drawings, since one drawing on a machine busy with other work says
+// how busy the machine is.
 func TestTwoHundredTasksAreDrawnFast(t *testing.T) {
 	p := team(load(t, testkit.Evening))
 	v := *p.View
@@ -502,11 +504,14 @@ func TestTwoHundredTasksAreDrawnFast(t *testing.T) {
 		v.Sections[0].Cards = append(v.Sections[0].Cards, card)
 	}
 	p.View = &v
-	draw(t, p)
-	start := time.Now()
-	out := draw(t, p)
-	if took := time.Since(start); took > 100*time.Millisecond || strings.Count(out, `<article class="card`) != 200 {
-		t.Errorf("200 cards took %v", took)
+	out, best := draw(t, p), time.Hour
+	for range 10 {
+		start := time.Now()
+		out = draw(t, p)
+		best = min(best, time.Since(start))
+	}
+	if best > 100*time.Millisecond || strings.Count(out, `<article class="card`) != 200 {
+		t.Errorf("200 cards took %v", best)
 	}
 }
 
