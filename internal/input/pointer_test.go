@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
 	"github.com/tgdigital-hub/whaleshark/internal/screen"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
@@ -227,5 +228,31 @@ func TestTwoTabLinesUnderTheKeysAndTheWheel(t *testing.T) {
 		if got := shown(take(&in, v, c[0])); got != c[1] {
 			t.Errorf("%q with a fleet's tab in front: %s, want %s", c[0], got, c[1])
 		}
+	}
+}
+
+// A line that waits, or is held, when a pane of its split closes is gone
+// with it: the next press is a press like any other and a movement drags
+// nothing, though another split now stands where that one stood.
+func TestALineThatWentWithItsSplitIsHeldNoLonger(t *testing.T) {
+	const click = "\x1b[<0;41;11M\x1b[<0;41;11m"
+	start := func() (*In, View) {
+		lay := fixture()
+		if err := lay.Split("p2", contract.Down, 0.5, "p4"); err != nil {
+			t.Fatal(err)
+		}
+		return &In{Keys: New(settings(), "darwin")}, View{Lay: lay, Modes: all(screen.Modes{})}
+	}
+	in, v := start()
+	got := shown(take(in, v, click))
+	v.Lay.Close("p1")
+	if got += " | " + shown(take(in, v, "\x1b[<0;61;4M")); got != "line lit, held | line lit, waits | select in p2: press at 60,3 | no line lit" || in.put.Kind != 0 {
+		t.Errorf("a line that waited when its split went: %s", got)
+	}
+	in, v = start()
+	got = shown(take(in, v, "\x1b[<0;41;11M"))
+	v.Lay.Close("p1")
+	if got += " | " + shown(take(in, v, "\x1b[<32;44;11M\x1b[<0;44;11m")); got != "line lit, held | no line lit" || in.to != 0 {
+		t.Errorf("a line that was held when its split went: %s", got)
 	}
 }

@@ -223,19 +223,60 @@ func TestALinePutBack(t *testing.T) {
 	}
 	root := l.Tabs[0].Root
 	root.Made, root.Share = 0, 0.8
-	if l.Reset(Hit{Kind: OnLine, line: root}); root.Share != 0.5 {
+	if l.Reset(Hit{Kind: OnLine, line: root, side: root.A}); root.Share != 0.5 {
 		t.Errorf("a split of an older file put back: %v", root.Share)
 	}
 	held := root.A
 	if held.Made, held.Cells = 0, 11; held.A == nil {
 		t.Fatal("the first side is no split")
 	}
-	if l.Reset(Hit{Kind: OnLine, line: held}); held.Cells != 11 {
+	if l.Reset(Hit{Kind: OnLine, line: held, side: held.A}); held.Cells != 11 {
 		t.Errorf("a split held to its cells in an older file put back: %d cells", held.Cells)
 	}
 	l.Reset(Hit{Kind: OnLine})
 	l.Reset(Hit{Kind: OnLine, line: root.A.A})
 	if !l.Sound() {
 		t.Error("a line of no split put back left the layout unsound")
+	}
+}
+
+// A line whose split went with one of its panes is no line any more, though
+// the neighbour's split now stands in its place in the tree: it is not lit,
+// not dragged and not put back, and the line that is there is a line.
+func TestALineThatWentWithItsSplit(t *testing.T) {
+	l := docked(Dock{}, 101, 30)
+	l.Split("p1", contract.Right, 0.5, "p2")
+	l.Split("p2", contract.Down, 0.3, "p3")
+	h := Hit{}
+	for x := range l.W {
+		if at := l.At(x, 20); at.Kind == OnLine {
+			h = at
+		}
+	}
+	if !l.Has(h) || h.Kind != OnLine || !l.Has(Hit{}) || !l.Has(Hit{Kind: OnLine, Pane: DockPane}) {
+		t.Fatalf("the line between the two sides: %+v", h)
+	}
+	l.Lit, l.Held = h, true
+	if line, _, _ := l.held(); line.H == 0 {
+		t.Fatal("the held line has no place")
+	}
+	l.Close("p1")
+	before := picture(l, look)
+	if l.Has(h) {
+		t.Error("the layout says it has the line of a split that is gone")
+	}
+	l.Drag(h, 50, 20)
+	l.Reset(h)
+	if line, _, _ := l.held(); picture(l, look) != before || line.W != 0 || line.H != 0 || l.said() != "" {
+		t.Errorf("the line that is gone was moved or is lit at %+v:\n%s", line, picture(l, look))
+	}
+	now := Hit{}
+	for y := 2; y < l.H; y++ {
+		if at := l.At(50, y); at.Kind == OnLine {
+			now = at
+		}
+	}
+	if l.Drag(now, 50, 20); !l.Has(now) || picture(l, look) == before {
+		t.Errorf("the line that is there does not move: %+v", now)
 	}
 }

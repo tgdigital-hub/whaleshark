@@ -252,6 +252,13 @@ func (in *In) light(h layout.Hit, how int) []Act {
 // pointer came onto. Only a movement with no button down lights a line
 // under the pointer, so a terminal that reports none leaves none lit.
 func (in *In) mouse(ev term.Event, v View, focus string, modes func(string) screen.Modes) []Act {
+	// A line that went with its split is held and waits no longer.
+	if !v.Lay.Has(in.put) {
+		in.put = layout.Hit{}
+	}
+	if in.to == Drag && !v.Lay.Has(in.held) {
+		in.to = 0
+	}
 	h := v.Lay.At(ev.X, ev.Y)
 	acts := in.point(h, ev, v, focus, modes)
 	line, how := layout.Hit{}, Under

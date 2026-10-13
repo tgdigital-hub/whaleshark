@@ -290,7 +290,7 @@ func (l *Layout) Drag(h Hit, x, y int) {
 		l.Dock.Fold = false
 		return
 	}
-	if h.line == nil || l.Active >= len(l.Tabs) {
+	if h.line == nil || !l.Has(h) {
 		return
 	}
 	walk(l.Tabs[l.Active].Root, l.area(), func(n *Node, r Rect) {
@@ -314,12 +314,22 @@ func (l *Layout) Reset(h Hit) {
 	switch n := h.line; {
 	case h.Kind == OnLine && h.Pane == DockPane:
 		l.Dock.Width, l.Dock.Fold = contract.SideWidth, false
-	case n == nil || n.A == nil:
+	case n == nil || !l.Has(h):
 	case n.Cells > 0:
 		n.Cells = cmp.Or(int(n.Made), n.Cells)
 	default:
 		n.Share = min(cmp.Or(n.Made, 0.5), 1)
 	}
+}
+
+// Has says the layout still has the line a hit was on: a split's line is
+// gone with a pane of its split, though a neighbour stands in its place.
+func (l *Layout) Has(h Hit) (has bool) {
+	if t := l.shown(); h.line != nil && t != nil {
+		walk(t.Root, Rect{}, func(o *Node, _ Rect) { has = has || o == h.line && o.A != nil && o.A == h.side })
+		return has
+	}
+	return h.line == nil
 }
 
 // held is the place of the line that is lit, none where the layout has that
@@ -332,7 +342,7 @@ func (l *Layout) held() (line Rect, n *Node, in Rect) {
 		_, line, _, _ = l.side()
 	case t != nil && t.Zoom == "":
 		walk(t.Root, l.area(), func(o *Node, r Rect) {
-			if o == l.Lit.line && o.A != nil {
+			if o == l.Lit.line && o.A == l.Lit.side {
 				_, _, line = o.cut(r)
 				n, in = o, r
 			}

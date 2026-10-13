@@ -40,6 +40,7 @@ type Hit struct {
 	X, Y int
 	Step int
 	line *Node
+	side *Node // the line's first side when it was hit: Has
 }
 
 const (
@@ -313,7 +314,7 @@ func (l *Layout) At(x, y int) (h Hit) {
 			h = Hit{Kind: OnPane, Pane: n.Pane, X: x - r.X, Y: y - r.Y}
 		} else if n.A != nil {
 			if _, _, line := n.cut(r); line.has(x, y) {
-				h = Hit{Kind: OnLine, line: n}
+				h = Hit{Kind: OnLine, line: n, side: n.A}
 			}
 		}
 	})
