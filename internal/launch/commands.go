@@ -199,15 +199,47 @@ type stopped struct {
 // group's stop parks its fleet: the leader and every agent of the fleet are
 // stopped and their tabs closed, and the fleet's run stays open. A leader
 // that holds another open group sits on, and the one group is stopped.
+//
+// With --all, the person's alone, every task of the job with an agent at
+// work is stopped so, one after the other: in a job of fleets that parks
+// every fleet. A task that will not stop is passed by and named at the end.
 func stop(c *contract.Call) (any, error) {
-	if len(c.Args) != 1 {
-		return nil, usage(c, "stop takes one task.")
+	if all := c.Flags["all"] != nil; all == (len(c.Args) == 1) || len(c.Args) > 1 {
+		return nil, usage(c, "stop takes one task, or --all.")
+	} else if !all {
+		return stopOne(c, c.Args[0])
 	}
+	s, err := read(c)
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for id, t := range s.Tasks {
+		if n := len(t.Attempts); n > 0 && s.Attempts[t.Attempts[n-1]].State.Live() {
+			ids = append(ids, id)
+		}
+	}
+	slices.SortFunc(ids, byID)
+	done := []stopped{}
+	for _, id := range ids {
+		r, bad := stopOne(c, id)
+		if bad == nil {
+			done = append(done, r)
+		}
+		err = cmp.Or(err, bad)
+	}
+	if len(ids) == 0 {
+		fmt.Fprintln(c.Out, "No agent is at work.")
+	}
+	return map[string]any{"stopped": done}, err
+}
+
+func stopOne(c *contract.Call, task string) (stopped, error) {
 	k, keep := c.Kit, c.Flags["keep-tab"] != nil
 	var name string
 	var a contract.Attempt
 	plain := func(s *contract.State) error {
-		t, err := k.Rules.FindTask(s, c.Args[0])
+		t, err := k.Rules.FindTask(s, task)
 		if err == nil {
 			err = k.Rules.Stop(s, t.ID, keep, c.Now)
 		}
@@ -218,12 +250,12 @@ func stop(c *contract.Call) (any, error) {
 	}
 	s, err := read(c)
 	if err != nil {
-		return nil, err
+		return stopped{}, err
 	}
 	fleet, parked := map[string]contract.Attempt{}, false // the fleet's agents that go with its leader, by their tabs' names
-	t, err := k.Rules.FindTask(s, c.Args[0])
+	t, err := k.Rules.FindTask(s, task)
 	if err != nil {
-		return nil, err
+		return stopped{}, err
 	}
 	if f := s.Run.Fleets[t.Fleet]; f != nil && f.EndedAt.IsZero() {
 		err = both(c, f.Run, func(up, low *contract.State) error {
@@ -247,7 +279,7 @@ func stop(c *contract.Call) (any, error) {
 		err = change(c, plain)
 	}
 	if err != nil {
-		return nil, err
+		return stopped{}, err
 	}
 	r := stopped{Task: a.Task, Attempt: a.ID, Tab: "kept", Parked: len(fleet)}
 	if !keep {
