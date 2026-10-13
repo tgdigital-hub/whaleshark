@@ -45,7 +45,7 @@ The fleet pane and the action pane are ordinary programs in panes of the keeper.
 
 The gate (`go run ./build/ci`) fails the build when a limit in `build/ci/limits.txt` is passed: a line budget for every folder and 41,500 lines for all of them, four modules, 15 MB a program file, 42 commands, and 30 ms for the commands an agent's harness runs at every step. A figure changes only in that file, with its reason beside it.
 
-Other rules of the same kind: no C compiler; no code loaded at run time; no shell string for a child program except the ones a person approved or the lead agent gave as a check; what is typed into an agent's tab is a fixed pointer to a file, never the text itself; every file carries a version, and a program refuses to write a record newer than itself.
+Other rules of the same kind: no C compiler; no code loaded at run time; no shell string for a child program except the ones a person approved or the lead agent gave as a check; what is typed into an agent's tab is a fixed pointer to a file, never the text itself, with one exception: your own note to the agent you talk to (`tell lead` at a terminal, the page's note, a paired phone or app), which is typed into that agent's tab and no other as one line that says first where it came from, without control characters or line breaks and cut at 2,000 characters; every file carries a version, and a program refuses to write a record newer than itself.
 
 ## Three systems
 

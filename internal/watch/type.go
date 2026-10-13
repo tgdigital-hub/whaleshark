@@ -81,6 +81,25 @@ func (w *Watcher) Point(p contract.Pointer, arg string) error {
 	return w.typed(line, pointWait, func(State) bool { return true })
 }
 
+// errPasted marks a refusal that came after the text went into the pane.
+var errPasted = errors.New("after the text")
+
+// Say types a person's note as one line of their own, at an agent that is
+// at rest and at no other: one at work would take it for a line of later.
+// contract.ErrPromptStalled says the line is in the pane and was not taken
+// yet; any other error, that nothing of it was typed.
+func (w *Watcher) Say(where, text string) error {
+	line := contract.Said(where, text)
+	if s, _ := w.seen(); line == "" || s.Status != contract.StatusIdle {
+		return contract.ErrAgentNotReady
+	}
+	err := w.typed(line, pointWait, func(State) bool { return true })
+	if errors.Is(err, errPasted) {
+		return contract.ErrPromptStalled
+	}
+	return err
+}
+
 // typed is the one place that types at an agent: the text as one paste,
 // then Enter. It looks first, and types nothing at a shell, at an agent
 // that has another program in front of it, at one that shows a question,
@@ -152,7 +171,7 @@ func (w *Watcher) typed(text string, timeout time.Duration, enough func(State) b
 	// A question that came up meanwhile would take the Enter for its answer.
 	s, from := w.seen()
 	if s.Status == contract.StatusBlocked {
-		return contract.ErrAgentBlocked
+		return fmt.Errorf("%w %w", contract.ErrAgentBlocked, errPasted)
 	}
 	for left, gap := enters, againAfter; ; left, gap = left-1, 2*gap {
 		if left == 1 || !shown {

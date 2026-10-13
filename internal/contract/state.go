@@ -414,6 +414,8 @@ type Inbox struct {
 	Events      []Event `json:"events"`
 	Acked       int     `json:"acked"`
 	Outstanding *Batch  `json:"outstanding"`
+	// Say is the person's notes that wait to be typed into the lead agent's tab.
+	Say []Note `json:"say,omitempty"`
 }
 
 // Batch is a delivery handed out by wait and not yet acknowledged.

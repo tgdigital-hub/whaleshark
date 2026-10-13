@@ -482,12 +482,15 @@ func (f *Fake) serve(conn net.Conn) {
 	}
 }
 
-// Typed is the line a call types at an agent: a prompt's text or a fixed
-// pointer with its argument, and nothing for any other call.
+// Typed is the line a call types at an agent: a prompt's text, a fixed
+// pointer with its argument or a person's note as the keeper words it, and
+// nothing for any other call.
 func Typed(c contract.WireCall) string {
 	switch {
 	case c.Op == contract.OpPrompt:
 		return c.Text
+	case c.Op == contract.OpSay:
+		return contract.Said(c.Kind, c.Text)
 	case c.Op != contract.OpPoint:
 		return ""
 	case strings.Contains(string(c.Pointer), "%"):
@@ -654,9 +657,11 @@ func (f *Fake) onPane(c contract.WireCall, p *pane) (r contract.WireReply, err e
 		p.rec.Agent, p.rec.Name, p.rec.Session, p.rec.Status = c.Kind, c.Name, "session-"+strconv.Itoa(f.nTerm), contract.StatusIdle
 		f.emit(contract.EvState, p.rec)
 		f.launch(p, c.Argv, false)
-	case contract.OpPrompt, contract.OpPoint:
+	case contract.OpPrompt, contract.OpPoint, contract.OpSay:
 		text := Typed(c)
 		switch {
+		case c.Op == contract.OpSay && (text == "" || p.rec.Agent == "" || p.rec.Name != "" || p.rec.Status != contract.StatusIdle):
+			return r, contract.ErrAgentNotReady // the note is for an agent started by hand and at rest
 		case p.rec.Agent == "":
 			return r, contract.ErrNoPane
 		case p.rec.Status == contract.StatusBlocked:

@@ -161,6 +161,7 @@ const (
 	OpAgentStart = "agent-start"
 	OpPrompt     = "prompt"
 	OpPoint      = "point"
+	OpSay        = "say"
 	OpRun        = "run"
 	OpScreen     = "screen"
 	OpSplit      = "split"
@@ -191,7 +192,7 @@ const (
 // opener, for a leader that takes a fleet over: fenced and in no way
 // through, so no agent's pane gives itself or a neighbour anything.
 var (
-	Fenced = []string{OpPrompt, OpRun, OpAgentStart, OpTabFocus, OpPaneFocus,
+	Fenced = []string{OpPrompt, OpSay, OpRun, OpAgentStart, OpTabFocus, OpPaneFocus,
 		OpPaneClose, OpTabClose, OpTabGive, OpSetKeys, OpOverlay, OpDock}
 	OwnTab = []string{OpAgentStart, OpPrompt, OpTabClose, OpPaneClose}
 )
@@ -204,7 +205,8 @@ func Fence(op string) error {
 // WireCall is one call to the keeper. ID is the caller's own number for it and
 // comes back in the WireReply. A call fills the fields its method's arguments
 // name and leaves the rest: Pane is also Swap's source and Target its
-// target; Text is Prompt's text, Point's argument and Notify's body; Dir is
+// target; Text is Prompt's text, Point's argument, Say's note and Notify's
+// body; Kind is also where Say's note came from; Dir is
 // a direction; Ratio is Split's ratio and Resize's amount; W and H are
 // Overlay's size in shares or cells, and the window's size in cells for
 // OpAttach and OpWindowSize; Millis is a timeout. For OpAttach, Env

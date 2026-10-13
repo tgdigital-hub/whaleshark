@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -131,6 +132,12 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 	say("tab-give a tab that is not there", terms.TabGive("t9", "p3"))
 	say("tab-give to a pane that is not there", terms.TabGive("t2", "p9"))
 	say("tab-give", terms.TabGive("t2", "p3"))
+	// A person's note is for an agent started by hand, and no agent's pane sends one.
+	fence("say", contract.WireCall{Op: contract.OpSay, Pane: "p1", Kind: contract.WhereTyped, Text: "x"})
+	say("say to an agent the tool started", terms.Say("p3", contract.WhereTyped, "x"))
+	say("say to a shell", terms.Say("p2", contract.WherePage, "x"))
+	say("say from no place of the person's", terms.Say("p2", "an agent", "x"))
+	say("say to a pane that is not there", terms.Say("p9", contract.WherePhone, "x"))
 	fence("tab-close of a tab it was given", contract.WireCall{Op: contract.OpTabClose, Tab: "t2"})
 	say("tab-close", terms.TabClose("t3"))
 	last, err := terms.Snapshot(ctx)
@@ -187,12 +194,75 @@ func TestTheDoubleAnswersAsTheKeeper(t *testing.T) {
 		contract.OpAgentStart: p.Kit.Terms.AgentStart("ann", "claude", p.Lead, nil, time.Second),
 		contract.OpPrompt:     p.Kit.Terms.Prompt("ann", "x", time.Second),
 		contract.OpPoint:      p.Kit.Terms.Point(p.Lead, contract.PointMail, ""),
+		contract.OpSay:        p.Kit.Terms.Say(p.Lead, contract.WhereTyped, "x"),
 		contract.OpOverlay:    p.Kit.Terms.Overlay([]string{"whaleshark", "ask"}, 0.5, 0.5),
 		contract.OpHook:       contract.ErrOf(hook),
 	} {
 		if errors.Is(err, contract.ErrNotBuilt) {
 			t.Errorf("%s is not answered by the keeper", call)
 		}
+	}
+}
+
+// The person's note through the real program and the real keeper: typed
+// into the tab of the agent the person started by hand, as one line that
+// says where it came from, once; a second note finds the agent at work,
+// waits, and is typed by the next sweep after the agent has come to rest.
+func TestAPersonsNoteIsTypedByTheRealKeeper(t *testing.T) {
+	p := PrepareOn(t, Keeper, nil, nil)
+	p.must(p.Kit.Terms.AgentStart("", "claude", p.Lead, []string{"--state", contract.StatusIdle}, patience))
+	lead := func(status string) {
+		t.Helper()
+		for end := time.Now().Add(patience); ; time.Sleep(20 * time.Millisecond) {
+			snap, err := p.Kit.Terms.Snapshot(t.Context())
+			if err == nil && slices.ContainsFunc(snap.Panes, func(q contract.Pane) bool { return q.ID == p.Lead && q.Agent != "" && q.Status == status }) {
+				return
+			} else if time.Now().After(end) {
+				t.Fatalf("the lead agent did not come to be %s: %+v, %v", status, snap, err)
+			}
+		}
+	}
+	tell := func(who, want, text string) {
+		t.Helper()
+		if out, err := p.Command(who, "tell", "lead", text).CombinedOutput(); err != nil || !strings.Contains(string(out), want) {
+			t.Fatalf("tell lead as %s: %v\n%s", who, err, out)
+		}
+	}
+	shows := func(line string, times int) {
+		t.Helper()
+		for end := time.Now().Add(patience); ; time.Sleep(20 * time.Millisecond) {
+			screen, _ := p.Kit.Terms.Screen(p.Lead)
+			if got := strings.Count(strings.Join(strings.Fields(screen), " "), line); got == times {
+				return
+			} else if time.Now().After(end) {
+				t.Fatalf("the lead agent's tab shows %q %d times, expected %d:\n%s", line, got, times, screen)
+			}
+		}
+	}
+	lead(contract.StatusIdle)
+	if out, err := p.Command(Orch, "run", "new", "a job to talk about").CombinedOutput(); err != nil {
+		t.Fatalf("run new: %v\n%s", err, out)
+	}
+	lead(contract.StatusIdle)
+	tell(Human, "It is typed into the lead agent's tab as your own line.", "say hello\x1b[201~\nin one line")
+	shows("typed at a terminal: say hello [201~ in one line", 1)
+	lead(contract.StatusWorking)
+	tell(Page, "It waits, and is typed into the lead agent's tab", "and one from the page")
+	p.Clock(6 * time.Second)
+	p.Command(Human, "status", "--quiet").Run()
+	shows("from the page: and one from the page", 0)
+
+	hook, err := p.Kit.Terms.(*engine.Client).Call(t.Context(), contract.WireCall{Op: contract.OpHook, Kind: "Stop", Pane: p.Lead})
+	p.must(errors.Join(err, contract.ErrOf(hook)))
+	lead(contract.StatusIdle)
+	p.Clock(6 * time.Second)
+	if out, err := p.Command(Human, "status", "--quiet").CombinedOutput(); err != nil {
+		t.Fatalf("the sweep: %v\n%s", err, out)
+	}
+	shows("from the page: and one from the page", 1)
+	shows("typed at a terminal: say hello [201~ in one line", 1)
+	if s, _ := p.Record(); len(s.Inbox.Say) != 0 {
+		t.Errorf("a typed note still waits: %+v", s.Inbox.Say)
 	}
 }
 

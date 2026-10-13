@@ -202,10 +202,13 @@ func (s *server) app(w http.ResponseWriter, r *http.Request, ph contract.Phone) 
 			reply(w, http.StatusForbidden, said("not_a_button", "That is no row of the action table an app may press, no message of at most 1 MB and no setting."))
 			return
 		}
-		if catch, err := s.press(ctx, a, form, j, all); err != nil {
+		var told contract.AppTold
+		if catch, err := s.press(ctx, a, form, j, all, &told); err != nil {
 			fail(w, err)
 		} else if catch != nil {
 			reply(w, http.StatusOK, catch)
+		} else if told.Chat && told.Why != "" {
+			reply(w, http.StatusAccepted, told) // the note waits for the lead agent to rest
 		} else {
 			w.WriteHeader(http.StatusNoContent)
 		}

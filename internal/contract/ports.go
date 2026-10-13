@@ -227,6 +227,10 @@ type Terminals interface {
 	Prompt(name, text string, timeout time.Duration) error
 	// Point types one of the fixed one-line pointers into an agent's pane.
 	Point(pane string, p Pointer, arg string) error
+	// Say types a person's note as one line, Said(where, text), into the pane
+	// of an agent that was started by hand and is at rest, and nowhere else.
+	// ErrPromptStalled: typed and not yet taken. Any other error: not typed.
+	Say(pane, where, text string) error
 	// Run runs a command of ids and tool-made paths in a pane. The keeper
 	// starts it there from the list, in place of the pane's shell, and closes
 	// the pane when it ends.
@@ -534,6 +538,7 @@ func (NoTerminals) TabClose(string) error                               { return
 func (NoTerminals) TabGive(string, string) error                        { return ErrNotBuilt }
 func (NoTerminals) Prompt(string, string, time.Duration) error          { return ErrNotBuilt }
 func (NoTerminals) Point(string, Pointer, string) error                 { return ErrNotBuilt }
+func (NoTerminals) Say(string, string, string) error                    { return ErrNotBuilt }
 func (NoTerminals) Run(string, []string) error                          { return ErrNotBuilt }
 func (NoTerminals) Screen(string) (string, error)                       { return "", ErrNotBuilt }
 func (NoTerminals) Split(string, string, float64) (Pane, error)         { return Pane{}, ErrNotBuilt }
