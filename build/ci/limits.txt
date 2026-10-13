@@ -88,7 +88,16 @@
 # worked out here, with the rule that it is no file of the person's with
 # other text in it; a loaded profile knows which keys its file says itself;
 # and the stuck detector's own ceilings for a project's three spans.
-lines 6490 contract internal/contract cmd/whaleshark
+# 410 more at the start of phase 7, where 190 were planned, at what was built
+# (6,848): a workspace in the keeper's picture with its event and its three
+# calls, a placed overlay, what waits in each tab, a tab's project and fleet
+# at its opening 115; the wall between workspaces, the fence's five new
+# members and three refusals 35; the left section's model with a workspace's
+# count, its menu and where the agents begin 75; the six rows a menu holds,
+# which of them on what, and the words of its questions 75; two settings, the
+# panes of each workspace in the file, a name in a task's edit, two flags 60.
+# 52 are for what the first part of the phase finds missing.
+lines 6900 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more when phase 1 was put together: the system's
@@ -145,7 +154,10 @@ lines 1065 cli internal/cli
 # 10 more, at what was built (2,203): a task whose brief or check changes
 # after the plan's yes leaves the approved ones, and a yes on its way is
 # taken back.
-lines 2205 rules internal/rules
+# 75 more for phase 7: a task renamed in every state by the rule a new name is
+# held to, and what stopping every agent of a job asks of a run. Counted at
+# twice its plan, as every part of this kind has come out.
+lines 2280 rules internal/rules
 # store: 50 more at the start of phase 5: an orchestrator's run and a
 # fleet's are changed in one step under the project's one lock, and what a
 # fleet adds to the record passes the validator on every load. engine pays.
@@ -200,7 +212,10 @@ lines 430 guide internal/guide
 # warning across fleets.
 # 5 more: run close closes the tabs of the job's ended agents.
 # 5 more, at what was built (1,773): task edit tells the rule of a new brief.
-lines 1775 runtask internal/runtask
+# 65 more for phase 7: a task's new name with its event, the refusal that
+# names the workspace, and the tab's label following. Counted at twice its
+# plan, as every part of this kind has come out.
+lines 1840 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -234,7 +249,11 @@ lines 1775 runtask internal/runtask
 # 5 more after it was run with real agents, at what was built (1,814): a group
 # handed to a leader that sits ends the leader's own wait, and Stop all passes
 # a closed run over before its record is asked anything.
-lines 1815 launch internal/launch
+# 105 more for phase 7: a start says which project its tab is of and which
+# fleet; every agent of a job stopped and every fleet parked in one step, by
+# the person alone. Counted at twice its plan, as every part of this kind has
+# come out.
+lines 1920 launch internal/launch
 # worker: 5 more for phase 5, a leader's --task.
 lines 170 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about half
@@ -297,7 +316,11 @@ lines 745 inbox internal/inbox
 # first, and the exported log lists a leader once.
 # 10 more: spent and the exported log read the guard's one sum, and one
 # agent-hour is worded as one.
-lines 3220 view internal/view
+# 245 more for phase 7: the workspaces taken from the keeper's picture, what
+# waits in each, the workspaces that do not fit and the projects that have
+# none, where the agents begin, and what each row's menu holds. Counted at
+# twice its plan, as every part of this kind has come out.
+lines 3465 view internal/view
 # question: 30 more for phase 5, the twin made, answered down and passed up.
 # 25 more when the second part of phase 5 was put together, at what was built:
 # the person's answer inside a fleet's run is told to the run above, and the
@@ -392,7 +415,9 @@ lines 920 overlap internal/overlap
 # 10 more for something asked for after that: the machine's memory read in one
 # place, for doctor's row and for the kit's figure.
 lines 1890 doctor internal/doctor
-lines 1300 term internal/term
+# 20 more for phase 7: the right button read where it was dropped. Counted at
+# twice its plan, as every part of this kind has come out.
+lines 1320 term internal/term
 # panes: 100 more when phase 1 was put together: every row of the action
 # table, the typing line, the guards and the lists came to 2,257. worker,
 # built at 131, pays. 250 more at the start of phase 2 for its second pass
@@ -434,14 +459,22 @@ lines 1300 term internal/term
 # 15 more, at what was built (4,060): a loaded profile asks about a tool's
 # hooks and its rules file one by one, and leaves alone a key its file does
 # not hold.
-lines 4060 panes internal/panes
+# 825 more for phase 7: the left section in two halves with the line between
+# them dragged and stored 210; the menu at the pointer as a program of its
+# own, with its box, its typing line, its three questions and the six rows it
+# runs 340; a right press, the key and the keeper's event that open it 80; the
+# two panes of each workspace and the sizes that stay 140; what waits in each
+# tab told to the keeper 40; a note of what is owed 11. Counted at twice its
+# plan, as this folder has come out in every phase.
+lines 4885 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
 # 10 fewer when the second part of phase 6 was put together: that part needed
 # nothing here.
 # 10 back when the panes stopped painting a ground: how a name is written on
 # the terminal's own background is said here once, for the panes and for the
 # keeper's tab row; built at 88. The keeper is 6 smaller by it.
-lines 90 theme internal/theme
+# 10 more for phase 7: the marks of a heavier and of a held line.
+lines 100 theme internal/theme
 # hook: 60 more at the start of phase 2, for the settings of a second kind
 # of agent; it stood at 383.
 # It gives 25 when the first part of phase 5 was put together: a tool's hooks
@@ -549,12 +582,24 @@ lines 1380 screen internal/screen
 # 10 more: the call that types a person's note, and at which pane alone.
 # 10 more: the keeper reads every connection through the reader that asks
 # again, and `engine stop` waits for the keeper's end no longer than a limit.
-lines 2005 keeper internal/keeper
+# 505 more for phase 7: workspaces kept, made by a call and by a window's
+# hello and ended with their last tab, a tab's workspace and fleet from the
+# pane that opened it, the calls of a workspace, the rules of a tab's name,
+# the wall between workspaces 340; what the pointer asks done: a line lit and
+# held with its label, a line put back, a click and then a click, the menu's
+# event, the placed overlay 160. Counted at twice its plan, as every part of
+# this kind has come out.
+lines 2510 keeper internal/keeper
 # layout gives 135 and input 120 after the Windows proof, to platform,
 # guide, runtask and doctor: both are built whole, at 763 and 467.
 # 70 more for phase 5: the dock's place, the tab row beside it, its edge.
 # 5 more at the start of phase 6, at what the integration of phase 5 built.
-lines 840 layout internal/layout
+# 450 more for phase 7: the workspaces and the tab each shows, a tab's fleet,
+# the tab row of the workspace in front on one line or two with counts 300;
+# the lit and the held line, the label, a line put back to what it was opened
+# with 140. Counted at twice its plan, as every part of this kind has come
+# out.
+lines 1290 layout internal/layout
 # pty gives 50 to restore when phase 2 was put together; it is built whole at
 # 617.
 lines 710 pty internal/pty
@@ -572,21 +617,34 @@ lines 710 pty internal/pty
 lines 610 watch internal/watch
 # input: 25 more for phase 5, the three keys of the dock and of the settings
 # screen. It gives 5 when that phase's first part was put together.
-lines 490 input internal/input
+# 150 more for phase 7: the right button passed on, and five decisions of
+# routing: a menu asked for, a line put back, the pointer on a line, a click
+# and then a click, a press beside a menu. Counted at twice its plan, as every
+# part of this kind has come out.
+lines 640 input internal/input
 # restore: 50 more when phase 2 was put together. Saving the layout lightly (a
 # file of lines a pane, written only for a pane that printed) came to 493.
 # 5 more when the second part of phase 5 was put together: a tab's opener in
 # the layout file.
-lines 515 restore internal/restore
+# 95 more for phase 7: the layout file's new fields, and a file of before read
+# once into workspaces. Counted at twice its plan, as every part of this kind
+# has come out.
+lines 610 restore internal/restore
 # window gives 60 at the wiring of phase 3 and 20 at its integration, to
 # platform, and 5 to watch: built whole at 271.
-lines 280 window internal/window
-lines 270 engine internal/engine
+# 10 more at the start of phase 7, at what was built (288): the window says in
+# which folder it was typed and which project that is.
+lines 290 window internal/window
+# 25 more at the start of phase 7, at what was built (290): the four new
+# calls, the placed overlay, and a tab's project and fleet.
+lines 295 engine internal/engine
 # 5 more at the start of phase 6, at what the integration of phase 5 built.
 lines 355 pick internal/pick
 # overlay gives 60 at the start of phase 3: built whole at 140; and 20 when
 # its first part was put together.
-lines 145 overlay internal/overlay
+# 30 more for phase 7: where a box stands that is placed at a cell. Counted at
+# twice its plan, as every part of this kind has come out.
+lines 175 overlay internal/overlay
 
 # What a shipped file is: these endings, but no file or folder named in skip.
 count .go .html .css .js .sh
@@ -653,7 +711,18 @@ skip _test.go testdata testkit
 # lines, each with its test. The total stands.
 # Six small rules for what a look at the guards found open left it at 44,685:
 # 95 lines, each with its test. The total stands.
-total 45000
+# 48,000 at the start of phase 7: each workspace with its own tabs, a menu at
+# the pointer, lines that are dragged and say their size, the left section in
+# two halves, two tab lines for fleets. The tree stands at 45,161 with what
+# the phase's parts share: 470 lines, of them 359 in the contract where 190
+# were planned, 30 in the keeper's client and the window's hello, and 81 in
+# notes that each part replaces with its code. The phase was planned at 1,565
+# lines. Phases 5 and 6 were each built at about twice their plan, so every
+# folder's line above holds its share twice: the lines sum to 47,845, and the
+# phase is about 3,000 lines if every folder fills its line. Putting its parts
+# together sets this to what is built. It is a figure that is told, not a cap
+# that decides what is built.
+total 48000
 
 # The whole module list, not only the direct ones.
 modules 4
