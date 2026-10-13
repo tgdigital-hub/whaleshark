@@ -80,8 +80,8 @@ func (e *ended) String() string {
 }
 
 // plain is a listener with nothing of the keeper in it: each connection is
-// read once, answered once and closed.
-func plain(t *testing.T) (string, net.Listener) {
+// read once, answered once and ended as the test says.
+func plain(t *testing.T, end func(net.Conn)) (string, net.Listener) {
 	dir, err := os.MkdirTemp("", "ws")
 	if err != nil {
 		t.Fatal(err)
@@ -102,6 +102,7 @@ func plain(t *testing.T) (string, net.Listener) {
 				defer conn.Close()
 				if _, _, err := contract.ReadFrame(conn); err == nil {
 					contract.WriteFrame(conn, contract.FrameReply, []byte(`{"id":7,"err":"wire_version"}`))
+					end(conn)
 				}
 			}()
 		}
@@ -132,29 +133,43 @@ func TestBenchTheEndOfAConnection(t *testing.T) {
 		return e
 	}
 	var report []string
-	path, ln := plain(t)
-	report = append(report, "plain listener, four at a time: "+many(path, 6*unit).String())
+	path, ln := plain(t, func(conn net.Conn) { conn.(*net.UnixConn).CloseWrite() })
+	report = append(report, "plain listener that shuts its side for writing before it closes: "+many(path, 2*unit).String())
 	ln.Close()
 
-	r := newRig(t)
-	report = append(report, "one keeper, four at a time: "+many(os.Getenv(contract.EnvSocket), 6*unit).String())
-	r.k.stop()
-
-	e := &ended{}
-	for end := time.Now().Add(3 * unit); time.Now().Before(end) && e.stalls.Load() < 10; {
-		path, ln := plain(t)
-		e.probe(path)
-		ln.Close()
-	}
-	report = append(report, "a new plain listener each time, its first connection: "+e.String())
-
-	e = &ended{}
-	for end := time.Now().Add(5 * unit); time.Now().Before(end) && e.stalls.Load() < 10; {
-		t.Run("rig", func(t *testing.T) {
-			newRig(t)
-			e.probe(os.Getenv(contract.EnvSocket))
+	// The other way round: the listener waits for the end, and the one
+	// that connected closes as soon as it has its answer.
+	server := &ended{}
+	path, ln = plain(t, func(conn net.Conn) {
+		server.n.Add(1)
+		conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		if _, _, err := contract.ReadFrame(conn); errors.Is(err, os.ErrDeadlineExceeded) {
+			server.stalls.Add(1)
+			conn.SetReadDeadline(time.Now().Add(time.Second))
+			_, _, again := contract.ReadFrame(conn)
+			server.note("NO END in 2s; read again: %v", again)
+		}
+	})
+	end := time.Now().Add(2 * unit)
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() {
+			body, _ := json.Marshal(contract.WireCall{V: contract.WireVersion + 1, ID: 7, Op: contract.OpHello})
+			for time.Now().Before(end) && server.stalls.Load() < 10 {
+				if conn, err := net.Dial("unix", path); err == nil {
+					contract.WriteFrame(conn, contract.FrameCall, body)
+					contract.ReadFrame(conn)
+					conn.Close()
+				}
+			}
 		})
 	}
-	report = append(report, "a new keeper each time, its first connection: "+e.String())
+	wg.Wait()
+	time.Sleep(4 * time.Second)
+	report = append(report, "plain listener that waits for the end of a connection the other side closes: "+server.String())
+	ln.Close()
+
+	newRig(t)
+	report = append(report, "one keeper, a reader that only waits: "+many(os.Getenv(contract.EnvSocket), 2*unit).String())
 	t.Errorf("BENCH\n%s", strings.Join(report, "\n"))
 }
