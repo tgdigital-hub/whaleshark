@@ -162,14 +162,19 @@ func TestTheDetectorOffJudgesNobody(t *testing.T) {
 
 // A project's file sets the detector's three spans with nobody's approval.
 // While the detector is on, a very long span, or none, is used as the
-// detector's own ceiling: four hours without a note is stale, four hours of
-// a task is over time, a quarter of an hour at rest is quiet. With the
-// detector off the project's figures stand as they are written.
+// detector's own ceiling: four hours without a note is stale, a quarter of
+// an hour at rest is quiet, and a task's limit above four hours is four. A
+// task with no limit keeps none. With the detector off the project's
+// figures stand as they are written.
 func TestTheDetectorsSpansHaveACeiling(t *testing.T) {
 	var p contract.ProjectFile
 	p.Limits.StaleMinutes, p.Limits.MaxMinutes, p.Limits.QuietSeconds, p.Limits.Agents = 10000, 0, 86400, 7
-	if l := p.Watched().Limits; l.StaleMinutes != 240 || l.MaxMinutes != 240 || l.QuietSeconds != 900 || l.Agents != 7 {
-		t.Errorf("spans above the ceiling, and none: %+v", l)
+	if l := p.Watched().Limits; l.StaleMinutes != 240 || l.MaxMinutes != 0 || l.QuietSeconds != 900 || l.Agents != 7 {
+		t.Errorf("spans above the ceiling, and a task with no limit: %+v", l)
+	}
+	p.Limits.StaleMinutes, p.Limits.MaxMinutes, p.Limits.QuietSeconds = 0, 100000, 0
+	if l := p.Watched().Limits; l.StaleMinutes != 240 || l.MaxMinutes != 240 || l.QuietSeconds != 900 {
+		t.Errorf("no span, and a task's limit above the ceiling: %+v", l)
 	}
 	p.Limits.StaleMinutes, p.Limits.MaxMinutes, p.Limits.QuietSeconds = 30, 45, 120
 	if got := p.Watched(); got.Limits != p.Limits {
@@ -197,7 +202,11 @@ func TestTheDetectorsSpansHaveACeiling(t *testing.T) {
 				w.after(3*time.Hour + 45*time.Minute)
 				s := w.state()
 				working, why := kinds(s.Inbox.Events, "W0.1"), s.Attempts["W0.1"].Seen.StuckWhy
-				if watch && (!slices.Equal(rested, []string{"quiet"}) || !slices.Equal(working, []string{"overtime", "stale", "stuck"}) || why != "stale,overtime") {
+				want, by := []string{"overtime", "stale", "stuck"}, "stale,overtime"
+				if strings.Contains(far, "max_minutes = 0") { // no limit for a task stays none: stale alone is no verdict yet
+					want, by = []string{"stale"}, ""
+				}
+				if watch && (!slices.Equal(rested, []string{"quiet"}) || !slices.Equal(working, want) || why != by) {
 					t.Errorf("with the detector on: at rest %v, at work %v, stuck by %q", rested, working, why)
 				}
 				if !watch && (len(rested) != 0 || len(working) != 0 || why != "") {

@@ -168,7 +168,7 @@ var Keys = []Key{
 	{"limits.quiet_seconds", SecProject, "Seconds before an agent is quiet", KindNumber, "1..86400", "120", StoreProject, "", "", ""},
 	{"limits.resume_per_second", SecProject, "Agents woken a second", KindNumber, "1..100", "2", StoreProject, "", "", ""},
 	{"limits.stale_minutes", SecProject, "Minutes before progress is stale", KindNumber, "1..10000", "30", StoreProject, "", "", ""},
-	{"limits.max_minutes", SecProject, "Minutes a task may take", KindNumber, "0..100000", "0", StoreProject, "", "", "0 holds no line; while the stuck detector is on, four hours is the most."},
+	{"limits.max_minutes", SecProject, "Minutes a task may take", KindNumber, "0..100000", "0", StoreProject, "", "", "0 holds no line."},
 	{"protect.also", SecProject, "This project's additions", KindList, "", "", StoreProject, "", "", "More protected paths for everyone who works in this project. A project can add to your list and never take from it."},
 
 	{"server.agents", SecServer, "Agents a login may run", KindNumber, "", "", StoreServer, "agents", AsksAdmin, ""},

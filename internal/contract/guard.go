@@ -227,11 +227,12 @@ const (
 
 // Watched is a project's limits as the stuck detector uses them while it is
 // on: for each of the three spans the lower of the project's figure and the
-// ceiling. A figure of nought, which holds no line, is above every ceiling:
-// no file makes the detector silent by a very long span or by none.
+// ceiling. For the two spans that have a figure as they come, nought is
+// above the ceiling: no file makes the detector silent by a very long span
+// or by none. A task's time has no limit as it comes, and nought stays so.
 func (p ProjectFile) Watched() ProjectFile {
 	for span, most := range map[*int]int{&p.Limits.StaleMinutes: WatchMinutesMost, &p.Limits.MaxMinutes: WatchMinutesMost, &p.Limits.QuietSeconds: WatchQuietMost} {
-		if *span <= 0 || *span > most {
+		if none := *span <= 0 && span != &p.Limits.MaxMinutes; none || *span > most {
 			*span = most
 		}
 	}
