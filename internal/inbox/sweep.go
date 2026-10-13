@@ -181,7 +181,13 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	}
 	for _, q := range l.used {
 		if q.Cause == contract.CauseSetting && q.Answer == contract.AnswerChange && q.Set != nil {
-			contract.Granted(k, root, *q.Set, *cmp.Or(q.AnsweredBy, &contract.Origin{}), now)
+			// A yes that changed nothing is said to the lead agent, not kept quiet.
+			if err := contract.Granted(k, root, *q.Set, *cmp.Or(q.AnsweredBy, &contract.Origin{}), now); err != nil {
+				k.Store.Change(root, run, func(s *contract.State) error {
+					k.Rules.Raise(s, contract.Event{Kind: "answered", Text: q.Set.Key + " was not changed, though the person said yes: " + err.Error()}, now)
+					return nil
+				})
+			}
 		}
 	}
 	todo = slices.DeleteFunc(todo, func(p pointer) bool {
@@ -323,7 +329,10 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 // was read first, and has the hold file and the agents of a run follow where
 // something changed and at every look at a held run: a file taken away is back.
 func (sw sweeper) hold(root string, s *contract.State, l *look) {
-	held := func(s *contract.State) bool { return s.Run.Paused != nil && s.Run.Paused.By == contract.HeldBy }
+	// With the guard on it is every look: a file left behind by a sweep that died is taken away.
+	held := func(s *contract.State) bool {
+		return l.person.Spend.Guard || s.Run.Paused != nil && s.Run.Paused.By == contract.HeldBy
+	}
 	if l.held || held(s) {
 		sw.k.Hold(sw.k, root, s.Run.ID)
 	}

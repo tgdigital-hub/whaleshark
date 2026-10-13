@@ -287,9 +287,12 @@ func heldBy(s *contract.State) bool { return s.Run.Paused != nil && s.Run.Paused
 // once settled, lets everything go.
 func TestTheSpendingGuardHoldsAJobAndLetsItGo(t *testing.T) {
 	w, held := afternoon(t, "[spend]\nguard = true\njob = 40\n")
-	if w.job(time.Hour); heldBy(w.state()) || len(*held) != 0 || item(w.state(), contract.CauseBudget) != nil {
+	// With the guard on the kit looks at each run's hold file at every look,
+	// held or not: one left behind is taken away.
+	if w.job(time.Hour); heldBy(w.state()) || len(*held) != 3 || item(w.state(), contract.CauseBudget) != nil {
 		t.Fatalf("held at 39 of 40 agent-hours: %+v, %v", w.state().Run.Spend, *held)
 	}
+	*held = nil
 	w.job(15 * time.Minute)
 	s, q := w.state(), item(w.state(), contract.CauseBudget)
 	if !s.Run.Spend.Held || !heldBy(s) || !heldBy(w.of("r8")) || !heldBy(w.of("r9")) || q == nil || !q.Urgent || q.Form != contract.FormChoice {
@@ -346,13 +349,13 @@ func TestTheSpendingGuardHoldsAJobAndLetsItGo(t *testing.T) {
 // fleet go on, and the choice names the fleet's group.
 func TestOneFleetAtItsOwnLimit(t *testing.T) {
 	w, held := afternoon(t, "[spend]\nguard = true\njob = 100\nfleet = 14\n")
-	if w.job(5 * time.Second); len(*held) != 0 || w.state().Run.Fleets["search"].Spend.Held {
+	if w.job(5 * time.Second); w.of("r9").Run.Paused != nil || w.state().Run.Fleets["search"].Spend.Held {
 		t.Fatalf("search held at 13.8 of 14 agent-hours: %v", *held)
 	}
 	w.job(30 * time.Minute)
 	s, q := w.state(), item(w.state(), contract.CauseBudget)
 	if !s.Run.Fleets["search"].Spend.Held || s.Run.Fleets["billing"].Spend.Held || s.Run.Paused != nil || !heldBy(w.of("r9")) || w.of("r8").Run.Paused != nil ||
-		q == nil || q.Task != "G2" || !slices.Contains(*held, "r9") || slices.Contains(*held, "r8") {
+		q == nil || q.Task != "G2" || !slices.Contains(*held, "r9") {
 		t.Fatalf("search at its limit: %+v, the job %+v, billing %+v, %+v, the kit %v", s.Run.Fleets["search"].Spend, s.Run.Paused, w.of("r8").Run.Paused, q, *held)
 	}
 	// The person switches the guard off: the hold goes without a word, and
@@ -408,6 +411,26 @@ func TestASettingIsChangedOnceThePersonSaysSo(t *testing.T) {
 	}
 	if w.job(5 * time.Second); guard() || w.state().Questions["n3"].State != contract.QuestionUsed {
 		t.Fatalf("the person said change: the guard is %v and the item %s", guard(), w.state().Questions["n3"].State)
+	}
+}
+
+// A yes whose change cannot be made is said to the lead agent: the item is
+// used and the setting is as it was, and nobody is left to guess.
+func TestAGrantedChangeThatFailsIsSaid(t *testing.T) {
+	w, _ := afternoon(t, "[spend]\nguard = true\njob = 100\n")
+	w.in("r7", func(s *contract.State, now time.Time) {
+		if err := w.p.Kit.Rules.Answer(s, "n3", contract.AnswerChange, contract.Origin{Caller: contract.Human, Where: contract.WherePane}, 4*time.Second, now); err != nil {
+			t.Fatal(err)
+		}
+	})
+	d, _ := w.p.Kit.Platform.Dirs()
+	if err := os.WriteFile(filepath.Join(d.Config, contract.ConfigFile), []byte("[spend\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w.job(5 * time.Second)
+	s := w.state()
+	if e := s.Inbox.Events[len(s.Inbox.Events)-1]; s.Questions["n3"].State != contract.QuestionUsed || e.Kind != "answered" || !strings.HasPrefix(e.Text, "spend.guard was not changed, though the person said yes: ") {
+		t.Fatalf("the item is %s and the last event %+v", s.Questions["n3"].State, e)
 	}
 }
 
