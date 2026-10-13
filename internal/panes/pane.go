@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -157,17 +158,49 @@ type pane struct {
 	finding bool
 	undone  []setting
 	pending *setting
-	roots   []string // the projects [+] lists
 	// The click guard: what each row shows, and when that last changed by itself.
 	rows    []string
 	movedAt []time.Time
 	own     bool // the person's own key or click is the reason for the next draw
+
+	// The left section's two halves: where the heavier line stands while it
+	// is held, 0 for where the file says; whether it is held, has moved, or
+	// waits for the press that puts it, and when it was pressed; whether the
+	// pointer is on it; the upper panel unfolded over the agents, and the
+	// first workspace it shows where the wheel moved it; each row's
+	// menu by the row's name; what the model was last built from, and what
+	// the keeper was last told waits in each tab.
+	split, wtop        int
+	grip, moved, waits bool
+	onLine, unfold     bool
+	pressed            time.Time
+	menus              map[string]func(x, y int)
+	last               contract.SideInput
+	told               map[string]int
+	// A menu at the pointer: what it was opened for as its command line says
+	// it, the thing once it is found, the row that asks and whether the
+	// button that keeps is in front, until when a refusal is shown, and
+	// whether the program is to end.
+	want       []string
+	th         *thing
+	asking     string
+	keep, done bool
+	busy       bool // a row's work is under way
+	until      time.Time
+	// The size of a pane beside the conversation: how often it changed, and
+	// what the two together measured when it last rested.
+	sized, both int
+	resized     time.Time // until when a change of size is this pane's own asking
 }
+
+// sided says the pane is built from the left section's model: the section
+// itself, and a menu at the pointer.
+func (p *pane) sided() bool { return p.kind == side || p.kind == offer }
 
 func newPane(kind string, t *term.Term, k *contract.Kit, root, run string, now func() time.Time) *pane {
 	build := func(in contract.ViewInput) contract.View { return *k.View(in) }
 	me, _ := contract.PaneOf(os.Getenv)
-	return &pane{kind: kind, t: t, k: k, root: root, run: run, anyRun: run == "" && kind != side && kind != settings, seek: true, now: now, make: build, heard: make(chan news), me: me,
+	return &pane{kind: kind, t: t, k: k, root: root, run: run, anyRun: run == "" && kind != side && kind != settings && kind != offer, seek: true, now: now, make: build, heard: make(chan news), me: me,
 		scheme: theme.Schemes[0], plainMarks: contract.PlainMarks(os.Getenv), px: -1, py: -1, lit: -1, saw: -1, stale: true, dirty: true}
 }
 
@@ -204,7 +237,7 @@ func (p *pane) loop() bool {
 	tick := time.NewTicker(second)
 	defer tick.Stop()
 	for n := 1; ; {
-		if p.again || p.kind == menu && p.over == "" && p.line == nil && p.waiting == 0 {
+		if p.again || p.waiting == 0 && (p.done || p.kind == menu && p.over == "" && p.line == nil) {
 			return p.again
 		}
 		if p.dirty {
@@ -308,7 +341,7 @@ func (p *pane) terms(m news) {
 	case m.ev.Kind == contract.EvWindow:
 		// The window's width changed. Once it has rested for a tick the two
 		// panes are fitted again; the left section does it, being always there.
-		if p.kind == side {
+		if p.sized++; p.kind == side {
 			p.refit = 2
 		}
 	case m.ev.Kind != "":
@@ -317,14 +350,18 @@ func (p *pane) terms(m news) {
 		}
 		if m.ev.Kind == contract.EvFocus {
 			p.present()
+		} else if m.ev.Kind == contract.EvMenu && p.kind == side && p.bar != nil {
+			p.menuAt(m.ev.Pane.Tab, m.ev.X, m.ev.Y)
 		}
 	case m.look == 0:
 		first := p.picture == nil && p.anyRun
-		if p.picture, p.termsOK = m.snap, p.now(); first {
+		if p.picture, p.termsOK, p.told = m.snap, p.now(), nil; first {
 			// Now the pane knows which tab it is in, and so whose run it shows.
 			p.seek = true
 			p.load()
 		}
+		p.gone()
+		p.rested(false)
 	case p.picture != nil:
 		p.compare(m.snap, m.look)
 	}
@@ -365,7 +402,7 @@ func (p *pane) tick(n int) {
 			p.keeper(func() error { return refit(p.k) })
 		}
 	}
-	if p.watch == nil || p.run == "" && p.kind != side {
+	if p.watch == nil || p.run == "" && !p.sided() {
 		p.load()
 	}
 	if p.readErr == nil || errors.Is(p.readErr, contract.ErrNoRun) {
@@ -375,6 +412,7 @@ func (p *pane) tick(n int) {
 		p.snapshot(1)
 		p.sweep()
 		p.look()
+		p.gone()
 	}
 	if st, err := os.Stat(p.self); n%lookEvery == 0 && err == nil && !st.ModTime().Equal(p.born) {
 		p.leave()
@@ -396,7 +434,7 @@ func (p *pane) load() {
 			p.watch = nil
 		}
 	}
-	if p.kind == side && err == nil {
+	if p.sided() && err == nil {
 		p.loadSide(dirs)
 	} else if p.watch == nil && err == nil {
 		paths := []string{filepath.Join(dirs.State, "ctx"), filepath.Join(dirs.State, contract.UIFileName),
@@ -426,7 +464,7 @@ func (p *pane) load() {
 			p.fleets[name], under = s, append(under, f.Run)
 		}
 	}
-	if slices.Sort(under); !slices.Equal(under, p.below) && p.watch != nil && p.kind != side {
+	if slices.Sort(under); !slices.Equal(under, p.below) && p.watch != nil && !p.sided() {
 		p.watch.Close()
 		p.below, p.watch = under, nil
 		p.load()
@@ -453,7 +491,10 @@ func (p *pane) load() {
 	if p.tools = tools; !same || p.looks == 0 {
 		p.look()
 	}
-	p.cfg = person(p.k, dirs)
+	was := p.cfg.Panes
+	if p.cfg = person(p.k, dirs); p.kind == side && p.bar != nil && p.cfg.Panes != was {
+		p.refit = 1 // the panes of every workspace move where the layout says
+	}
 	if p.above = p.cfg.Panes.Actions == "top"; p.cfg.UI.Theme != p.chosen {
 		p.chosen, p.scheme = p.cfg.UI.Theme, theme.Get(p.cfg.UI.Theme)
 	}
@@ -545,17 +586,32 @@ func (p *pane) build() {
 	}
 	found := slices.DeleteFunc(slices.Clone(p.tools), func(t contract.Tool) bool { return !slices.Contains(p.found, t.Name) })
 	switch {
-	case p.kind == side:
-		// The model fits its rows to the panel, whose height the drawing knows.
+	case p.sided():
+		// The model fits its rows to the two panels: the agents' to the rows
+		// the drawing found, the workspaces' to the heavier line, which stands
+		// where the file says or where it is held. A rail has no line, and a
+		// menu is built from the whole of it.
 		in := p.in
 		in.Now, in.Terms, in.Tools, in.Person, in.Changed, in.Checked, in.Notes = now, p.picture, found, p.cfg, p.ui.Changed, checked, notes
-		in.Folded, in.Find, in.UI = p.shut, p.query.String(), p.ui
+		in.Folded, in.Find, in.UI, in.Split = p.shut, p.query.String(), p.ui, cmp.Or(p.split, p.ui.SideSplit)
 		if !p.all {
 			in.Rows = p.fits
+		}
+		if p.t.W > contract.SideRail {
+			in.Height = p.t.H
+		}
+		if p.last = in; p.kind == offer {
+			p.bar = p.whole()
+			break
 		}
 		p.bar = p.k.Side(in)
 		p.ticked(p.bar.Steps)
 		p.view = contract.View{Fresh: p.bar.Fresh}
+		// What waits in each tab is told the keeper, for its tab row, whenever it changed.
+		if marks := p.bar.Marks; p.bg != nil && !maps.Equal(marks, p.told) {
+			p.told = maps.Clone(marks)
+			p.helper(func() { _ = p.k.Terms.Marks(marks) })
+		}
 	case p.state != nil:
 		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Terms: p.picture,
 			Fleets: p.fleets, Person: p.cfg, Tools: found,
@@ -570,7 +626,7 @@ func (p *pane) build() {
 		p.view = contract.View{Alerts: []string{"no run in this folder yet"}, Fresh: contract.Fresh{Checked: checked, Notes: notes}}
 	}
 	// The view of a run says it itself; with no run to view, the pane does.
-	if w := contract.Warned(p.ui.Changed); w != "" && p.kind != side && !slices.Contains(p.view.Alerts, w) {
+	if w := contract.Warned(p.ui.Changed); w != "" && !p.sided() && !slices.Contains(p.view.Alerts, w) {
 		p.view.Alerts = append([]string{w}, p.view.Alerts...)
 	}
 	p.cards = p.cards[:0]
@@ -586,7 +642,7 @@ func (p *pane) build() {
 		}
 	}
 	ids := p.ids()
-	if at := slices.Index(ids, p.sel); at < 0 && p.kind != side {
+	if at := slices.Index(ids, p.sel); at < 0 && !p.sided() {
 		p.sel = ""
 	} else {
 		p.follow = p.follow || at != was
@@ -638,6 +694,16 @@ func (p *pane) event(ev term.Event) bool {
 	case term.End:
 		return false
 	case term.Resize:
+		// A pane beside the conversation has its size remembered once it has rested.
+		p.sized++
+		n := p.sized
+		time.AfterFunc(twice, func() {
+			p.tell(news{do: func() {
+				if n == p.sized {
+					p.rested(true)
+				}
+			}})
+		})
 		p.t.Resize(ev.W, ev.H)
 	case term.Focus:
 		if p.focused = ev.Focused; p.focused && p.kind == actions && p.sel == "" {
@@ -663,9 +729,22 @@ func (p *pane) event(ev term.Event) bool {
 func (p *pane) mouse(ev term.Event) {
 	p.px, p.py = ev.X, ev.Y
 	by := map[term.Button]int{term.WheelUp: -1, term.WheelDown: 1}[ev.Button]
+	on := p.onLine
+	p.onLine = p.kind == side && p.bar != nil && ev.Y == p.bar.Split
 	switch {
+	case p.kind == side && p.lineMouse(ev):
+	case ev.Menu() && p.kind == side:
+		// A right press on a row opens its menu, one cell right of and below
+		// the pointer; a row that has just moved by itself opens none.
+		if ev.Y < len(p.movedAt) && time.Since(p.movedAt[ev.Y]) < clickWait {
+			p.hint = movedSaid
+		} else if ev.Y < len(p.rows) && p.menus[p.rows[ev.Y]] != nil {
+			p.menus[p.rows[ev.Y]](ev.X+1, ev.Y+1)
+		}
 	case by != 0 && (p.over != "" || p.kind == settings):
 		p.pick += by
+	case by != 0 && p.kind == side && p.bar != nil && (p.unfold || ev.Y < p.bar.Split):
+		p.wtop += by // the wheel over the workspaces moves their panel
 	case by != 0:
 		p.top += by
 	case ev.Button == term.Left && ev.Action == term.Press:
@@ -677,7 +756,20 @@ func (p *pane) mouse(ev term.Event) {
 			p.hits[i].do()
 		}
 	default:
-		p.dirty = p.under(true) != p.lit
+		p.dirty = p.under(true) != p.lit || p.onLine != on
+	}
+}
+
+// gone looks which workspaces' folders are no longer on the disk, for the
+// model, which reads nothing.
+func (p *pane) gone() {
+	if p.in.Gone = nil; p.kind != side || p.picture == nil {
+		return
+	}
+	for _, s := range p.picture.Spaces {
+		if _, err := os.Stat(s.Root); s.Root != "" && err != nil {
+			p.in.Gone = append(p.in.Gone, s.Root)
+		}
 	}
 }
 

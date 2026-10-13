@@ -11,6 +11,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
+	"github.com/tgdigital-hub/whaleshark/internal/theme"
 )
 
 // loadSide reads the left section's side of the files: every open run of
@@ -56,7 +57,12 @@ func (p *pane) loadSide(dirs contract.Dirs) {
 }
 
 // rowID names a row of the left section for the bar and the click guard.
-func rowID(r contract.SideRow) string { return r.Kind + "/" + r.Run + "/" + r.Task + "/" + r.Name }
+func rowID(r contract.SideRow) string {
+	if r.Kind == "ws" {
+		return "ws/" + r.Task // a workspace, by its id
+	}
+	return r.Kind + "/" + r.Run + "/" + r.Task + "/" + r.Name
+}
 
 // short cuts a name to w cells as the left section does: its last cell says so.
 func (p *pane) short(s string, w int) string {
@@ -68,14 +74,21 @@ func (p *pane) short(s string, w int) string {
 
 // drawSide draws the left section in the dock, at whatever width it is
 // given: a rail of marks and counts, names cut, names, or names with their
-// state words. It prints contract.Side and works nothing out of it.
+// state words. The workspaces stand above, a thin line between every two,
+// and the agents of the one in front begin under the heavier line, which
+// stands where the model says. It prints contract.Side and works nothing
+// out of it.
 func (p *pane) drawSide(now time.Time) {
 	t, b, w, h := p.t, p.bar, p.t.W, p.t.H
 	rail, tight, wide := w <= contract.SideRail, w <= contract.SideCut, w > contract.SideNames
 	dim, text := p.st("dim"), p.st("text")
 	// The model fits its rows to the panel, so it is built for the rows there are.
 	gone := map[bool]int{true: 1}
-	if fits := h - 7 - len(b.Workspaces) + 2*gone[tight] + gone[rail] - gone[b.Warn != ""] - gone[b.NewVersion != ""] - gone[b.StepsShown]; fits != p.fits {
+	fits := h - 4 - gone[b.Warn != ""] - gone[b.NewVersion != ""] - gone[b.StepsShown]
+	if fits -= b.Split; rail {
+		fits -= len(b.Workspaces)
+	}
+	if fits != p.fits {
 		p.fits = fits
 		p.build()
 		b = p.bar
@@ -94,30 +107,7 @@ func (p *pane) drawSide(now time.Time) {
 	if b.First != nil {
 		p.hits = append(p.hits, hit{nx, 0, w - nx, 1, false, func() { p.goTo(b.First.Tab) }})
 	}
-	y := 1
-	panel := func(title string) {
-		if rail && y > 1 || !tight {
-			y++
-		}
-		if !rail {
-			t.Put(1, y, w-2, title, text)
-			y++
-		}
-	}
-	panel("WORKSPACES")
-	if wide {
-		p.button(w-4, y-1, "[+]", dim, func() { p.act("workspace", nil) })
-	}
-	for _, ws := range b.Workspaces {
-		p.sideRow(y, contract.SideRow{Kind: "ws", Look: ws.Look, Name: ws.Name, Front: ws.Front, Agents: ws.Agents}, ws.Branch, func() { p.goTo(p.tabOf(ws)) })
-		y++
-	}
-	if panel("AGENTS"); !tight && b.Count != "" && term.Width(b.Count) <= w-11 {
-		t.Put(8, y-1, w-9, "· "+b.Count, text)
-	} else if !tight {
-		t.Put(8, y-1, w-9, "· "+p.short(b.Title, w-11), text)
-	}
-	end := h - 2
+	end, y := h-2, 1
 	if b.Warn != "" && !rail {
 		end--
 		t.Put(1, end, w-2, p.short(b.Warn, w-2), bold(p.st("blocked")))
@@ -126,11 +116,58 @@ func (p *pane) drawSide(now time.Time) {
 		end--
 		t.Put(1, end, w-2, p.short(b.NewVersion, w-2), dim)
 	}
+	if !tight {
+		y++
+	}
+	if !rail {
+		t.Put(1, y, w-2, "WORKSPACES", text)
+		y++
+	}
+	if wide {
+		p.button(w-4, y-1, "[+]", dim, func() { p.act("workspace", nil) })
+	}
+	// The upper panel: the rows the model gave it, or unfolded over the agents all of them.
+	spaces, last := b.Workspaces[:len(b.Workspaces)-b.More], b.Split
+	if p.unfold = p.unfold && b.More > 0; p.unfold {
+		p.wtop = max(min(p.wtop, len(b.Workspaces)-1), 0)
+		spaces, last = b.Workspaces[p.wtop:], end
+	} else if p.wtop = max(min(p.wtop, b.More), 0); rail {
+		spaces, last = b.Workspaces, end
+	} else if p.wtop > 0 {
+		spaces = b.Workspaces[p.wtop:] // the wheel moved the panel: as many from there as it holds
+	}
+	thin := strings.Repeat(p.glyph(theme.Thin[0], theme.Thin[1]), max(w-2, 0))
+	for i, ws := range spaces {
+		if i > 0 && !rail && y < last-1 {
+			t.Put(1, y, w-2, thin, p.st("frame"))
+			y++
+		}
+		if y < last {
+			p.spaceRow(y, ws)
+			y++
+		}
+	}
+	if b.More > 0 && !p.unfold && p.wtop == 0 && !rail && y < last-1 {
+		t.Put(1, y, w-2, thin, p.st("frame"))
+		t.Put(2, y+1, w-3, p.short(fmt.Sprintf("%s %d more", contract.SideMarks[contract.RowMore][0], b.More), w-3), dim)
+		p.hits = append(p.hits, hit{0, y + 1, w, 1, false, func() { p.unfold, p.stale = true, true }})
+	}
+	if y++; !rail && !p.unfold {
+		y = p.heavy(b.Split) + 1
+		if t.Put(1, y, w-2, "AGENTS", text); !tight && b.Count != "" && term.Width(b.Count) <= w-11 {
+			t.Put(8, y, w-9, "· "+b.Count, text)
+		} else if !tight {
+			t.Put(8, y, w-9, "· "+p.short(b.Title, w-11), text)
+		}
+		y++
+	}
 	// The first steps stand where the hint of a workspace with no job stood.
 	// With a job, and where the section is too narrow to read them, they are
 	// one line at the panel's foot, which a click opens.
 	open := b.StepsShown && !rail && (p.steps || b.Hint != "" && !tight)
-	if open {
+	if p.unfold {
+		y = h // the workspaces lie over the agents until one is chosen
+	} else if open {
 		y = p.firstSteps(y, end)
 	} else if b.StepsShown && !rail {
 		n := 0
@@ -140,7 +177,7 @@ func (p *pane) drawSide(now time.Time) {
 		end--
 		p.button(1, end, p.short(fmt.Sprintf("first steps: %d of %d", n, len(contract.FirstSteps)), w-2), dim, func() { p.steps = true })
 	}
-	for _, l := range wrap(b.Hint, w-3) {
+	for _, l := range wrap(cmp.Or(b.Hint, b.Job), w-3) {
 		if l != "" && !rail && !open && y < end {
 			t.Put(2, y, w-3, l, dim)
 			y++
@@ -157,7 +194,7 @@ func (p *pane) drawSide(now time.Time) {
 		if r.Kind == contract.RowMore && r.Depth == 0 && p.top+i == len(b.Rows)-1 && b.Done > 0 {
 			r.Name, done = r.Name+" · "+done, ""
 		}
-		p.sideRow(y, r, "", func() { p.choose(r) })
+		p.sideRow(y, r, func() { p.choose(r) })
 		y++
 	}
 	if b.Done > 0 && done != "" && y < end && !rail {
@@ -213,11 +250,148 @@ func (p *pane) firstSteps(y, end int) int {
 	return y + 1
 }
 
-// sideRow is one row of the left section: the bar where the keys or the tab
+// spaceRow is a workspace's row of the upper panel: the bar for the one in
+// front, its name, its branch where the whole of both has room, and at its
+// right what waits for the person there and how many agents it has, or how
+// many tabs where it has no job. On the rail it is its mark and its count.
+func (p *pane) spaceRow(y int, ws contract.Workspace) {
+	t, w, id := p.t, p.t.W, "ws/"+ws.ID
+	name, count := p.st("text"), strconv.Itoa(cmp.Or(ws.Agents, ws.Tabs))
+	if ws.Other || ws.Gone || p.old {
+		name = p.st("dim")
+	}
+	p.mark(y, 1, id)
+	p.hits = append(p.hits, hit{0, y, w, 1, false, func() { p.front(ws) }})
+	p.menus[id] = func(x, y int) {
+		p.offerAt(p.me, contract.OfferSpace, ws.ID, contract.SideRow{Root: ws.Root}, false, x, y)
+	}
+	if w <= contract.SideRail {
+		sign, st := contract.SideMarks[contract.RowTab], p.st("dim")
+		if lk := look(ws.Look); ws.Look != "" && !p.old {
+			sign, st = [2]string{lk.Mark, lk.Plain}, p.st(lk.Colour)
+		}
+		if ws.Front {
+			t.Put(0, y, 1, p.glyph("▌", "|"), p.st("accent"))
+		}
+		t.Put(1, y, 1, p.glyph(sign[0], sign[1]), st)
+		t.Put(2, y, 2, count, name)
+		return
+	}
+	if ws.Front || id == p.sel {
+		t.Put(1, y, 1, p.glyph("▌", "|"), p.st("accent"))
+		name = bold(name)
+	}
+	x := w - 1 - term.Width(count)
+	t.Put(x, y, w-x, count, name)
+	if ws.Need > 0 {
+		need := p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain) + strconv.Itoa(ws.Need)
+		x -= term.Width(need) + 1
+		t.Put(x, y, w-x, need, p.st("needs"))
+	}
+	room := x - 3
+	at := 2 + t.Put(2, y, room, p.short(ws.Name, room), name)
+	if w > contract.SideNames && ws.Branch != "" && at+2+term.Width(ws.Branch) <= 2+room {
+		t.Put(at+2, y, room, ws.Branch, p.st("dim"))
+	}
+}
+
+// heavy draws the heavier line the agents begin under, from edge to edge on
+// the row the model says, and returns that row. Under the pointer it is in
+// the accent; held, or waiting for the press that puts it, it is the held
+// line's mark with its label: the rows over it and the limit it stands at.
+func (p *pane) heavy(row int) int {
+	w, mark, st, label := p.t.W, theme.Heavy, p.st("frame"), ""
+	switch {
+	case p.waits:
+		mark, label = theme.Held, "click where it should go · esc"
+	case p.grip:
+		mark = theme.Held
+		arrows := p.glyph("▲▼", "^v") + " " + strconv.Itoa(row)
+		if label = arrows + " rows"; w <= contract.SideCut {
+			label = arrows
+		} else if p.py != row && p.moved {
+			label += " · the " + map[bool]string{true: "least", false: "most"}[p.py < row]
+		}
+	}
+	if p.py == row || label != "" {
+		st = p.st("accent")
+	}
+	p.t.Put(0, row, w, strings.Repeat(p.glyph(mark[0], mark[1]), w), st)
+	if label != "" {
+		p.t.Put(1, row, w-2, " "+p.short(label, w-4)+" ", bold(st))
+	}
+	return row
+}
+
+// lineMouse is the pointer on the heavier line, and reports that the report
+// was the line's: a press holds it, it follows the pointer while the button
+// is down, and is stored when the button is let go. A press let go where it
+// was leaves the line waiting for the press that puts it; a second press on
+// it within twice, the double-click, puts it back where it comes.
+func (p *pane) lineMouse(ev term.Event) bool {
+	on := p.bar != nil && !p.unfold && p.t.W > contract.SideRail && ev.Y == p.bar.Split
+	press := ev.Button == term.Left && ev.Action == term.Press
+	to := func(row int) {
+		p.split = min(max((row*100+p.t.H-1)/p.t.H, contract.SideSplitMin), contract.SideSplitMax)
+	}
+	switch {
+	case press && p.waits:
+		if p.waits = false; !on {
+			to(ev.Y)
+		} else if time.Since(p.pressed) < twice {
+			p.split = contract.SideSplit
+		}
+		p.keepSplit()
+	case press && on:
+		p.grip, p.moved, p.pressed = true, false, time.Now()
+		p.split = cmp.Or(p.split, p.ui.SideSplit, contract.SideSplit)
+	case p.grip && ev.Action == term.Move:
+		p.moved = true
+		to(ev.Y)
+	case p.grip && ev.Action == term.Release:
+		if p.grip, p.waits = false, !p.moved; p.moved {
+			p.keepSplit()
+		}
+	default:
+		return false
+	}
+	p.stale = true
+	return true
+}
+
+// keepSplit has the line's place written, as every setting is.
+func (p *pane) keepSplit() {
+	v := p.split
+	p.child(p.cmd("set", "side.split", strconv.Itoa(v)), "", func(_ []byte, said string, ok bool) {
+		if ok {
+			p.ui.SideSplit = v
+		} else {
+			p.hint = said
+		}
+		if p.split == v && !p.grip && !p.waits {
+			p.split, p.stale = 0, true
+		}
+	})
+}
+
+// front is a click on a workspace's row, or Enter: it comes to the front
+// with the tab it showed last, and the keys stay where they are.
+func (p *pane) front(ws contract.Workspace) {
+	p.unfold, p.stale = false, true
+	p.keeper(func() error {
+		_, err := p.k.Terms.SpaceOpen(ws.Root, ws.Root)
+		if err != nil && ws.Tab != "" {
+			err = p.k.Terms.TabFocus(ws.Tab) // its folder is gone: its tab is still there
+		}
+		return err
+	})
+}
+
+// sideRow is one row of the agents panel: the bar where the keys or the tab
 // in front are, the mark of its state, its name, and at its right what the
-// width has room for: a workspace's agents, a fleet's tool and how full it
-// is, an agent's state word beside its whole name.
-func (p *pane) sideRow(y int, r contract.SideRow, branch string, do func()) {
+// width has room for: a fleet's tool and how full it is, an agent's state
+// word beside its whole name.
+func (p *pane) sideRow(y int, r contract.SideRow, do func()) {
 	t, w, id := p.t, p.t.W, rowID(r)
 	rail, tight, wide := w <= contract.SideRail, w <= contract.SideCut, w > contract.SideNames
 	x := 2 + 2*r.Depth
@@ -239,10 +413,6 @@ func (p *pane) sideRow(y int, r contract.SideRow, branch string, do func()) {
 	}
 	var rights []string
 	switch {
-	case r.Kind == "ws":
-		if rights, rst = []string{strconv.Itoa(r.Agents)}, name; r.Look == "" {
-			sign = contract.SideMarks[contract.RowTab]
-		}
 	case r.Parked:
 		rights = []string{p.glyph("■", "#") + " parked"}
 	case r.Word == contract.WordSaved:
@@ -263,7 +433,7 @@ func (p *pane) sideRow(y int, r contract.SideRow, branch string, do func()) {
 	if r.Unseen {
 		name = bold(name)
 	}
-	if r.Front && (r.Kind == "ws" || p.sel == "") || id == p.sel {
+	if r.Front && p.sel == "" || id == p.sel {
 		t.Put(x-1-r.Depth, y, 1, p.glyph("▌", "|"), p.st("accent"))
 		name = bold(name)
 	}
@@ -273,21 +443,28 @@ func (p *pane) sideRow(y int, r contract.SideRow, branch string, do func()) {
 	p.mark(y, 1, id)
 	p.hits = append(p.hits, hit{0, y, w, 1, false, do})
 	t.Put(x, y, 1, p.glyph(sign[0], sign[1]), st)
-	offer := func() { p.offerRow(r) }
+	// A row's menu: its first block and, under a line, what its work offers.
+	// A fleet is parked and written to through its group, in the run above its own.
+	kind, of, about := contract.OfferTab, r.Tab, r
+	switch r.Kind {
+	case contract.RowAgent:
+		kind = contract.OfferAgent
+	case contract.RowFleet:
+		kind, of, about.Run = contract.OfferFleet, r.Name, p.bar.Rows[0].Run
+	}
+	p.menus[id] = func(x, y int) { p.offerAt(p.me, kind, of, about, true, x, y) }
+	offer := func() { p.menus[id](p.px+1, p.py+1) }
 	if r.Kind == contract.RowFleet {
 		p.hits = append(p.hits, hit{x, y, 1, 1, false, func() { p.shutFleet(r) }})
 	} else {
 		p.hits = append(p.hits, hit{x, y, 1, 1, false, offer})
-	}
-	if rail && r.Kind == "ws" {
-		t.Put(2, y, 2, rights[0], rst)
 	}
 	if rail {
 		return
 	}
 	room, right := w-x-3, ""
 	for _, c := range rights {
-		if right = c; term.Width(r.Name)+1+term.Width(c) <= room || r.Kind == "ws" {
+		if right = c; term.Width(r.Name)+1+term.Width(c) <= room {
 			break
 		}
 		right = ""
@@ -297,48 +474,10 @@ func (p *pane) sideRow(y int, r contract.SideRow, branch string, do func()) {
 		room -= rw + 1
 		t.Put(w-1-rw, y, rw, right, rst)
 	}
-	if rw > 0 && r.Kind != "ws" {
+	if rw > 0 {
 		p.hits = append(p.hits, hit{w - 1 - rw, y, rw, 1, false, offer})
 	}
-	at := x + 2 + t.Put(x+2, y, room, p.short(r.Name, room), name)
-	if wide && branch != "" && at+2+term.Width(branch) <= x+2+room {
-		t.Put(at+2, y, room, branch, p.st("dim"))
-	}
-}
-
-// offerRow opens what can be done with a row. A fleet is parked and
-// written to through its group, in the run above its own.
-func (p *pane) offerRow(r contract.SideRow) {
-	if len(r.Actions) == 0 {
-		return
-	}
-	if p.at = r; r.Kind == contract.RowFleet {
-		p.at.Run = p.bar.Rows[0].Run
-	}
-	p.shown, p.over, p.pick = contract.Card{Task: r.Task, Name: r.Name, Item: r.Item, Actions: r.Actions}, "card", 0
-}
-
-// tabOf is a tab to go to for a workspace: its lead agent's, else the first
-// that is open in its folder, and for the tabs of no project the first of them.
-func (p *pane) tabOf(ws contract.Workspace) string {
-	in := func(q contract.Pane, root string) bool {
-		return q.Cwd == root || strings.HasPrefix(q.Cwd, root+string(filepath.Separator))
-	}
-	lead, tab := "", ""
-	for _, pr := range p.in.Projects {
-		if pr.Root == ws.Root && len(pr.Runs) > 0 && pr.Runs[0].Run.Orchestrator != nil {
-			lead = pr.Runs[0].Run.Orchestrator.Pane
-		}
-	}
-	for _, q := range cmp.Or(p.picture, &contract.Snapshot{}).Panes {
-		listed := slices.ContainsFunc(p.in.Projects, func(pr contract.SideProject) bool { return in(q, pr.Root) })
-		if q.ID == lead && lead != "" {
-			return q.Tab
-		} else if tab == "" && !q.Dock && !q.Ours && (ws.Other && !listed || !ws.Other && in(q, ws.Root)) {
-			tab = q.Tab
-		}
-	}
-	return tab
+	t.Put(x+2, y, room, p.short(r.Name, room), name)
 }
 
 // choose is a click on a row or Enter: the rows that were cut unfold, and
@@ -371,7 +510,16 @@ func (p *pane) shutFleet(r contract.SideRow) {
 // sideKey is a key while the left section has the keys. Letters narrow the
 // rows to what is typed, so it has no letter keys of its own.
 func (p *pane) sideKey(ev term.Event) {
-	rows := p.bar.Rows
+	// The workspaces that have a row and then the agents are one list to walk.
+	var rows []contract.SideRow
+	shown := p.bar.Workspaces
+	if !p.unfold {
+		shown = shown[:len(shown)-p.bar.More]
+	}
+	for _, ws := range shown {
+		rows = append(rows, contract.SideRow{Kind: "ws", Task: ws.ID})
+	}
+	rows = append(rows, p.bar.Rows...)
 	at := slices.IndexFunc(rows, func(r contract.SideRow) bool { return rowID(r) == p.sel || p.sel == "" && r.Front })
 	step := func(by int, want func(contract.SideRow) bool) {
 		for i := at + by; i >= 0 && i < len(rows); i += by {
@@ -383,6 +531,8 @@ func (p *pane) sideKey(ev term.Event) {
 	}
 	p.focused, p.stale, p.hint = true, true, ""
 	switch key := ev.Key; {
+	case key == "esc" && p.waits:
+		p.waits, p.split = false, 0 // the line stays where it was
 	case key == "esc":
 		if p.bar.StepsShown { // Esc ends the first steps, as [ hide ] does
 			p.child(p.cmd("set", "ui.first_steps", contract.Off), "", p.quiet)
@@ -399,10 +549,14 @@ func (p *pane) sideKey(ev term.Event) {
 	case key == "[" || key == "]":
 		wider := map[bool]int{true: 2, false: -2}[key == "]"]
 		p.child([]string{"set", "side.width", strconv.Itoa(cmp.Or(p.engine.Side.Width, contract.SideWidth) + wider), "--human"}, "", p.quiet)
+	case at >= 0 && key == "enter" && rows[at].Kind == "ws":
+		p.front(p.bar.Workspaces[slices.IndexFunc(p.bar.Workspaces, func(ws contract.Workspace) bool { return ws.ID == rows[at].Task })])
 	case at >= 0 && key == "enter":
 		p.choose(rows[at])
-	case at >= 0 && key == ".":
-		p.offerRow(rows[at])
+	case at >= 0 && key == "." && p.menus[rowID(rows[at])] != nil:
+		// The menu opens at the row, as it does under a right press on it.
+		p.menus[rowID(rows[at])](6, slices.Index(p.rows, rowID(rows[at])))
+	case key == ".":
 	case at >= 0 && (key == "left" || key == "right") && rows[at].Kind == contract.RowFleet && rows[at].Open == (key == "left"):
 		p.shutFleet(rows[at])
 	default:
