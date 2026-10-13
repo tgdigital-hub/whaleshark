@@ -53,6 +53,10 @@ var dockEnds, dockWait = 10 * time.Second, 5 * time.Second
 func (k *Keeper) ended(p *pane) {
 	now, wait := time.Now(), time.Duration(0)
 	p.count.Store(0)
+	if k.placed != "" {
+		k.away() // its menu has nobody to answer to
+		k.changed()
+	}
 	if k.ends = append(k.ends, now)[max(len(k.ends)-2, 0):]; len(k.ends) == 3 && now.Sub(k.ends[0]) < dockEnds {
 		wait = dockWait
 	}

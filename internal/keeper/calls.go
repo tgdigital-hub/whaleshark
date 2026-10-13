@@ -345,8 +345,11 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		}
 	case contract.OpOverlay:
 		// A screen of ours never opens over a project it is not about. One
-		// asked for with a place is drawn as any other until places are built.
-		from := k.panes[c.From]
+		// asked for at a cell of a pane stands at that cell of the window.
+		from, at := k.panes[c.From], layout.Rect{}
+		if p != nil {
+			at = k.place(p)
+		}
 		if from != nil && !from.rec.Dock && from.rec.Workspace != k.lay.Front {
 			err = contract.ErrNotFront
 			break
@@ -360,8 +363,11 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		}
 		p = k.fresh(from.rec.Tab, from.rec.Workspace, from.rec.Label, from.rec.Cwd)
 		p.argv, k.over, k.overW, k.overH = c.Argv, p, cmp.Or(c.W, 0.8), cmp.Or(c.H, 0.8)
+		if c.Dir == contract.OverAt {
+			k.placed, k.overX, k.overY = k.stands(), at.X+c.X, at.Y+c.Y
+		}
 		if err = k.start(p); err != nil {
-			k.over = nil
+			k.over, k.placed = nil, ""
 			k.forget(p)
 			break
 		}
