@@ -467,6 +467,12 @@ func TestEveryRouteOfVersionOneIsServed(t *testing.T) {
 			if w.Code != http.StatusMethodNotAllowed {
 				t.Errorf("a paired app pairing again: %d", w.Code)
 			}
+		} else if route == contract.APIv1+contract.APIPush {
+			// Served, and it says what it waits for: nothing of the address is kept.
+			a.no("an app's address for a nudge", w, http.StatusConflict, "waits_for_the_apps")
+			if list, err := contract.ReadPhones(b.p.Kit.Platform.Read, b.s.dirs.State); err != nil || len(list.Paired) == 0 || list.Paired[0].Push != nil {
+				t.Errorf("an app's push address was kept: %v %+v", err, list.Paired)
+			}
 		} else if w.Code != http.StatusOK && w.Code != http.StatusNoContent {
 			t.Errorf("%s %s: %d %.200s", method, path, w.Code, w.Body)
 		}

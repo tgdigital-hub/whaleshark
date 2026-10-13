@@ -157,14 +157,9 @@ func (s *server) app(w http.ResponseWriter, r *http.Request, ph contract.Phone) 
 		}
 		reply(w, http.StatusOK, list)
 	case path == contract.APIPush:
-		to := new(contract.PushTo)
-		if json.NewDecoder(r.Body).Decode(to) != nil || s.k.PushKey() == "" || to.Endpoint == "" || to.P256dh == "" || to.Auth == "" {
-			w.WriteHeader(http.StatusBadRequest)
-		} else if s.record(ph.ID, func(p *contract.Phone) { p.Push = to }) != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusNoContent)
-		}
+		// The address is version 1's and says plainly what it waits for: an
+		// app's push needs the relay, and nothing is kept until there is one.
+		reply(w, http.StatusConflict, said("waits_for_the_apps", "An app is not nudged yet: that takes a relay for the apps' own push, which is not built. Nothing was kept. While the app is open, "+contract.APIv1+contract.APILive+" says when the view changes."))
 	case !posts && !one && !screen:
 		reply(w, http.StatusNotFound, said("no_such_route", "Version 1 has no such route."))
 	case j.state == nil:

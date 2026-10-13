@@ -95,7 +95,7 @@ const (
 	APISettings = "/settings" // GET: an AppSetting for every key an app may show
 	APISet      = "/set"      // POST an AppSet: a key of SetFree or SetAsks, as the person
 	APIPair     = "/pair"     // POST an AppPair: answered with the number both screens show
-	APIPush     = "/push"     // POST a PushTo: where this app is nudged
+	APIPush     = "/push"     // POST: answered with what it waits for, the relay of the apps; nothing is kept
 
 	HeaderApp = "Whaleshark-Session"
 	ChatLines = 400
