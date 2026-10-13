@@ -250,3 +250,21 @@ func TestLandAsksWhereNoAcceptHas(t *testing.T) {
 	r.yes()
 	play(t, r.p.Command(scenario.Human, "land", "--local"), 0, "merged into main")
 }
+
+// Several accepted together: the look is after each collect, so the one
+// line and the event name the task that brought the protected file.
+func TestSeveralAcceptedTogetherAskOnce(t *testing.T) {
+	r := open(t, map[string]string{"a.txt": "one\n"})
+	r.protectOn()
+	r.approve("[land]\ncheck = \"exit 0\"\n")
+	r.task("A", map[string]string{"a.txt": "two\n"})
+	r.task("B", map[string]string{"deploy/run.sh": "echo go\n"})
+	r.task("C", map[string]string{"c.txt": "c\n"})
+	out := play(t, r.p.Command(scenario.Orch, "accept", "A", "B", "C"), 0, "A is done", "B is done", "C is done")
+	q := r.item()
+	if strings.Count(out, "protected files changed: deploy/run.sh") != 1 || q == nil || q.Task != "B" || strings.Count(r.kinds(), "protected") != 1 ||
+		strings.Index(out, "protected files changed") < strings.Index(out, "B is done") || strings.Index(out, "protected files changed") > strings.Index(out, "C is done") {
+		t.Fatalf("after the three the item is %+v, the events %s:\n%s", q, r.kinds(), out)
+	}
+	r.refused(scenario.Human, "deploy/run.sh")
+}
