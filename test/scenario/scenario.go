@@ -438,13 +438,20 @@ func (r *runner) placed(rest string) {
 		contract.ReadVersioned(r.p.Kit.Platform.Peek, filepath.Join(dirs.State, contract.UIFileName), contract.FileVersion, &ui)
 		snap, err := r.p.Terms().Snapshot(context.Background())
 		r.p.must(err)
-		now, lead := map[string]string{}, ""
+		now, lead, root := map[string]string{}, "", ""
 		for _, p := range snap.Panes {
 			if p.ID == r.p.Lead {
 				lead = p.Tab
+				for _, s := range snap.Spaces {
+					if s.ID == p.Workspace {
+						root = s.Root
+					}
+				}
 			}
 		}
-		for kind, id := range map[string]string{"fleet": ui.FleetPane, "actions": ui.ActionsPane} {
+		// The pair of the lead agent's workspace, which is the project's.
+		pair := ui.PairOf(root, snap)
+		for kind, id := range map[string]string{"fleet": pair.Fleet, "actions": pair.Actions} {
 			if slices.ContainsFunc(snap.Panes, func(p contract.Pane) bool { return p.ID == id && p.Ours && p.Tab == lead }) {
 				now[kind] = id
 			}

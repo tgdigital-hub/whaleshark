@@ -97,10 +97,13 @@ func jump(c *contract.Call) (any, error) {
 		target = c.Args[0]
 	}
 
-	tabOf := map[string]string{}
+	tabOf, rootOf := map[string]string{}, map[string]string{}
 	if in.Terms != nil {
+		for _, sp := range in.Terms.Spaces {
+			rootOf[sp.ID] = sp.Root
+		}
 		for _, p := range in.Terms.Panes {
-			tabOf[p.ID] = p.Tab
+			tabOf[p.ID], rootOf[p.ID] = p.Tab, rootOf[p.Workspace]
 		}
 	}
 	lead, name, tab := s.Run.Orchestrator, leadName, ""
@@ -124,8 +127,9 @@ func jump(c *contract.Call) (any, error) {
 	} else {
 		// Back to the conversation, should one of our own panes have the keys:
 		// it lies above the action pane, or below one set on top, and left of
-		// the fleet.
-		for _, step := range [][2]string{{in.UI.ActionsPane, contract.Up}, {in.UI.ActionsPane, contract.Down}, {in.UI.FleetPane, contract.Left}} {
+		// the fleet. The two are the pair of the workspace that tab is of.
+		ours := in.UI.PairOf(rootOf[lead.Pane], in.Terms)
+		for _, step := range [][2]string{{ours.Actions, contract.Up}, {ours.Actions, contract.Down}, {ours.Fleet, contract.Left}} {
 			if tabOf[step[0]] != tab {
 				continue
 			}

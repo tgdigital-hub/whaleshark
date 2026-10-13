@@ -350,6 +350,14 @@ func TestJump(t *testing.T) {
 	f := evening(t)
 	f.Terms.Panes = append(f.Terms.Panes,
 		contract.Pane{ID: f.UI.FleetPane, Tab: "w1:t1"}, contract.Pane{ID: f.UI.ActionsPane, Tab: "w1:t1"})
+	// The two panes are the pair of the lead agent's workspace; another
+	// workspace's pair is never stepped from.
+	f.Terms.Spaces = []contract.Space{{ID: "s1", Root: "/work/shop", Name: "shop", Front: true}, {ID: "s2", Root: "/work/blog", Name: "blog"}}
+	for i := range f.Terms.Panes {
+		f.Terms.Panes[i].Workspace = "s1"
+	}
+	f.UI.Panes = map[string]contract.Pair{"/work/shop": {Fleet: f.UI.FleetPane, Actions: f.UI.ActionsPane}, "/work/blog": {Fleet: "w1:p90", Actions: "w1:p91"}}
+	f.UI.FleetPane, f.UI.ActionsPane = "", ""
 
 	c, out, asked, changes := view(t, f, "jump", contract.Human, "Sign-Up Page")
 	run(t, c)
