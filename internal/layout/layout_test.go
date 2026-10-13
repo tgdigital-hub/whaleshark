@@ -273,9 +273,8 @@ func sound(t *testing.T, l *Layout) {
 	if !l.Sound() {
 		t.Fatalf("not sound: %+v", l)
 	}
-	area := l.area()
 	for _, tab := range l.Tabs {
-		places := l.Places(tab)
+		area, places := l.areaOf(tab.Space), l.Places(tab)
 		fits := tab.Root.least(false) <= area.W && tab.Root.least(true) <= area.H
 		if tab.Zoom != "" {
 			fits = area.W >= LeastW && area.H >= LeastH
@@ -300,7 +299,10 @@ func sound(t *testing.T, l *Layout) {
 	if tab == nil {
 		return
 	}
-	cells := map[string]int{}
+	cells, area := map[string]int{}, l.area()
+	if s := l.Space(l.Front); s == nil || s.Active != tab.ID || tab.Space != s.ID {
+		t.Fatalf("%s shows, and the workspace in front is %+v", tab.ID, s)
+	}
 	for y := area.Y; y < area.Y+area.H; y++ {
 		for x := range area.W {
 			drawn := g.At(x, y).Text != " "
@@ -342,8 +344,10 @@ func drive(t *testing.T, next func(n int) int, steps int) {
 		case 0:
 			l.Fit(next(130)-2, next(44)-2)
 		case 1:
+			// In one of three workspaces, and now and then a fleet's.
 			if len(l.Tabs) < 6 {
-				l.Add("t"+id(), "tab "+strconv.Itoa(ids), id())
+				tab := l.AddIn(l.Open([]string{"", "", "/reef", "/kelp"}[next(4)]), "t"+id(), "tab "+strconv.Itoa(ids), id())
+				tab.Group, tab.Head = []string{"", "", "", "front desk", "back office"}[next(5)], next(3) == 0
 			}
 		case 2, 3, 4:
 			err := l.Split(pane(), dir(), amount(), id())
@@ -610,9 +614,42 @@ func TestFromAFile(t *testing.T) {
 		"no tab at all":         `{"tabs":[null]}`,
 		"a tab that is not":     `{"tabs":[{"id":"t1","focus":"p1","root":{"pane":"p1"}}],"active":3}`,
 	} {
+		// Each is damaged in the one way its name says: its tabs are of a
+		// workspace that is there, shows the first of them and is in front.
+		bad := &Layout{}
+		err := json.Unmarshal([]byte(text), bad)
+		for _, tab := range bad.Tabs {
+			if tab != nil {
+				tab.Space = "s1"
+			}
+		}
+		bad.Spaces, bad.Front = []*Space{{ID: "s1", Active: "t1"}}, "s1"
+		if err != nil || bad.Sound() {
+			t.Errorf("%s: read with %v and taken as sound", name, err)
+		}
+	}
+	tab := func(id, space, pane string) string {
+		return `{"id":"` + id + `","space":"` + space + `","focus":"` + pane + `","root":{"pane":"` + pane + `"}}`
+	}
+	for name, text := range map[string]string{
+		"a tab of no workspace":          `{"tabs":[` + tab("t1", "", "p1") + `]}`,
+		"a tab of a workspace not there": `{"tabs":[` + tab("t1", "s2", "p1") + `],"spaces":[{"id":"s1","active":"t1"}],"front":"s1"}`,
+		"a workspace twice":              `{"tabs":[` + tab("t1", "s1", "p1") + `],"spaces":[{"id":"s1","active":"t1"},{"id":"s1","active":"t1"}],"front":"s1"}`,
+		"a workspace that is none":       `{"tabs":[` + tab("t1", "s1", "p1") + `],"spaces":[{"id":"s1","active":"t1"},null],"front":"s1"}`,
+		"a workspace with no tab":        `{"tabs":[` + tab("t1", "s1", "p1") + `],"spaces":[{"id":"s1","active":"t1"},{"id":"s2","active":""}],"front":"s1"}`,
+		"a workspace showing another's":  `{"tabs":[` + tab("t1", "s1", "p1") + "," + tab("t2", "s2", "p2") + `],"spaces":[{"id":"s1","active":"t1"},{"id":"s2","active":"t1"}],"front":"s1"}`,
+		"a tab that shows from behind":   `{"tabs":[` + tab("t1", "s1", "p1") + "," + tab("t2", "s2", "p2") + `],"spaces":[{"id":"s1","active":"t1"},{"id":"s2","active":"t2"}],"front":"s1","active":1}`,
+		"no workspace in front":          `{"tabs":[` + tab("t1", "s1", "p1") + `],"spaces":[{"id":"s1","active":"t1"}]}`,
+		"a front with no tabs":           `{"tabs":[],"front":"s1"}`,
+	} {
 		bad := &Layout{}
 		if err := json.Unmarshal([]byte(text), bad); err != nil || bad.Sound() {
 			t.Errorf("%s: read with %v and taken as sound", name, err)
 		}
+	}
+	whole := &Layout{}
+	text := `{"tabs":[` + tab("t1", "s1", "p1") + "," + tab("t2", "s2", "p2") + `],"spaces":[{"id":"s1","active":"t1"},{"id":"s2","active":"t2"}],"front":"s2","active":1}`
+	if err := json.Unmarshal([]byte(text), whole); err != nil || !whole.Sound() {
+		t.Errorf("two workspaces with nothing wrong in them: read with %v and not taken as sound", err)
 	}
 }

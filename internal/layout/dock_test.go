@@ -55,7 +55,8 @@ func TestTheDockAtEveryWidth(t *testing.T) {
 			if h := l.At(tab.X+tab.W-1, 2); h.Kind != OnPane || h.Pane != "p1" || h.X != tab.W-1 || h.Y != 0 {
 				t.Errorf("%+v at %d: a cell of the tab is %+v", d, w, h)
 			}
-			for _, s := range l.row() {
+			rows, _ := l.rows()
+			for _, s := range rows[0] {
 				if s.x <= tab.X || s.x+s.w > tab.X+tab.W {
 					t.Errorf("%+v at %d: the tab row has %+v outside the tab's columns", d, w, s)
 				}
