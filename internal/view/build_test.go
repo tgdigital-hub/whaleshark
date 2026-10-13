@@ -166,8 +166,8 @@ func TestStatusSaysWhoseTabAndThatAClosedJobIsNone(t *testing.T) {
 	}
 	in := f.Input(contract.Unbound)
 	in.State.Run.ClosedAt = in.Now
-	if v := Build(in); !slices.Contains(v.Alerts, "this job is closed, and no job is open: `whaleshark run new` begins the next") {
-		t.Errorf("a closed job's lines on top: %q", v.Alerts)
+	if v := Build(in); !slices.Contains(v.Alerts, closedSaid) || strings.Contains(text(v, Options{Width: 200}), "this tab") {
+		t.Errorf("a closed job's lines on top: %q\n%s", v.Alerts, text(v, Options{Width: 200}))
 	}
 }
 

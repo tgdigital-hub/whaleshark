@@ -576,12 +576,15 @@ func (b *builder) finish(st *seat) {
 	}
 }
 
+// closedSaid is the line on top of a closed job, on every screen.
+const closedSaid = "this job is closed, and no job is open: `whaleshark run new` begins the next"
+
 // around fills in what stands round the cards: the lines on top, the strip
 // and what the age line says about its sources.
 func (b *builder) around(v *contract.View) {
 	in, run := b.in, b.s.Run
 	if !run.ClosedAt.IsZero() {
-		v.Alerts = append(v.Alerts, "this job is closed, and no job is open: `whaleshark run new` begins the next")
+		v.Alerts = append(v.Alerts, closedSaid)
 	}
 	if v.Mode = run.Mode; v.Mode == contract.ModeFleets {
 		// What the limits count: a living leader, and every agent of a fleet.
