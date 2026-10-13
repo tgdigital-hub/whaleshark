@@ -582,6 +582,21 @@ func ReadFleets(read func(path string) ([]byte, error), root string) ([]SavedFle
 	return out, err
 }
 
+// FleetsShown is ReadFleets as a caller may read it. What a fleet works on
+// is a sentence that lies in the project's folder, and a folder can come
+// from elsewhere: an agent is shown it only where nothing the project brings
+// waits for the person's approval (Held), and the names alone until then.
+// The person reads it always.
+func FleetsShown(read func(path string) ([]byte, error), root string, by CallerKind) ([]SavedFleet, error) {
+	fleets, err := ReadFleets(read, root)
+	if p, perr := ReadProjectFile(root); by != Human && (perr != nil || len(p.Held) > 0) {
+		for i := range fleets {
+			fleets[i].Purpose = ""
+		}
+	}
+	return fleets, err
+}
+
 // WriteFleets replaces a project's saved fleets. Its one caller is `run fleet`.
 func WriteFleets(p Files, root string, fleets []SavedFleet) error {
 	return WriteVersioned(p, filepath.Join(root, ProjectDir, fleetsFile), FileVersion, struct {

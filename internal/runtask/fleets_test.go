@@ -440,4 +440,25 @@ func TestAFleetIsSavedWithWhatItWorksOn(t *testing.T) {
 	if out := orch(0, "run", "fleet")("kept · saved · plain"); strings.Contains(out, "model") || strings.Contains(out, "fine") {
 		t.Errorf("an entry that is no fleet is listed:\n%s", out)
 	}
+	// Where the project brings something nobody approved, what a fleet works
+	// on is the person's to read and no agent's: not in the list, not by
+	// naming the fleet, not in status, not in the guide. Approved, it is.
+	write(t, filepath.Join(p.Root, "whaleshark.toml"), "[setup]\nscript = \"make ready\"\n")
+	orch(0, "run", "new", "the next job")("is open")
+	for _, line := range [][]string{{"run", "fleet"}, {"run", "fleet", "kept"}, {"status"}, {"guide", "lead"}} {
+		if out := orch(0, line...)("kept"); strings.Contains(out, " plain\n") {
+			t.Errorf("%v shows an agent a sentence from a project nobody approved:\n%s", line, out)
+		}
+	}
+	orch(0, "guide", "lead")("- kept\n", "once the person has approved what this project brings: `whaleshark trust`")
+	play(t, p.Command(scenario.Human, "run", "fleet"), 0, "kept · saved · plain")
+	lines, err := contract.TrustLines(p.Root)
+	if err == nil {
+		err = contract.WriteTrust(p.Kit.Platform, p.Root, lines, contract.Now())
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	orch(0, "run", "fleet")("kept · saved · plain")
+	orch(0, "guide", "lead")("- kept: plain")
 }

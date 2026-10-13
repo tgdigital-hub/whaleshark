@@ -103,7 +103,7 @@ func Text(w io.Writer, v *contract.View, o Options) {
 			p.line("", clean(line), "")
 		}
 		for _, f := range v.Saved {
-			p.line("", "saved fleet "+clean(f.Name)+" · "+map[bool]string{true: "at work", false: "no work now"}[f.Busy]+" · "+clean(f.Purpose), "")
+			p.line("", strings.TrimSuffix("saved fleet "+clean(f.Name)+" · "+map[bool]string{true: "at work", false: "no work now"}[f.Busy]+" · "+clean(f.Purpose), " · "), "")
 		}
 		if l := v.Limits; l != nil {
 			p.line("", of(l.Leaders, l.LeadersMax, "leaders")+" · "+of(l.Agents, l.AgentsMax, "agents"), "")
