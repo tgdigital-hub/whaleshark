@@ -62,9 +62,15 @@ type unread struct{ contract.Files }
 
 func (unread) Read(string) ([]byte, error) { return nil, fs.ErrNotExist }
 
+// Version is the layout file's own: one more than the other files' since
+// the file says which tab is of which workspace. A program of before leaves
+// such a file alone and saves nothing.
+const Version = contract.FileVersion + 1
+
 // File is the layout file, private to the login: the layout as it marshals,
-// the size of the window it was last fitted to, each tab's own variables,
-// the numbers the last tab and pane were given, and every pane.
+// the workspaces in it, the size of the window it was last fitted to, each
+// tab's own variables, the numbers the last tab and pane were given, and
+// every pane.
 type File struct {
 	contract.Versioned
 	At     time.Time           `json:"at"`
@@ -86,15 +92,19 @@ func Path(d contract.Dirs) string { return filepath.Join(d.State, name) }
 
 // Save replaces the layout file.
 func Save(files contract.Files, d contract.Dirs, f *File) error {
-	f.Version, f.At = contract.FileVersion, contract.Now()
-	return contract.WriteVersioned(files, Path(d), contract.FileVersion, f)
+	f.Version, f.At = Version, contract.Now()
+	return contract.WriteVersioned(files, Path(d), Version, f)
 }
 
 // Load reads the layout file back for a keeper that starts: nothing when
 // there is none. What it returns is in order and can be used as it is: the
 // layout is sound, there is exactly one pane for each place in it, in the
-// order of the tabs, each with its tab's id and name and with what to start
-// in it now; no number of a tab or pane will be given twice. A file that
+// order of the tabs, each with its tab's id, name and workspace and with
+// what to start in it now; no number of a tab, pane or workspace will be
+// given twice. A file of before there were workspaces is read once: each
+// tab goes into the workspace of the project its first pane's folder lies
+// in, by the login's list of projects, else into the tabs of no project,
+// and the workspace of the tab that showed is in front. A file that
 // is not sound is moved aside and answered with ErrUnusable; one of a newer
 // program is left alone and answered with contract.ErrNewer. Load is for
 // the keeper alone, which holds the login's lock: it also removes the
@@ -114,7 +124,7 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 			os.Remove(Path(d) + "." + end)
 		}
 	}()
-	err := contract.ReadVersioned(files.Read, Path(d), contract.FileVersion, f)
+	err := contract.ReadVersioned(files.Read, Path(d), Version, f)
 	if errors.Is(err, contract.ErrNewer) {
 		clear(beside)
 		return nil, nil, err
@@ -125,6 +135,13 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 	if err == nil {
 		err = json.Unmarshal(f.Layout, lay)
 	}
+	saved := map[string]Pane{}
+	for _, p := range f.Panes {
+		saved[p.Rec.ID] = p
+	}
+	if err == nil {
+		adopt(lay, func(pane string) string { return saved[pane].Rec.Cwd }, files, d)
+	}
 	if err != nil || !lay.Sound() {
 		// Left where it is, it would be in the way of every later save.
 		if merr := files.Replace(Path(d), filepath.Join(filepath.Dir(Path(d)), contract.LayoutBad)); merr != nil {
@@ -132,11 +149,11 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 		}
 		return nil, nil, ErrUnusable
 	}
-	saved, vars, openers := map[string]Pane{}, map[string][]string{}, map[string]string{}
-	for _, p := range f.Panes {
-		saved[p.Rec.ID] = p
-	}
+	vars, openers := map[string][]string{}, map[string]string{}
 	f.Panes = nil
+	for _, s := range lay.Spaces {
+		lay.Made = max(lay.Made, number(s.ID))
+	}
 	for _, t := range lay.Tabs {
 		f.NTab = max(f.NTab, number(t.ID))
 		if v, ok := f.Vars[t.ID]; ok {
@@ -155,15 +172,50 @@ func Load(files contract.Files, d contract.Dirs) (*File, *layout.Layout, error) 
 				}
 				delete(beside, id)
 			}
-			p.Rec = contract.Pane{ID: id, Tab: t.ID, Label: t.Label, Cwd: p.Rec.Cwd, Agent: p.Rec.Agent,
+			p.Rec = contract.Pane{ID: id, Tab: t.ID, Workspace: t.Space, Label: t.Label, Cwd: p.Rec.Cwd, Agent: p.Rec.Agent,
 				Name: p.Rec.Name, Session: p.Rec.Session, Status: contract.StatusUnknown}
 			p.plan()
 			f.Panes, f.NPane = append(f.Panes, p), max(f.NPane, number(id))
 		}
 	}
-	f.Vars, f.Openers = vars, openers
+	if f.Vars, f.Openers = vars, openers; len(lay.Tabs) > 0 {
+		lay.Show(lay.Tabs[lay.Active].ID) // its workspace shows it, whatever the file said
+	}
 	lay.Fit(f.W, f.H)
 	return f, lay, nil
+}
+
+// adopt puts the tabs of a file of before there were workspaces each into
+// one: that of the project its first pane's folder lies in, the innermost
+// of the login's list, else the tabs of no project. The list is read here,
+// once, and never by a keeper that runs. A tab that has a workspace is left.
+func adopt(lay *layout.Layout, cwd func(pane string) string, files contract.Files, d contract.Dirs) {
+	var roots []string
+	for i, t := range lay.Tabs {
+		if t == nil || t.Space != "" || t.Root == nil {
+			continue
+		} else if roots == nil {
+			roots, _ = contract.ReadProjects(files.Read, d.State)
+			roots = append(roots, "")
+		}
+		first := t.Root
+		for first.A != nil {
+			first = first.A
+		}
+		in, at := "", cwd(first.Pane)
+		for _, root := range roots {
+			if rel, err := filepath.Rel(root, at); root != "" && err == nil && filepath.IsLocal(rel) && len(root) > len(in) {
+				in = root
+			}
+		}
+		s := lay.Open(in)
+		if t.Space = s.ID; s.Active == "" || i == lay.Active {
+			s.Active = t.ID
+		}
+		if i == lay.Active {
+			lay.Front = s.ID
+		}
+	}
 }
 
 // number is the number in an id of ours, "t3" or "p7".
