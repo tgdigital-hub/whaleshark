@@ -202,7 +202,10 @@ lines 1765 runtask internal/runtask
 # 5 more at the join of phase 6's second wave, at what was built (1,806): the
 # wave's 105 for start under plan first and the hold, and 13 at the join for
 # the end of a hold saying whom it could not wake.
-lines 1810 launch internal/launch
+# 5 more after the trial with real agents, at what was built (1,814): a
+# group handed to a leader that sits ends the leader's own wait, and Stop
+# all passes a closed run over before its record is asked anything.
+lines 1815 launch internal/launch
 # worker: 5 more for phase 5, a leader's --task.
 lines 170 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about
@@ -224,7 +227,9 @@ lines 170 worker internal/worker
 # 5 more at the join of phase 6's second wave, at what was built (729): the
 # wave's 105 stood exactly on the line, and the join adds a granted setting
 # that could not be made, said; the hold file is looked at on every sweep.
-lines 730 inbox internal/inbox
+# 5 more after the trial with real agents, at what was built (734): wait
+# hands a note of the person's over as their own words.
+lines 735 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the
 # other runs of a login are three screens that 186 lines could not hold;
 # status --brief, which nobody asked for, left the command table instead of
@@ -254,7 +259,10 @@ lines 730 inbox internal/inbox
 # 5 more at the join of phase 6's second wave, at what was built (3,190): a
 # fleet held alone counts its own agents in its item, and status and the
 # page carry the panes' warning line of a changed setting.
-lines 3195 view internal/view
+# 15 more after the trial with real agents, at what was built (3,209):
+# status says whose tab asks and that a closed job is no job, an urgent
+# item stands first, and the exported log lists a leader once.
+lines 3210 view internal/view
 # question: 30 more for phase 5, the twin made, answered down and passed up.
 # 25 more at the join of phase 5's second wave, at what was built: the
 # person's answer inside a fleet's run is told to the run above, and the twin
@@ -284,7 +292,9 @@ lines 910 gitwt internal/gitwt
 # 25 fewer at the join of phase 6's second wave, at what was built (819).
 # 5 more for the owner's word after the join: land says that the settings
 # file does not read, and which file.
-lines 825 integrate internal/integrate
+# 10 more after the trial with real agents, at what was built (834): land
+# takes a yes just given up itself, and says so while it can be taken back.
+lines 835 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
 # project's object folder in git's list; it stood at its line. doctor pays.
 # 50 more after the real runs of phase 2: sync sends the result of a worker
@@ -370,7 +380,11 @@ lines 1300 term internal/term
 # wave's 379 where 240 were planned, and 33 at the join for the settings
 # screen opened on the job in front, the pairing code's row and do not
 # disturb from a phone.
-lines 4010 panes internal/panes
+# 25 more after the trial with real agents, at what was built (4,034): the
+# keys go back to the conversation after the last typed answer, what two
+# buttons print is a list to read, a click on a value chooses its row, a
+# removed run's number is read again, and a changed setting is warned of once.
+lines 4035 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
 # 10 fewer at the join of phase 6's second wave: the wave needed nothing here.
 lines 80 theme internal/theme
@@ -566,6 +580,8 @@ skip _test.go testdata testkit
 # owner's look round. The folders' lines above are each what its folder
 # holds, to the next five. Two things of the owner's word after it, 15 lines,
 # leave the tree at 44,137 with two mends for the hosted machines.
+# The trial with real agents left it at 44,212: twenty-two small mends, 75
+# lines, each with its test. The total stands.
 total 45000
 
 # The whole module list, not only the direct ones.
