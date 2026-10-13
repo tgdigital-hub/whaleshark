@@ -191,16 +191,17 @@ func TestSetWritesEveryStore(t *testing.T) {
 // A tool is wired in by a description from two places and no third; a
 // description that must not be used is named and left out; and a built-in is
 // what the three tables of launch, watch and hook say of it today.
+// full is a full path in the system's own spelling: on Windows it begins at
+// a drive, and a person types it with that system's strokes.
+func full(path string) string {
+	if runtime.GOOS == "windows" {
+		path = "C:" + path
+	}
+	return filepath.FromSlash(path)
+}
+
 func TestToolsFromDescriptions(t *testing.T) {
 	h, c := login(t)
-	// A full path is the system's own: on Windows it begins at a drive, and
-	// a person types it with that system's strokes.
-	full := func(path string) string {
-		if runtime.GOOS == "windows" {
-			path = "C:" + path
-		}
-		return filepath.FromSlash(path)
-	}
 	program := full("/opt/hermes/bin/hermes")
 	if err := WriteProjects(h, h.dir, []string{full("/work/shop-site")}); err != nil {
 		t.Fatal(err)

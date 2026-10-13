@@ -351,7 +351,7 @@ func TestTheInterfaceForAppsIsHeld(t *testing.T) {
 func TestAProfileHoldsNoSecret(t *testing.T) {
 	h, c := login(t)
 	for _, kv := range [][2]string{{"notify.url", "https://example.org/n?token=SECRET-ADDRESS"}, {"theme", "kelp"}, {"spend.guard", "on"},
-		{"fleets.total", "unlimited"}, {"shell", "/bin/zsh -l"}, {"shortcut.x", "/usr/bin/true"}, {"tools.hermes.run", "/opt/h/hermes chat"},
+		{"fleets.total", "unlimited"}, {"shell", "/bin/zsh -l"}, {"shortcut.x", "/usr/bin/true"}, {"tools.hermes.run", full("/opt/h/hermes") + " chat"},
 		{"tools.hermes.env.API_KEY", "SECRET-KEY"}, {"tools.hermes.suits", "long reads"}} {
 		if _, err := Set(c, kv[0], kv[1]); err != nil {
 			t.Fatalf("set %s: %v", kv[0], err)
