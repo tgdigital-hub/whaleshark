@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
@@ -138,7 +139,15 @@ func TestAProtectedFileChangedApprovedChangedAgainLanded(t *testing.T) {
 	if out := r.collect("D", map[string]string{"d.txt": "d\n"}); strings.Contains(out, "protected") || r.item() == nil {
 		t.Fatalf("D changed no protected file:\n%s", out)
 	}
-	r.yes()
+	// The second yes is given and the work landed at once, as a person does
+	// it: land makes the yes final itself, with no sweep of anybody's between.
+	// A yes given by a button can be taken back for a moment: within it
+	// the refusal says that, and after it the landing passes.
+	id := r.item().ID
+	play(t, r.p.Command(scenario.Human, "answer", id, "approve"), 0, "answered")
+	r.change(func(s *contract.State) { s.Questions[id].SettlesAt = contract.Now().Add(time.Minute) })
+	play(t, r.p.Command(scenario.Human, "land", "--local"), 5, "can still be taken back for a moment", "Land again")
+	r.change(func(s *contract.State) { s.Questions[id].SettlesAt = contract.Now() })
 	play(t, r.p.Command(scenario.Human, "land", "--local"), 0, "merged into main")
 	if main := r.git(r.root, "rev-parse", "main"); main != r.branch() || r.state().Run.Integration.Landed != main {
 		t.Fatalf("after the second yes main is at %s and the work at %s", main, r.branch())

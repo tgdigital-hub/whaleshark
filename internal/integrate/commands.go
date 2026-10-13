@@ -55,6 +55,14 @@ func (g integrator) land(c *contract.Call) (any, error) {
 	case c.Run == "":
 		return nil, refuse(contract.ExitMissing, "no_run", "No run is open here.", `whaleshark run new "<objective>"`)
 	}
+	// A yes the person has just given is made final here, as a sweep would:
+	// approving and then landing needs no wait for one.
+	k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
+		if p := s.Run.Protect; p != nil && s.Questions[p.Item] != nil {
+			k.Rules.Use(s, p.Item, c.Now)
+		}
+		return nil
+	})
 	s, err := k.Store.Read(c.Root, c.Run)
 	if err == nil {
 		err = k.Rules.Allowed(s, c.Caller, c.Command.Name, "")
@@ -143,6 +151,10 @@ func (g integrator) land(c *contract.Call) (any, error) {
 		})
 		if asked && saved == nil {
 			k.Notifier.Items(c.Root, c.Run, nil, c.Now)
+		}
+		// A yes given in the pane can be taken back for a moment, and counts after it.
+		if p := s.Run.Protect; p != nil && s.Questions[p.Item] != nil && s.Questions[p.Item].State == contract.QuestionAnswered {
+			(*r).Message = "Nothing was landed yet: your answer on the protected files can still be taken back for a moment, and counts after it. Land again in a few seconds."
 		}
 	}
 	if err != nil {
