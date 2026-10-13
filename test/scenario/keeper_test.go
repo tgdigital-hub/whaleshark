@@ -151,9 +151,11 @@ func session(t *testing.T, terms contract.Terminals, root, second string) []stri
 	// A second workspace: opened with its first tab and in front, opened
 	// again with nothing made, left behind while a tab is opened in it; its
 	// tabs are held to its own rules, refuse a screen of ours and are behind
-	// the wall for an agent of the first; it shows another tab when the one
-	// it showed is closed, and it is closed whole. What waits in a tab is
-	// the dock's alone to tell.
+	// the wall for an agent of the first; it is named and gets its folder's
+	// name back, and is opened of a folder only; it shows the tab after the
+	// one it showed when that is closed, in front the one before when the
+	// last is, and it is closed whole. What waits in a tab is the dock's
+	// alone to tell.
 	from := func(what, pane string, c contract.WireCall) {
 		c.From = pane
 		_, err := raw.Call(ctx, c)
@@ -169,6 +171,16 @@ func session(t *testing.T, terms contract.Terminals, root, second string) []stri
 	say("space-rename of one that is not there", terms.SpaceRename("s9", "x"))
 	say("tab-rename to a second main tab", terms.TabRename(behind.Tab, " orchestrator"))
 	say("tab-rename", terms.TabRename(behind.Tab, "--still\tbehind, and with a name that is too long"))
+	say("space-rename", terms.SpaceRename(sp.Workspace, "  --a name\tof its own, and too long a one"))
+	say("space-rename to no name", terms.SpaceRename(sp.Workspace, " "))
+	_, err = terms.SpaceOpen(filepath.Join(second, "none"), second)
+	say("space-open of a folder that is not there", err)
+	_, err = terms.TabCreate(filepath.Join(second, "none"), "", second, "x", nil)
+	say("tab-create in a folder that is not there", err)
+	_, err = terms.TabCreate(second, "", second, " ORCHESTRATOR ", nil)
+	say("tab-create of a second main tab", err)
+	last, err := terms.TabCreate(second, "", second, "--a\x1b[2Jlabel\tto clean", nil)
+	say("tab-create with a label to clean", err, show(last))
 	from("overlay from the workspace behind", behind.ID, contract.WireCall{Op: contract.OpOverlay, Argv: []string{agent, "hang"}})
 	from("screen of another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpScreen, Pane: behind.ID})
 	from("size of another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpSize, Pane: behind.ID})
@@ -180,11 +192,13 @@ func session(t *testing.T, terms contract.Terminals, root, second string) []stri
 	say("tab-focus of the tab behind", terms.TabFocus(behind.Tab))
 	say("tab-focus back", terms.TabFocus("t1"))
 	say("tab-close of the tab the workspace behind showed", terms.TabClose(behind.Tab))
-	say("space-close", terms.SpaceClose(sp.Workspace))
+	say("tab-focus of the tab it shows then", terms.TabFocus(last.Tab))
+	say("tab-close of the tab that shows", terms.TabClose(last.Tab))
+	say("space-close of the workspace in front", terms.SpaceClose(sp.Workspace))
 	say("space-close again", terms.SpaceClose(sp.Workspace))
 	say("tab-close", terms.TabClose("t3"))
-	last, err := terms.Snapshot(ctx)
-	picture("snapshot", last, err)
+	end, err := terms.Snapshot(ctx)
+	picture("snapshot", end, err)
 
 	for {
 		select {
@@ -206,11 +220,11 @@ func session(t *testing.T, terms contract.Terminals, root, second string) []stri
 			} else if e.Kind != contract.EvSession && !e.Pane.Dock && (e.Kind != contract.EvState || e.Pane.Terminal != was) {
 				log = append(log, fmt.Sprintf("event %s: %s", e.Kind, show(e.Pane)))
 			}
-			if contract.Apply(first, e); e.Seq < last.Seq {
+			if contract.Apply(first, e); e.Seq < end.Seq {
 				continue
 			}
 		case <-time.After(patience):
-			t.Fatalf("the events stopped at number %d of %d", first.Seq, last.Seq)
+			t.Fatalf("the events stopped at number %d of %d", first.Seq, end.Seq)
 		}
 		break
 	}

@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -81,6 +82,7 @@ type Fake struct {
 	nSpace             int
 	group              map[string]string // a tab's fleet
 	marks              map[string]int    // what waits in each tab, as the dock said it
+	told               string            // the workspaces as the readers of events last heard of them
 }
 
 // New returns a double with no tab in it, as a keeper has before its first window.
@@ -161,12 +163,7 @@ func (f *Fake) Load(s *contract.Snapshot) {
 	for _, sp := range s.Spaces {
 		f.spaces = append(f.spaces, &sp)
 	}
-	past := func(n *int, id string) {
-		digits := len(id) - len(strings.TrimRight(id, "0123456789"))
-		if v, err := strconv.Atoi(id[len(id)-digits:]); err == nil {
-			*n = max(*n, v)
-		}
-	}
+	past := func(n *int, id string) { *n = max(*n, number(id)) }
 	for _, rec := range s.Panes {
 		past(&f.nPane, rec.ID)
 		past(&f.nTab, rec.Tab)
@@ -323,6 +320,23 @@ func (f *Fake) of(root string) *contract.Space {
 			return sp
 		}
 	}
+	return f.made(root)
+}
+
+// folder is of for a folder a caller named, which is cleaned and, where no
+// workspace is of it yet, checked to be one: the keeper's own check.
+func (f *Fake) folder(root string) (*contract.Space, error) {
+	if root != "" {
+		root = filepath.Clean(root)
+	}
+	known := slices.ContainsFunc(f.spaces, func(sp *contract.Space) bool { return sp.Root == root })
+	if st, err := os.Stat(root); root != "" && !known && (err != nil || !st.IsDir()) {
+		return nil, fmt.Errorf("%s is no folder to open a workspace of", root)
+	}
+	return f.of(root), nil
+}
+
+func (f *Fake) made(root string) *contract.Space {
 	f.nSpace++
 	sp := &contract.Space{ID: "s" + strconv.Itoa(f.nSpace), Root: root, Name: contract.SpaceName(root), Front: len(f.spaces) == 0}
 	f.spaces = append(f.spaces, sp)
@@ -340,11 +354,10 @@ func (f *Fake) front() *contract.Space {
 }
 
 // settle brings the workspaces in line with the tabs and tells every reader
-// when anything of them changed: a workspace ends with its last tab, each
-// shows a tab of its own, the one that holds the keys is in front, and one
-// is in front while any is left.
+// when anything of them differs from what was told last, a name too: a
+// workspace ends with its last tab, each shows a tab of its own, the one
+// that holds the keys is in front, and one is in front while any is left.
 func (f *Fake) settle() {
-	was, _ := json.Marshal(f.spaces)
 	keys := ""
 	if p := f.pane(f.focus); p != nil {
 		keys = p.rec.Workspace
@@ -365,7 +378,12 @@ func (f *Fake) settle() {
 	if f.front() == nil && len(f.spaces) > 0 {
 		f.spaces[0].Front = true
 	}
-	if now, _ := json.Marshal(f.spaces); string(now) != string(was) && !f.quiet {
+	now, _ := json.Marshal(f.spaces)
+	if was := f.told; string(now) != was {
+		f.told = string(now)
+		if f.quiet {
+			return
+		}
 		f.seq++
 		f.tell(contract.TermEvent{Seq: f.seq, Kind: contract.EvSpace, Spaces: f.list()})
 	}
@@ -447,11 +465,25 @@ func (f *Fake) setFocus(id string) {
 	}
 }
 
-// refocus gives the keys to the first pane when the pane that had them is gone.
+// refocus gives the keys on when the pane that had them is gone: to the tab
+// its workspace then shows, and to the first workspace that is left only
+// when that one has ended.
 func (f *Fake) refocus() {
-	if f.pane(f.focus) == nil && len(f.panes) > 0 {
-		f.setFocus(f.panes[0].rec.ID)
+	if f.pane(f.focus) != nil {
+		return
 	}
+	for _, sp := range slices.Insert(slices.Clone(f.spaces), 0, f.front()) {
+		if sp != nil && len(f.tab(sp.Tab)) > 0 {
+			f.setFocus(f.tab(sp.Tab)[0].rec.ID)
+			return
+		}
+	}
+}
+
+// number is the number an id ends with.
+func number(id string) int {
+	v, _ := strconv.Atoi(id[len(strings.TrimRight(id, "0123456789")):])
+	return v
 }
 
 // ran keeps the openers as the keeper does when a program is run or an
@@ -476,7 +508,7 @@ func (f *Fake) close(p *pane) {
 	kill(p)
 	f.panes = slices.DeleteFunc(f.panes, func(q *pane) bool { return q == p })
 	if len(f.tab(p.rec.Tab)) == 0 {
-		f.gone(p.rec.Tab)
+		f.gone(p.rec.Tab, p.rec.Workspace)
 	}
 	f.ran("", p.rec.ID, "")
 	f.emit(contract.EvClosed, p.rec)
@@ -484,8 +516,21 @@ func (f *Fake) close(p *pane) {
 	f.settle()
 }
 
-// gone forgets what was kept of a tab that is closed.
-func (f *Fake) gone(tab string) {
+// gone forgets what was kept of a tab that is closed. A workspace that
+// showed it shows the tab opened after it, or the one before.
+func (f *Fake) gone(tab, space string) {
+	if sp := f.space(space); sp != nil && sp.Tab == tab {
+		after, before := "", ""
+		for _, p := range f.panes {
+			if n := number(p.rec.Tab); p.rec.Workspace != space {
+			} else if n > number(tab) && (after == "" || n < number(after)) {
+				after = p.rec.Tab
+			} else if n < number(tab) && (before == "" || n >= number(before)) {
+				before = p.rec.Tab
+			}
+		}
+		sp.Tab = cmp.Or(after, before)
+	}
 	delete(f.env, tab)
 	delete(f.opened, tab)
 	delete(f.group, tab)
@@ -494,11 +539,13 @@ func (f *Fake) gone(tab string) {
 
 // shut closes a tab whole, with what runs in it.
 func (f *Fake) shut(tab string) {
+	space := ""
 	for _, q := range f.tab(tab) {
 		kill(q)
+		space = q.rec.Workspace
 	}
 	f.panes = slices.DeleteFunc(f.panes, func(q *pane) bool { return q.rec.Tab == tab })
-	f.gone(tab)
+	f.gone(tab, space)
 	f.emit(contract.EvTabClosed, contract.Pane{Tab: tab})
 }
 
@@ -707,15 +754,25 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 			sp = f.space(from.rec.Workspace)
 			c.Group = cmp.Or(f.group[from.rec.Tab], c.Group)
 		} else if c.Space != "" || sp == nil {
-			sp = f.of(c.Space)
+			sp, err = f.folder(c.Space)
 		}
 		if sp == nil {
-			return r, contract.ErrNoPane
+			return r, cmp.Or(err, contract.ErrNoPane)
+		}
+		// The label is cleaned as every label is, and one tab of a workspace
+		// at most reads as the main agent's.
+		if c.Label = contract.Label(c.Label); contract.IsMainTab(c.Label) && slices.ContainsFunc(f.panes, func(q *pane) bool {
+			return q.rec.Workspace == sp.ID && contract.IsMainTab(q.rec.Label)
+		}) {
+			return r, contract.ErrMainTab
 		}
 		r.Pane = f.create(sp, c)
 		f.settle()
 	case contract.OpSpaceOpen:
-		sp := f.of(c.Space)
+		sp, err := f.folder(c.Space)
+		if err != nil {
+			return r, err
+		}
 		if len(f.tab(sp.Tab)) == 0 {
 			c.Label, c.Group, c.Env, c.From = contract.MainTab, "", nil, ""
 			f.create(sp, c)

@@ -303,7 +303,8 @@ type Terminals interface {
 	// none named of the one in front. group names the fleet a leader's tab
 	// is the first of; every tab opened from a pane of a group has that
 	// group. The keeper is told a tab's fleet by this one word and reads no
-	// run file for it.
+	// run file for it. The label is kept as Label(label), and ErrMainTab
+	// refuses one that reads as MainTab where the workspace has such a tab.
 	TabCreate(space, group, cwd, label string, env []string) (Pane, error)
 	// TabRename gives a tab the label a person typed: Label(label), kept
 	// from then on, so that the tab follows its chat's name no longer (the

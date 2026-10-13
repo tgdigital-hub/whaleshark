@@ -300,6 +300,19 @@ func spaces(t *testing.T, f *fakeengine.Fake) string {
 	return strings.Join(out, ", ")
 }
 
+// folders makes the folders of two projects, shop and blog, and names the
+// folder they lie in: a workspace is opened of a folder that is there.
+func folders(t *testing.T) string {
+	t.Helper()
+	work := t.TempDir()
+	for _, name := range []string{"shop", "blog"} {
+		if err := os.Mkdir(filepath.Join(work, name), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return work
+}
+
 // The double keeps workspaces as the keeper does: a tab is of one from its
 // opening to its end, a tab opened from a pane is of that pane's whatever
 // the call says, focusing a tab brings its workspace to the front, a
@@ -307,19 +320,20 @@ func spaces(t *testing.T, f *fakeengine.Fake) string {
 func TestWorkspaces(t *testing.T) {
 	f := fakeengine.New()
 	defer f.Close()
+	work := folders(t)
 	f.TabCreate("", "", "/home", "notes", nil)
 	if got := spaces(t, f); got != "s1 other tabs t1 front" {
 		t.Fatalf("the first tab, of no project: %s", got)
 	}
-	shop, err := f.SpaceOpen("/work/shop", "/work/shop/site")
-	if got := spaces(t, f); err != nil || shop.Label != contract.MainTab || shop.Cwd != "/work/shop/site" || got != "s1 other tabs t1, s2 shop t2 front" {
+	shop, err := f.SpaceOpen(filepath.Join(work, "shop"), filepath.Join(work, "shop", "site"))
+	if got := spaces(t, f); err != nil || shop.Label != contract.MainTab || shop.Cwd != filepath.Join(work, "shop", "site") || got != "s1 other tabs t1, s2 shop t2 front" {
 		t.Fatalf("a project opened: %+v, %v; %s", shop, err, got)
 	}
-	if again, _ := f.SpaceOpen("/work/shop", "/elsewhere"); again.ID != shop.ID {
+	if again, _ := f.SpaceOpen(filepath.Join(work, "shop"), "/elsewhere"); again.ID != shop.ID {
 		t.Errorf("opened again, another tab was made: %+v", again)
 	}
 	// From a pane: that pane's workspace and its group, though the call names others.
-	r, err := as(t, f, shop.ID, contract.WireCall{Op: contract.OpTabCreate, Space: "/work/blog", Group: "billing", Label: "leader"})
+	r, err := as(t, f, shop.ID, contract.WireCall{Op: contract.OpTabCreate, Space: filepath.Join(work, "blog"), Group: "billing", Label: "leader"})
 	if err != nil || r.Pane.Workspace != "s2" || f.Group(r.Pane.Tab) != "billing" {
 		t.Fatalf("a tab opened from a pane: %+v, %v", r.Pane, err)
 	}
@@ -331,7 +345,7 @@ func TestWorkspaces(t *testing.T) {
 		t.Errorf("a split is of %q", beside.Workspace)
 	}
 	// From no pane: the project the call names, made and not put in front.
-	blog, _ := f.TabCreate("/work/blog", "", "/work/blog", "T1", nil)
+	blog, _ := f.TabCreate(filepath.Join(work, "blog"), "", filepath.Join(work, "blog"), "T1", nil)
 	if got := spaces(t, f); blog.Workspace != "s3" || got != "s1 other tabs t1, s2 shop t2 front, s3 blog t5" {
 		t.Fatalf("a tab of a third project: %s", got)
 	}
@@ -373,7 +387,7 @@ func TestWorkspaces(t *testing.T) {
 	if err := f.SpaceClose("s2"); err != nil || spaces(t, f) != "s1 other tabs t1 front" || pane(t, f, shop.ID).ID != "" {
 		t.Errorf("a workspace closed: %v; %s", err, spaces(t, f))
 	}
-	if again, _ := f.SpaceOpen("/work/shop", "/work/shop"); again.Workspace != "s4" {
+	if again, _ := f.SpaceOpen(filepath.Join(work, "shop"), filepath.Join(work, "shop")); again.Workspace != "s4" {
 		t.Errorf("an id was given twice: %+v", again)
 	}
 }
@@ -385,9 +399,10 @@ func TestWorkspaces(t *testing.T) {
 func TestTheWallBetweenWorkspaces(t *testing.T) {
 	f := fakeengine.New()
 	defer f.Close()
-	near, _ := f.SpaceOpen("/work/shop", "/work/shop")
-	mine, _ := f.TabCreate("/work/shop", "", "/work/shop", "mine", nil)
-	far, _ := f.TabCreate("/work/blog", "", "/work/blog", "theirs", nil)
+	work := folders(t)
+	near, _ := f.SpaceOpen(filepath.Join(work, "shop"), filepath.Join(work, "shop"))
+	mine, _ := f.TabCreate(filepath.Join(work, "shop"), "", filepath.Join(work, "shop"), "mine", nil)
+	far, _ := f.TabCreate(filepath.Join(work, "blog"), "", filepath.Join(work, "blog"), "theirs", nil)
 	f.AgentStart("bob", "claude", far.ID, nil, time.Second)
 	f.AgentStart("ann", "claude", mine.ID, nil, time.Second)
 	// The agent a person started by hand, which no fence is about.
@@ -423,7 +438,7 @@ func TestTheWallBetweenWorkspaces(t *testing.T) {
 		}
 	}
 	// A pane that holds no agent is the person's own: no wall.
-	plain, _ := f.TabCreate("", "", "/work/shop", "a shell", nil)
+	plain, _ := f.TabCreate("", "", filepath.Join(work, "shop"), "a shell", nil)
 	if _, err := as(t, f, plain.ID, call(contract.OpScreen, far, "", "")); err != nil {
 		t.Errorf("a person's shell reading another workspace's screen: %v", err)
 	}
