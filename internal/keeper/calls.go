@@ -206,11 +206,11 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		// front. A group the call itself names begins with this tab, its
 		// leader's, while the group has none.
 		sp, from, led := k.lay.Space(k.lay.Front), k.panes[c.From], c.Group != ""
-		if from != nil && !from.rec.Dock {
+		if own := k.lay.Space(cmp.Or(from, &pane{}).rec.Workspace); own != nil {
 			if t := k.lay.Tab(from.rec.Tab); t != nil && t.Group != "" {
 				c.Group, led = t.Group, false
 			}
-			sp = k.lay.Space(from.rec.Workspace)
+			sp = own
 		} else if c.Space != "" || sp == nil {
 			sp, err = k.open(c.Space)
 		}
