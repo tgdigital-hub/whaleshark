@@ -91,6 +91,7 @@ func New(s contract.Settings, system string) *Keys {
 		"n": {Kind: tabBy, Step: 1}, "p": {Kind: tabBy, Step: -1},
 		"z": {Kind: Zoom}, "l": {Kind: Redraw}, "v": {Kind: Mark}, "y": {Kind: Allow},
 		"b": call(contract.OpDock, contract.DockFold, 0), "g": call(contract.OpDock, contract.DockKeys, 0), "s": {Kind: Settings},
+		".": {Kind: Menu}, // of the tab that shows; the keeper says where under its name
 	}
 	for _, dir := range []string{contract.Left, contract.Right, contract.Up, contract.Down} {
 		k.after[dir] = call(contract.OpPaneFocus, dir, 0)
@@ -219,6 +220,10 @@ func (in *In) shortcut(key string, v View, focus string) ([]Act, bool) {
 			return nil, true
 		}
 		a = Act{Kind: Call, Call: contract.WireCall{Op: contract.OpTabFocus, Tab: tabs[a.Step-1].ID}}
+	case a.Kind == Menu:
+		if n := v.Lay.Active; n >= 0 && n < len(tabs) {
+			a.Hit = layout.Hit{Kind: layout.OnTab, Tab: tabs[n].ID}
+		}
 	}
 	return []Act{a}, true
 }

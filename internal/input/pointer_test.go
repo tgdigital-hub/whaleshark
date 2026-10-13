@@ -30,6 +30,14 @@ func TestARightPressAsksForTheMenu(t *testing.T) {
 			t.Errorf("%q: %s", c[0], got)
 		}
 	}
+	// The command key then a full stop asks for the menu of the tab that
+	// shows, and names no cell: the keeper puts it under the tab's name.
+	if a := take(&in, v, "\x00."); len(a) != 1 || a[0].Kind != Menu || a[0].Hit != (layout.Hit{Kind: layout.OnTab, Tab: "t1"}) || a[0].X != 0 || in.Armed {
+		t.Errorf("the key for the menu: %+v", a)
+	}
+	if a := take(&In{Keys: in.Keys}, View{Lay: &layout.Layout{W: 80, H: 24}, Modes: v.Modes}, "\x00."); len(a) != 0 {
+		t.Errorf("the key for the menu with no tab: %+v", a)
+	}
 	press := func(b term.Button) term.Event {
 		return term.Event{Kind: term.Mouse, Button: b, Action: term.Press, X: 30, Y: 0}
 	}
