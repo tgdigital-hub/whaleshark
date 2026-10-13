@@ -210,6 +210,10 @@ func (c *Client) Point(pane string, p contract.Pointer, arg string) error {
 	return c.do(contract.WireCall{Op: contract.OpPoint, Pane: pane, Pointer: p, Text: arg})
 }
 
+func (c *Client) Say(pane, where, text string) error {
+	return c.do(contract.WireCall{Op: contract.OpSay, Pane: pane, Kind: where, Text: text})
+}
+
 func (c *Client) Run(pane string, argv []string) error {
 	return c.do(contract.WireCall{Op: contract.OpRun, Pane: pane, Argv: argv})
 }

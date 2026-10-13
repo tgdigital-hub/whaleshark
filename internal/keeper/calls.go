@@ -20,7 +20,7 @@ import (
 
 // onPane are the calls that are about one pane, which must be there.
 var onPane = []string{contract.OpRun, contract.OpScreen, contract.OpSplit, contract.OpSwap, contract.OpResize,
-	contract.OpPaneClose, contract.OpSize, contract.OpPaneFocus, contract.OpAgentStart, contract.OpPoint, contract.OpHook}
+	contract.OpPaneClose, contract.OpSize, contract.OpPaneFocus, contract.OpAgentStart, contract.OpPoint, contract.OpSay, contract.OpHook}
 
 // own says a fenced call is one its caller may make all the same: one of
 // contract.OwnTab about a tab that this same pane opened, and that nobody
@@ -72,6 +72,8 @@ func (k *Keeper) call(c contract.WireCall) (contract.WireReply, error) {
 		err = p.watch.Prompt(c.Text, wait)
 	case contract.OpPoint:
 		err = p.watch.Point(c.Pointer, c.Text)
+	case contract.OpSay:
+		err = p.watch.Say(c.Kind, c.Text)
 	}
 	return r, err
 }
@@ -204,6 +206,13 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			err = contract.ErrNoPane
 		}
 	case contract.OpPoint:
+	case contract.OpSay:
+		// The person's note goes to the agent the person started by hand, the
+		// one they talk to: never to an agent the tool started, a shell or a
+		// pane of ours.
+		if p.rec.Agent == "" || p.rec.Name != "" || p == k.over {
+			err = contract.ErrAgentNotReady
+		}
 	case contract.OpOverlay:
 		if len(c.Argv) == 0 || k.over != nil {
 			err = errors.New("no program to draw over the tab, or one is there already")
