@@ -325,10 +325,48 @@ func (g integrator) Diff(root string, s *contract.State, task string, stat bool)
 	return out, nil
 }
 
-// Phase 6 owes here: Protected, in the contract's words, by one
-// git diff --name-only -z between the base and the tip and one ls-tree.
-func (g integrator) Protected(string, *contract.State, []string) (string, []string, error) {
-	return "", nil, nil
+// Protected is the look of 20.2 at the run's branch as it stands. With no
+// pattern, as while the setting is off, git is not called.
+func (g integrator) Protected(root string, s *contract.State, patterns []string) (string, []string, error) {
+	if len(patterns) == 0 || s.Run.Integration == nil {
+		return "", nil, nil
+	}
+	tip, err := at(root, ref(s.Run.Integration.Branch))
+	if err != nil {
+		return "", nil, err
+	}
+	return protected(root, s, tip, patterns)
+}
+
+// protected is Protected at one commit, by one diff: every file that differs
+// from where the commit left the run's base (the branch as it stands now, so
+// that what a sync brought in is not the job's), with its mode and the id of
+// its contents there. A file put back as it was is not among them. The names
+// come with -z and go to the matcher and into the hash, nowhere else.
+func protected(root string, s *contract.State, tip string, patterns []string) (string, []string, error) {
+	if len(patterns) == 0 || s.Run.Base == nil {
+		return "", nil, nil
+	}
+	base, err := at(root, s.Run.Base.Ref)
+	if err != nil {
+		base = s.Run.Base.OID
+	}
+	out, err := git(root, "diff", "--raw", "-z", "--no-abbrev", "--no-renames", "--merge-base", base, tip)
+	if err != nil {
+		return "", nil, err
+	}
+	var files []string
+	sum := sha256.New()
+	for rec := strings.Split(out, "\x00"); len(rec) > 1; rec = rec[2:] {
+		if f := strings.Fields(rec[0]); len(f) > 3 && contract.Owned(patterns, rec[1]) {
+			files = append(files, rec[1])
+			fmt.Fprintf(sum, "%s %s %s\x00", f[1], f[3], rec[1])
+		}
+	}
+	if files == nil {
+		return "", nil, nil
+	}
+	return hex.EncodeToString(sum.Sum(nil)), files, nil
 }
 
 func (g integrator) Drop(root string, s *contract.State) (kept string, err error) {

@@ -14,6 +14,7 @@
 package integrate
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -24,9 +25,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
-
-// Phase 6 owes here: land refused by Rules.Landable, with the fingerprint
-// worked out again from the tip.
 
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
@@ -118,6 +116,35 @@ func (g integrator) land(c *contract.Call) (any, error) {
 			fix("sync-main", "bring the collected work up to date with "+onto))
 	}
 
+	// Protected files (20.2) are worked out again from the tip that would
+	// land: the person's yes is for exactly these, and nothing else passes.
+	dirs, err := k.Platform.Dirs()
+	if err != nil {
+		return nil, err
+	}
+	person, err := contract.ReadPerson(k.Platform.Peek, dirs.Config)
+	if err != nil {
+		return nil, err
+	}
+	seen, files, err := protected(c.Root, s, tip, contract.Protected(person, project))
+	if err == nil {
+		err = k.Rules.Landable(s, seen, files)
+	}
+	if r := new(*contract.Refusal); errors.As(err, r) && (*r).Code == contract.RefusedProtected {
+		// No accept may have asked yet (the setting was switched on since):
+		// the person is asked from here, so that the refusal can be answered.
+		asked := false
+		saved := k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
+			asked = k.Rules.Protect(s, "", seen, files, c.Now)
+			return nil
+		})
+		if asked && saved == nil {
+			k.Notifier.Items(c.Root, c.Run, nil, c.Now)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
 	out := landed{Run: s.Run.ID, Branch: in.Branch, Tip: tip, Onto: onto, How: "local"}
 	// A check nobody approved is not run, and nothing lands without it.
 	if slices.Contains(project.Held, "land.check") {

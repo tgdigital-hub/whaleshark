@@ -17,13 +17,50 @@ import (
 
 // accepted is what accept answers with.
 type accepted struct {
-	Task   string   `json:"task"`
-	How    string   `json:"how"`
-	Tail   string   `json:"tail,omitempty"`
-	Log    string   `json:"log,omitempty"`
-	Commit string   `json:"commit,omitempty"`
-	Beside int      `json:"beside,omitempty"` // other agents at work in the folder the check ran in
-	Ready  []string `json:"ready,omitempty"`
+	Task      string   `json:"task"`
+	How       string   `json:"how"`
+	Tail      string   `json:"tail,omitempty"`
+	Log       string   `json:"log,omitempty"`
+	Commit    string   `json:"commit,omitempty"`
+	Beside    int      `json:"beside,omitempty"` // other agents at work in the folder the check ran in
+	Ready     []string `json:"ready,omitempty"`
+	Protected []string `json:"protected,omitempty"` // the job's protected files, where the person is now asked
+}
+
+// look is accept's look after a collect in a job (20.2). It answers with
+// what the step that marks the task done calls: Rules.Protect, and the files
+// where the person is asked. With the setting off or unreadable git is not
+// called. A look that failed says so and stops nothing: land looks again.
+func look(c *contract.Call, s *contract.State, collected bool) func(*contract.State, *accepted) {
+	k, none := c.Kit, func(*contract.State, *accepted) {}
+	dirs, err := k.Platform.Dirs()
+	person, unread := contract.ReadPerson(k.Platform.Peek, dirs.Config)
+	project, _ := contract.ReadProjectFile(c.Root)
+	patterns := contract.Protected(person, project)
+	if !collected || err != nil || unread != nil || s.Run.Parent != nil || len(patterns) == 0 && s.Run.Protect == nil {
+		return none
+	}
+	seen, files, err := k.Integrator.Protected(c.Root, s, patterns)
+	if err != nil {
+		fmt.Fprintf(c.Err, "The protected files could not be looked at (%s); land looks again.\n", cli.Line(err.Error()))
+		return none
+	}
+	return func(s *contract.State, out *accepted) {
+		if k.Rules.Protect(s, out.Task, seen, files, c.Now) {
+			out.Protected = files
+		}
+	}
+}
+
+// say ends an accept that passed, and calls the person where they are asked.
+func (a accepted) say(c *contract.Call) {
+	if len(a.Protected) > 0 {
+		c.Kit.Notifier.Items(c.Root, c.Run, nil, c.Now)
+		fmt.Fprintf(c.Out, "protected files changed: %s · the person is asked\n", cli.Line(strings.Join(a.Protected, ", ")))
+	}
+	if len(a.Ready) > 0 {
+		fmt.Fprintf(c.Out, "Ready now: %s.\n", strings.Join(a.Ready, ", "))
+	}
 }
 
 // accept checks tasks and keeps their work: one in its own folder, several
@@ -168,8 +205,10 @@ func acceptAll(c *contract.Call) (any, error) {
 		if one.Commit, err = k.Integrator.Collect(c.Root, seen, id, all[i]); err != nil {
 			return nil, back(err)
 		}
+		told := look(c, seen, true)
 		err = step(func(s *contract.State) (err error) {
 			one.Ready, err = k.Rules.Checked(s, id, contract.CheckResult{OK: true, At: c.Now, Tail: tail}, contract.Accepted{How: one.How, Commit: one.Commit}, c.Now)
+			told(s, &one) // a step that fails saves nothing
 			return err
 		})
 		if err != nil {
@@ -177,9 +216,7 @@ func acceptAll(c *contract.Call) (any, error) {
 		}
 		done = append(done, one)
 		fmt.Fprintf(c.Out, "%s is done, checked.\n", id)
-		if len(one.Ready) > 0 {
-			fmt.Fprintf(c.Out, "Ready now: %s.\n", strings.Join(one.Ready, ", "))
-		}
+		one.say(c)
 	}
 	return map[string]any{"accepted": done}, nil
 }
@@ -271,9 +308,11 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 			return back(err)
 		}
 	}
+	told := look(c, seen, out.Commit != "")
 	err = step(func(s *contract.State) (err error) {
 		how := contract.Accepted{How: out.How, Note: last(c, "by-hand"), Commit: out.Commit}
 		out.Ready, err = k.Rules.Checked(s, t.ID, result, how, c.Now)
+		told(s, &out) // a step that fails saves nothing
 		return err
 	})
 	if err != nil {
@@ -289,9 +328,7 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 	if out.Beside > 0 {
 		fmt.Fprintf(c.Out, "Checked in a folder where %d other agents are working.\n", out.Beside)
 	}
-	if len(out.Ready) > 0 {
-		fmt.Fprintf(c.Out, "Ready now: %s.\n", strings.Join(out.Ready, ", "))
-	}
+	out.say(c)
 	return out, nil
 }
 

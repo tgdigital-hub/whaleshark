@@ -210,6 +210,7 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		fmt.Fprintln(c.Err, "The open tabs could not be asked, so the name was compared with this run's tasks only.")
 	}
 	var meets []string
+	var parent *contract.Twin
 	err = change(c, c.Run, "add", func(s *contract.State) error {
 		if t.After, err = ids(c, s); err != nil {
 			return err
@@ -221,7 +222,7 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		if err := cli.Valid("name", added.Name, ""); err != nil {
 			return usage(c, "%v. Give a name with --name.", err)
 		}
-		t, meets = *added, meeting(s, added)
+		t, meets, parent = *added, meeting(s, added), s.Run.Parent
 		return keep(c, added, data)
 	})
 	// A name can be held by the tab of a run that is closed: removing that
@@ -251,7 +252,30 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		out["meets"] = meets
 		fmt.Fprintf(c.Out, "%s may change files that %s may change too. Let one wait for the other (--after), or expect them to overlap.\n", t.ID, strings.Join(meets, ", "))
 	}
+	if across := abroad(c, parent, t.Owns); len(across) > 0 {
+		out["meets_fleets"] = across
+		fmt.Fprintf(c.Out, "%s may change files that other fleets of this job may change too: %s. No fleet owns folders: expect an overlap, and a sync from the orchestrator.\n", t.ID, strings.Join(across, ", "))
+	}
 	return out, nil
+}
+
+// abroad is meeting across fleets (20.10), for a task a leader adds: each as
+// "fleet/id". A hint, never a refusal: a run that cannot be read is passed by.
+func abroad(c *contract.Call, mine *contract.Twin, owns []string) (found []string) {
+	if mine == nil || len(owns) == 0 {
+		return nil
+	}
+	job, _ := c.Kit.Store.Read(c.Root, mine.Run)
+	fleets := cmp.Or(job, &contract.State{}).Run.Fleets
+	for _, name := range slices.Sorted(maps.Keys(fleets)) {
+		f := fleets[name]
+		if other, err := c.Kit.Store.Read(c.Root, f.Run); name != mine.Fleet && f.EndedAt.IsZero() && err == nil {
+			for _, id := range meeting(other, &contract.Task{Owns: owns}) {
+				found = append(found, name+"/"+id)
+			}
+		}
+	}
+	return found
 }
 
 // meeting names the tasks still open whose --owns meets t's. Two patterns
