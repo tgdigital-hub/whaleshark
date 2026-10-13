@@ -7,7 +7,9 @@
 // in every picture, as the keeper has, and starts no program in it. It
 // keeps workspaces as the keeper does: each tab in one from its opening to
 // its end, one in front, the wall between them; and it draws no tab row,
-// no menu and no line.
+// no menu and no line. A pane drawn over the tab is opened and closed as
+// the keeper's is, with no program in it; and since it has no window to
+// press in, Menu tells the event a right press on a tab brings.
 package fakeengine
 
 import (
@@ -83,6 +85,8 @@ type Fake struct {
 	group              map[string]string // a tab's fleet
 	marks              map[string]int    // what waits in each tab, as the dock said it
 	told               string            // the workspaces as the readers of events last heard of them
+	over               *pane             // the pane drawn over the tab, which is in no tab's list
+	placed             string            // what a placed one is held to: the workspace in front and the width
 }
 
 // New returns a double with no tab in it, as a keeper has before its first window.
@@ -272,6 +276,9 @@ func (f *Fake) terminal() string {
 
 // pane finds a pane by its id or by the name of the agent in it.
 func (f *Fake) pane(id string) *pane {
+	if f.over != nil && f.over.rec.ID == id {
+		return f.over
+	}
 	for _, p := range f.panes {
 		if p.rec.ID == id || p.rec.Name == id && id != "" {
 			return p
@@ -378,6 +385,7 @@ func (f *Fake) settle() {
 	if f.front() == nil && len(f.spaces) > 0 {
 		f.spaces[0].Front = true
 	}
+	f.away()
 	now, _ := json.Marshal(f.spaces)
 	if was := f.told; string(now) != was {
 		f.told = string(now)
@@ -416,7 +424,33 @@ func (f *Fake) Window(width int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.Width = width
+	f.away()
 	f.emit(contract.EvWindow, contract.Pane{})
+}
+
+// Menu tells what the keeper tells when a person asks for the menu of a
+// tab at a cell of the window.
+func (f *Fake) Menu(tab string, x, y int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.seq++
+	f.tell(contract.TermEvent{Seq: f.seq, Kind: contract.EvMenu, Pane: contract.Pane{Tab: tab}, X: x, Y: y})
+}
+
+// stands is what a placed pane is held to, and away closes one that is
+// held to something else by now: another workspace in front, another width.
+func (f *Fake) stands() string {
+	front := ""
+	if sp := f.front(); sp != nil {
+		front = sp.ID
+	}
+	return fmt.Sprint(front, " ", f.Width)
+}
+
+func (f *Fake) away() {
+	if f.over != nil && f.placed != "" && f.placed != f.stands() {
+		f.close(f.over)
+	}
 }
 
 func (f *Fake) emit(kind string, rec contract.Pane) {
@@ -443,6 +477,9 @@ func (f *Fake) snapshot() *contract.Snapshot {
 	for _, p := range f.panes {
 		s.Panes = append(s.Panes, p.rec)
 	}
+	if f.over != nil {
+		s.Panes = append(s.Panes, f.over.rec)
+	}
 	slices.SortFunc(s.Panes, func(a, b contract.Pane) int { return strings.Compare(a.ID, b.ID) })
 	return s
 }
@@ -456,6 +493,10 @@ func (f *Fake) setStatus(p *pane, status string) {
 
 func (f *Fake) setFocus(id string) {
 	if p := f.pane(id); p != nil && id != f.focus {
+		// A placed pane goes before the keys do, when they go to another workspace.
+		if sp := f.front(); f.over != nil && f.placed != "" && (sp == nil || sp.ID != p.rec.Workspace) {
+			f.close(f.over)
+		}
 		if old := f.pane(f.focus); old != nil {
 			old.rec.Focused = false
 		}
@@ -505,6 +546,11 @@ func (f *Fake) release(p *pane) {
 }
 
 func (f *Fake) close(p *pane) {
+	if p == f.over {
+		f.over, f.placed = nil, ""
+		f.emit(contract.EvClosed, p.rec)
+		return
+	}
 	kill(p)
 	f.panes = slices.DeleteFunc(f.panes, func(q *pane) bool { return q == p })
 	if len(f.tab(p.rec.Tab)) == 0 {
@@ -814,9 +860,23 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 	case contract.OpSetKeys:
 	case contract.OpOverlay:
 		// A screen of ours never opens over a project it is not about.
-		if q, sp := f.pane(c.From), f.front(); q != nil && sp != nil && q.rec.Workspace != sp.ID {
+		q := f.pane(c.From)
+		if sp := f.front(); q != nil && sp != nil && q.rec.Workspace != sp.ID {
 			return r, contract.ErrNotFront
+		} else if len(c.Argv) == 0 || f.over != nil {
+			return r, errors.New("no program to draw over the tab, or one is there already")
 		}
+		// Its pane is as the one it was asked from, or the one with the keys.
+		if q == nil {
+			q = cmp.Or(f.pane(f.focus), &pane{})
+		}
+		f.nPane++
+		f.over = &pane{screen: new(bytes.Buffer), rec: contract.Pane{ID: "p" + strconv.Itoa(f.nPane), Tab: q.rec.Tab, Workspace: q.rec.Workspace,
+			Terminal: f.terminal(), Label: q.rec.Label, Cwd: q.rec.Cwd, Status: contract.StatusUnknown}}
+		if c.Dir == contract.OverAt {
+			f.placed = f.stands()
+		}
+		f.emit(contract.EvOpened, f.over.rec)
 	case contract.OpTabRename, contract.OpTabFocus, contract.OpTabClose, contract.OpTabGive:
 		if len(tab) == 0 || c.Op == contract.OpTabGive && f.pane(c.Target) == nil {
 			return r, contract.ErrNoPane

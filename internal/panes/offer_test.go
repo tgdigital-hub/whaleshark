@@ -463,7 +463,7 @@ func TestTheLeftSectionOpensTheMenuOfTheThingUnderIt(t *testing.T) {
 		t.Errorf("the menu of a workspace was asked for with %+v", c)
 	}
 	// The keeper's word: a person asked for the menu of a tab on the tab row.
-	go wd.p.tell(news{ev: contract.TermEvent{Kind: contract.EvMenu, Pane: contract.Pane{Tab: r.Tab}, X: 40, Y: 0}})
+	wd.double.Menu(r.Tab, 40, 0)
 	if c := wd.placed(); c.Pane != "" || c.X != 41 || c.Y != 1 || slices.Contains(c.Argv, "row") || c.Argv[4] != contract.OfferAgent {
 		t.Errorf("the menu of a tab was asked for with %+v", c)
 	}

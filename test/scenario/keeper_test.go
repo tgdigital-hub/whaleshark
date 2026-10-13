@@ -183,6 +183,30 @@ func session(t *testing.T, terms contract.Terminals, root, second string) []stri
 	say("tab-create with a label to clean", err, show(last))
 	from("overlay from the workspace behind", behind.ID, contract.WireCall{Op: contract.OpOverlay, Argv: []string{agent, "hang"}})
 	from("overlay at a cell from the workspace behind", behind.ID, contract.WireCall{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{agent, "hang"}, W: 24, H: 4, X: 3, Y: 2})
+	// A pane over the tab is opened once, one at a time, and closed like any
+	// pane; a placed one also goes when another workspace comes to the front.
+	over := func(what string, c contract.WireCall) string {
+		before, _ := terms.Snapshot(ctx)
+		_, err := raw.Call(ctx, c)
+		after, _ := terms.Snapshot(ctx)
+		for _, p := range after.Panes {
+			if !slices.ContainsFunc(before.Panes, func(q contract.Pane) bool { return q.ID == p.ID }) {
+				say(what, err, show(p))
+				return p.ID
+			}
+		}
+		say(what, err)
+		return ""
+	}
+	screen := over("overlay", contract.WireCall{Op: contract.OpOverlay, Argv: []string{agent, "hang"}, W: 0.5, H: 0.5})
+	over("overlay while one is there", contract.WireCall{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{agent, "hang"}, W: 24, H: 4, X: 3, Y: 2})
+	say("tab-focus of the tab behind, under a pane over the tab", terms.TabFocus(behind.Tab))
+	say("tab-focus back", terms.TabFocus("t1"))
+	say("pane-close of the pane over the tab", terms.PaneClose(screen))
+	over("overlay at a cell", contract.WireCall{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{agent, "hang"}, W: 24, H: 4, X: 3, Y: 2})
+	over("overlay with no program", contract.WireCall{Op: contract.OpOverlay})
+	say("tab-focus of the tab behind, under a placed pane", terms.TabFocus(behind.Tab))
+	say("tab-focus back", terms.TabFocus("t1"))
 	from("screen of another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpScreen, Pane: behind.ID})
 	from("size of another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpSize, Pane: behind.ID})
 	from("swap with another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpSwap, Pane: "p5", Target: behind.ID})
