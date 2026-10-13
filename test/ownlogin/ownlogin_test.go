@@ -78,7 +78,7 @@ func TestThePackagesOwnTestsHaveOne(t *testing.T) {
 			t.Errorf("%s is %s", name, dir)
 		}
 	}
-	if os.Getenv("WHALESHARK_SOCKET") != "" {
-		t.Error("an engine of the login the tests were started in is named")
+	if os.Getenv("WHALESHARK_SOCKET") != "" || os.Getenv("HISTFILE") != os.DevNull {
+		t.Errorf("an engine of the login the tests were started in is named, or a shell would keep its history in %q", os.Getenv("HISTFILE"))
 	}
 }

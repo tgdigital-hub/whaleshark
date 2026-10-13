@@ -20,7 +20,8 @@ var folders = map[string]string{"XDG_CONFIG_HOME": "config", "XDG_STATE_HOME": "
 
 // Fresh points this process, and with it every program it starts, at a
 // login made for it in a temporary folder, whatever login it was started
-// in, and names no engine of that login's. done removes the folder. The
+// in, names no engine of that login's and lets no shell keep a history.
+// done removes the folder. The
 // path is short: the engine's socket lies in it. The Go command a test
 // starts keeps its cache and its settings where they were, since both are
 // found by the same variables; a test that needs a login of a certain kind
@@ -40,6 +41,9 @@ func Fresh() (done func()) {
 		os.Setenv(name, filepath.Join(dir, folder))
 	}
 	os.Unsetenv("WHALESHARK_SOCKET")
+	// A shell a test starts in a pane writes what was typed at it into the
+	// history file of the home folder, which stays the person's own.
+	os.Setenv("HISTFILE", os.DevNull)
 	return func() { os.RemoveAll(dir) }
 }
 
