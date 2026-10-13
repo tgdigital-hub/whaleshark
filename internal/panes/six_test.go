@@ -469,7 +469,7 @@ func TestTheFirstStepsAreTickedOpenedAndHidden(t *testing.T) {
 	wd.click("first steps: ")
 	wd.shows("FIRST STEPS", "[ hide ]", "✔ 1 start your agent: type", "5 ctrl+space s settings · S")
 	wd.click("[ hide ]")
-	wd.ran(`set ui.first_steps --file "off" --human`)
+	wd.ran("set ui.first_steps off")
 	if !wd.until(3*time.Second, func() bool { return !strings.Contains(wd.screen(), "FIRST STEPS") }) {
 		t.Fatalf("hidden, the first steps are still drawn:\n%s", wd.screen())
 	}
@@ -478,7 +478,7 @@ func TestTheFirstStepsAreTickedOpenedAndHidden(t *testing.T) {
 	wd.s.Key("down")
 	wd.shows("KEYS GO HERE")
 	wd.s.Key("esc")
-	wd.ran(`set ui.first_steps --file "off" --human`)
+	wd.ran("set ui.first_steps off")
 }
 
 // A search that finds no setting says so, at every width, and Enter on it
