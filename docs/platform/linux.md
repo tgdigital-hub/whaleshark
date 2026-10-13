@@ -1,6 +1,6 @@
 # WhaleShark on Linux: what is proven, and the list for the first real servers
 
-Two halves. The first runs by itself in containers and needs no server. The second needs three rented servers (two to set up, one to be refused), a private network, a Cloudflare account with a domain, and a phone; it is written here as the script for that day and **has not been run**.
+Two halves. The first runs by itself in containers and needs no server. The second needs three rented servers (two to set up, one to be refused), a Cloudflare account with a domain, and a phone; it is written here as the script for that day and **has not been run**.
 
 ## What the containers found
 
@@ -65,13 +65,13 @@ On Ubuntu 22.04, made ready as a fresh server is: `server setup` is refused, say
 | hiding other logins' processes | a container may not mount `/proc` again; setup says so and goes on, as designed |
 | `doctor --server` as a whole | most of its rows ask the system manager, so they read "problem" here whatever the truth |
 | `install.sh` | there is no release for it to fetch and no signer in it yet; the program is copied to where it would leave it |
-| anything of a phone, of Tailscale and of Cloudflare | they need the real things |
+| anything of a phone and of Cloudflare | they need the real things |
 
 ## 2. The day there are servers: the script
 
 Not run. Each step says what must be seen. Do all of it on Ubuntu 24.04 first, then parts A and B again on Debian 12; on a fresh Ubuntu 22.04 only step 3, which must be refused with nothing changed. `robin` and `sam` are two work logins, `admin` the administrator; `$LO` stands for the IPv4 loopback address.
 
-**Waiting for the owner's yes before this can begin:** a draft release with its signed list and its apt repository (the install steps fetch from it); the connector's version and the checksum of Cloudflare's package key written into the server script; the three servers, the private network, the Cloudflare account with a domain, an iPhone and an Android phone.
+**Waiting for the owner's yes before this can begin:** a draft release with its signed list and its apt repository (the install steps fetch from it); the connector's version and the checksum of Cloudflare's package key written into the server script; the three servers, the Cloudflare account with a domain, an iPhone and an Android phone.
 
 ### A. From nothing, twice over
 
@@ -117,36 +117,25 @@ The whole of A is done once with `install.sh` and once, on a second fresh machin
 | 26 | both logins start agents up to the cap | the cap holds for each; memory per agent, with and without a browser, written down |
 | 27 | close the laptop for an hour, open it | page and window come back without a key |
 
-### D. The phone, by the private network (Tailscale)
+### D. The phone, by a public name behind Cloudflare's login
 
 | # | Command | Must be seen |
 |---|---|---|
-| 28 | `sudo whaleshark server phone --user robin`, then `--user sam`; `sudo reboot`; `sudo tailscale serve status` | two HTTPS ports forwarded, still there after the restart |
-| 29 | as `robin`: `whaleshark dash phone on`; open the address on the phone | a number and nothing else |
-| 30 | `whaleshark dash phone list`, `whaleshark dash phone approve <number>` at a plain terminal; once more from the action pane | the phone shows the page by itself |
-| 31 | press a button on the phone; `whaleshark dash status` | the button works (a refusal as `wrong_origin` means the network rewrote the request's host name); the last caller is the phone's own identity |
-| 32 | from another device of the network, `curl` to `robin`'s door with `robin`'s identity written into the header by hand, as `sam` | the item names `sam`: the network must drop a header it was sent |
-| 33 | `sam`'s phone opens `robin`'s address | a number at most |
-| 34 | `sam`: `tailscale serve` and `tailscale nc` towards `robin`'s door | refused for a login that is not root |
-| 35 | phone: add the page to the home screen, "Nudge me on this phone"; `whaleshark doctor --notify` | the notice arrives on a locked iPhone and Android phone; note the text shown; a tap opens the page's own address |
-| 36 | laptop closed; a worker asks; answer on the phone | the answer recorded as the phone's |
+| 28 | `sudo whaleshark server tunnel --team <team>`; `sudo reboot` | it says first that it installs a program that is not ours; the connector at the pinned version, running as its own login, and running again after the restart |
+| 29 | `sudo whaleshark server phone --user robin --name ws1.<domain> --aud <tag> --email <address>`; the same for `sam` with `ws2` | the names made |
+| 30 | anywhere, not logged in: `curl -sI https://ws1.<domain>/` | Cloudflare's login and nothing of ours in headers or body |
+| 31 | as `robin`: `whaleshark dash phone on`; on the phone open the name and log in | a number and nothing else |
+| 32 | `whaleshark dash phone list`, `whaleshark dash phone approve <number>` at a plain terminal; once more from the action pane; `whaleshark dash status --json` | the phone shows the page by itself; the pass's fields as the page expects them; the host name came unchanged |
+| 33 | press a button on the phone; `whaleshark dash status` | the button works (a refusal as `wrong_origin` means the request's host name was rewritten on the way); the last caller is the phone's own identity |
+| 34 | leave the page open ten minutes | it stays live |
+| 35 | `sam`'s phone opens `robin`'s name; `sam`'s login at Cloudflare opens `ws1`; a pass of another application of the team sent through the tunnel, and straight to the door as the connector's login | a number at most; refused by Cloudflare, by the connector and by the door |
+| 36 | delete the Access application; set the server's clock five minutes wrong | everything refused, and the item appears |
+| 37 | `sam`: twenty-one requests without a pass to `robin`'s door in a minute, while `robin`'s phone is in use | the door shuts for a minute and the item appears; `robin`'s phone, whose pass holds, goes on working through the shut door, and forty more refusals neither keep it out nor move the minute |
+| 38 | phone: add the page to the home screen, "Nudge me on this phone"; `whaleshark doctor --notify` | the notice arrives on a locked iPhone and Android phone; note the text shown; a tap opens the page's own address |
+| 39 | laptop closed; a worker asks; answer on the phone | the answer recorded as the phone's |
+| 40 | `sudo whaleshark server phone --user robin --off`; the phone opens the name | the name answers nothing of ours |
+| 41 | `sudo whaleshark doctor --server`, both logins | clean with the phone's road set up |
 
-### E. The phone, by a public name behind Cloudflare's login, on the same server
-
-| # | Command | Must be seen |
-|---|---|---|
-| 37 | `sudo whaleshark server phone --user robin --off`, the same for `sam` | the forwarding gone |
-| 38 | `sudo whaleshark server tunnel --team <team>` | it says first that it installs a program that is not ours; the connector at the pinned version, running as its own login |
-| 39 | `sudo whaleshark server phone --user robin --name ws1.<domain> --aud <tag> --email <address>`; the same for `sam` with `ws2` | the names made |
-| 40 | anywhere, not logged in: `curl -sI https://ws1.<domain>/` | Cloudflare's login and nothing of ours in headers or body |
-| 41 | phone: open the name, log in, pair as in 30; `whaleshark dash status --json` | the page; the pass's fields as the page expects them; the host name came unchanged |
-| 42 | leave the page open ten minutes | it stays live |
-| 43 | `sam`'s login at Cloudflare opens `ws1`; a pass of another application of the team sent through the tunnel, and straight to the door as the connector's login | refused by Cloudflare, by the connector and by the door |
-| 44 | delete the Access application; set the server's clock five minutes wrong | everything refused, and the item appears |
-| 45 | `sam`: twenty-one requests without a pass to `robin`'s door in a minute, while `robin`'s phone is in use | the door shuts for a minute and the item appears; `robin`'s phone, whose pass holds, goes on working through the shut door, and forty more refusals neither keep it out nor move the minute |
-| 46 | steps 35 and 36 again | as there |
-| 47 | `sudo whaleshark doctor --server`, both logins | clean under this way too |
-
-### F. Write down
+### E. Write down
 
 Each answer beside its step, and the sentence of the documentation it changes. A recorded real pass may hold a real address: whether it may be kept in the repository is the owner's to say.
