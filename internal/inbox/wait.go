@@ -287,6 +287,10 @@ func (d delivery) print(w io.Writer) {
 	fmt.Fprintf(w, "%s: %d%s\n", d.ID, len(d.Events), note)
 	for _, e := range d.Events {
 		line := []string{strconv.Itoa(e.Seq), e.Kind, e.Task, e.Attempt, e.Text}
+		if e.Kind == "human" && e.Data["what"] == "note" {
+			// From the page, a phone or a terminal: only the person can send one.
+			line[4] = "the person says to you, as in your chat: " + e.Text
+		}
 		if len(e.Data) > 0 {
 			data, _ := json.Marshal(e.Data)
 			line = append(line, string(data))

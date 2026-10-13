@@ -212,6 +212,11 @@ func TestTellLead(t *testing.T) {
 	if len(e) != 1 || e[0].Kind != "human" || e[0].Text != "stop work on the search" || e[0].Data["body"] != filepath.Join(dir, "msg", "58.md") {
 		t.Fatalf("event: %+v", e)
 	}
+	// What wait hands over says whose words they are: a real lead agent took
+	// a bare note for something out of a queue, and ignored it.
+	if out, _ := p.Command(scenario.Orch, "wait", "--timeout", "1").CombinedOutput(); !strings.Contains(string(out), "human the person says to you, as in your chat: stop work on the search") {
+		t.Errorf("wait hands the note over as\n%s", out)
+	}
 
 	// The fake left the lead agent working on the pointer.
 	a, _ = run(t, p, scenario.Page, "tell", "lead", "one more thing")
