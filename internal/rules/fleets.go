@@ -123,9 +123,11 @@ func (r Rules) Lead(up, low *contract.State, id string, by contract.Binding, bra
 		return err
 	}
 	f, p := up.Run.Fleets[t.Fleet], low.Run.Parent
-	var used time.Duration // what the fleet's ended runs spent stays with it
+	// What the fleet's ended runs spent stays with it, and with that what
+	// the person granted it beyond the setting.
+	var was contract.Fleet
 	if f != nil && !f.EndedAt.IsZero() {
-		used, f = f.Used, nil
+		was, f = *f, nil
 	}
 	switch sits := f != nil && f.Pane != ""; {
 	case t.Fleet == "" || low == up || !a.State.Live():
@@ -139,7 +141,7 @@ func (r Rules) Lead(up, low *contract.State, id string, by contract.Binding, bra
 		if up.Run.Fleets == nil {
 			up.Run.Fleets = map[string]*contract.Fleet{}
 		}
-		f = &contract.Fleet{Run: low.Run.ID, Since: now, Used: used}
+		f = &contract.Fleet{Run: low.Run.ID, Since: now, Used: was.Used, Spend: contract.Spend{More: was.Spend.More, Off: was.Spend.Off}}
 		up.Run.Fleets[t.Fleet] = f
 	}
 	if by.Pane != "" {
