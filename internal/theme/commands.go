@@ -5,8 +5,10 @@ package theme
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
-// Phase 7 owes here: the marks of a heavier and of a held line, each with its
-// form for a terminal that cannot show it.
+// Heavy is the mark of the heavier line across the left section, Held that
+// of a line while it is held or waits for its place, and Thin the line between
+// two rows, each with its form for a terminal that cannot show it.
+var Heavy, Held, Thin = [2]string{"━", "="}, [2]string{"━", "#"}, [2]string{"─", "-"}
 
 // Plug binds nothing: a scheme is chosen with the set command.
 func Plug(*contract.Kit) {}
