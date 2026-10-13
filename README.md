@@ -38,7 +38,7 @@ Roughly this, in a terminal 100 columns wide:
 ```
 
 - **The tab row** is on top. The first tab is the main agent's and is called **Orchestrator**. Every worker gets a tab of its own, named after its task. When you give the chat a name in Claude Code (`/rename`), the Orchestrator tab takes that name. You can click into any tab and look or type; closing the window stops nothing.
-- **The left section** is always there. On top it lists your workspaces (the projects that have a job or a tab open); under them, the agents of the one in front, each with a mark for its state. Click a row and you are in that tab. `▲` with a number at the very top means that many things wait for you. In a narrow window it shrinks to a strip of marks. It can stand at the left or the right edge, and it cannot be switched off.
+- **The left section** is always there. On top it lists your workspaces (the projects that have a job or a tab open); under them, the agents of the one in front, each with a mark for its state. Click a row and you are in that tab. `▲` with a number at the very top means that many things wait for you. In a narrow window it shrinks to a strip of marks. It can stand at the left or the right edge, and it cannot be switched off. For a newcomer it begins with five first steps (start your agent, tell it what you want, where agents appear, where questions land, the two keys worth knowing); each ticks itself when it happens, `[ hide ]` ends them, and Settings › Look brings them back.
 - **The fleet pane** (right, in the picture) shows one card for each worker: what it is doing, how far it is, and whether it needs you.
 - **The action pane** (below) holds everything that waits for you: a worker's question, a sign-off the orchestrator asks for, an agent that sits at a permission prompt. You answer there, by a click or by keys, and the answer goes to whoever asked. Its first line has `[ Stop all ]`, which stops every agent at its next step, and `[ Resume ]`.
 
@@ -46,7 +46,11 @@ Both panes open by themselves when a job begins. Each can be moved or switched o
 
 ### The settings screen
 
-`[ Settings ]` at the foot of the left section (or `whaleshark ui settings`) opens one screen with every setting the program has: the colours, where the panes sit, sounds and pop-ups, the keys, Fleet Mode and its limits, the agent tools, this project's own settings. A setting is changed by a click or by the arrow keys and is saved as you go; one key takes the last change back. A setting that names a program to run shows you exactly what it would run and asks first. Every setting is also a key of `whaleshark set`, and `whaleshark help set` lists them.
+`[ Settings ]` at the foot of the left section (or `whaleshark ui settings`) opens one screen with every setting the program has: the colours, where the panes sit, sounds and pop-ups, the keys, Fleet Mode and its limits, the guardrails, the agent tools, this project's own settings. A setting is changed by a click or by the arrow keys and is saved as you go; one key takes the last change back. A setting that names a program to run shows you exactly what it would run and asks first. Every setting is also a key of `whaleshark set`, and `whaleshark help set` lists them.
+
+You can also ask your orchestrator to list the settings, explain one or change one. A harmless one (a colour, where a pane sits) it changes at once, and every screen carries a line saying so until you have looked. One that holds agents or is how you are called (the limits, the guardrails, nudges, do not disturb) becomes an item that waits for your own click. One that names a program to run, and everything of the phone's door, it cannot set at all. Fleet leaders and workers change no setting.
+
+`[ Save my settings to a file ]` under Look writes your settings as one file to carry to another computer (`whaleshark set --save FILE`). It holds no key, no paired phone, no approval and nothing of a project. `whaleshark set --load FILE` shows every change first, takes one typed yes for the plain ones, and asks about each line that would run a program by itself.
 
 ### Fleet Mode
 
@@ -88,9 +92,22 @@ It saves both (`whaleshark run fleet "storefront" "everything of the storefront:
 
 goes to the storefront fleet, a list for the warehouse screens goes to the warehouse fleet, and a mixed list is split between them. Work that fits no fleet you keep gets a fleet made for it on the spot, which is gone again when that work is done; a fleet you keep stays, in the left section and in `whaleshark status`, until you say it may go. `whaleshark run fleet` lists the ones you keep.
 
+### Guardrails
+
+Settings › Guardrails holds four safeguards. Three come switched off, and with them off a job runs as everything above describes.
+
+- **Plan first, then start** (off). On: the orchestrator must show you its plan (which fleets, which tasks, how many agents, which tool), and nothing starts until you approve it. What it adds later is shown the same way.
+- **Protected files** (off). You keep a list of paths that matter (it starts with secrets files, database migrations, deploy settings; a project may add to it and never take from it). On: agents work as usual, but a job that changed such a file cannot be landed until you have approved the file as it is. Changed again after your yes, it asks again.
+- **Spending guard** (off). On: the tool counts agent-hours, one agent open for one hour. At four fifths of your limit the orchestrator is told to wrap up. At the limit the job's agents are held where they stand, those with nothing in hand are closed, and you are asked: more hours, no limit for this job, or leave it held. One fleet can have a limit of its own. **It counts time, not tokens or money**: agent tools do not report those reliably. Agents are held as Stop all holds them, so a tool whose hooks WhaleShark does not read runs on until its next `whaleshark` command.
+- **Stuck detector** (on). It notices an agent that is going nowhere: long work with no progress note, the same check failing three times, the same note repeated, a result sent back three times. It tells the agent's leader, ten minutes later the orchestrator, ten minutes later you. It never stops an agent, and one missed note is no alarm: a failing check or a result sent back three times is enough alone, any other sign takes a second beside it or twice its time. The figures are reasoned, not measured: no real agent has yet been watched being stuck.
+
+The three approvals (a plan, protected files, more agent-hours) are yours alone: the orchestrator cannot give them or pass them on. Like every rule of this tool they stop mistakes, not intent; [docs/protection.md](docs/protection.md) says what an agent that goes wrong can still do.
+
+`whaleshark log --export` (or `[ Export ]` in the same section) writes one plain file for a job: who did what, what you approved and from where, and the agent-hours it used. Its second line reminds you that it holds what your agents wrote.
+
 ### Agent tools
 
-Claude Code is the tool that has been run for real. Others are wired in by a description, in Settings › Agent tools: a name, the command that starts it (a full path, which you are shown and asked about before it is used), how a model is named for it, the file it reads when it starts, and a sentence on what it suits. `[ Try it ]` starts it once in a tab of its own and says what it saw. With more than one tool wired in, the orchestrator is shown each with your sentence and may name one for a fleet (how well a real orchestrator chooses has not been tried with a real second tool). A project you download can never wire in a tool: only you can, on your own machine.
+Every agent tool runs in a terminal, so WhaleShark can start any of them, hand it its task and read its screen. What differs is how much it knows of what the agent is doing, whether Stop all holds it, and whether it is picked up after a restart. So tools are listed with one of three ranks, in `whaleshark doctor`, in the settings screen and to the orchestrator: **proven** (Claude Code, the only tool that has been run for real), **ready, not proven** (Codex: its description ships, written from its maker's manual, and has never been run), and **works as a terminal tool** (any other you wire in). All but the first are experimental. Others are wired in by a description, in Settings › Agent tools: a name, the command that starts it (a full path, which you are shown and asked about before it is used), how a model is named for it, the file it reads when it starts, and a sentence on what it suits. `[ Try it ]` starts it once in a tab of its own and says what it saw; the list then shows what worked on your machine, and when. With more than one tool wired in, the orchestrator is shown each with your sentence and may name one for a fleet (how well a real orchestrator chooses has not been tried with a real second tool). A project you download can never wire in a tool: only you can, on your own machine.
 
 So that an agent knows its part without being told, `whaleshark init` writes a short block into the file each tool reads when it starts (for Claude Code, `CLAUDE.md` in its own folder under your home folder). The block says how the team is built, how an agent finds out whether it is the orchestrator, a fleet leader or a worker, and which guide to read: `whaleshark guide lead`, `whaleshark guide leader` or `whaleshark guide worker`. A worker or a leader is also told by its first prompt. `whaleshark init --remove` takes the block out again.
 
@@ -103,6 +120,7 @@ What has been tried, plainly:
 - The parts for one computer have been run from end to end **on macOS only**, by scripted scenarios and with real Claude Code agents on small tasks made for the try: a real orchestrator with three workers, and with Fleet Mode on a real orchestrator, four fleet leaders and their workers, a question that climbed from a worker to the person and back, a leader that was ended and replaced, Stop all, and two fleets that changed one file. Those tries found faults, which are mended; the window was looked at as text only, in a terminal of the try's own. **Nobody has yet used it for real work, and no person has yet sat in front of the left section, the settings screen or Fleet Mode.**
 - **Nothing of the server, the page, the phone or the tunnel has met a real server, a real phone, a Cloudflare account or a phone maker's push service.** The server's set-up has run from nothing in containers of Debian 12 and Ubuntu 24.04, against the systems' real package sources; what a container cannot hold (the services, the firewall, the walls between two logins) is held by tests with stand-ins, and the road for a phone is written from its maker's manual. The page has been opened in one browser on one Mac. Expect them to need mending at their first real use. [docs/platform/linux.md](docs/platform/linux.md) says what is proven and gives the list for the first real servers.
 - It builds for Linux and Windows, and every push runs its tests on hosted machines of both, with a proof of its own for each: [docs/platform/linux.md](docs/platform/linux.md), [docs/platform/windows.md](docs/platform/windows.md), and the engine call by call on all three systems in [docs/platform/engine-matrix.md](docs/platform/engine-matrix.md). No person has used it on either, **nothing of it has run on a real Windows PC**, and the Windows page lists what stays a limit there and the checklist for the first real one.
+- **The guardrails, settings through the orchestrator, the saved profile, the first steps and the interface for apps have been played by scripted scenarios only**, on the engine's stand-in and on the real engine. No real agent has been shown a plan first, held at a limit or judged stuck; no person has read the descriptions on the real screen; and the notice of a new version has never asked the real GitHub from the program (there is no release for it to find).
 - A browser check has been done by a real agent once, on that Mac; on Linux and Windows its one command has been run by tests only.
 - Replacing the program under a running job has been tried on that Mac: the lead agent's `wait` ended with the event `upgraded` a few seconds after the file was replaced, and the next `wait` went on.
 - **Claude Code is the only agent tool that has been run.** Codex's description is built from its maker's manual and has never been run. Wiring in a tool by a description has been tried with a stand-in program only: a small script that behaves as an agent with no hooks, tried by `[ Try it ]` and as the leader of a fleet. What a real second tool shows on its screen, takes as its first line and does with a file of rules is unproven.
@@ -180,6 +198,12 @@ ssh ops@SERVER sudo whaleshark server add --user ana
 
 `whaleshark connect SERVER` on your own computer keeps one SSH connection to the server and opens the page in your browser: the same items, cards and buttons as the panes. The same page reaches a phone by a public name behind Cloudflare's login, which the administrator sets up once. A phone is paired once, by a number you approve; a paired phone is nudged when you are needed, while `nudge.phone` is on. [docs/phone.md](docs/phone.md).
 
+For apps, which do not exist: the phone's door also serves the same things as data, under a numbered address (`/api/1/`), and `whaleshark dash phone on` (or its row in Settings › Page & phone) shows a pairing code that is good once, for one minute, and still needs your approval of a number. An app could read every job, card and setting, press the buttons the page has and send the orchestrator a message; it could never type into a terminal, set what names a program or approve a project's settings. No app has spoken it, and an app cannot be nudged yet: that needs a relay which is not built.
+
+## A notice that a new version is out
+
+Once a day, when you open the window, WhaleShark asks GitHub for the number of the latest release and shows one dim line if yours is older. The request carries the program's name and nothing else; nothing is downloaded and nothing is installed. Settings › Nudges switches it off (`whaleshark set update.notice off`). On a server only the administrator's own `sudo whaleshark server status` asks.
+
 ## A browser check
 
 `whaleshark task add ... --browser-check` marks work that must be seen in a browser. WhaleShark starts no browser: the worker uses its own, saves screenshots, and neither its report nor `accept` passes without one. [docs/browser-check.md](docs/browser-check.md).
@@ -233,9 +257,9 @@ Five outside tools do the security checks of the gate. None is part of the progr
 | [gitleaks](https://github.com/gitleaks/gitleaks) | secrets in the files and in the history |
 | [shellcheck](https://www.shellcheck.net) | every shell script in the repository |
 
-## Reporting a flaw
+## Reporting a problem or a flaw
 
-Privately, as `SECURITY.md` says.
+A problem or a question: this repository's Issues page. `whaleshark doctor` ends with the same line and with output you can paste: it holds no secret. A security flaw: privately, as `SECURITY.md` says.
 
 ## Licence
 
