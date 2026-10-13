@@ -27,7 +27,7 @@ var before string
 
 // A block is found by its two marker lines.
 const (
-	beginMark = "<!-- whaleshark:begin"
+	beginMark = contract.RulesMark
 	endMark   = "<!-- whaleshark:end"
 )
 
@@ -37,13 +37,7 @@ const (
 // person's FirstMessage, points at the guide. Codex's folder moves with its
 // own variable.
 func File(t contract.Tool, home string, getenv func(string) string) (string, bool) {
-	if t.Rules == "" || home == "" {
-		return "", false
-	}
-	if dir := getenv("CODEX_HOME"); t.Hooks == contract.HooksCodex && dir != "" {
-		return filepath.Join(dir, filepath.Base(t.Rules)), true
-	}
-	return filepath.Join(home, filepath.FromSlash(t.Rules)), true
+	return t.RulesFile(home, getenv)
 }
 
 // BlockState is what a file holds of the block.

@@ -536,6 +536,10 @@ func Set(c *Call, name, value string) (string, error) {
 			t.Env[given[1]], value = value, Dots
 		} else if err = key.put(&t, value); err != nil {
 			return "", err
+		} else if key.Path == "rules" && value != was {
+			if err = t.rulesFree(p); err != nil {
+				return refuse(ExitRefused, "rules_taken", "%s: %v.", name, err)
+			}
 		}
 		err = WriteTool(p, d, t)
 	case StoreConfig:

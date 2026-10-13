@@ -252,6 +252,38 @@ func (t Tool) Check(p Platform, roots []string) error {
 	return nil
 }
 
+// RulesMark begins the first line of the rules block init writes.
+const RulesMark = "<!-- whaleshark:begin"
+
+// RulesFile is the instruction file a tool reads when it starts: Rules
+// under the home folder, and for Codex under the folder its own variable
+// names. A tool with none, or no home folder, has no such file.
+func (t Tool) RulesFile(home string, getenv func(string) string) (string, bool) {
+	if t.Rules == "" || home == "" {
+		return "", false
+	}
+	if dir := getenv("CODEX_HOME"); t.Hooks == HooksCodex && dir != "" {
+		return filepath.Join(dir, filepath.Base(t.Rules)), true
+	}
+	return filepath.Join(home, filepath.FromSlash(t.Rules)), true
+}
+
+// rulesFree refuses another rules file for a tool unless init can write
+// there without touching a file that is somebody's already: the file is
+// not there yet, or it holds a rules block. Any other file of the home
+// folder, a shell's or a key list, is never taken.
+func (t Tool) rulesFree(p Platform) error {
+	home, _ := os.UserHomeDir()
+	file, ok := t.RulesFile(home, os.Getenv)
+	if !ok || !filepath.IsLocal(filepath.FromSlash(t.Rules)) {
+		return nil // no file, or one that Check refuses by its own rule
+	}
+	if data, err := p.Peek(file); errors.Is(err, fs.ErrNotExist) || err == nil && bytes.Contains(data, []byte(RulesMark)) {
+		return nil
+	}
+	return fmt.Errorf("%.40q is there already and holds no rules of WhaleShark, and init would write into it: the file a tool reads at its start is one that is not there yet, or one that holds those rules", t.Rules)
+}
+
 // Fill is one option of a description with its value put in: Fill(t.Model,
 // "model", "opus") is the arguments that name that model. An option the tool
 // does not have gives none.

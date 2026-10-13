@@ -56,9 +56,11 @@ type differs struct {
 }
 
 // load is `set --load`: a profile read as data and held against what stands
-// here. Every difference is shown, a limit taken away and a guard switched
-// off with their warning; one typed yes sets the plain ones, and each line
-// that runs a program is shown exactly and asked about by itself. Every
+// here, key by key of what the file itself says: a key it leaves out stays
+// as it is. Every difference is shown, a limit taken away and a guard
+// switched off with their warning; one typed yes sets the plain ones, and
+// each line that runs a program, a tool's hooks and the file its rules are
+// written into are shown exactly and asked about one by one. Every
 // change is contract.Set's, as the person: a value passes its key's own
 // check there, and a tool's program is refused inside a project. What the
 // file says is printed clean: it is somebody else's text.
@@ -73,13 +75,16 @@ func load(c *contract.Call, file string) (any, error) {
 	if err = cmp.Or(err, rerr); err != nil {
 		return nil, &contract.Refusal{Exit: contract.ExitUsage, Code: "usage", Message: "That file cannot be read as saved settings, and nothing was changed: " + err.Error() + "."}
 	}
-	var plain, tools, runs []differs
+	var plain, tools, runs, alone []differs
 	differ := func(k *contract.Key, name, to string) {
 		d := differs{k, name, contract.Current(p, dirs, name), to}
 		switch {
 		case to == "" || to == d.from || k.Asks == contract.AsksShown:
+		case k.Path == "hooks" && d.from == "" && to == contract.HooksNone: // a tool that is new here has none as it comes
 		case k.Asks == contract.AsksRuns:
 			runs = append(runs, d)
+		case k.Section == contract.SecTools && (k.Path == "hooks" || k.Path == "rules"):
+			alone = append(alone, d) // each asked by itself, after the tool's program
 		case k.Section == contract.SecTools:
 			tools = append(tools, d) // after its program: a tool is nothing without one
 		default:
@@ -91,8 +96,9 @@ func load(c *contract.Call, file string) (any, error) {
 		case k.Section == "" || k.Section == contract.SecTools && strings.HasSuffix(k.Name, ">"):
 		case k.Section == contract.SecTools:
 			for _, name := range slices.Sorted(maps.Keys(pr.Tools)) {
-				t := pr.Tools[name]
-				differ(k, strings.Replace(k.Name, "<name>", name, 1), k.Of(&t))
+				if t := pr.Tools[name]; pr.Holds(k, name) {
+					differ(k, strings.Replace(k.Name, "<name>", name, 1), k.Of(&t))
+				}
 			}
 		case strings.HasSuffix(k.Name, ">"):
 			for _, e := range pr.Engine.Shortcuts {
@@ -101,7 +107,10 @@ func load(c *contract.Call, file string) (any, error) {
 		default:
 			// A key's place is in the one file it lies in: of a profile's
 			// two that file answers it, and no other key has a place there.
-			differ(k, k.Name, cmp.Or(k.Of(&pr.Config), k.Of(&pr.Engine)))
+			// A key the file leaves out is left as it stands here.
+			if pr.Holds(k, "") {
+				differ(k, k.Name, cmp.Or(k.Of(&pr.Config), k.Of(&pr.Engine)))
+			}
 		}
 	}
 	say := func(text string) { fmt.Fprintln(c.Out, term.Clean(text)) }
@@ -110,8 +119,11 @@ func load(c *contract.Call, file string) (any, error) {
 	}
 	plain = append(plain, tools...)
 	server, _ := contract.ReadServer(p.Peek)
-	for _, d := range plain {
+	show := func(d differs) {
 		say("  " + d.key.Label + " (" + d.name + "): " + cmp.Or(d.from, "not set") + " → " + d.to)
+	}
+	for _, d := range plain {
+		show(d)
 		for _, line := range d.key.UnlimitedWarning(c.Kit.Machine(), server.Cap(contract.Me()), pr.Config.Spend.Guard) {
 			if d.to == "unlimited" {
 				fmt.Fprintln(c.Out, "      "+line)
@@ -120,19 +132,9 @@ func load(c *contract.Call, file string) (any, error) {
 		if d.key.Section == contract.SecGuards && d.to == contract.Off {
 			fmt.Fprintln(c.Out, "      This switches a guard off.")
 		}
-		// Two fields of a tool that run nothing and still decide what holds its
-		// agents and what init writes where: said by name, not left in the count.
-		switch d.key.Path {
-		case "hooks":
-			if d.to == contract.HooksNone && d.from != "" {
-				fmt.Fprintln(c.Out, "      Without its hooks Stop all and a guard's hold do not stop this tool's agents.")
-			}
-		case "rules":
-			fmt.Fprintln(c.Out, "      whaleshark init writes its rules into this file of your home folder.")
-		}
 	}
 	done := []string{}
-	if c.JSON || len(plain)+len(runs) == 0 {
+	if c.JSON || len(plain)+len(runs)+len(alone) == 0 {
 		fmt.Fprintln(c.Out, "Nothing here differs from that file.")
 		return map[string]any{"changed": done, "skipped": skipped}, nil
 	}
@@ -159,6 +161,20 @@ func load(c *contract.Call, file string) (any, error) {
 			}
 		}
 		if yes(line + " · use exactly this?") {
+			set(d)
+		}
+	}
+	// Two fields of a tool that run nothing and still decide what holds its
+	// agents and what init writes where: each shown with what it means and
+	// asked about by itself, and a no leaves it as it stands.
+	for _, d := range alone {
+		switch show(d); {
+		case d.key.Path == "rules":
+			fmt.Fprintln(c.Out, "      whaleshark init writes its rules into this file of your home folder.")
+		case d.to == contract.HooksNone && d.from != "":
+			fmt.Fprintln(c.Out, "      Without its hooks Stop all and a guard's hold do not stop this tool's agents.")
+		}
+		if yes("Make this one change?") {
 			set(d)
 		}
 	}

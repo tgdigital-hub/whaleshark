@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"cmp"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -181,6 +182,16 @@ type Profile struct {
 	Config  PersonConfig    `toml:"config"`
 	Engine  Settings        `toml:"engine"`
 	Tools   map[string]Tool `toml:"tools,omitempty"`
+
+	said toml.MetaData // what the file it was read from says itself
+}
+
+// Holds reports whether the file a profile was read from says this key
+// itself, for a tool's key in that tool's table: a key it leaves out is
+// none of its business, and loading it changes nothing there.
+func (pr Profile) Holds(k *Key, tool string) bool {
+	table := map[string][]string{StoreConfig: {"config"}, StoreEngine: {"engine"}, StoreTools: {"tools", tool}}[k.Store]
+	return table != nil && pr.said.IsDefined(append(table, strings.Split(cmp.Or(k.Path, k.Name), ".")...)...)
 }
 
 // SaveProfile gathers the login's profile, and names what it left out for
@@ -222,6 +233,7 @@ func SaveProfile(p Platform, d Dirs) (pr Profile, left []string, err error) {
 // flagged on every screen. No variable of a tool is set: a profile has none.
 func ReadProfile(data []byte) (pr Profile, skipped []string, err error) {
 	meta, err := toml.Decode(string(data), &pr)
+	pr.said = meta
 	for _, key := range meta.Undecoded() {
 		skipped = append(skipped, key.String())
 	}

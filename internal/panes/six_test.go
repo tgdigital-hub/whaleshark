@@ -409,7 +409,7 @@ func TestAProfileSavedAndLoaded(t *testing.T) {
 	// Loaded where nothing was set: shown whole, and with no yes nothing changes.
 	out, err = run(fresh, "no\nno\nno\n", "load", file)
 	for _, want := range []string{"Colour scheme (theme): reef → paper", "Agents in all (fleets.total): 20 → unlimited", "No limit on agents in all.", "The spending guard is off.",
-		"Stuck detector (stuck.watch): on → off", "This switches a guard off.", "What it suits (tools.hermes.suits): not set → long reading", "Make these 5 changes? Type yes: ",
+		"Stuck detector (stuck.watch): on → off", "This switches a guard off.", "What it suits (tools.hermes.suits): not set → long reading", "Make these 4 changes? Type yes: ",
 		"shell runs: zsh -l", "tools.hermes.run runs: " + hermes + " chat · that program is not on this computer · use exactly this? Type yes: ", "0 settings changed."} {
 		if !strings.Contains(out, want) {
 			t.Errorf("set --load does not say %q:\n%s", want, out)
