@@ -25,9 +25,6 @@ const (
 	formState  = "state"
 )
 
-// Phase 6 owes here: the gate's second look, at contract.HoldPath of the tab's
-// own run; a command line that writes the login's settings folder turned down.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.AgentSettings = settings{k}
@@ -56,7 +53,7 @@ func run(c *contract.Call) (any, error) {
 		if ours && c.Caller.Kind == contract.Worker {
 			// The settings of a form other than Claude Code's name it as a
 			// second word: each form needs its own answer.
-			gate(c, dirs.State, cmp.Or(contract.Gates[append(c.Args, contract.HooksClaude)[1]], contract.Gates[contract.HooksClaude]))
+			gate(c, dirs, cmp.Or(contract.Gates[append(c.Args, contract.HooksClaude)[1]], contract.Gates[contract.HooksClaude]))
 		}
 	case formState:
 		// What the harness says of its agent goes to the terminals that
@@ -153,13 +150,23 @@ const lineEnv = "WHALESHARK_OWN_STATUSLINE"
 // refusal is the deny decision alone: the step is refused and the turn goes on.
 const refusal = `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":%q}}` + "\n"
 
+// heldReason is what the gate says while the spending guard holds the run.
+const heldReason = "the agent-hours are used up: the work is held until the person says"
+
 // gate answers a worker's harness before a step. While the person has
-// pressed Stop all it answers with both parts, the deny decision and the end
-// of the turn: the second alone lets the step run. A pause mark that cannot
-// be read holds the worker too.
-func gate(c *contract.Call, stateDir string, kind contract.Gate) {
-	if p, err := contract.Paused(c.Kit.Platform.Peek, stateDir); p != nil || err != nil {
-		fmt.Fprintf(c.Out, kind.Answer+"\n", contract.PausedReason, contract.PausedReason)
+// pressed Stop all, or the spending guard holds the run of this tab (one look
+// for its hold file, named by the tab's own variables), it answers with both
+// parts, the deny decision and the end of the turn: the second alone lets the
+// step run. A pause mark that cannot be read holds the worker too.
+func gate(c *contract.Call, dirs contract.Dirs, kind contract.Gate) {
+	why := contract.PausedReason
+	p, err := contract.Paused(c.Kit.Platform.Peek, dirs.State)
+	_, none := os.Stat(contract.HoldPath(os.Getenv(contract.EnvRoot), os.Getenv(contract.EnvRun)))
+	if p == nil && err == nil && none == nil {
+		why = heldReason
+	}
+	if p != nil || err != nil || none == nil {
+		fmt.Fprintf(c.Out, kind.Answer+"\n", why, why)
 		return
 	}
 	var m struct {
@@ -168,6 +175,13 @@ func gate(c *contract.Call, stateDir string, kind contract.Gate) {
 		} `json:"tool_input"`
 	}
 	message(c, &m)
+	// The settings are the person's: a command line that names the login's
+	// settings folder, also from the home folder as a shell writes it, is
+	// turned down. It stops the plain way and no other.
+	if home, _ := os.UserHomeDir(); dirs.Config != "" && strings.Contains(strings.NewReplacer("~", home, "$HOME", home).Replace(m.Input.Command), dirs.Config) {
+		fmt.Fprintf(c.Out, refusal, "The settings folder is the person's to change, not an agent's. Leave it as it is.")
+		return
+	}
 	// Quotes and brackets are no part of a word: "--human" is the flag still.
 	words := strings.Fields(strings.NewReplacer(`"`, "", "'", "", "(", " ", ")", " ").Replace(m.Input.Command))
 	for i, w := range words {

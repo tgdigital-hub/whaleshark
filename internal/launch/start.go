@@ -209,6 +209,11 @@ func start(c *contract.Call) (any, error) {
 	l := &launcher{c: c, retry: c.Flags["retry"] != nil, resume: c.Flags["resume"] != nil, allow: c.Flags["allow-overlap"] != nil,
 		agent: last(c, "agent"), model: last(c, "model")}
 	s, err := read(c)
+	if err != nil && refusal(err).Code == "paused" {
+		if job, _ := k.Store.Read(c.Root, c.Run); guarded(job) {
+			err = overBudget(c, job, "Nothing is started")
+		}
+	}
 	if err == nil {
 		l.project, err = contract.ReadProjectFile(c.Root)
 	}
@@ -305,6 +310,22 @@ func start(c *contract.Call) (any, error) {
 	if l.retry {
 		if l.snap, err = k.Terms.Snapshot(context.Background()); err != nil {
 			return nil, refusal(err)
+		}
+	}
+	// Plan first: in a job nothing starts that the person has not approved,
+	// and their own start is their yes. The refusal is kept: the item it
+	// opened or brought up to date is saved, and the start ends with it.
+	if l.person.Plan.First && s.Run.Parent == nil && len(contract.Unplanned(s, ids)) > 0 {
+		var kept *contract.Refusal
+		err := change(c, func(s *contract.State) error {
+			text := k.PlanText(s, nil, contract.Unplanned(s, ids), l.person)
+			kept = k.Rules.Planned(s, ids, text, &contract.Origin{Caller: c.Caller.Kind, Where: c.Caller.Where}, c.Now)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		} else if kept != nil {
+			return nil, kept
 		}
 	}
 

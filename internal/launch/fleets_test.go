@@ -71,16 +71,28 @@ func group(id, fleet string) *contract.Task {
 func begin(t *testing.T, on scenario.Backend) *morning {
 	t.Helper()
 	scripts := map[string]string{"T1.1": "hang", "T2.1": "hang", "T3.1": "hang", "G1.2": "hang", "G6.1": "hang"}
+	var tasks []*contract.Task
 	for _, g := range groups {
 		scripts[g[0]+".1"] = "hang"
+		tasks = append(tasks, group(g[0], g[1]))
 	}
+	return job(t, on, fleetsOn, contract.ModeFleets, scripts, tasks...)
+}
+
+// fleetsOn is the person's settings of the morning: Fleet Mode and its limits.
+const fleetsOn = "[fleets]\nmode = \"on\"\nleaders = 3\nagents = 2\ntotal = 6\n"
+
+// job opens a run with these tasks on one backend, under the person's
+// settings as given.
+func job(t *testing.T, on scenario.Backend, config, mode string, scripts map[string]string, tasks ...*contract.Task) *morning {
+	t.Helper()
 	p := scenario.PrepareOn(t, on, nil, scripts)
 	dirs, err := p.Kit.Platform.Dirs()
 	if err != nil {
 		t.Fatal(err)
 	}
 	files := map[string]string{
-		filepath.Join(dirs.Config, contract.ConfigFile): "[fleets]\nmode = \"on\"\nleaders = 3\nagents = 2\ntotal = 6\n",
+		filepath.Join(dirs.Config, contract.ConfigFile): config,
 		filepath.Join(p.Root, "brief.md"):               "Target: one page\nChange: write it\nConstraints: none\nOwnership: your own file\nAcceptance: it is there\n",
 	}
 	for path, text := range files {
@@ -93,9 +105,9 @@ func begin(t *testing.T, on scenario.Backend) *morning {
 	}
 	_, now := p.Command(scenario.Orch), contract.Now()
 	s := rules.Rules{}.NewRun("r1", "a morning with fleets", 20, nil, contract.Binding{Pane: p.Lead}, now)
-	s.Run.Mode = contract.ModeFleets
-	for _, g := range groups {
-		s.Tasks[g[0]] = group(g[0], g[1])
+	s.Run.Mode = mode
+	for _, task := range tasks {
+		s.Tasks[task.ID] = task
 	}
 	for _, err := range []error{contract.ListProject(p.Kit.Platform, p.Root), p.Kit.Store.Create(p.Root, s), p.Kit.Store.SetCurrent(p.Root, "r1")} {
 		if err != nil {
@@ -355,7 +367,9 @@ func held(t *testing.T, double *fakeengine.Fake) {
 
 // The row's scenario on the engine's double and on the real keeper: what
 // the job came to is the same on both.
-func TestThreeFleetsAFourthRefusedAFifthGroupHandedOn(t *testing.T) {
+func TestThreeFleetsAFourthRefusedAFifthGroupHandedOn(t *testing.T) { onBoth(t, play) }
+
+func onBoth(t *testing.T, play func(*testing.T, scenario.Backend) []string) {
 	logs := map[scenario.Backend][]string{}
 	for _, on := range []scenario.Backend{scenario.Double, scenario.Keeper} {
 		t.Run(string(on), func(t *testing.T) {
