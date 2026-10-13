@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
+	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -98,6 +101,43 @@ func ReadFrame(r io.Reader) (kind byte, body []byte, err error) {
 	body = make([]byte, n)
 	_, err = io.ReadFull(r, body)
 	return kind, body, err
+}
+
+// EndWait is how long a read of the keeper's socket waits at a time. On
+// Windows a read that is waiting when the other side closes a unix socket
+// is, about once in five hundred, never told; a read begun after the close
+// is told at once. So no read waits for the end by itself: Patient asks
+// again every EndWait, and no reader outlives its connection by more.
+const EndWait = time.Second
+
+// Patient is a connection whose reads end when the other side has gone, on
+// every system. A deadline set through it holds as on any connection; it
+// is set by whoever reads, never from beside a read.
+func Patient(c net.Conn) net.Conn { return &patient{Conn: c} }
+
+type patient struct {
+	net.Conn
+	until time.Time // the reader's own deadline; zero is none
+}
+
+func (p *patient) SetDeadline(t time.Time) error     { p.until = t; return p.Conn.SetDeadline(t) }
+func (p *patient) SetReadDeadline(t time.Time) error { p.until = t; return p.Conn.SetReadDeadline(t) }
+
+func (p *patient) Read(b []byte) (int, error) {
+	for {
+		next := time.Now().Add(EndWait)
+		last := !p.until.IsZero() && !p.until.After(next)
+		if last {
+			next = p.until
+		}
+		if err := p.Conn.SetReadDeadline(next); err != nil {
+			return 0, err
+		}
+		n, err := p.Conn.Read(b)
+		if n > 0 || last || !errors.Is(err, os.ErrDeadlineExceeded) {
+			return n, err
+		}
+	}
 }
 
 // The calls. OpHello is the first of every connection and carries V. The

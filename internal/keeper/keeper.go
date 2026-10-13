@@ -252,7 +252,8 @@ func answer(id uint64, r contract.WireReply, err error) contract.WireReply {
 
 // handle serves one connection: the hello, then calls and their answers,
 // until a call makes it a reader of events or a window.
-func (k *Keeper) handle(conn net.Conn) {
+func (k *Keeper) handle(raw net.Conn) {
+	conn := contract.Patient(raw) // a reader that left is noticed on every system
 	k.mu.Lock()
 	select {
 	case <-k.done:
@@ -269,7 +270,7 @@ func (k *Keeper) handle(conn net.Conn) {
 		delete(k.conns, conn)
 		k.mu.Unlock()
 	}()
-	if !ours(conn) {
+	if !ours(raw) {
 		return
 	}
 	l := &link{conn: conn}

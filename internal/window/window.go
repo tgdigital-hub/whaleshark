@@ -96,6 +96,11 @@ func connect(k *contract.Kit) (*link, error) {
 		return nil, refuse("not_connected", "The window is not connected: no keeper is running and none could be started ("+err.Error()+").",
 			"whaleshark engine status")
 	}
+	// The window ends when the keeper does, on every system; a keeper that
+	// listens and does not greet is not waited for.
+	conn = contract.Patient(conn)
+	conn.SetDeadline(time.Now().Add(startWait))
+	defer conn.SetDeadline(time.Time{})
 	l := &link{Conn: conn}
 	if err = l.call(contract.WireCall{V: contract.WireVersion, ID: 1, Op: contract.OpHello}); err == nil {
 		var kind byte

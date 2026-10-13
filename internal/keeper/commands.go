@@ -75,6 +75,10 @@ func engine(c *contract.Call) (any, error) {
 	return nil, refuse(contract.ExitUsage, "usage", "engine takes run, stop or status, not "+c.Args[0]+".", "whaleshark help engine")
 }
 
+// stopWait is how long `engine stop` and `engine status` wait for the
+// keeper: a stop ends every terminal first, each within two seconds.
+const stopWait = 30 * time.Second
+
 // ask makes one call to the running keeper. A stop goes without a hello, so
 // that a keeper of another version can be stopped too, and is answered
 // before the keeper stops: the end of the connection is waited for as well.
@@ -88,6 +92,8 @@ func ask(k *contract.Kit, op string) (r contract.WireReply, err error) {
 		return r, contract.ErrEngineUnreachable
 	}
 	defer conn.Close()
+	conn = contract.Patient(conn)
+	conn.SetDeadline(time.Now().Add(stopWait))
 	l := &link{conn: conn}
 	calls := []contract.WireCall{{V: contract.WireVersion, ID: 1, Op: contract.OpHello}, {ID: 2, Op: op}}
 	if op == contract.OpStop {
@@ -108,7 +114,9 @@ func ask(k *contract.Kit, op string) (r contract.WireReply, err error) {
 		}
 	}
 	if op == contract.OpStop {
-		contract.ReadFrame(conn)
+		if _, _, err = contract.ReadFrame(conn); errors.Is(err, os.ErrDeadlineExceeded) {
+			return r, fmt.Errorf("the keeper was asked to stop and has not ended within %v", stopWait)
+		}
 	}
 	return r, nil
 }

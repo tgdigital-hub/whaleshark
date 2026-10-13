@@ -67,7 +67,10 @@
 # line more, the flag of a setting that holds agents changed from a phone.
 # 5 more for the owner's word after the join: the kit's reader of how many
 # agents this computer's memory holds, for the warning of unlimited.
-lines 6175 contract internal/contract cmd/whaleshark
+# 40 more for the reader that asks again: on Windows a read that is waiting
+# when the other side closes a unix socket is not always told, so every
+# reader of the keeper's socket, on either side, reads through it (6,209).
+lines 6215 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -484,7 +487,9 @@ lines 1380 screen internal/screen
 # 60 more at the start of phase 6, at what the integration of phase 5
 # built: a chat's name as its tab's, tabs handed to a new leader, the
 # settings screen in one frame. It stands at 1,981.
-lines 1985 keeper internal/keeper
+# 10 more: the keeper reads every connection through the reader that asks
+# again, and `engine stop` waits for the keeper's end no longer than a limit.
+lines 1995 keeper internal/keeper
 # layout gives 135 and input 120 after the Windows proof, to platform,
 # guide, runtask and doctor: both are built whole, at 763 and 467.
 # 70 more for phase 5: the dock's place, the tab row beside it, its edge.

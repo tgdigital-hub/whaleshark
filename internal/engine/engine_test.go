@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -198,6 +200,48 @@ func TestAKeeperThatCannotBeTalkedTo(t *testing.T) {
 	}
 	if _, err := odd.TabCreate("", "", nil); err != contract.ErrFrame {
 		t.Errorf("a new tab with no pane in it: %v", err)
+	}
+}
+
+// untold is a connection as Windows now and then leaves one: a read that is
+// waiting when the keeper goes is never told; one begun after it is.
+type untold struct {
+	net.Conn
+	gone *atomic.Bool
+}
+
+func (u untold) Read(b []byte) (int, error) {
+	if u.gone.Load() {
+		return 0, io.EOF
+	}
+	return u.Conn.Read(b)
+}
+
+// A reader of events does not wait for ever for a keeper whose end it was
+// not told of: its channel ends within a moment of the keeper's going.
+func TestEventsEndThoughTheEndIsNotTold(t *testing.T) {
+	var gone atomic.Bool
+	c := server(func(c contract.WireCall) *contract.WireReply {
+		return &contract.WireReply{Snapshot: &contract.Snapshot{}}
+	})
+	dial := c.Dial
+	c.Dial = func(ctx context.Context) (net.Conn, error) {
+		conn, err := dial(ctx)
+		return untold{conn, &gone}, err
+	}
+	_, events, err := c.Events(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond) // the reader is waiting by now
+	gone.Store(true)
+	select {
+	case _, open := <-events:
+		if open {
+			t.Error("an event came from a keeper that had gone")
+		}
+	case <-time.After(contract.EndWait + 3*time.Second):
+		t.Error("the reader of events is still waiting for a keeper that has gone")
 	}
 }
 

@@ -75,6 +75,7 @@ func (c *Client) open(ctx context.Context, wait time.Duration) (net.Conn, func()
 	if err != nil {
 		return nil, nil, contract.ErrEngineUnreachable
 	}
+	conn = contract.Patient(conn) // a keeper that has gone ends every read
 	stop := context.AfterFunc(ctx, func() { conn.Close() })
 	conn.SetDeadline(time.Now().Add(patience + wait))
 	if _, err = ask(conn, contract.WireCall{V: contract.WireVersion, Op: contract.OpHello}); err != nil {

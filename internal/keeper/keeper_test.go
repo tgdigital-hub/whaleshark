@@ -245,7 +245,7 @@ func (r *rig) dial() *client {
 		r.t.Fatal(err)
 	}
 	r.t.Cleanup(func() { conn.Close() })
-	c := &client{t: r.t, conn: conn}
+	c := &client{t: r.t, conn: contract.Patient(conn)}
 	if reply := c.call(contract.WireCall{V: contract.WireVersion, Op: contract.OpHello}); reply.Err != "" {
 		r.t.Fatalf("hello: %+v", reply)
 	}
@@ -398,6 +398,10 @@ func TestWhoMayConnect(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer conn.Close()
+		// The end must come, and on Windows a read that only waits is
+		// not always told of it: this one asks, as the product's do.
+		conn = contract.Patient(conn)
+		conn.SetDeadline(time.Now().Add(20 * time.Second))
 		body, _ := json.Marshal(call)
 		contract.WriteFrame(conn, contract.FrameCall, body)
 		var reply contract.WireReply
@@ -405,6 +409,9 @@ func TestWhoMayConnect(t *testing.T) {
 		if err == nil {
 			json.Unmarshal(body, &reply)
 			_, _, err = contract.ReadFrame(conn)
+		}
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			t.Errorf("after %+v the keeper did not end the connection: %v", reply, err)
 		}
 		return reply, err
 	}
