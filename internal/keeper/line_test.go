@@ -113,6 +113,11 @@ func TestTheDocksEdgeLitHeldPutAndPutBack(t *testing.T) {
 	w.click(90, 25)
 	r.until("the keys in the pane that was pressed", func() bool { return r.focused() == "p2" })
 	r.sized(c, layout.DockPane, 50, 30)
+	// A window that leaves with the edge held leaves no line lit behind.
+	w.press(50, 10)
+	lit("the edge to be held", func(l *layout.Layout) bool { return l.Held })
+	w.conn.Close()
+	lit("no line to be lit when its window has left", func(l *layout.Layout) bool { return l.Lit.Kind == 0 && !l.Held })
 }
 
 // Under 160 columns a drag of the dock's edge past what the window's width

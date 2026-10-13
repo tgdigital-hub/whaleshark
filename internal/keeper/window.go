@@ -131,6 +131,9 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	if k.last == w {
 		k.last = nil
 	}
+	// A line this window held or left waiting is nobody's now.
+	k.lay.Lit, k.lay.Held, k.lay.Said = layout.Hit{}, false, ""
+	k.wake()
 	k.mu.Unlock()
 }
 
