@@ -108,8 +108,8 @@ const (
 	PointAnswered Pointer = "Your question %s was answered. Run: whaleshark ask --resume %[1]s"
 	PointMail     Pointer = "whaleshark: a message is waiting. Run: whaleshark mail"
 	PointFleet    Pointer = "whaleshark: new work for your fleet. Run: whaleshark mail"
-	PointResumed  Pointer = "whaleshark: resumed. Run: whaleshark mail"
-	PointLeadOn   Pointer = "whaleshark: resumed. Run: whaleshark wait"
+	PointResumed  Pointer = "whaleshark: the person says go on: the hold is over. Carry on with your task now; first run: whaleshark mail"
+	PointLeadOn   Pointer = "whaleshark: the person says go on: the hold is over. Carry on now; run: whaleshark wait"
 )
 
 // Gate is how the gate hook answers one kind of agent while the person has

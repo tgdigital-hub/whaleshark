@@ -151,7 +151,7 @@ const lineEnv = "WHALESHARK_OWN_STATUSLINE"
 const refusal = `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":%q}}` + "\n"
 
 // heldReason is what the gate says while the spending guard holds the run.
-const heldReason = "the agent-hours are used up: the work is held until the person says"
+const heldReason = "the agent-hours are used up: the work is held until the person says go on. Stop here; a line typed in this tab will say when"
 
 // gate answers a worker's harness before a step. While the person has
 // pressed Stop all, or the spending guard holds the run of this tab (one look

@@ -778,3 +778,17 @@ func TestGateTurnsDownTheSettingsFolder(t *testing.T) {
 		}
 	}
 }
+
+// What ends a hold answers what the gate said under it, word for word: a
+// real agent that was told "held until the person says go on" took a line
+// that said only "resumed" for news, stopped, and asked whether to go on.
+func TestTheLineThatEndsAHoldAnswersTheGate(t *testing.T) {
+	if !strings.Contains(heldReason, "until the person says go on") || !strings.Contains(heldReason, "a line typed in this tab") {
+		t.Errorf("the gate under a hold says %q", heldReason)
+	}
+	for _, line := range []contract.Pointer{contract.PointResumed, contract.PointLeadOn} {
+		if !strings.Contains(string(line), "the person says go on: the hold is over. Carry on") {
+			t.Errorf("the line that ends a hold is %q", line)
+		}
+	}
+}
