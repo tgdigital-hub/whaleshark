@@ -65,7 +65,9 @@
 # sentence; a fleet's card counting its leader. 35 are for the second join.
 # 30 fewer at the join of phase 6's second wave, at what was built (6,166): one
 # line more, the flag of a setting that holds agents changed from a phone.
-lines 6170 contract internal/contract cmd/whaleshark
+# 5 more for the owner's word after the join: the kit's reader of how many
+# agents this computer's memory holds, for the warning of unlimited.
+lines 6175 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -280,7 +282,9 @@ lines 910 gitwt internal/gitwt
 # fingerprint of the protected files as collected) counted again at nearly
 # twice. It stands at 754.
 # 25 fewer at the join of phase 6's second wave, at what was built (819).
-lines 820 integrate internal/integrate
+# 5 more for the owner's word after the join: land says that the settings
+# file does not read, and which file.
+lines 825 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
 # project's object folder in git's list; it stood at its line. doctor pays.
 # 50 more after the real runs of phase 2: sync sends the result of a worker
@@ -333,7 +337,9 @@ lines 920 overlap internal/overlap
 # second road gone, and its share of phase 6 (72) is counted again at
 # nearly twice.
 # 45 fewer at the join of phase 6's second wave, at what was built (1,878).
-lines 1880 doctor internal/doctor
+# 10 more for the owner's word after the join: the machine's memory read in
+# one place, for doctor's row and for the kit's figure.
+lines 1890 doctor internal/doctor
 lines 1300 term internal/term
 # panes: 100 more at the join of phase 1: every row of the action table,
 # the typing line, the guards and the lists came to 2,257. worker, built at
@@ -558,7 +564,8 @@ skip _test.go testdata testkit
 # of the tree where 1,460 were planned and 1,460 to 2,000 were told. The
 # figure is what is built rounded up to the next 500, and 500 for the
 # owner's look round. The folders' lines above are each what its folder
-# holds, to the next five.
+# holds, to the next five. Two things of the owner's word after it, 15 lines,
+# leave the tree at 44,135.
 total 45000
 
 # The whole module list, not only the direct ones.
