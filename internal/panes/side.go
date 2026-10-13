@@ -20,7 +20,7 @@ func (p *pane) loadSide(dirs contract.Dirs) {
 	r, peek := p.k.Reader(), p.k.Platform.Peek
 	roots, _ := contract.ReadProjects(peek, dirs.State)
 	paths := []string{dirs.State, filepath.Join(dirs.Config, contract.ConfigFile)}
-	p.in.Projects = nil
+	p.in.Projects, p.in.NewVersion = nil, contract.VersionLine(contract.ReadVersion(peek, dirs.State).Seen, contract.Version)
 	for _, root := range roots {
 		pr := contract.SideProject{Root: root}
 		head, _ := peek(filepath.Join(root, ".git", "HEAD"))
@@ -70,7 +70,7 @@ func (p *pane) drawSide(now time.Time) {
 	dim, text := p.st("dim"), p.st("text")
 	// The model fits its rows to the panel, so it is built for the rows there are.
 	gone := map[bool]int{true: 1}
-	if fits := h - 7 - len(b.Workspaces) + 2*gone[tight] + gone[rail] - gone[b.Warn != ""]; fits != p.fits {
+	if fits := h - 7 - len(b.Workspaces) + 2*gone[tight] + gone[rail] - gone[b.Warn != ""] - gone[b.NewVersion != ""] - gone[b.StepsShown]; fits != p.fits {
 		p.fits = fits
 		p.build()
 		b = p.bar
@@ -117,8 +117,26 @@ func (p *pane) drawSide(now time.Time) {
 		end--
 		t.Put(1, end, w-2, p.short(b.Warn, w-2), bold(p.st("blocked")))
 	}
+	if b.NewVersion != "" && !rail {
+		end--
+		t.Put(1, end, w-2, p.short(b.NewVersion, w-2), dim)
+	}
+	// The first steps stand where the hint of a workspace with no job stood.
+	// With a job, and where the section is too narrow to read them, they are
+	// one line at the panel's foot, which a click opens.
+	open := b.StepsShown && !rail && (p.steps || b.Hint != "" && !tight)
+	if open {
+		y = p.firstSteps(y, end)
+	} else if b.StepsShown && !rail {
+		n := 0
+		for i := range contract.FirstSteps {
+			n += b.Steps >> i & 1
+		}
+		end--
+		p.button(1, end, p.short(fmt.Sprintf("first steps: %d of %d", n, len(contract.FirstSteps)), w-2), dim, func() { p.steps = true })
+	}
 	for _, l := range wrap(b.Hint, w-3) {
-		if l != "" && !rail && y < end {
+		if l != "" && !rail && !open && y < end {
 			t.Put(2, y, w-3, l, dim)
 			y++
 		}
@@ -163,6 +181,31 @@ func (p *pane) drawSide(now time.Time) {
 		age = strings.TrimPrefix(age, "live · ")
 	}
 	t.Put(1, h-1, w-2, p.short(age, w-2), ageSt)
+}
+
+// firstSteps draws the five first steps from row y as far as end: those that
+// have happened ticked, the first that has not lit. It returns the row after.
+func (p *pane) firstSteps(y, end int) int {
+	t, w, done, lit := p.t, p.t.W, look(contract.LookDone), true
+	t.Put(1, y, w-2, "FIRST STEPS", p.st("text"))
+	p.button(w-9, y, "[ hide ]", p.st("dim"), func() { p.child(p.cmd("set", "ui.first_steps", contract.Off), "", p.quiet) })
+	for i, words := range contract.FirstSteps {
+		mark, st := " ", p.st("dim")
+		if p.bar.Steps>>i&1 == 1 {
+			mark = p.glyph(done.Mark, done.Plain)
+		} else if lit {
+			mark, st, lit = p.glyph("›", ">"), bold(p.st("text")), false
+		}
+		for j, l := range textLines(words, w-6) {
+			if y++; y >= end {
+				return y
+			} else if j == 0 {
+				t.Put(1, y, 3, mark+" "+strconv.Itoa(i+1), st)
+			}
+			t.Put(5, y, w-6, l, st)
+		}
+	}
+	return y + 1
 }
 
 // sideRow is one row of the left section: the bar where the keys or the tab
@@ -302,6 +345,7 @@ func (p *pane) choose(r contract.SideRow) {
 	}
 	p.sel, p.focused = "", false
 	p.query.Set("")
+	p.ticked(1 << 2) // the third first step: a row was clicked
 	p.goTo(r.Tab)
 }
 
@@ -335,6 +379,9 @@ func (p *pane) sideKey(ev term.Event) {
 	p.focused, p.stale, p.hint = true, true, ""
 	switch key := ev.Key; {
 	case key == "esc":
+		if p.bar.StepsShown { // Esc ends the first steps, as [ hide ] does
+			p.child(p.cmd("set", "ui.first_steps", contract.Off), "", p.quiet)
+		}
 		p.sel, p.focused = "", false
 		p.query.Set("")
 		p.keeper(func() error { return p.k.Terms.Dock(contract.DockBack) })

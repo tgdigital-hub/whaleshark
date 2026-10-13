@@ -17,14 +17,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
 
-// Phase 6 owes here: the section Guardrails with a description wrapped to four
-// lines; the ask for unlimited (Key.UnlimitedWarning) and its mark; the items
-// of phase 6 with their buttons and the plan under its item; the export row;
-// "spent" in the strip; the first steps; set --save and --load
-// (contract.SaveProfile, ReadProfile); UIFile.ByAgent cleared when its section
-// is seen, and u taking one back. A caller that is not the person goes to
-// contract.Set before any way of set's own.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("ui", ui)

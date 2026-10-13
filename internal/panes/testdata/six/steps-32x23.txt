@@ -1,0 +1,23 @@
+ WHALESHARK
+
+ WORKSPACES                 [+]
+ ▌· shop-site  main           1
+
+ AGENTS · shop-site
+ FIRST STEPS           [ hide ]
+ ✔ 1 start your agent: type
+     claude here →
+ › 2 tell it what you want
+     built, in your words
+   3 your agents appear here;
+     click one to go to it
+   4 what needs you lands
+     below; y answers
+   5 ctrl+space s settings · S
+     stops everything
+  · Orchestrator
+
+ version 1.3 is out · upgrade …
+ setting changed by your agent…
+ [ Menu ]  [ Settings ]
+ live · checked 2s ago

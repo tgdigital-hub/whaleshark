@@ -1,0 +1,17 @@
+┌─ settings ───────────────────────────────────────────────────────────────┐
+│ ‹ Scrolling & copy    FLEET MODE    Guardrails ›   (6 of 11)             │
+│                                                                          │
+│   Fleet Mode                                                     ‹ off › │
+│   Fleet leaders at once                                            ‹ 4 › │
+│   Agents in one fleet                                              ‹ 8 › │
+│ › Agents in all                           [ - ] 20  [ + ]  [ unlimited ] │
+│   A leader's tool                                             ‹ claude › │
+│   A worker's tool                                       ‹ the leader's › │
+│   Agents running now: 0 of 20                                            │
+│ ──────────────────────────────────────────────────────────────────────── │
+│ No limit on agents in all.                                               │
+│ WhaleShark will start as many agents as it is asked for. What still      │
+│ stands in the way: this computer's memory and your plan's usage.         │
+│ The spending guard is off.                                               │
+│ [ Use unlimited ]  [ Keep 20 ]                                           │
+└──────────────────────────────────────────────────────────────────────────┘

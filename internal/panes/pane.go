@@ -145,6 +145,8 @@ type pane struct {
 	shut    []string
 	at      contract.SideRow
 	fits    int
+	stepped int      // the first steps this pane has had noted
+	steps   bool     // the first steps were opened over the agents by a click
 	closed  []string // the runs that were read closed
 	watched string   // the files the notices are on
 	// The settings screen: what is in front, what u takes back, what asks first.
@@ -165,7 +167,7 @@ func newPane(kind string, t *term.Term, k *contract.Kit, root, run string, now f
 	build := func(in contract.ViewInput) contract.View { return *k.View(in) }
 	me, _ := contract.PaneOf(os.Getenv)
 	return &pane{kind: kind, t: t, k: k, root: root, run: run, anyRun: run == "" && kind != side && kind != settings, seek: true, now: now, make: build, heard: make(chan news), me: me,
-		scheme: theme.Schemes[0], plainMarks: contract.PlainMarks(os.Getenv), px: -1, py: -1, lit: -1, stale: true, dirty: true}
+		scheme: theme.Schemes[0], plainMarks: contract.PlainMarks(os.Getenv), px: -1, py: -1, lit: -1, saw: -1, stale: true, dirty: true}
 }
 
 // loop is the loop: draw, then wait for a key or a click, a changed file, a
@@ -546,11 +548,12 @@ func (p *pane) build() {
 		// The model fits its rows to the panel, whose height the drawing knows.
 		in := p.in
 		in.Now, in.Terms, in.Tools, in.Person, in.Changed, in.Checked, in.Notes = now, p.picture, found, p.cfg, p.ui.Changed, checked, notes
-		in.Folded, in.Find = p.shut, p.query.String()
+		in.Folded, in.Find, in.UI = p.shut, p.query.String(), p.ui
 		if !p.all {
 			in.Rows = p.fits
 		}
 		p.bar = p.k.Side(in)
+		p.ticked(p.bar.Steps)
 		p.view = contract.View{Fresh: p.bar.Fresh}
 	case p.state != nil:
 		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Terms: p.picture,

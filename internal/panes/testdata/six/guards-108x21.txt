@@ -1,0 +1,21 @@
+┌─ settings ───────────────────────────────────────────────────────────────────────────────────────────────┐
+│                    │                                                                                     │
+│   Look             │ GUARDRAILS                                                  yours, on this computer │
+│   Layout           │                                                                                     │
+│   Nudges           │   Plan first, then start                                            ( off ) [ on ]  │
+│   Keys             │ › Protected files                                                   ( off ) [ on ]  │
+│   Scrolling & copy │   Your protected list                 [ .env*,**/migrations/**,**/secrets/**,.g… ]  │
+│   Fleet Mode       │   Spending guard                                                    ( off ) [ on ]  │
+│ ▌ Guardrails       │   Agent-hours a job may use                         [ - ] 40  [ + ]  [ unlimited ]  │
+│   Agent tools      │   Agent-hours one fleet may use                           [ - ] unlimited ⚠  [ + ]  │
+│   This project     │   Stuck detector                                                    [ off ] ( on )  │
+│   Page & phone     │   Minutes before it is passed up                                   [ - ] 10  [ + ]  │
+│   This server      │   The log of this job                                                   [ Export ]  │
+│                    │   [ Put this section back as it came ]                                              │
+│                    │ ─────────────────────────────────────────────────────────────────────────────────── │
+│                    │ Off: every change is checked and landed like any other. On: when a job changes a    │
+│                    │ file on your list, the work goes on as usual, but the job cannot be landed until    │
+│                    │ you have looked at those files and approved them. Agents are never slowed or        │
+│                    │ stopped by this.                                                                    │
+│ / find a setting · j k choose · ← → or a click change · enter type a value · u undo · e… saved as you go │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘

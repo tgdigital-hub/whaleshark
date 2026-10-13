@@ -1,0 +1,18 @@
+┌─ settings ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                      │                                                                                                    │                                                      │
+│ ▌ Look               │ LOOK                                                                       yours, on this computer │ First steps                                          │
+│   Layout             │                                                                                                    │                                                      │
+│   Nudges             │   Colour scheme                           ( reef ) [ kelp ] [ ember ] [ paper ] [ mono ] [ none ]  │ Five lines in the left section that show a newcomer  │
+│   Keys               │   Marks                                                                        ( auto ) [ plain ]  │ what to type and where. They tick themselves off and │
+│   Scrolling & copy   │ › First steps                                                                      [ off ] ( on )  │ go away. Switch on to see them again.                │
+│   Fleet Mode         │                                                                                                    │                                                      │
+│   Guardrails         │   [ Save my settings to a file ]                                                                   │ It came as on.                                       │
+│   Agent tools        │   [ Load settings from a file… ]                                                                   │                                                      │
+│   This project       │   [ Put this section back as it came ]                                                             │                                                      │
+│   Page & phone       │                                                                                                    │                                                      │
+│   This server        │                                                                                                    │                                                      │
+│                      │                                                                                                    │                                                      │
+│                      │                                                                                                    │                                                      │
+│                      │                                                                                                    │                                                      │
+│ / find a setting · j k choose · ← → or a click change · enter type a value · u undo · esc close                                                                  saved as you go │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

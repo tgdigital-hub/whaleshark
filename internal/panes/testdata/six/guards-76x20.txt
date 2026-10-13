@@ -1,0 +1,20 @@
+┌─ settings ───────────────────────────────────────────────────────────────┐
+│ ‹ Fleet Mode    GUARDRAILS    Agent tools ›   (7 of 11)                  │
+│                                                                          │
+│   Plan first, then start                                         ‹ off › │
+│ › Protected files                                         ( off ) [ on ] │
+│   Your protected list  ‹ .env*,**/migrations/**,**/secrets/**,.github… › │
+│   Spending guard                                                 ‹ off › │
+│   Agent-hours a job may use                                       ‹ 40 › │
+│   Agent-hours one fleet may use                          ‹ unlimited ⚠ › │
+│   Stuck detector                                                  ‹ on › │
+│   Minutes before it is passed up                                  ‹ 10 › │
+│   The log of this job                                         [ Export ] │
+│   [ Put this section back as it came ]                                   │
+│ ──────────────────────────────────────────────────────────────────────── │
+│ Off: every change is checked and landed like any other. On: when a job   │
+│ changes a file on your list, the work goes on as usual, but the job      │
+│ cannot be landed until you have looked at those files and approved them. │
+│ Agents are never slowed or stopped by this.                              │
+│ / find · j k · ← → change · u undo · esc close           saved as you go │
+└──────────────────────────────────────────────────────────────────────────┘
