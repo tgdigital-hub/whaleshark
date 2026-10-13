@@ -683,6 +683,77 @@ func TestNames(t *testing.T) {
 	}
 }
 
+// A rename holds a name to the rule a new task's name is held to, against
+// the labels of the login's other tabs; alone it is taken in every state of
+// the task, and with anything else only where the task can be changed.
+func TestARenameHoldsToTheNameRule(t *testing.T) {
+	taken := []string{"Search Box"}
+	rows := []struct {
+		name, want string
+		exit       int
+		stored     string
+	}{
+		{"sign-in page", "", 0, "sign-in page"},
+		{"  Login   PAGE ", "", 0, "Login PAGE"}, // its own name is not taken
+		{"t1", "", 0, "t1"},                      // nor is its own id
+		{"one two three four", "bad_name", contract.ExitUsage, ""},
+		{"abcdefghij klmnopqrst uvw", "bad_name", contract.ExitUsage, ""},
+		{"", "bad_name", contract.ExitUsage, ""},
+		{"   ", "bad_name", contract.ExitUsage, ""},
+		{"-rf", "bad_name", contract.ExitUsage, ""},
+		{"search box", "name_taken", contract.ExitRefused, ""},
+		{"Task T2", "name_taken", contract.ExitRefused, ""},
+		{"t2", "name_taken", contract.ExitRefused, ""},
+		{"LEAD", "name_taken", contract.ExitRefused, ""},
+		{"orchestrator", "name_taken", contract.ExitRefused, ""},
+	}
+	states := []contract.AttemptState{"", contract.AttemptWorking, contract.AttemptReported, contract.AttemptChecking, contract.AttemptAccepted}
+	for _, row := range rows {
+		for _, state := range states {
+			s := newRun()
+			if state != "" {
+				s = in(t, state)
+			} else {
+				must(t, r.AddTask(s, contract.Task{ID: "T1", Title: "login page", Check: "true"}, nil, t0))
+			}
+			s.Tasks["T1"].Name = "login page"
+			add(t, s, "T2")
+			was, status := snapshot(s), s.Tasks["T1"].Status
+			ready, err := r.EditTask(s, "T1", contract.TaskEdit{Name: &row.name, Taken: taken}, t0)
+			if code(err) != row.want || exit(err) != row.exit || len(ready) != 0 {
+				t.Errorf("%q in state %q: %v (exit %d), ready %v, want %q", row.name, state, err, exit(err), ready, row.want)
+			}
+			if err != nil && snapshot(s) != was {
+				t.Errorf("%q in state %q: a refusal changed the record", row.name, state)
+			}
+			if got := s.Tasks["T1"]; err == nil && (got.Name != row.stored || got.Status != status || got.ID != "T1") {
+				t.Errorf("%q in state %q: the task is %q, %s", row.name, state, got.Name, got.Status)
+			}
+		}
+	}
+	if len(taken) != 1 {
+		t.Error("the caller's list of names was changed")
+	}
+	// With a check beside it a name is an edit like any other: refused for a
+	// task at work, and a refused name leaves the check as it was.
+	name, check := "sign-in page", "make test"
+	s := in(t, contract.AttemptWorking)
+	was := snapshot(s)
+	if _, err := r.EditTask(s, "T1", contract.TaskEdit{Name: &name, Check: &check}, t0); code(err) != "not_editable" || snapshot(s) != was {
+		t.Errorf("a name and a check for a task at work: %v", err)
+	}
+	s, name = newRun(), "one two three four"
+	add(t, s, "T1")
+	was = snapshot(s)
+	if _, err := r.EditTask(s, "T1", contract.TaskEdit{Name: &name, Check: &check}, t0); code(err) != "bad_name" || snapshot(s) != was {
+		t.Errorf("a bad name and a check: %v", err)
+	}
+	name = "sign-in page"
+	if _, err := r.EditTask(s, "T1", contract.TaskEdit{Name: &name, Check: &check}, t0); err != nil || s.Tasks["T1"].Name != name || s.Tasks["T1"].Check != check {
+		t.Errorf("a name and a check: %v, %+v", err, s.Tasks["T1"])
+	}
+}
+
 // 6.2: closing, binding and fencing.
 func TestRun(t *testing.T) {
 	s := in(t, contract.AttemptWorking)
