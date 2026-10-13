@@ -32,6 +32,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/pty"
 	"github.com/tgdigital-hub/whaleshark/test/leash"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 const (
@@ -48,6 +49,7 @@ const (
 // The run on the far side of ssh finds them built.
 func TestMain(m *testing.M) {
 	os.Exit(func() int {
+		defer ownlogin.Fresh()() // on the far side of ssh too, which is this login again
 		if far := os.Getenv(envFar); far != "" {
 			if err := os.Chdir(far); err != nil {
 				fmt.Fprintln(os.Stderr, "matrix:", err)

@@ -20,6 +20,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/term/termtest"
 	"github.com/tgdigital-hub/whaleshark/internal/view"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // childMark makes this test program stand in for the real one: a pane under
@@ -31,7 +32,7 @@ func TestMain(m *testing.M) {
 		os.Exit(child(os.Args[1:]))
 	}
 	os.Setenv(childMark, "1")
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }
 
 // child writes down how it was called, in children.log of the project, with

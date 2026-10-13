@@ -26,6 +26,10 @@ import (
 
 func TestMain(m *testing.M) { scenario.Main(m) }
 
+// ownPrograms is where this login's own programs lie, read before the tests
+// are given a login of their own: winget installs for the real one.
+var ownPrograms = os.Getenv("LOCALAPPDATA")
+
 // worker is an attempt of the fixture that is at work in a tab.
 const worker = "T1.1"
 

@@ -21,6 +21,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/store"
 	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // tools is the folder Main built the three programs into, module the
@@ -33,6 +34,7 @@ var tools, module, serverFile string
 // that no test starts a real agent, and names the fake agent for the double.
 func Main(m *testing.M) {
 	os.Exit(func() int {
+		defer ownlogin.Fresh()() // no test and no program it starts is in the login of whoever runs it
 		dir, err := os.MkdirTemp("", "scenario")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "scenario:", err)

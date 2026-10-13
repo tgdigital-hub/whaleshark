@@ -19,6 +19,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/store"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // helperEnv turns this test program into a person's own status line: it
@@ -32,7 +33,7 @@ func TestMain(m *testing.M) {
 		fmt.Printf("mine written=%v bytes=%d\n", err == nil, len(msg))
 		os.Exit(0)
 	}
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }
 
 // login is a pretended login with one project of ours, and the program as

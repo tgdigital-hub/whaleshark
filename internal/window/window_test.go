@@ -23,6 +23,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // The test program is the program under test too: started again with
@@ -36,7 +37,7 @@ const (
 func TestMain(m *testing.M) {
 	switch {
 	case os.Getenv(asWindow) == "":
-		os.Exit(m.Run())
+		ownlogin.Main(m)
 	case len(os.Args) > 2 && os.Args[1] == "engine" && os.Getenv(asKeeper) == "late":
 		// A keeper that takes its time, serves one window and ends.
 		time.Sleep(300 * time.Millisecond)

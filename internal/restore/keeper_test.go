@@ -26,6 +26,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/restore"
 	"github.com/tgdigital-hub/whaleshark/internal/screen"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // The test's own program plays three parts beside the test, by this
@@ -47,7 +48,7 @@ func TestMain(m *testing.M) {
 	case "writer":
 		writer()
 	default:
-		os.Exit(m.Run())
+		ownlogin.Main(m)
 	}
 }
 

@@ -23,6 +23,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/pty"
 	"github.com/tgdigital-hub/whaleshark/internal/screen"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // roleEnv turns this test program into one of two others: the fake agent,
@@ -40,7 +41,7 @@ func TestMain(m *testing.M) {
 	case "hook":
 		hookRole()
 	}
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }
 
 // dial is the terminals as the engine's adapter will be for `hook state`:

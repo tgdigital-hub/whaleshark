@@ -24,6 +24,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 const (
@@ -38,7 +39,7 @@ func TestMain(m *testing.M) {
 		writer(root, n)
 		return
 	}
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }
 
 // writer changes the run and appends to its history, as a command does,

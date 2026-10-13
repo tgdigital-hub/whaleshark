@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // The test program is four programs: the tests, a test that ends badly in
@@ -30,7 +32,7 @@ func TestMain(m *testing.M) {
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }
 
 func program(t *testing.T) (*exec.Cmd, func()) {

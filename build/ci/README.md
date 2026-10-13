@@ -18,6 +18,7 @@ It runs every step even after one has failed, prints what each found, and ends w
 | `page` | the weight of everything of the page that is not Go |
 | `commands` | the number of top-level commands |
 | `imports` | the panes, the page and the connection reach neither the store nor the sweep, however many packages lie between, and nothing they reach names the kit's store at all: they read through its reader; the operating system is asked for in one folder only, and the keeper's socket in four |
+| `logins` | every folder that has tests gives them a login of their own (`test/ownlogin`), so that no test reads or writes the settings and the list of projects of whoever runs it |
 | `timing` | the commands that must be fast, the middle one of 21 runs each (not on Windows) |
 | `security` | the outside checkers below |
 | `publish` | nothing private in what git would publish, and no file that names the program the tool once ran on |

@@ -7,6 +7,9 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
+	"maps"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -117,4 +120,37 @@ func (g *gate) storeNamed(from, dir string) []error {
 		})
 	}
 	return errs
+}
+
+// ownLogin are the calls that give a package's tests a login of their own:
+// the helper's two, and the scenarios' Main, which calls it.
+var ownLogin = [][]byte{[]byte("ownlogin.Main("), []byte("ownlogin.Fresh("), []byte("scenario.Main(")}
+
+// logins holds every folder that has tests to one of those calls in a file
+// of its own. A test with none runs in the login of whoever runs it, and
+// what it writes shows up in that person's own window.
+func (g *gate) logins() error {
+	tests, calls := map[string]bool{}, map[string]bool{}
+	err := filepath.WalkDir(g.root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		switch name := d.Name(); {
+		case d.IsDir() && path != g.root && (name == "testdata" || strings.HasPrefix(name, ".")):
+			return filepath.SkipDir
+		case d.IsDir() || filepath.Ext(name) != ".go":
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		dir, _ := filepath.Rel(g.root, filepath.Dir(path))
+		tests[dir] = tests[dir] || strings.HasSuffix(path, "_test.go")
+		calls[dir] = calls[dir] || slices.ContainsFunc(ownLogin, func(call []byte) bool { return bytes.Contains(data, call) })
+		return err
+	})
+	for _, dir := range slices.Sorted(maps.Keys(tests)) {
+		if tests[dir] && !calls[dir] {
+			err = errors.Join(err, fmt.Errorf("%s: its tests are given no login of their own (a TestMain that calls ownlogin.Main)", filepath.ToSlash(dir)))
+		}
+	}
+	return err
 }

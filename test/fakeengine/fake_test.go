@@ -15,6 +15,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/contract/testkit"
 	"github.com/tgdigital-hub/whaleshark/test/fakeengine"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // agent builds the fake agent once and names it for the double.
@@ -214,7 +215,7 @@ func TestMain(m *testing.M) {
 		}
 		return
 	}
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }
 
 // A command an agent is in the middle of ends with the agent, and has ended

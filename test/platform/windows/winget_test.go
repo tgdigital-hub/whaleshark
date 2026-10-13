@@ -128,7 +128,7 @@ func TestInstallFromTheWingetFiles(t *testing.T) {
 	// winget puts a portable program's name into a folder of links: the
 	// login's own, or the machine's where it installs for everybody.
 	link := ""
-	for _, dir := range []string{filepath.Join(os.Getenv("LOCALAPPDATA"), "Microsoft", "WinGet", "Links"), filepath.Join(os.Getenv("ProgramFiles"), "WinGet", "Links")} {
+	for _, dir := range []string{filepath.Join(ownPrograms, "Microsoft", "WinGet", "Links"), filepath.Join(os.Getenv("ProgramFiles"), "WinGet", "Links")} {
 		if fileIsThere(filepath.Join(dir, "whaleshark.exe")) {
 			link = filepath.Join(dir, "whaleshark.exe")
 		}

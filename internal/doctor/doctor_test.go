@@ -21,6 +21,7 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/pick"
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/store"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // No test may reach the clipboard of whoever runs it: the program that
@@ -56,7 +57,7 @@ func TestMain(m *testing.M) {
 		board = append(board, argv[0]+": "+string(in))
 		return nil
 	}
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }
 
 // terms is the keeper as a test wants it: its version, its picture, and

@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 const (
@@ -40,7 +41,7 @@ func TestMain(m *testing.M) {
 	case "agent":
 		agent()
 	default:
-		os.Exit(m.Run())
+		ownlogin.Main(m)
 	}
 }
 

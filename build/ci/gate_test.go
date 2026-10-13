@@ -96,6 +96,18 @@ func TestImports(t *testing.T) {
 	check(tree(t, append(files, "internal/platform/p.go", strings.Replace(system, "middle", "platform", 1))...))
 }
 
+func TestLogins(t *testing.T) {
+	check := func(root string, want ...string) { t.Helper(); gateSays(t, root, "logins", want...) }
+	const main = "package a\n\nfunc TestMain(m *testing.M) { ownlogin.Main(m) }\n"
+	files := []string{"build/ci/limits.txt", counted, "internal/a/a.go", "package a\n", "internal/a/a_test.go", main,
+		"internal/b/b.go", "package b\n", "internal/b/testdata/x_test.go", "package x\n"}
+	check(tree(t, files...))
+	check(tree(t, append(files, "internal/b/b_test.go", "package b\n", "internal/a/a_test.go", "package a\n")...),
+		"internal/a: its tests are given no login of their own", "internal/b: its tests are given no login")
+	check(tree(t, append(files, "internal/b/b_test.go", "package b\n", "internal/b/main_test.go", "package b\n\nfunc TestMain(m *testing.M) { scenario.Main(m) }\n")...))
+	check(tree(t, append(files, "test/s/s_test.go", "package s\n", "test/s/s.go", "package s\n\nfunc Main() { defer ownlogin.Fresh()() }\n")...))
+}
+
 // The planted marks are put together here, so that this file holds none.
 func TestPublish(t *testing.T) {
 	home := "/ho" + "me/sam/notes.txt"

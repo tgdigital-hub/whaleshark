@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // The test program is its own pane program: started again with this set,
@@ -28,7 +30,7 @@ func TestMain(m *testing.M) {
 		t.Flush()
 		select {}
 	}
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }
 
 // The pane is put back to normal when its program is killed: by the

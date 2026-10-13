@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/tgdigital-hub/whaleshark/internal/pick"
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 // No test of the keeper may reach the clipboard of whoever runs it: the
@@ -28,5 +29,5 @@ func TestMain(m *testing.M) {
 		board = append(board, argv[0]+": "+string(in))
 		return nil
 	}
-	os.Exit(m.Run())
+	ownlogin.Main(m)
 }

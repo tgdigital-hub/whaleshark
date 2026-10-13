@@ -44,6 +44,7 @@ var steps = []step{
 	{"page", true, (*gate).page},
 	{"commands", true, (*gate).commands},
 	{"imports", true, (*gate).imports},
+	{"logins", true, (*gate).logins},
 	{"timing", true, (*gate).timing},
 	{"security", true, (*gate).security},
 	{"publish", true, (*gate).publish},
