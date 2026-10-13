@@ -14,7 +14,7 @@ func TestAskAndDie(t *testing.T) {
 }
 ```
 
-`Main` builds the real program and the fake agent once and puts them first on the PATH. `Run` fails the test at the first line that does not go as written and says which line. Its last argument is the program of the panes; a scenario that opens no pane passes nil. Scenarios of one package run one after the other, not side by side: each gets a home folder through the environment of the test.
+`Main` builds the real program and the fake agent once and puts them first on the PATH, and gives the package's tests a login of their own (`test/ownlogin`): no test and no program it starts reads or writes the settings and the list of projects of whoever runs the tests. A package of tests that is no package of scenarios hands its `TestMain` to `ownlogin.Main`, and the gate's step `logins` refuses one that does neither. `Run` fails the test at the first line that does not go as written and says which line. Its last argument is the program of the panes; a scenario that opens no pane passes nil. Scenarios of one package run one after the other, not side by side: each gets a home folder through the environment of the test.
 
 ## The file
 

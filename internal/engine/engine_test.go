@@ -27,6 +27,8 @@ func TestEveryMethodIsOneCall(t *testing.T) {
 	f.Attached = true
 	var terms contract.Terminals = f
 	keys := []contract.KeyEntry{{Key: "shift+a", Type: "shell", Argv: []string{"whaleshark", "pause"}}}
+	x := t.TempDir() // a workspace is opened of a folder that is there
+	sub := filepath.Join(x, "sub")
 	type C = contract.WireCall
 	steps := []struct {
 		got  func() (any, error)
@@ -71,16 +73,16 @@ func TestEveryMethodIsOneCall(t *testing.T) {
 		{func() (any, error) { return nil, terms.OverlayAt([]string{"whaleshark", "ask"}, 24, 4, "p1", 3, 2) },
 			C{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{"whaleshark", "ask"}, W: 24, H: 4, Pane: "p1", X: 3, Y: 2}, nil},
 		{func() (any, error) {
-			p, err := terms.SpaceOpen("/x", "/x/sub")
+			p, err := terms.SpaceOpen(x, sub)
 			return p.ID + " " + p.Tab + " " + p.Label + " " + p.Workspace + " " + p.Cwd, err
 		},
-			C{Op: contract.OpSpaceOpen, Space: "/x", Cwd: "/x/sub"}, "p3 t2 Orchestrator s2 /x/sub"},
+			C{Op: contract.OpSpaceOpen, Space: x, Cwd: sub}, "p3 t2 Orchestrator s2 " + sub},
 		{func() (any, error) { return nil, terms.SpaceRename("s2", "shop") }, C{Op: contract.OpSpaceRename, Space: "s2", Label: "shop"}, nil},
 		{func() (any, error) {
-			p, err := terms.TabCreate("/x", "billing", "/x", "leader", nil)
+			p, err := terms.TabCreate(x, "billing", x, "leader", nil)
 			return p.ID + " " + p.Tab + " " + p.Workspace + " " + f.Group(p.Tab), err
 		},
-			C{Op: contract.OpTabCreate, Space: "/x", Group: "billing", Cwd: "/x", Label: "leader"}, "p4 t3 s2 billing"},
+			C{Op: contract.OpTabCreate, Space: x, Group: "billing", Cwd: x, Label: "leader"}, "p4 t3 s2 billing"},
 		{func() (any, error) {
 			t.Setenv(contract.EnvPane, "dock")
 			defer os.Unsetenv(contract.EnvPane)
