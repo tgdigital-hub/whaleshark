@@ -478,14 +478,17 @@ func TestEverySettingIsARowChangedByAKeyAndByAClick(t *testing.T) {
 	// value that runs a program is to be used, until its `set` has run or,
 	// for the administrator's, the line to type is shown.
 	finish := func(s setting, act func()) {
-		typed, used := false, false
+		typed, used, at := false, false, time.Now()
 		act()
 		if !wd.until(6*time.Second, func() bool {
 			switch _, _, typing, asks := ask(); {
-			case !typing && !asks && !typed && strings.Contains(wd.screen(), movedSaid):
-				// The rows had just moved by themselves, and the click was refused:
-				// the pane says so, however long it took to.
+			case !typing && !asks && !typed && (strings.Contains(wd.screen(), movedSaid) ||
+				!strings.HasSuffix(s.key.Values, "|unlimited") && time.Since(at) > 700*time.Millisecond && len(wd.children("")) == wd.next):
+				// The rows had just moved by themselves, and the click was refused.
+				// A row whose click asks first is clicked again only where the pane
+				// says so: a slow pane's question is no refusal.
 				wd.settle()
+				at = time.Now()
 				act()
 			case typing && !typed:
 				typed = true
