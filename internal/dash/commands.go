@@ -46,9 +46,6 @@ import (
 
 const startWait, startStep = 10 * time.Second, 50 * time.Millisecond
 
-// Phase 6 owes here: the interface for apps under contract.APIv1, a session by
-// contract.HeaderApp, and the pairing code (contract.PairCode, Phones.Code).
-
 // Plug binds dash.
 func Plug(k *contract.Kit) { k.Handle("dash", dash) }
 

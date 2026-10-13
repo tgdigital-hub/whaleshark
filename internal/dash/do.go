@@ -125,6 +125,39 @@ func fill(a *contract.Action, form url.Values, v *contract.View) (argv []string,
 	return argv, true
 }
 
+var (
+	notListed  = said("not_listed", "That button is not on the page any more: go back and look again.")
+	notAPhones = said("not_from_a_phone", "That setting names a program or is no setting of the table: it is set at the computer.")
+)
+
+// press carries out one row for a job, with a form's fields: for the page's
+// button and for an app alike. From a phone, `set` takes a key the person's
+// agent could ask for and no other, so never one that names a program.
+func (s *server) press(ctx context.Context, a *contract.Action, form url.Values, j job, all []job) (catch *contract.Catchup, err error) {
+	phone := from(ctx)
+	argv, ok := fill(a, form, s.view(ctx, j, all, true))
+	if key, _ := contract.FindKey(form.Get("key")); ok && phone != "" && a.ID == "set" && (key == nil || key.Agent() == contract.SetPerson) {
+		return nil, notAPhones
+	} else if !ok {
+		return nil, notListed
+	}
+	// The server's own time, not the request's: a click is carried out even
+	// if the tab that made it is closed meanwhile.
+	ctx = context.WithValue(s.ctx, viaPhone{}, phone)
+	switch {
+	case a.How == contract.HowPoint && j.state.Run.Orchestrator == nil:
+		err = said("no_lead", "No lead agent holds this run.")
+	case a.How == contract.HowPoint:
+		err = s.k.Terms.Point(j.state.Run.Orchestrator.Pane, contract.Pointer(argv[0]), "")
+	case a.ID == "catchup":
+		catch = new(contract.Catchup)
+		err = s.read(ctx, j, catch, "", argv...)
+	default:
+		err = s.read(ctx, j, nil, form.Get("text"), argv...)
+	}
+	return catch, err
+}
+
 // do runs one button: a POST that carries the session's request token and
 // names one row of the action table. What the command said is shown on the
 // screen the click was made on.
@@ -153,28 +186,13 @@ func (s *server) do(w http.ResponseWriter, r *http.Request, id, button string) {
 		s.screen(w, r, id, contract.RouteTeam, nil, nil)
 		return
 	}
-	var argv []string
-	if ok := paired; !ok {
-		if argv, ok = fill(a, r.PostForm, s.view(r.Context(), j, all, true)); !ok {
-			s.draw(w, http.StatusConflict, &contract.Page{Screen: contract.ScreenRefused, Said: said("not_listed", "That button is not on the page any more: go back and look again.")})
-			return
-		}
-	}
-	ctx := context.WithValue(s.ctx, viaPhone{}, phone)
 	var catch *contract.Catchup
-	switch {
-	case paired:
-	case a.How == contract.HowPoint && j.state.Run.Orchestrator == nil:
-		err = said("no_lead", "No lead agent holds this run.")
-	case a.How == contract.HowPoint:
-		err = s.k.Terms.Point(j.state.Run.Orchestrator.Pane, contract.Pointer(argv[0]), "")
-	case a.ID == "catchup":
-		catch = new(contract.Catchup)
-		err = s.read(ctx, j, catch, "", argv...)
-	default:
-		// The server's own time, not the request's: a click is carried out
-		// even if the tab that made it is closed meanwhile.
-		err = s.read(ctx, j, nil, r.PostForm.Get("text"), argv...)
+	if !paired {
+		catch, err = s.press(r.Context(), a, r.PostForm, j, all)
+	}
+	if err == notListed || err == notAPhones {
+		s.draw(w, http.StatusConflict, &contract.Page{Screen: contract.ScreenRefused, Said: err.(*contract.Refusal)})
+		return
 	}
 	told := new(contract.Refusal)
 	switch {
