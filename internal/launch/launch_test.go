@@ -463,6 +463,24 @@ func TestRetryRefusedWhileTheOldPaneHoldsAnAgent(t *testing.T) {
 	must(t, p.Command(scenario.Orch, "close", "--settled"), 0, "No tab to close.")
 }
 
+// Stop all walks every run of the login. A closed one is passed over without
+// a word, also where its record names the very pane the person presses from
+// as an agent's: seen with a project whose old runs another keeper had made.
+func TestStopAllPassesAClosedRunOver(t *testing.T) {
+	p := evening(t, 20, nil)
+	must(t, p.Command(scenario.Human, "run", "new", "an old job", "--park"), 0, "Run r4 is open")
+	if err := p.Kit.Store.Change(p.Root, "r4", func(s *contract.State) error {
+		s.Attempts = map[string]*contract.Attempt{"Z.1": {ID: "Z.1", Task: "Z", State: contract.AttemptWorking, Place: contract.Place{Pane: p.Own}}}
+		s.Run.ClosedAt = contract.Now()
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if out := must(t, p.Command(scenario.Human, "pause", "--everywhere"), 0, "Paused."); strings.Contains(out, "not marked paused") {
+		t.Errorf("a closed run was spoken of:\n%s", out)
+	}
+}
+
 func TestStopAllDuringAStartOfTwenty(t *testing.T) {
 	p := evening(t, 20, nil)
 	b := stand(t, p, contract.OpAgentStart, "", "")

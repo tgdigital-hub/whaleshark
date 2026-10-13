@@ -89,7 +89,12 @@ func pause(c *contract.Call) (any, error) {
 	held, running, missed := 0, []string{}, []string{}
 	for _, t := range all {
 		err := k.Store.Change(t.root, t.run, func(s *contract.State) error {
-			err := k.Rules.Allowed(s, c.Caller, c.Command.Name, "")
+			// A closed run is passed over for what it is: its record, whose
+			// panes may be anybody's by now, decides nothing about the caller.
+			var err error
+			if s.Run.ClosedAt.IsZero() {
+				err = k.Rules.Allowed(s, c.Caller, c.Command.Name, "")
+			}
 			if err == nil {
 				err = k.Rules.Pause(s, by, c.Now)
 			}
