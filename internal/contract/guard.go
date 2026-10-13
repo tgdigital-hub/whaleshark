@@ -253,6 +253,28 @@ func Owned(patterns []string, file string) bool {
 	return false
 }
 
+// Above reports whether a link at file stands where a folder of one of the
+// patterns begins: what lies behind such a link lies under a protected path
+// on disk, and no name of the list shows it. With two stars in front of a
+// pattern that is any link.
+func Above(patterns []string, file string) bool {
+	for _, p := range patterns {
+		p = strings.TrimSuffix(strings.TrimSuffix(path.Clean(p), "/**"), "/*")
+		if above(strings.Split(p, "/"), strings.Split(file, "/")) {
+			return true
+		}
+	}
+	return false
+}
+
+func above(pattern, parts []string) bool {
+	if len(parts) == 0 || len(pattern) == 0 || pattern[0] == "**" {
+		return len(pattern) > 0
+	}
+	ok, _ := path.Match(pattern[0], parts[0])
+	return ok && above(pattern[1:], parts[1:])
+}
+
 // under reports whether a pattern's parts cover the first parts of a path.
 func under(pattern, parts []string) bool {
 	switch {
