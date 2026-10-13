@@ -158,8 +158,9 @@ func tell(c *contract.Call) (any, error) {
 		err = toWorker(c, out, &a, now, quiet)
 	case out.Chat:
 		out.Pointer = typed
-		if left, why := contract.Say(k, c.Root, c.Run, true); left != 0 {
-			out.Pointer, out.Why = deferred, "another command is typing a note"
+		left, why := contract.Say(k, c.Root, c.Run, true)
+		if slices.ContainsFunc(left, func(n contract.Note) bool { return n.Seq == out.Seq }) {
+			out.Pointer, out.Why = deferred, "an earlier note waits"
 			switch {
 			case errors.Is(why, contract.ErrAgentBlocked):
 				out.Why = "the agent is at a prompt of its own"
