@@ -85,6 +85,40 @@ func TestPathKey(t *testing.T) {
 	}
 }
 
+// A project reached by a linked path is the same project: both spellings
+// have one key, also for a file below that is not there yet, and the
+// login's list holds the folder once. Tried under the system's own temp
+// folder, which on a Mac is itself reached through a link.
+func TestALinkedPathIsTheSameFolder(t *testing.T) {
+	s := New(runtime.GOOS)
+	s.Home = t.TempDir()
+	real, link := filepath.Join(t.TempDir(), "project"), filepath.Join(t.TempDir(), "by-a-link")
+	if err := os.Mkdir(real, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("this system makes no link here: %v", err)
+	}
+	for _, below := range []string{"", "src", filepath.Join("not", "there", "yet.txt")} {
+		if a, b := s.PathKey(filepath.Join(real, below)), s.PathKey(filepath.Join(link, below)); a != b {
+			t.Errorf("%q: the folder is %q and by its link %q", below, a, b)
+		}
+	}
+	if got := s.PathKey("src/a.go"); got != "src/a.go" {
+		t.Errorf("a path inside a project is left as it is spelled: %q", got)
+	}
+	t.Setenv("XDG_STATE_HOME", filepath.Join(s.Home, "state"))
+	for _, root := range []string{real, link, real} {
+		if err := contract.ListProject(s, root); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dirs, _ := s.Dirs()
+	if roots, err := contract.ReadProjects(s.Peek, dirs.State); err != nil || len(roots) != 1 {
+		t.Errorf("set up by both spellings, the list holds %q (%v)", roots, err)
+	}
+}
+
 func TestSynced(t *testing.T) {
 	win := map[string]string{"OneDriveCommercial": `E:\Work Files`}
 	for _, c := range []struct {

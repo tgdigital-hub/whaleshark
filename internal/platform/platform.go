@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -265,8 +266,19 @@ func (s *System) Synced(p string) bool {
 }
 
 // PathKey leaves the letters as they are composed: the standard library
-// cannot bring two spellings of one accented letter together.
+// cannot bring two spellings of one accented letter together. A folder
+// reached through a link is the folder itself: a full path is spelled as
+// the system resolves it, as far up as it exists, so that a project set up
+// by one spelling is the same project by the other.
 func (s *System) PathKey(p string) string {
+	for dir, rest := filepath.Clean(p), ""; filepath.IsAbs(p); dir, rest = filepath.Dir(dir), filepath.Join(filepath.Base(dir), rest) {
+		if real, err := filepath.EvalSymlinks(dir); err == nil {
+			p = filepath.Join(real, rest)
+			break
+		} else if dir == filepath.Dir(dir) {
+			break
+		}
+	}
 	if s.OS == onWindows {
 		p = strings.ReplaceAll(p, `\`, "/")
 	}
