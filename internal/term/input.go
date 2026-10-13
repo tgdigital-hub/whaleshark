@@ -26,6 +26,7 @@ const (
 	NoButton Button = iota // the pointer moved with no button held
 	Left
 	Middle
+	Right
 	WheelUp
 	WheelDown
 )
@@ -282,8 +283,9 @@ func numbers(s, sep string) []int {
 	return v
 }
 
-// mouse reads an "SGR" mouse report. Nothing of ours is on the right
-// button, so its reports are dropped.
+// mouse reads an "SGR" mouse report: the left, the middle and the right
+// button with what was held, the wheel, and movement. A wheel that turns
+// sideways and the buttons past the third are dropped.
 func mouse(args string, up bool) Event {
 	v := numbers(args, ";")
 	if len(v) != 3 {
@@ -292,12 +294,12 @@ func mouse(args string, up bool) Event {
 	code, b := v[0], v[0]&3
 	ev := Event{Kind: Mouse, Action: Press, X: v[1] - 1, Y: v[2] - 1, Shift: code&4 != 0, Alt: code&8 != 0, Ctrl: code&16 != 0}
 	switch {
-	case code&128 != 0, code&64 != 0 && b > 1, code&64 == 0 && b == 2:
+	case code&128 != 0, code&64 != 0 && b > 1:
 		return Event{}
 	case code&64 != 0:
 		ev.Button = WheelUp + Button(b)
 		return ev
-	case b < 2:
+	case b < 3:
 		ev.Button = Left + Button(b)
 	}
 	if code&32 != 0 {
@@ -306,4 +308,11 @@ func mouse(args string, up bool) Event {
 		ev.Action = Release
 	}
 	return ev
+}
+
+// Menu reports that the event asks for the menu of the thing under the
+// pointer: a press of the right button. It is the one place that says so,
+// for the keeper's routing and for a pane of ours alike.
+func (ev Event) Menu() bool {
+	return ev.Kind == Mouse && ev.Action == Press && ev.Button == Right
 }

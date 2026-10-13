@@ -39,7 +39,12 @@ var recorded = []struct {
 	{"\x1b[<8;5;3M", []Event{{Kind: Mouse, Button: Left, Action: Press, X: 4, Y: 2, Alt: true}}},
 	{"\x1b[<16;5;3m", []Event{{Kind: Mouse, Button: Left, Action: Release, X: 4, Y: 2, Ctrl: true}}},
 	{"\x1b[<1;5;3M", []Event{mouseAt(Middle, Press, 4, 2)}},
-	{"\x1b[<2;5;3M\x1b[<2;5;3m\x1b[<34;6;3M", nil}, // the right button, pressed, let go and dragged
+	{"\x1b[<2;5;3M\x1b[<2;5;3m\x1b[<34;6;3M", []Event{ // the right button, pressed, let go and dragged
+		mouseAt(Right, Press, 4, 2), mouseAt(Right, Release, 4, 2), mouseAt(Right, Move, 5, 2)}},
+	{"\x1b[<6;5;3M\x1b[<6;5;3m", []Event{{Kind: Mouse, Button: Right, Action: Press, X: 4, Y: 2, Shift: true},
+		{Kind: Mouse, Button: Right, Action: Release, X: 4, Y: 2, Shift: true}}},
+	{"\x1b[<26;80;1M", []Event{{Kind: Mouse, Button: Right, Action: Press, X: 79, Alt: true, Ctrl: true}}},
+	{"\x1b[<66;5;3M\x1b[<67;5;3M\x1b[<130;5;3M", nil}, // the wheel turned sideways, and a button past the third
 	{"a\r\t\x1b[Z", []Event{key("a"), key("enter"), key("tab"), key("shift+tab")}},
 	{"\x1b[A\x1b[B\x1b[C\x1b[D", []Event{key("up"), key("down"), key("right"), key("left")}},
 	{"\x03\x04\x1a\x16\x01", []Event{key("ctrl+c"), key("ctrl+d"), key("ctrl+z"), key("ctrl+v"), key("ctrl+a")}},
@@ -158,15 +163,24 @@ func FuzzParser(f *testing.F) {
 		f.Add([]byte(r.bytes), 3)
 	}
 	f.Add([]byte("\x1b[<999999999999999999999;1;1M\x1bO\x1b[;;;~\xff\xc3"), 1)
+	f.Add([]byte("\x1b[<2;1;1M\x1b[<2;1;1m\x1b[<6;9;9M\x1b[<34;2;2M\x1b[<3;1;1M\x1b[<67;1;1M\x1b[<2;1M"), 7)
 	f.Add([]byte("\x1b[97:65;2:3;97u\x1b[99999999999;;u\x1b[-5:;:u\x1b[57414;9u"), 9)
 	f.Fuzz(func(t *testing.T, b []byte, cut int) {
 		var p Parser
 		cut = min(max(cut, 0), len(b))
-		p.Feed(b[:cut])
-		p.Feed(b[cut:])
-		p.Flush()
+		evs := append(append(p.Feed(b[:cut]), p.Feed(b[cut:])...), p.Flush()...)
 		if p.Pending() {
 			t.Fatalf("%q is still kept after the flush", p.buf)
+		}
+		// A mouse report names a button and an action that there are, the
+		// wheel only turns, and nothing but a press of the right button
+		// asks for a menu.
+		for _, ev := range evs {
+			wheel := ev.Button == WheelUp || ev.Button == WheelDown
+			if ev.Kind != Mouse && ev.Menu() || ev.Kind == Mouse && (ev.Button > WheelDown || ev.Action < Press || ev.Action > Move ||
+				wheel && ev.Action != Press || ev.Menu() != (ev.Button == Right && ev.Action == Press)) {
+				t.Fatalf("%q gives %+v", b, ev)
+			}
 		}
 	})
 }
