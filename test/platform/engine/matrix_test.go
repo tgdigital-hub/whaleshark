@@ -321,6 +321,9 @@ func column(t *testing.T) (cells map[string]string, system string) {
 		})
 		reason, _, err = terms.Notify("matrix", "in a window", false)
 		w, h, _ = terms.Size(up.ID)
+		// The command key as it comes, then a full stop, typed into the
+		// window: the menu of the tab that shows is asked for.
+		window.Write([]byte{0, '.'})
 		row(rowWindow, err, attached, reason == contract.NotifyShown, w < 120, h == 5)
 	} else {
 		row(rowWindow, err)
