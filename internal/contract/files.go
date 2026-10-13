@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
@@ -554,8 +555,14 @@ func FleetName(name string) (string, bool) {
 	words := strings.Fields(name)
 	name = strings.Join(words, " ")
 	ok := len(words) > 0 && len(words) <= 3 && utf8.RuneCountInString(name) <= 24 && name[0] != '-' &&
-		!strings.ContainsFunc(name, func(r rune) bool { return r < ' ' || r == 0x7f || r == '"' })
+		!strings.ContainsFunc(name, func(r rune) bool { return steers(r) || r == '"' })
 	return name, ok
+}
+
+// steers reports a character that could steer a terminal, turn the reading
+// direction or break a line: no name and no sentence a file brings holds one.
+func steers(r rune) bool {
+	return unicode.IsControl(r) || r == 0x2028 || r == 0x2029 || r >= 0x202a && r <= 0x202e || r >= 0x2066 && r <= 0x2069
 }
 
 // ReadFleets reads a project's saved fleets, by name. An entry whose name
@@ -573,7 +580,7 @@ func ReadFleets(read func(path string) ([]byte, error), root string) ([]SavedFle
 	out := f.Fleets[:0]
 	for _, s := range f.Fleets {
 		name, ok := FleetName(s.Name)
-		plain := !strings.ContainsFunc(s.Purpose, func(r rune) bool { return r < ' ' || r == 0x7f })
+		plain := !strings.ContainsFunc(s.Purpose, steers)
 		if s.Busy = false; ok && name == s.Name && plain && utf8.RuneCountInString(s.Purpose) <= 200 {
 			out = append(out, s)
 		}

@@ -346,12 +346,12 @@ func runFleet(c *contract.Call, args []string) (any, error) {
 	if len(args) == 0 {
 		shown, _ := contract.FleetsShown(k.Platform.Peek, c.Root, c.Caller.Kind)
 		for _, f := range shown {
-			fmt.Fprintln(c.Out, strings.TrimSuffix(f.Name+" · saved · "+f.Purpose, " · "))
+			fmt.Fprintln(c.Out, strings.TrimSuffix(cli.Line(f.Name)+" · saved · "+cli.Line(f.Purpose), " · "))
 		}
 		if len(saved) == 0 {
 			fmt.Fprintln(c.Out, `No fleet is saved here. whaleshark run fleet "<name>" "<what it works on>" saves one.`)
 		}
-		return saved, nil
+		return shown, nil // as the lines above: --json hands an agent no sentence the list holds back
 	}
 	name, ok := contract.FleetName(args[0])
 	purpose := ""
@@ -378,7 +378,7 @@ func runFleet(c *contract.Call, args []string) (any, error) {
 		if purpose == "" && c.Caller.Kind != contract.Human {
 			said = "" // an agent that names a fleet is not told what the file says of it: the list decides that
 		}
-		fmt.Fprintln(c.Out, strings.TrimSuffix(fmt.Sprintf("The fleet %q is saved · %s", name, said), " · "))
+		fmt.Fprintln(c.Out, strings.TrimSuffix(fmt.Sprintf("The fleet %q is saved · %s", name, cli.Line(said)), " · "))
 	default:
 		saved = append(saved, contract.SavedFleet{Name: name, Purpose: purpose, Since: c.Now})
 		fmt.Fprintf(c.Out, "The fleet %q is saved · %s\nIt stays when its work is done. Work goes into it with: whaleshark task add <id> \"<title>\" --fleet %q ...\n", name, purpose, name)
@@ -395,5 +395,8 @@ func runFleet(c *contract.Call, args []string) (any, error) {
 			return nil, err
 		}
 	}
-	return saved, contract.WriteFleets(k.Platform, c.Root, saved)
+	if err = contract.WriteFleets(k.Platform, c.Root, saved); err != nil {
+		return nil, err
+	}
+	return contract.FleetsShown(k.Platform.Peek, c.Root, c.Caller.Kind)
 }
