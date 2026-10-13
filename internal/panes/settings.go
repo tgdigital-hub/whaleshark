@@ -148,6 +148,17 @@ func (p *pane) settingsRows() (out []setting) {
 				p.hint = cmp.Or(strings.Join(strings.Fields(string(out)), " "), said) + " · whaleshark dash start|stop"
 			})
 		})
+		if p.phones.On {
+			// What `dash phone on` prints last: a new code each time, good once and for one minute.
+			press("[ A pairing code for an app ]", func() {
+				p.child(p.cmd("dash", "phone", "on"), "", func(out []byte, said string, _ bool) {
+					if code := strings.Fields(string(out)); said == "" && len(code) > 0 {
+						said = "an app pairs with this, once, within a minute: " + code[len(code)-1]
+					}
+					p.hint = said
+				})
+			})
+		}
 		for _, ph := range p.phones.Paired {
 			press("[ Forget "+ph.Name+" ]", func() { p.act("forget-phone", map[string]string{"id": ph.ID}) })
 		}

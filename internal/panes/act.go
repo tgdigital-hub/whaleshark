@@ -319,7 +319,25 @@ func (p *pane) act(id string, fill map[string]string) {
 	case id == menu && p.kind == side:
 		p.lay(menu)
 	case id == settings:
-		p.lay("run", settings)
+		// Opened on the job in front, so that what the screen exports is the
+		// log of the job the person means: this pane's, or in the left
+		// section the job of the tab that shows.
+		what, root, run, lead := []string{"run", settings}, p.root, p.run, contract.SideRow{}
+		if p.state != nil {
+			run = p.state.Run.ID
+		}
+		for _, r := range cmp.Or(p.bar, &contract.Side{}).Rows {
+			if r.Kind == contract.RowLead {
+				lead = r
+			}
+			if r.Front && lead.Run != "" && lead.Root == r.Root {
+				root, run = lead.Root, lead.Run
+			}
+		}
+		if run != "" {
+			what = append(what, "--root", root, "--run", run)
+		}
+		p.lay(what...)
 	case id == "side-keys" || id == "side-fold":
 		p.keeper(func() error {
 			return p.k.Terms.Dock(map[bool]string{true: contract.DockKeys, false: contract.DockFold}[id == "side-keys"])

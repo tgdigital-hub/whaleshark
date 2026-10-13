@@ -387,7 +387,8 @@ func TestTheBarsClicksAndKeys(t *testing.T) {
 	wd.click("photo upload")
 	wd.asked("tab-focus")
 	wd.click("[ Settings ]")
-	wd.asked("ui run settings")
+	// On the job of the tab that shows: its log is what the screen exports.
+	wd.asked("ui run settings --root " + wd.p.root + " --run r3")
 	wd.click("[ Menu ]")
 	wd.asked("ui menu")
 	// [+] lists the projects of the login that no workspace shows.
@@ -626,6 +627,18 @@ func TestTheRowsOfWhatIsDoneAtATerminal(t *testing.T) {
 	wd.settle()
 	wd.s.ClickText("[ Is the page running? ]")
 	wd.ran("dash status")
+	// With phone access on, the code an app pairs with has its row: the
+	// line that makes a new one, as typed.
+	if strings.Contains(wd.screen(), "pairing code") {
+		t.Error("a pairing code is offered while phone access is off")
+	}
+	if err := contract.ChangePhones(wd.sys, func(list *contract.Phones) error { list.On = true; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	wd.shows("[ A pairing code for an app ]")
+	wd.settle()
+	wd.s.ClickText("[ A pairing code for an app ]")
+	wd.ran("dash phone on --human")
 	// A tool's short rules are written by init's own step for that tool.
 	to(contract.SecTools)
 	wd.settle()
