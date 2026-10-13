@@ -2,6 +2,7 @@ package testkit
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -25,9 +26,16 @@ import (
 // are whatever the builder makes of In, and the pictures' own figures (40,
 // 55 and 75 percent) are in no record here. The package that builds the model is tested
 // against Side; the pane that draws it is tested on Side alone.
+//
+// Side is the model of before phase 7 and Side7 the same morning as it
+// must come out since: the workspaces are the keeper's (In.Terms.Spaces),
+// each row has the first block of its menu, and what a menu's first block
+// does is no longer among the work's own rows. Until the builder is the
+// new one it is held to Side; from then on to Side7, and Side goes.
 type ThreeFleets struct {
 	In    contract.SideInput
 	Side  *contract.Side
+	Side7 *contract.Side
 	View  contract.ViewInput
 	Cards []contract.Card
 	Item  contract.Item
@@ -184,11 +192,66 @@ func Fleets() *ThreeFleets {
 		{Root: blog, Name: "blog", Branch: "drafts", Look: contract.LookBuilding, Agents: 3},
 		{Name: "other tabs", Agents: 2, Other: true},
 	}
+	// The keeper's workspaces: every tab in the one of its project, the two
+	// tabs of no project in the last, and shop-site, where the keys are, in front.
+	snap.Spaces = []contract.Space{{ID: "s1", Root: shop, Name: "shop-site", Front: true}, {ID: "s2", Root: blog, Name: "blog", Tab: "t-b1"},
+		{ID: "s3", Name: contract.OtherTabs, Tab: "t-x1"}}
+	for i := range snap.Panes {
+		p := &snap.Panes[i]
+		if p.Workspace = map[string]string{shop: "s1", blog: "s2"}[p.Cwd]; p.Workspace == "" {
+			p.Workspace = "s3"
+		}
+		if p.Focused {
+			snap.Spaces[0].Tab = p.Tab
+		}
+	}
 	in := contract.SideInput{Now: now, Terms: snap, Tools: tools, Person: person, Folded: []string{"r1/help pages"}, Checked: now,
 		Projects: []contract.SideProject{{Root: shop, Branch: "main", Runs: runs}, {Root: blog, Branch: "drafts", Runs: []*contract.State{other}}}}
 	view := contract.ViewInput{Now: now, Caller: contract.Human, State: up, Terms: snap, Limits: contract.ProjectDefaults(), Checked: now,
 		Swept: contract.Swept{Ran: true, At: now}, Watched: true, Fleets: fleets, Person: person, Tools: tools}
 	item := contract.Item{ID: "q1", Form: contract.FormChoice, Look: contract.LookNeedsYou, Task: "G1", Name: "refund flow", Fleet: "billing",
 		Source: "passed up by the orchestrator", Since: now.Add(-2 * time.Minute), Text: "Refund to the card, or to store credit?", Holds: true}
-	return &ThreeFleets{In: in, Side: side, View: view, Cards: cards, Item: item}
+	return &ThreeFleets{In: in, Side: side, Side7: seven(side, snap, map[string]int{"s1": 1}), View: view, Cards: cards, Item: item}
+}
+
+// seven is a side model of before phase 7 as it must come out since, for
+// the keeper's picture it was built from: need is what waits for the person
+// in each workspace, by its id.
+func seven(old *contract.Side, snap *contract.Snapshot, need map[string]int) *contract.Side {
+	side := *old
+	side.Workspaces, side.Rows, side.Marks = nil, nil, map[string]int{}
+	for i, w := range old.Workspaces {
+		sp := snap.Spaces[i]
+		w.ID, w.Tab, w.Need, w.Offer = sp.ID, sp.Tab, need[sp.ID], contract.OfferRows(contract.OfferSpace, false, w.Other)
+		tabs := map[string]bool{}
+		for _, p := range snap.Panes {
+			if p.Workspace == sp.ID {
+				tabs[p.Tab] = true
+			}
+		}
+		w.Tabs = len(tabs)
+		side.Workspaces = append(side.Workspaces, w)
+	}
+	for _, r := range old.Rows {
+		switch r.Kind {
+		case contract.RowLead:
+			r.Offer, r.Actions = contract.OfferRows(contract.OfferTab, false, false), []string{"note-lead"}
+		case contract.RowFleet:
+			r.Offer, r.Actions = contract.OfferRows(contract.OfferFleet, !r.Parked, false), nil
+		case contract.RowAgent:
+			r.Offer = contract.OfferRows(contract.OfferAgent, true, false)
+			r.Actions = slices.DeleteFunc(slices.Clone(r.Actions), func(id string) bool { return id == "stop" })
+			if r.Item != "" {
+				side.Marks[r.Tab]++
+			}
+		case contract.RowTab:
+			r.Offer = contract.OfferRows(contract.OfferTab, false, false)
+		}
+		if old.First != nil && r.Name == old.First.Name {
+			first := r
+			side.First = &first
+		}
+		side.Rows = append(side.Rows, r)
+	}
+	return &side
 }

@@ -3,8 +3,10 @@ package testkit
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -173,5 +175,86 @@ func TestGuarded(t *testing.T) {
 	}
 	if again := Guarded(); again.Up == g.Up || again.Low["search"] == g.Low["search"] {
 		t.Error("two calls share a record")
+	}
+}
+
+// The afternoon with three workspaces says the same thing in what the left
+// section is built from and in what must come out: the keeper's workspaces
+// are the model's rows in their order, every tab is of one of them, each
+// row's count is the frames', every row of the panel is a task of the run it
+// names, a mark stands for each thing that waits, and nothing a menu offers
+// is outside the action table.
+func TestThreeSpaces(t *testing.T) {
+	f := Spaces()
+	snap, side := f.In.Terms, f.Side
+	tabs := map[string]int{}
+	for _, p := range snap.Panes {
+		if tabs[p.Workspace]++; !slices.ContainsFunc(snap.Spaces, func(s contract.Space) bool { return s.ID == p.Workspace }) {
+			t.Errorf("the pane %s is of no workspace: %q", p.ID, p.Workspace)
+		}
+	}
+	if len(snap.Spaces) != 3 || len(side.Workspaces) != 3 || len(snap.Panes) != 10 {
+		t.Fatalf("%d workspaces kept, %d shown, %d panes", len(snap.Spaces), len(side.Workspaces), len(snap.Panes))
+	}
+	counts, need := "", 0
+	for i, w := range side.Workspaces {
+		sp := snap.Spaces[i]
+		if w.ID != sp.ID || w.Root != sp.Root || w.Name != sp.Name || w.Front != sp.Front || w.Tab != sp.Tab || w.Tabs != tabs[sp.ID] {
+			t.Errorf("the row %+v is not the workspace %+v with its %d tabs", w, sp, tabs[sp.ID])
+		}
+		counts += fmt.Sprintf("%s ▲%d %d, ", w.Name, w.Need, w.Agents)
+		need += w.Need
+	}
+	if counts != "tomsleeps ▲1 4, TestRunFoldersAndPointers ▲0 1, ops-portal ▲1 5, " || need != side.NeedYou || len(side.Marks) != need {
+		t.Errorf("the rows read %q; %d need the person, %d marks", counts, side.NeedYou, len(side.Marks))
+	}
+	run := f.In.Projects[0].Runs[0]
+	for _, r := range side.Rows {
+		if r.Kind == contract.RowAgent && (run.Tasks[r.Task] == nil || run.Tasks[r.Task].Name != r.Name || run.Attempts[r.Task+".1"].Place.Tab != r.Tab) {
+			t.Errorf("the row %q is no task of the run in front", r.Name)
+		}
+		for _, id := range slices.Concat(r.Offer, r.Actions) {
+			if _, ok := contract.FindAction(id); !ok || id == "stop" || id == "close" {
+				t.Errorf("the row %q offers %q", r.Name, id)
+			}
+		}
+		if len(r.Offer) != 2 || (r.Item != "") != (len(r.Actions) > 0 && r.Actions[0] == "answer") || (r.Item != "") != (side.Marks[r.Tab] == 1) {
+			t.Errorf("the menu and the mark of %q: %+v", r.Name, r)
+		}
+	}
+	if side.Version != 2 || side.Split != 15 || side.First.Name != "sign-up page" || side.Title != "tomsleeps" ||
+		len(side.Closed) != 2 || side.Closed[0].Word != "job open · 4 stopped" || side.Closed[1].Word != "" {
+		t.Errorf("version %d, the line on row %d, first %+v, closed %+v", side.Version, side.Split, side.First, side.Closed)
+	}
+}
+
+// The morning with three fleets as it must come out since phase 7 is the
+// model of before with the keeper's workspaces, a menu on every row, and
+// what a menu's first block does no longer among the work's own rows.
+func TestThreeFleetsSincePhaseSeven(t *testing.T) {
+	f := Fleets()
+	old, now := f.Side, f.Side7
+	if len(now.Rows) != len(old.Rows) || len(now.Workspaces) != 3 || len(f.In.Terms.Spaces) != 3 || now.First.Name != old.First.Name {
+		t.Fatalf("%d rows where %d were, %d workspaces", len(now.Rows), len(old.Rows), len(now.Workspaces))
+	}
+	menus := map[string]string{}
+	for i, r := range now.Rows {
+		if was := old.Rows[i]; r.Name != was.Name || r.Look != was.Look || r.Tab != was.Tab || slices.Contains(r.Actions, "stop") {
+			t.Errorf("the row %q changed in more than its menu: %+v", r.Name, r)
+		}
+		menus[r.Kind] = strings.Join(r.Offer, ",") + " | " + strings.Join(r.Actions, ",")
+	}
+	if menus[contract.RowLead] != "rename-tab,close-tab | note-lead" || menus[contract.RowFleet] != "park,note-leader | " || !strings.HasPrefix(menus[contract.RowAgent], "rename,stop-close | ") {
+		t.Errorf("the menus: %v", menus)
+	}
+	ws := now.Workspaces
+	if ws[0].ID != "s1" || ws[0].Need != 1 || ws[0].Tabs != 19 || ws[1].Tabs != 3 || ws[2].Tabs != 2 || !ws[2].Other || len(ws[2].Offer) != 1 ||
+		len(now.Marks) != 1 || now.Marks[now.First.Tab] != 1 || len(old.Workspaces[0].Offer) != 0 {
+		t.Errorf("the workspaces %+v and the marks %v", ws, now.Marks)
+	}
+	for _, p := range f.In.Terms.Panes {
+		if p.Focused && p.Tab != f.In.Terms.Spaces[0].Tab {
+			t.Errorf("the workspace in front shows %s, the keys are in %s", f.In.Terms.Spaces[0].Tab, p.Tab)
+		}
 	}
 }
