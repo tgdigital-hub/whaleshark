@@ -2,8 +2,9 @@
 //
 // The keeper holds one Popup: Show takes a notice and answers honestly,
 // Draw puts the box into each window's grid while it lasts, and Signal is
-// what a window's own terminal is sent with it. Place and Box are the place
-// and the frame of a pane drawn over a tab; the pane's life is the keeper's.
+// what a window's own terminal is sent with it. Place, PlaceAt and Box are
+// the place and the frame of a pane drawn over a tab; the pane's life is
+// the keeper's.
 // The notice sequences are the ones their terminals' own pages give: iTerm2
 // and Ghostty "OSC 9", kitty "OSC 99".
 package overlay
@@ -17,9 +18,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
-
-// Phase 7 owes here: where a placed box stands (Terminals.OverlayAt): its
-// corner at a cell, moved left or up to stay inside a window of any size.
 
 // Plug binds this package's part into the kit: it has no command and stands
 // behind no interface. The keeper draws with it.
@@ -116,6 +114,15 @@ func Place(W, H int, w, h float64) layout.Rect {
 	}
 	r := layout.Rect{W: side(W, w), H: side(H-1, h)}
 	r.X, r.Y = (W-r.W)/2, 1+(H-1-r.H)/2
+	return r
+}
+
+// PlaceAt is Place for a box that stands where it was asked for: its corner
+// at the cell x, y of the window, moved left and up where the window ends,
+// and never on the tab row.
+func PlaceAt(W, H int, w, h float64, x, y int) layout.Rect {
+	r := Place(W, H, w, h)
+	r.X, r.Y = max(min(x, W-r.W), 0), max(min(y, H-r.H), 1)
 	return r
 }
 
