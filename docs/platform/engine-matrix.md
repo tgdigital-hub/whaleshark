@@ -49,6 +49,7 @@ word: it was refused, under that name. The `status` row holds the word the pane 
 | event `folder` | yes | yes | yes |
 | event `session` | yes | yes | yes |
 | event `tab-closed` | yes | yes | yes |
+| event `window` | yes | yes | yes |
 | `status` of a pane with a shell at its prompt | idle | idle | idle |
 | `open`, the window | yes | yes | yes |
 | `hook state`, an agent's own word | yes | yes | yes |

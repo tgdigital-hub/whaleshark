@@ -127,6 +127,7 @@ type TermEvent struct {
 // Apply brings a picture up to date with one event of Events.
 func Apply(s *Snapshot, e TermEvent) {
 	if e.Kind == EvWindow {
+		s.Seq = max(s.Seq, e.Seq)
 		return
 	}
 	byID := func(a, b Pane) int { return strings.Compare(a.ID, b.ID) }
