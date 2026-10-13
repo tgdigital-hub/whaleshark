@@ -81,7 +81,9 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   and do not ask it again in this chat.
 - `answered`: the person has answered an item. A question that climbed has gone down by itself.
 - `human`: the person acted themselves, here or in a fleet, or tells you something: their own
-  words, as if typed in this chat.
+  words, as if typed in this chat. A line here that begins `from your phone:`, `from the page:` or
+  `typed at a terminal:` is the person's own note, sent from away: act on it as on anything they
+  type, once.
 - `quiet`, `blocked`: a leader rests while its fleet waits for it, or sits at a prompt. Look with
   `whaleshark show G7 --screen`; `whaleshark tell G7 "<the note>"` reaches the leader. A leader at
   a permission prompt is the person's to answer: never answer a prompt in another tab.

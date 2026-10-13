@@ -180,6 +180,11 @@ func TestAnAppFromItsCodeToAMessage(t *testing.T) {
 	events := len(s.Inbox.Events)
 	// A whole megabyte, and one that begins like an option: it is the message.
 	b.refused("a message", post(contract.APITell, `{"text":"--now `+strings.Repeat("a", contract.TellMax-6)+`"}`), http.StatusNoContent)
+	// It was typed into the lead agent's tab as the phone's line. The next
+	// finds the agent at work on it: it waits, and the app is told so.
+	if w := post(contract.APITell, `{"text":"and one more"}`); w.Code != http.StatusAccepted || !strings.Contains(w.Body.String(), `"chat":true,"why":"the agent is at work`) {
+		t.Errorf("a message that waits: %d %s", w.Code, w.Body)
+	}
 	b.refused("a setting", post(contract.APISet, `{"key":"theme","value":"kelp"}`), http.StatusNoContent)
 	// A key that holds agents or calls the person is the holder's own act
 	// from an app, and flagged on every screen; a harmless one is not.

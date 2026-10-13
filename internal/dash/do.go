@@ -133,7 +133,7 @@ var (
 // press carries out one row for a job, with a form's fields: for the page's
 // button and for an app alike. From a phone, `set` takes a key the person's
 // agent could ask for and no other, so never one that names a program.
-func (s *server) press(ctx context.Context, a *contract.Action, form url.Values, j job, all []job) (catch *contract.Catchup, err error) {
+func (s *server) press(ctx context.Context, a *contract.Action, form url.Values, j job, all []job, told any) (catch *contract.Catchup, err error) {
 	phone := from(ctx)
 	argv, ok := fill(a, form, s.view(ctx, j, all, true))
 	if key, _ := contract.FindKey(form.Get("key")); ok && phone != "" && a.ID == "set" && (key == nil || key.Agent() == contract.SetPerson) {
@@ -153,7 +153,7 @@ func (s *server) press(ctx context.Context, a *contract.Action, form url.Values,
 		catch = new(contract.Catchup)
 		err = s.read(ctx, j, catch, "", argv...)
 	default:
-		err = s.read(ctx, j, nil, form.Get("text"), argv...)
+		err = s.read(ctx, j, told, form.Get("text"), argv...)
 	}
 	return catch, err
 }
@@ -188,7 +188,7 @@ func (s *server) do(w http.ResponseWriter, r *http.Request, id, button string) {
 	}
 	var catch *contract.Catchup
 	if !paired {
-		catch, err = s.press(r.Context(), a, r.PostForm, j, all)
+		catch, err = s.press(r.Context(), a, r.PostForm, j, all, nil)
 	}
 	if err == notListed || err == notAPhones {
 		s.draw(w, http.StatusConflict, &contract.Page{Screen: contract.ScreenRefused, Said: err.(*contract.Refusal)})

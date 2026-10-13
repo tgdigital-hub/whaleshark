@@ -91,7 +91,7 @@ const (
 	APIChat     = "/chat/"    // GET <run>/<lead or task>: an AppChat
 	APILive     = "/live"     // GET, held open: one line each time the view changes
 	APIDo       = "/do/"      // POST <action>: one row of Actions, its fields as the page's form
-	APITell     = "/tell"     // POST an AppTell: a message to the lead agent, never typed into its tab
+	APITell     = "/tell"     // POST an AppTell: a message to the lead agent, typed into its tab as one line (Said)
 	APISettings = "/settings" // GET: an AppSetting for every key an app may show
 	APISet      = "/set"      // POST an AppSet: a key of SetFree or SetAsks, as the person
 	APIPair     = "/pair"     // POST an AppPair: answered with the number both screens show
@@ -127,6 +127,14 @@ type AppChat struct {
 
 type AppTell struct {
 	Text string `json:"text"`
+}
+
+// AppTold answers an AppTell whose note waits: it is typed into the lead
+// agent's tab as the person's line once Why is over. A note that was typed
+// is answered with nothing, as before.
+type AppTold struct {
+	Chat bool   `json:"chat"`
+	Why  string `json:"why"`
 }
 
 type AppSet struct {

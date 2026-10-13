@@ -205,6 +205,9 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		changed = changed || err == nil
 	}
 	if s.Run.ClosedAt.IsZero() {
+		if len(s.Inbox.Say) > 0 {
+			contract.Say(k, root, run, false) // the person's notes that waited for the lead agent to rest
+		}
 		last.Gone = sw.leaders(root, s, l, last.Gone)
 		sw.pairs(root, s, l)
 		sw.hold(root, s, l)

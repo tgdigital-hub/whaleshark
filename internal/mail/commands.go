@@ -1,7 +1,9 @@
 // Package mail is the messages down to a worker and the person's note to the
 // lead agent: tell, mail and reject. A message is stored in the record and
-// read by the worker with its own command; what is typed into a tab is never
-// more than the one fixed line that says a message is there.
+// read by the worker with its own command; what is typed into a worker's tab
+// is never more than the one fixed line that says a message is there. The
+// person's own note to the agent they talk to is the one text that is typed,
+// as a line of theirs (contract.Say).
 package mail
 
 import (
@@ -42,6 +44,9 @@ type sent struct {
 	Status  contract.TaskStatus `json:"status,omitempty"`
 	Pointer string              `json:"pointer,omitempty"`
 	Why     string              `json:"why,omitempty"`
+	// Chat is set for the person's note that is typed into the lead agent's
+	// tab itself: Pointer then says whether it was, and Why what it waits for.
+	Chat bool `json:"chat,omitempty"`
 }
 
 // words takes a command's two arguments, a task and a text, through the validator.
@@ -101,6 +106,7 @@ func tell(c *contract.Call) (any, error) {
 	var pane string        // the lead agent's
 	var unread int
 	var fleet *contract.Twin // set on a fleet's run
+	now, quiet := c.Flags["now"] != nil, c.Flags["quiet"] != nil
 	err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
 		if err := k.Rules.Allowed(s, c.Caller, c.Command.Name, sub); err != nil {
 			return err
@@ -118,7 +124,14 @@ func tell(c *contract.Call) (any, error) {
 		out.Body, unread = path, len(s.Inbox.Events)
 		if sub != "" {
 			// The person's note says where it came from, as all they do (18.1).
-			s.Inbox.Events[unread-1].Data["where"], fleet = c.Caller.Where, s.Run.Parent
+			e := &s.Inbox.Events[unread-1]
+			e.Data["where"], fleet = c.Caller.Where, s.Run.Parent
+			// The person's own note, to the agent they talk to, is typed there
+			// as their line: never an agent's, and never a fleet leader's tab.
+			if out.Chat = c.Caller.Kind == contract.Human && fleet == nil && !quiet && contract.Said(c.Caller.Where, text) != ""; out.Chat {
+				e.Data["chat"] = true
+				s.Inbox.Say = append(s.Inbox.Say, contract.Note{Seq: out.Seq, Where: c.Caller.Where, Text: contract.SayText(text)})
+			}
 		}
 		if o := s.Run.Orchestrator; o != nil {
 			pane = o.Pane
@@ -140,10 +153,23 @@ func tell(c *contract.Call) (any, error) {
 			return nil
 		})
 	}
-	now, quiet := c.Flags["now"] != nil, c.Flags["quiet"] != nil
-	if sub == "" {
+	switch {
+	case sub == "":
 		err = toWorker(c, out, &a, now, quiet)
-	} else {
+	case out.Chat:
+		out.Pointer = typed
+		if left, why := contract.Say(k, c.Root, c.Run, true); left != 0 {
+			out.Pointer, out.Why = deferred, "another command is typing a note"
+			switch {
+			case errors.Is(why, contract.ErrAgentBlocked):
+				out.Why = "the agent is at a prompt of its own"
+			case errors.Is(why, contract.ErrAgentNotReady):
+				out.Why = "the agent is at work, or none is at rest in front in that tab"
+			case why != nil:
+				out.Why = why.Error()
+			}
+		}
+	default:
 		toLead(c, out, pane, unread, now, quiet)
 	}
 	fmt.Fprintf(c.Out, "Stored as message %d for %s. %s\n", out.Seq, out.Task, out.said())
@@ -151,6 +177,12 @@ func tell(c *contract.Call) (any, error) {
 }
 
 func (o *sent) said() string {
+	switch {
+	case o.Chat && o.Why == "":
+		return "It is typed into the lead agent's tab as your own line."
+	case o.Chat:
+		return "It waits, and is typed into the lead agent's tab as your own line once that can be: " + o.Why + "."
+	}
 	if o.Why == "" {
 		return "Pointer " + o.Pointer + "."
 	}

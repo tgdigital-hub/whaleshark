@@ -54,7 +54,7 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
 - `question`: a worker is blocked on you. If you know: `whaleshark answer q7 "<the answer>"`.
   If only the person can say: `whaleshark escalate q7`, and do not ask it again in this chat.
 - `answered`: the person has answered an item. Act on it.
-- `human`: the person acted themselves, or tells you something: their own words, as in this chat.
+- `human`: the person acted, or sent a note, typed here too (`from your phone: …`): theirs, act on it once.
 - `quiet`, `blocked`: look with `whaleshark show T3 --screen`. A worker that asked in its own chat
   is answered with `whaleshark tell T3 "<the answer>"`. A worker at a permission prompt is the
   person's to answer: never answer a prompt in another tab. After the engine was started again

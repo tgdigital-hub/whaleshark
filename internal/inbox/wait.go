@@ -290,6 +290,9 @@ func (d delivery) print(w io.Writer) {
 		if e.Kind == "human" && e.Data["what"] == "note" {
 			// From the page, a phone or a terminal: only the person can send one.
 			line[4] = "the person says to you, as in your chat: " + e.Text
+			if e.Data["chat"] == true {
+				line[4] = "the person's note, which is also typed into your chat as a line of theirs; act on it once: " + e.Text
+			}
 		}
 		if len(e.Data) > 0 {
 			data, _ := json.Marshal(e.Data)

@@ -67,7 +67,12 @@
 # line more, the flag of a setting that holds agents changed from a phone.
 # 5 more for the owner's word after the join: the kit's reader of how many
 # agents this computer's memory holds, for the warning of unlimited.
-lines 6175 contract internal/contract cmd/whaleshark
+# 120 more for the person's note typed into the lead agent's tab, which a
+# trial with real agents asked for (a real agent declines what a command
+# prints): the line's words and cleaning, the notes that wait in the record,
+# the one function that types them in order and once, the call and what an
+# app is answered while its note waits.
+lines 6295 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more at the join of phase 1: the system's name, a
@@ -229,7 +234,9 @@ lines 170 worker internal/worker
 # that could not be made, said; the hold file is looked at on every sweep.
 # 5 more after the trial with real agents, at what was built (734): wait
 # hands a note of the person's over as their own words.
-lines 735 inbox internal/inbox
+# 5 more: the sweep types the person's notes that waited for the lead agent
+# to rest, and wait words such a note.
+lines 740 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the
 # other runs of a login are three screens that 186 lines could not hold;
 # status --brief, which nobody asked for, left the command table instead of
@@ -271,7 +278,9 @@ lines 3210 view internal/view
 # 5 fewer at the join of phase 6's second wave, at what was built (615).
 lines 620 question internal/question
 # mail gives 20 at the start of phase 5, to contract: built whole at 316.
-lines 360 mail internal/mail
+# 15 more: tell lead queues the person's own note for the lead agent's tab
+# and says whether it was typed or what it waits for.
+lines 375 mail internal/mail
 # notify: 10 more at the start of phase 3, to hand a nudge to a paired
 # phone; watch pays. 10 more for a lock over nudged.json, so that two
 # programs at one moment say a thing once; it stood at its line. input,
@@ -417,7 +426,8 @@ lines 275 team internal/team
 # of phase 6 (213) is counted again at nearly twice.
 # 125 fewer at the join of phase 6's second wave, at what was built (2,239):
 # the interface for apps took 285 where its share was counted at 400.
-lines 2240 dash internal/dash
+# 5 more: an app is told when its note waits.
+lines 2245 dash internal/dash
 lines 350 push internal/push
 # connect and install: 30 and 20 of the engine's share (the clipboard lift,
 # the keeper's service entry), planned since the engine decision and put
@@ -484,7 +494,8 @@ lines 1380 screen internal/screen
 # 60 more at the start of phase 6, at what the integration of phase 5
 # built: a chat's name as its tab's, tabs handed to a new leader, the
 # settings screen in one frame. It stands at 1,981.
-lines 1985 keeper internal/keeper
+# 10 more: the call that types a person's note, and at which pane alone.
+lines 1995 keeper internal/keeper
 # layout gives 135 and input 120 after the Windows proof, to platform,
 # guide, runtask and doctor: both are built whole, at 763 and 467.
 # 70 more for phase 5: the dock's place, the tab row beside it, its edge.
@@ -500,7 +511,9 @@ lines 710 pty internal/pty
 # 30 more for phase 5: a kind of agent from its tool's description.
 # It gives 20 at the join of phase 5's first wave: its table of kinds went
 # and the description's words took its place line for line; built at 591.
-lines 595 watch internal/watch
+# 15 more: a person's note typed at an agent at rest, and the word for a
+# refusal that came after the text was in the pane.
+lines 610 watch internal/watch
 # input: 25 more for phase 5, the three keys of the dock and of the
 # settings screen. It gives 5 at the join of that phase's first wave.
 lines 490 input internal/input

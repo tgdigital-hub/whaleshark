@@ -198,18 +198,32 @@ func TestTellPointer(t *testing.T) {
 	}
 }
 
-// The person's note reaches the lead agent as an event. The pointer is typed
-// only when no wait of its is running and its pane is idle, and the note
-// itself is never typed.
+// A note that is not typed itself reaches the lead agent as an event, and
+// the pointer is typed only when no wait of its is running and its pane is
+// idle: here the person kept the first quiet and sent the others from a pane
+// of ours. The person's own note from a terminal, the page or a phone is
+// typed as their line: say_test.go.
 func TestTellLead(t *testing.T) {
 	p := evening(t, nil)
-	a, exit := run(t, p, scenario.Human, "tell", "lead", "stop work on the search\nI changed my mind")
+	pane := func(args ...string) (a answer) {
+		t.Helper()
+		cmd := p.Command(scenario.Human, append(args, "--json")...)
+		cmd.Env = append(cmd.Env, contract.EnvFrom+"="+contract.WherePane)
+		out, _ := cmd.Output()
+		if err := json.Unmarshal(out, &a); err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, out)
+		}
+		return a
+	}
+	a, exit := run(t, p, scenario.Human, "tell", "lead", "for the record", "--quiet")
 	want(t, "exit", exit, 0)
+	want(t, "pointer", a.Result.Pointer+": "+a.Result.Why, "skipped: --quiet")
+	a = pane("tell", "lead", "stop work on the search\nI changed my mind")
 	want(t, "pointer", a.Result.Pointer, "typed")
-	want(t, "typed lines", strings.Join(pointers(p), "|"), "w1:p1: whaleshark: 1 events waiting. Run: whaleshark wait")
+	want(t, "typed lines", strings.Join(pointers(p), "|"), "w1:p1: whaleshark: 2 events waiting. Run: whaleshark wait")
 	s, dir := p.Record()
 	e := s.Inbox.Events
-	if len(e) != 1 || e[0].Kind != "human" || e[0].Text != "stop work on the search" || e[0].Data["body"] != filepath.Join(dir, "msg", "58.md") {
+	if len(e) != 2 || e[1].Kind != "human" || e[1].Text != "stop work on the search" || e[1].Data["body"] != filepath.Join(dir, "msg", "59.md") {
 		t.Fatalf("event: %+v", e)
 	}
 	// What wait hands over says whose words they are: a real lead agent took
@@ -219,7 +233,7 @@ func TestTellLead(t *testing.T) {
 	}
 
 	// The fake left the lead agent working on the pointer.
-	a, _ = run(t, p, scenario.Page, "tell", "lead", "one more thing")
+	a = pane("tell", "lead", "one more thing")
 	want(t, "pointer", a.Result.Pointer+": "+a.Result.Why, "deferred: until it is idle")
 
 	unlock, ok, err := p.Kit.Platform.TryLock(filepath.Join(dir, "wait.lock"))
@@ -227,7 +241,7 @@ func TestTellLead(t *testing.T) {
 		t.Fatal(ok, err)
 	}
 	defer unlock()
-	a, _ = run(t, p, scenario.Human, "tell", "lead", "and another", "--now")
+	a = pane("tell", "lead", "and another", "--now")
 	want(t, "pointer", a.Result.Pointer+": "+a.Result.Why, "skipped: its wait hands the note over")
 	want(t, "typed lines", len(pointers(p)), 1)
 }
