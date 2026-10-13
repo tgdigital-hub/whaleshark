@@ -458,14 +458,7 @@ func (k *Keeper) overAt() layout.Rect {
 	if k.placed == "" {
 		return layout.Rect{X: r.X + 1, Y: r.Y + 1, W: r.W - 2, H: r.H - 2}
 	}
-	if k.overW > 1 {
-		r.W = min(int(k.overW), k.lay.W)
-	}
-	if k.overH > 1 {
-		r.H = min(int(k.overH), k.lay.H-1)
-	}
-	r.X, r.Y = max(min(k.overX, k.lay.W-r.W), 0), max(min(k.overY, k.lay.H-r.H), 1)
-	return r
+	return overlay.PlaceAt(k.lay.W, k.lay.H, k.overW, k.overH, k.overX, k.overY)
 }
 
 // stands is what a placed pane is held to: the workspace in front and the

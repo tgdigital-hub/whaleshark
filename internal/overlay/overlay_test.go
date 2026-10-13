@@ -160,23 +160,24 @@ func TestAPaneOverATab(t *testing.T) {
 
 // A placed box has its corner at the cell asked for where it fits there, is
 // moved left and up where the window ends, is never on the tab row, and is
-// the size Place gives it: in a window of any size it is inside the window.
+// the size asked for, frame and all: in a window of any size it is inside
+// the window.
 func TestABoxAtACell(t *testing.T) {
 	for _, c := range []struct {
 		W, H int
 		w, h float64
 		x, y int
 		want layout.Rect
-	}{{160, 40, 22, 2, 45, 1, layout.Rect{X: 45, Y: 1, W: 24, H: 4}}, // under a tab's name
-		{120, 30, 22, 3, 12, 8, layout.Rect{X: 12, Y: 8, W: 24, H: 5}},  // from the left section, over the tab
-		{80, 24, 24, 5, 6, 20, layout.Rect{X: 6, Y: 17, W: 26, H: 7}},   // moved up from the last rows
-		{80, 24, 22, 2, 70, 1, layout.Rect{X: 56, Y: 1, W: 24, H: 4}},   // moved left from the right edge
-		{80, 24, 22, 2, 79, 23, layout.Rect{X: 56, Y: 20, W: 24, H: 4}}, // from the last cell
-		{80, 24, 22, 2, 30, 0, layout.Rect{X: 30, Y: 1, W: 24, H: 4}},   // asked for on the tab row
-		{80, 24, 22, 2, -5, -5, layout.Rect{X: 0, Y: 1, W: 24, H: 4}},
-		{80, 24, 22, 2, 500, 500, layout.Rect{X: 56, Y: 20, W: 24, H: 4}},
-		{30, 24, 32, 2, 10, 5, layout.Rect{X: 0, Y: 5, W: 30, H: 4}}, // a window narrower than the box: its whole width
-		{20, 4, 22, 6, 3, 2, layout.Rect{X: 0, Y: 1, W: 20, H: 3}},   // and lower: every row under the tab row
+	}{{160, 40, 24, 4, 45, 1, layout.Rect{X: 45, Y: 1, W: 24, H: 4}}, // under a tab's name
+		{120, 30, 24, 5, 12, 8, layout.Rect{X: 12, Y: 8, W: 24, H: 5}},  // from the left section, over the tab
+		{80, 24, 26, 7, 6, 20, layout.Rect{X: 6, Y: 17, W: 26, H: 7}},   // moved up from the last rows
+		{80, 24, 24, 4, 70, 1, layout.Rect{X: 56, Y: 1, W: 24, H: 4}},   // moved left from the right edge
+		{80, 24, 24, 4, 79, 23, layout.Rect{X: 56, Y: 20, W: 24, H: 4}}, // from the last cell
+		{80, 24, 24, 4, 30, 0, layout.Rect{X: 30, Y: 1, W: 24, H: 4}},   // asked for on the tab row
+		{80, 24, 24, 4, -5, -5, layout.Rect{X: 0, Y: 1, W: 24, H: 4}},
+		{80, 24, 24, 4, 500, 500, layout.Rect{X: 56, Y: 20, W: 24, H: 4}},
+		{30, 24, 34, 4, 10, 5, layout.Rect{X: 0, Y: 5, W: 30, H: 4}}, // a window narrower than the box: its whole width
+		{20, 4, 24, 8, 3, 2, layout.Rect{X: 0, Y: 1, W: 20, H: 3}},   // and lower: every row under the tab row
 		{80, 24, 0.5, 0.5, 60, 20, layout.Rect{X: 40, Y: 13, W: 40, H: 11}}} {
 		if got := PlaceAt(c.W, c.H, c.w, c.h, c.x, c.y); got != c.want {
 			t.Errorf("%v by %v at %d,%d in a window of %d by %d is at %+v, want %+v", c.w, c.h, c.x, c.y, c.W, c.H, got, c.want)
@@ -188,10 +189,16 @@ func TestABoxAtACell(t *testing.T) {
 		w, h := r.Float64()*float64(r.Intn(300)), r.Float64()*float64(r.Intn(100))
 		x, y := r.Intn(W+40)-20, r.Intn(H+40)-20
 		at, mid := PlaceAt(W, H, w, h, x, y), Place(W, H, w, h)
+		if w > 1 {
+			mid.W = min(int(w), W)
+		}
+		if h > 1 {
+			mid.H = min(int(h), H-1)
+		}
 		fits := x >= 0 && y >= 1 && x+mid.W <= W && y+mid.H <= H
 		switch {
 		case at.X < 0 || at.Y < 1 || at.X+at.W > W || at.Y+at.H > H, at.W != mid.W || at.H != mid.H:
-			t.Fatalf("in a window of %d by %d the box asked for at %d,%d is at %+v (in the middle %+v)", W, H, x, y, at, mid)
+			t.Fatalf("in a window of %d by %d the box asked for at %d,%d is at %+v (its size %+v)", W, H, x, y, at, mid)
 		case fits && (at.X != x || at.Y != y), at.X > max(x, 0) || at.Y > max(y, 1):
 			t.Fatalf("in a window of %d by %d the box asked for at %d,%d stands at %+v", W, H, x, y, at)
 		}

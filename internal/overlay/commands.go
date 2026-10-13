@@ -117,11 +117,18 @@ func Place(W, H int, w, h float64) layout.Rect {
 	return r
 }
 
-// PlaceAt is Place for a box that stands where it was asked for: its corner
-// at the cell x, y of the window, moved left and up where the window ends,
-// and never on the tab row.
+// PlaceAt is where a placed pane stands, which is its program's own box and
+// has no frame of the keeper's: w by h cells of it (or shares of the window,
+// as Place counts them), its corner at the cell x, y of the window, moved
+// left and up where the window ends, and never on the tab row.
 func PlaceAt(W, H int, w, h float64, x, y int) layout.Rect {
 	r := Place(W, H, w, h)
+	if w > 1 {
+		r.W = min(int(w), W)
+	}
+	if h > 1 {
+		r.H = min(int(h), H-1)
+	}
 	r.X, r.Y = max(min(x, W-r.W), 0), max(min(y, H-r.H), 1)
 	return r
 }
