@@ -50,7 +50,7 @@ word: it was refused, under that name. The `status` row holds the word the pane 
 | event `session` | yes | yes | yes |
 | event `tab-closed` | yes | yes | yes |
 | event `window` | yes | yes | yes |
-| event `space` | no: not seen | no: not seen | no: not seen |
+| event `space` | yes | yes | yes |
 | event `menu` | no: not seen | no: not seen | no: not seen |
 | `status` of a pane with a shell at its prompt | idle | idle | idle |
 | `open`, the window | yes | yes | yes |
@@ -98,10 +98,11 @@ near side's surroundings and with no terminal, as a command typed after `ssh ser
 
 ## What is missing
 
-- **The events `space` and `menu` are named and not yet sent.** Workspaces kept by the keeper,
-  and a menu asked for on the tab row, are designed and their calls are in the interface; the
-  keeper answers none of them yet, so no event of either kind comes. The two rows turn to
-  `yes` with the keeper's part.
+- **The event `menu` is named and not yet sent.** A menu asked for on the tab row is designed
+  and its call is in the interface; the keeper does not yet act on the pointer there, so no
+  such event comes. The row turns to `yes` with that part of the keeper. The keeper keeps
+  workspaces and tells of every change to them: the row `space` was seen on macOS, and on
+  Linux and Windows it is the same code, to be seen at the next run there.
 - **On Windows the program in front in a pane is worked out, not asked for**: the system has
   no such thing. The keeper reads it from the pane's own processes: the pane's first program,
   and from each shell on the way down the program that shell started last. Seen here: a pane
