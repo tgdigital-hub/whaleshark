@@ -76,6 +76,9 @@ func task(c *contract.Call) (any, error) {
 				}
 				edit.After = &after
 			}
+			if data != nil { // the rule is told of a new brief; its text is written by keep
+				edit.Brief = &found.Brief
+			}
 			if ready, err = k.Rules.EditTask(s, found.ID, edit, c.Now); err == nil && data != nil {
 				err = keep(c, found, data)
 			}

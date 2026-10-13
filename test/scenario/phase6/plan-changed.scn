@@ -1,0 +1,57 @@
+# Phase 6, plan first on: the person's yes is to a task as it was told and
+# checked when they said it. A brief or a check changed afterwards takes the
+# task out of what was approved, and it is shown again before it starts; a
+# yes that has not settled yet is taken back the same way. What a task owns
+# is no part of that.
+agent T1.1: write-result | report done "the cart is in" | hang
+agent T2.1: hang
+agent T3.1: write-result | report done "the help is in" | hang
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+file other.md: Target: the till | Change: all of it | Constraints: none | Ownership: every file | Acceptance: nothing
+orch: init
+human: set plan.first on
+orch: run new "the shop"                            -> expect r1
+task T1 "The cart" --name cart --check "exit 0" --brief brief.md
+task T2 "The search" --name search --check "exit 0" --brief brief.md
+task T3 "The help" --name help --check "exit 0" --brief brief.md
+
+# A brief changed between the yes and the moment it settles: the yes is
+# taken back, and the item waits again.
+orch: start T1 T2 T3                                -> expect exit 5 "Plan first is on"
+human: answer n1 approve
+orch: task edit T3 --brief other.md                 -> expect "Changed: brief"
+clock +5s
+orch: status --sweep --quiet
+orch: start T1 T2 T3                                -> expect exit 5 "Plan first is on"
+orch: status --items                                -> expect n1 "3 tasks"
+human: answer n1 approve
+clock +5s
+orch: status --sweep --quiet
+orch: start T1                                      -> expect "(T1.1)"
+await: attempts T1.1 reported
+
+# A check changed after the yes: that task is shown again, alone, and the
+# others start as approved. The same check again, and other files to own,
+# change nothing.
+orch: task edit T2 --check "exit 1"                 -> expect "Changed: check"
+orch: task edit T3 --check "exit 0" --owns "docs/**"
+orch: start T2 T3                                   -> expect exit 5 "Plan first is on"
+orch: status --items                                -> expect n2 "1 more task"
+orch: start T3                                      -> expect "(T3.1)"
+await: attempts T3.1 reported
+human: answer n2 approve
+clock +5s
+orch: status --sweep --quiet
+orch: start T2                                      -> expect "(T2.1)"
+
+# A brief changed after the yes has settled, the same.
+task T4 "The till" --name till --check "exit 0" --brief brief.md
+orch: start T4                                      -> expect exit 5 "Plan first is on"
+human: answer n3 approve
+clock +5s
+orch: status --sweep --quiet
+orch: task edit T4 --brief other.md
+orch: start T4                                      -> expect exit 5 "Plan first is on"
+orch: status --items                                -> expect n4 "1 more task"
+assert: attempts T1.1 reported, T2.1 working, T3.1 reported; n1 state used; n2 state used; n3 state used; n4 state open
+assert: no event lost; no event twice

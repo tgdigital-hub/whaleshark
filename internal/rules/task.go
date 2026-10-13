@@ -129,6 +129,15 @@ func (r Rules) EditTask(s *contract.State, id string, edit contract.TaskEdit, no
 		}
 		t.After = slices.Clone(*edit.After)
 	}
+	// The person's yes to a plan was to the task as it was told and checked
+	// then: with another brief or check it is shown again before it starts.
+	if p := s.Run.Plan; p != nil && (edit.Brief != nil || edit.Check != nil && *edit.Check != t.Check) {
+		p.Approved = slices.DeleteFunc(p.Approved, func(was string) bool { return was == t.ID })
+		if q := s.Questions[p.Item]; pending(q) && q.Answer != "" && slices.Contains(q.Tasks, t.ID) {
+			shelve(q, q.AnsweredBy, now)
+			q.State = contract.QuestionOpen
+		}
+	}
 	if edit.Brief != nil {
 		t.Brief = *edit.Brief
 	}

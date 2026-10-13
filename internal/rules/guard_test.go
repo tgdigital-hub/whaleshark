@@ -137,6 +137,50 @@ func TestPlanFirst(t *testing.T) {
 	}
 }
 
+// A yes to a plan is to each task as it was told and checked then. Another
+// brief or check takes the task out of the approved ones, and takes back a
+// yes that has not settled; the same check again, other files to own and
+// another order take nothing out.
+func TestAPlanIsApprovedAsItWasTold(t *testing.T) {
+	s := newRun()
+	for _, id := range []string{"T1", "T2", "T3"} {
+		add(t, s, id)
+	}
+	r.Planned(s, []string{"T1", "T2", "T3"}, "three", nil, t0)
+	q := itemOf(s, contract.CausePlan)
+	settle(t, s, q.ID, contract.AnswerApprove, t0)
+	same, other, brief := "true", "false", "briefs/other.md"
+	for _, edit := range []contract.TaskEdit{{Check: &same}, {Owns: &[]string{"docs/**"}}, {After: &[]string{"T1"}}} {
+		if _, err := r.EditTask(s, "T3", edit, t0); err != nil || len(contract.Unplanned(s, []string{"T1", "T2", "T3"})) != 0 {
+			t.Fatalf("an edit that changes neither brief nor check (%+v) took a task out: %v, %v", edit, s.Run.Plan.Approved, err)
+		}
+	}
+	edited := func(id string, edit contract.TaskEdit) {
+		t.Helper()
+		if _, err := r.EditTask(s, id, edit, after(time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	edited("T2", contract.TaskEdit{Check: &other})
+	edited("T3", contract.TaskEdit{Brief: &brief})
+	if lack := contract.Unplanned(s, []string{"T1", "T2", "T3"}); !slices.Equal(lack, []string{"T2", "T3"}) {
+		t.Fatalf("after another check and another brief, not approved: %v", lack)
+	}
+	// Shown again as what is new, and a yes on its way is taken back.
+	if r.Planned(s, []string{"T1", "T2", "T3"}, "two more", nil, after(time.Hour)) == nil {
+		t.Fatal("a task with another check started on the old yes")
+	}
+	more := s.Questions[s.Run.Plan.Item]
+	if more == q || !slices.Equal(more.Tasks, []string{"T2", "T3"}) {
+		t.Fatalf("the item of what was changed: %+v", more)
+	}
+	must(t, r.Answer(s, more.ID, contract.AnswerApprove, human, 4*time.Second, after(time.Hour)))
+	edited("T2", contract.TaskEdit{Check: &same})
+	if _, ok, _ := r.Use(s, more.ID, after(2*time.Hour)); ok || more.State != contract.QuestionOpen || len(more.Earlier) != 1 || !slices.Equal(s.Run.Plan.Approved, []string{"T1"}) {
+		t.Fatalf("a yes given before the check changed was used: %+v, approved %v", more, s.Run.Plan.Approved)
+	}
+}
+
 // 20.2, its security table: the sign-off is the person's alone and is for
 // exact contents; names from a repository are data.
 func TestProtectedFiles(t *testing.T) {

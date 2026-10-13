@@ -132,6 +132,23 @@ func TestPlanFirstThenStart(t *testing.T) {
 	}
 }
 
+// A yes to a plan does not outlive a change of what a task is told or
+// checked by: the task leaves the approved ones, and a yes that had not
+// settled is kept among the item's earlier answers.
+func TestAChangedTaskIsShownAgain(t *testing.T) {
+	p := play(t, "plan-changed.scn")
+	s, _ := p.Record()
+	if s.Run.Plan == nil || !slices.Equal(s.Run.Plan.Approved, []string{"T1", "T3", "T2"}) {
+		t.Errorf("what the person approved: %+v", s.Run.Plan)
+	}
+	if q := s.Questions["n1"]; len(q.Earlier) != 1 || q.Earlier[0].Answer != contract.AnswerApprove {
+		t.Errorf("the yes that was taken back: %+v", q.Earlier)
+	}
+	if s.Attempts["T4.1"] != nil || !slices.Equal(s.Questions["n4"].Tasks, []string{"T4"}) {
+		t.Errorf("the task with another brief: attempt %+v, item %+v", s.Attempts["T4.1"], s.Questions["n4"])
+	}
+}
+
 func TestProtectedFilesHoldTheLanding(t *testing.T) {
 	p := play(t, "protected-files.scn")
 	if s, _ := p.Record(); s.Run.Protect == nil || s.Run.Protect.Print == "" || s.Run.Protect.Print != s.Run.Protect.Seen || s.Run.Integration == nil || s.Run.Integration.Landed == "" {
