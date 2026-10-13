@@ -189,19 +189,21 @@ const (
 const ProtectDefault = ".env*,**/migrations/**,**/secrets/**,.github/workflows/**,deploy/**"
 
 // asking are the keys that hold agents or are how the person is called, by
-// name or by what a name begins with.
-var asking = []string{"fleets.", "plan.", "protect.", "spend.", "stuck.", "nudge.", "notify.", "dnd", "mute", "ui.settle_seconds"}
+// name or by what a name begins with; the command key is how the person
+// reaches Stop all and every other shortcut.
+var asking = []string{"fleets.", "plan.", "protect.", "spend.", "stuck.", "nudge.", "notify.", "dnd", "mute", "ui.settle_seconds", "keys.command"}
 
 // Agent is what `set` does with this key for the agent the person talks to
 // (the lead agent, the orchestrator, a pane bound to no job): SetFree,
 // SetAsks or SetPerson. A fleet leader and a worker set nothing. Theirs
 // alone is everything that names a program or reaches outside, every key of
-// a project's and of the server's file, and of a tool's description all but
-// its label and what it suits.
+// a project's and of the server's file, of a tool's description all but
+// its label and what it suits, and whether a program may write the
+// person's clipboard, which is outside the tool.
 func (k *Key) Agent() string {
 	own := k.Name == "tools.<name>.label" || k.Name == "tools.<name>.suits"
 	switch {
-	case k.Asks != "" || k.Store == StoreProject || k.Store == StoreServer || k.Store == StoreTools && !own:
+	case k.Asks != "" || k.Store == StoreProject || k.Store == StoreServer || k.Store == StoreTools && !own || k.Name == "clipboard.programs":
 		return SetPerson
 	case slices.ContainsFunc(asking, func(a string) bool { return k.Name == a || strings.HasSuffix(a, ".") && strings.HasPrefix(k.Name, a) }):
 		return SetAsks

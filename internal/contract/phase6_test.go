@@ -60,6 +60,9 @@ func TestWhatAnAgentMaySet(t *testing.T) {
 		"shell": SetPerson, "shortcut.<key>": SetPerson, "notify.url": SetPerson, "tools.<name>.run": SetPerson, "tools.<name>.env.<VAR>": SetPerson,
 		"tools.<name>.hooks": SetPerson, "tools.<name>.rules": SetPerson, "tools.<name>.tried": SetPerson, "protect.also": SetPerson,
 		"land.who": SetPerson, "limits.stale_minutes": SetPerson, "server.road": SetPerson,
+		// The key that reaches Stop all asks; what lets a program write the
+		// person's clipboard is theirs alone (both were an agent's to set at once).
+		"keys.command": SetAsks, "clipboard.programs": SetPerson,
 	} {
 		if k, _ := FindKey(name); k == nil || k.Agent() != want {
 			t.Errorf("%s: %v, want %s", name, k, want)
