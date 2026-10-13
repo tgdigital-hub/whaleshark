@@ -89,7 +89,7 @@
 # other text in it; a loaded profile knows which keys its file says itself;
 # and the stuck detector's own ceilings for a project's three spans.
 # 410 more at the start of phase 7, where 190 were planned, at what was built
-# (6,848): a workspace in the keeper's picture with its event and its three
+# (6,853): a workspace in the keeper's picture with its event and its three
 # calls, a placed overlay, what waits in each tab, a tab's project and fleet
 # at its opening 115; the wall between workspaces, the fence's five new
 # members and three refusals 35; the left section's model with a workspace's
@@ -713,8 +713,8 @@ skip _test.go testdata testkit
 # 95 lines, each with its test. The total stands.
 # 48,000 at the start of phase 7: each workspace with its own tabs, a menu at
 # the pointer, lines that are dragged and say their size, the left section in
-# two halves, two tab lines for fleets. The tree stands at 45,161 with what
-# the phase's parts share: 470 lines, of them 359 in the contract where 190
+# two halves, two tab lines for fleets. The tree stands at 45,166 with what
+# the phase's parts share: 475 lines, of them 364 in the contract where 190
 # were planned, 30 in the keeper's client and the window's hello, and 81 in
 # notes that each part replaces with its code. The phase was planned at 1,565
 # lines. Phases 5 and 6 were each built at about twice their plan, so every
