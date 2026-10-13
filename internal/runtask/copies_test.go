@@ -275,7 +275,7 @@ func TestAClosedRunIsClearedFromItsOwnTab(t *testing.T) {
 	}
 
 	// The lead agent's tab is bound to nothing now. What it tries says where to go.
-	h.orch(5, "close", "--settled")("run takeover")
+	h.orch(5, "close", "--settled")("No run is open here: r1 is closed.", `Next: whaleshark run new "<objective>"`)
 	h.orch(5, "run", "takeover")("Run r1 is closed", `Next: whaleshark run new "<objective>"`)
 	h.orch(0, "run", "new", "the next")("Run r2 is open")
 	h.orch(5, "task", "add", "A", "the A part", "--name", "Part a", "--brief", "b.md", "--check", "none")(
