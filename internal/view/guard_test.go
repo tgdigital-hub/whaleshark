@@ -100,7 +100,8 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 		!strings.Contains(body, "spent: 33 of 40 agent-hours · held") || !strings.Contains(body, "setting changed by your agent: theme") {
 		t.Errorf("the lines %q and the alerts %q, and the text:\n%s", v.Lines, v.Alerts, body)
 	}
-	if got, want := printed(t, v), append([]string{"▲ n1", "▲ n2", "▲ n3", "▲ n4", "▲ n5"}, marked(v)...); !slices.Equal(got, want) {
+	// The held job's item is urgent and stands first, older ones under it.
+	if got, want := printed(t, v), append([]string{"▲ n4", "▲ n1", "▲ n2", "▲ n3", "▲ n5"}, marked(v)...); !slices.Equal(got, want) {
 		t.Errorf("status prints\n%v\nthe view holds\n%v", got, want)
 	}
 	side := Side(contract.SideInput{Now: g.Now, Person: g.Person, Checked: g.Now, UI: in.UI, Changed: []string{"tools.hermes.run"}, NewVersion: "version 1.3 is out\x1b[2J", Projects: []contract.SideProject{{Root: "shop", Runs: []*contract.State{g.Up, g.Low["billing"], g.Low["search"]}}}})

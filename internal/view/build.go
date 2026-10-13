@@ -309,7 +309,7 @@ func (b *builder) items(v *contract.View) {
 	})
 	ui := b.in.UI
 	quiet := ui.DND && (ui.DNDUntil.IsZero() || b.in.Now.Before(ui.DNDUntil))
-	var rest, last []contract.Item
+	var first, rest, last []contract.Item
 	for _, q := range qs {
 		st := b.seats[q.Task]
 		asking := q.Kind == contract.KindAsk && st != nil && st.live && st.try.ID == q.Attempt
@@ -342,6 +342,10 @@ func (b *builder) items(v *contract.View) {
 			switch {
 			case quiet && !q.Urgent && q.ShownAt.IsZero():
 				v.Held = append(v.Held, it)
+			case q.Urgent:
+				// A job held at its limit does not ask from under the
+				// questions that were there before it.
+				first = append(first, it)
 			case holds:
 				v.Items = append(v.Items, it)
 			case q.Cause == contract.CauseLeadUnread:
@@ -351,7 +355,7 @@ func (b *builder) items(v *contract.View) {
 			}
 		}
 	}
-	v.Items = append(append(v.Items, rest...), last...)
+	v.Items = slices.Concat(first, v.Items, rest, last)
 	slices.Reverse(v.Answered)
 	v.Answered = v.Answered[:min(len(v.Answered), answeredKept)]
 }
