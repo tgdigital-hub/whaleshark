@@ -113,7 +113,7 @@ func (r Rules) Spend(s *contract.State, fleet string, spent time.Duration, limit
 		return ""
 	}
 	who, key := cmp.Or(fleet, "This job"), map[bool]string{true: "spend.job", false: "spend.fleet"}[fleet == ""]
-	text := strconv.FormatFloat(math.Round(spent.Hours()*10)/10, 'f', -1, 64) + " of " + strconv.Itoa(limit) + " agent-hours used"
+	text := strconv.FormatFloat(math.Round(spent.Hours()*10)/10, 'f', -1, 64) + " of " + strconv.Itoa(limit) + " " + contract.HourWord(strconv.Itoa(limit)) + " used"
 	switch over := limit != contract.Unlimited && spent >= time.Duration(limit)*time.Hour; {
 	case over:
 		if !sp.Held {
@@ -125,7 +125,7 @@ func (r Rules) Spend(s *contract.State, fleet string, spent time.Duration, limit
 		}
 		if more := max(1, int(float64(limit)*contract.SpendMore+0.5)); q == nil {
 			r.Need(s, contract.Question{Form: contract.FormChoice, From: contract.FromTool, Cause: contract.CauseBudget, Urgent: true, Task: group,
-				Text:    fmt.Sprintf("%s has used its %d agent-hours", who, limit), // its first line: the view says who is held
+				Text:    fmt.Sprintf("%s has used its %d %s", who, limit, contract.HourWord(strconv.Itoa(limit))), // its first line: the view says who is held
 				Options: []string{contract.AnswerMore, contract.AnswerNoLimit, contract.AnswerLeave},
 				Set:     &contract.SetAsk{Key: key, From: strconv.Itoa(limit), To: strconv.Itoa(limit + more)}}, now)
 		}

@@ -300,13 +300,14 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 	// it off there is no limit, and a hold is let go. Then the person's
 	// settled answers to the tool's own items are made final.
 	if s.Run.Parent == nil {
-		was, paused, items, runs := s.Run.Spend, s.Run.Paused == nil, len(s.Questions), []*contract.State{s}
+		was, paused, items := s.Run.Spend, s.Run.Paused == nil, len(s.Questions)
+		job, each := contract.JobSpent(l.now, s, l.fleets)
 		for _, name := range slices.Sorted(maps.Keys(s.Run.Fleets)) {
-			f, low, had := s.Run.Fleets[name], cmp.Or(l.fleets[name], &contract.State{}), s.Run.Fleets[name].Spend
-			l.rules.Spend(s, name, contract.Spent(l.now, low), l.person.SpendLimit(had, true), l.now)
-			runs, changed = append(runs, low), changed || f.Spend != had
+			f, had := s.Run.Fleets[name], s.Run.Fleets[name].Spend
+			l.rules.Spend(s, name, each[name], l.person.SpendLimit(had, true), l.now)
+			changed = changed || f.Spend != had
 		}
-		l.rules.Spend(s, "", contract.Spent(l.now, runs...), l.person.SpendLimit(was, false), l.now)
+		l.rules.Spend(s, "", job, l.person.SpendLimit(was, false), l.now)
 		for _, id := range slices.Sorted(maps.Keys(s.Questions)) {
 			q := s.Questions[id]
 			if q.From != contract.FromTool || q.State != contract.QuestionAnswered || !contract.PersonOnly(q.Cause) {

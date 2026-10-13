@@ -210,6 +210,29 @@ func TestSpent(t *testing.T) {
 	if got := Spent(at(12, 0), job, fleet); got != 6*time.Hour {
 		t.Errorf("spent %v, want 6h", got)
 	}
+	// A leader that holds a second group from ten is one agent in one tab:
+	// counted once, as is a tab that held one agent after another. Without
+	// a pane on record every attempt is an agent of its own.
+	job.Attempts["G1.1"].Place.Pane = "p2"
+	job.Attempts["G4.1"] = &Attempt{State: AttemptWorking, StartedAt: at(10, 0), Leads: "r2", Place: Place{Pane: "p2"}}
+	job.Attempts["G5.1"] = &Attempt{State: AttemptStopped, StartedAt: at(7, 0), EndedAt: at(8, 0), Place: Place{Pane: "p2"}}
+	if got := Spent(at(12, 0), job, fleet); got != 7*time.Hour {
+		t.Errorf("a leader of two groups, after an hour of another agent in its tab: spent %v, want 7h", got)
+	}
+	// A fleet that ended keeps what its run used, and when it is led again
+	// in a new run the job has not forgotten it; a record from before that
+	// was kept is read from the ended run itself.
+	job.Run.Fleets = map[string]*Fleet{"billing": {Run: "r2"}, "search": {Run: "r3", EndedAt: at(9, 0), Used: 4 * time.Hour},
+		"old": {Run: "r4", EndedAt: at(9, 0)}, "again": {Run: "r6", Used: 90 * time.Minute}}
+	lows := map[string]*State{"billing": fleet, "old": {Attempts: map[string]*Attempt{"T1.1": {State: AttemptAccepted, StartedAt: at(8, 0), EndedAt: at(9, 0)}}},
+		"again": {Attempts: map[string]*Attempt{"T1.1": {State: AttemptWorking, StartedAt: at(11, 45)}}}}
+	total, each := JobSpent(at(12, 0), job, lows)
+	if total != 13*time.Hour+45*time.Minute || each["billing"] != 2*time.Hour || each["search"] != 4*time.Hour || each["old"] != time.Hour || each["again"] != 105*time.Minute {
+		t.Errorf("the job has spent %v, its fleets %v", total, each)
+	}
+	if HourWord("1") != "agent-hour" || HourWord("2") != "agent-hours" || HourWord("0.5") != "agent-hours" || HourWord("10") != "agent-hours" {
+		t.Error("one agent-hour, two agent-hours")
+	}
 	// Held at eleven: the clocks stand from then on.
 	fleet.Run.Paused = &Pause{At: at(11, 0), By: HeldBy}
 	if got := Spent(at(15, 0), fleet); got != 30*time.Minute {

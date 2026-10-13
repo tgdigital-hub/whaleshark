@@ -291,8 +291,10 @@ func TestParkAndEnd(t *testing.T) {
 	if err := r.Ended(up, fleetRun("r5"), false, t0); code(err) != contract.RefusedNotFleets {
 		t.Errorf("Ended on a run that is no fleet's: %v", err)
 	}
+	// What the run used is written into the job's record as it ends.
+	low.Attempts[worker2].StartedAt = low.Attempts[worker2].EndedAt.Add(-2 * time.Hour)
 	must(t, r.Ended(up, low, false, after(time.Minute)))
-	if f.EndedAt != after(time.Minute) || f.Pane != "" || open(low) == nil {
+	if f.EndedAt != after(time.Minute) || f.Pane != "" || open(low) == nil || f.Used != 2*time.Hour {
 		t.Errorf("ended: %+v", f)
 	}
 	if err := r.Lead(up, low, g, contract.Binding{Pane: "w1:p9"}, "", t0); code(err) != "closed" {
@@ -305,7 +307,7 @@ func TestParkAndEnd(t *testing.T) {
 	}
 	again := fleetRun("r6")
 	led(t, up, again, "G4", "w1:p9")
-	if f := up.Run.Fleets["billing"]; f.Run != "r6" || f.Pane != "w1:p9" || !f.EndedAt.IsZero() || !slices.Equal(f.Groups, []string{"G4"}) || sound(up, again) != "" {
+	if f := up.Run.Fleets["billing"]; f.Run != "r6" || f.Pane != "w1:p9" || !f.EndedAt.IsZero() || !slices.Equal(f.Groups, []string{"G4"}) || sound(up, again) != "" || f.Used != 2*time.Hour {
 		t.Errorf("a fleet that began again: %+v, %s", f, sound(up, again))
 	}
 	if err := r.Ended(up, low, true, t0); code(err) != contract.RefusedNotFleets {

@@ -100,6 +100,15 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 		!strings.Contains(body, "spent: 33 of 40 agent-hours · held") || !strings.Contains(body, "setting changed by your agent: theme") {
 		t.Errorf("the lines %q and the alerts %q, and the text:\n%s", v.Lines, v.Alerts, body)
 	}
+	// A limit of one is one agent-hour, in the line and on the button.
+	one := in
+	one.Person.Spend.Job = 1
+	it := *in.State.Questions["n4"]
+	it.Set = &contract.SetAsk{Key: "spend.job", From: "1", To: "2"}
+	in.State.Questions["n4"] = &it
+	if v := Build(one); !slices.Contains(v.Lines, "spent: 33 of 1 agent-hour · held") || item(t, v.Items, "n4").Buttons[0].Label != "1 more agent-hour" {
+		t.Errorf("one agent-hour: %q, %q", v.Lines, item(t, v.Items, "n4").Buttons[0].Label)
+	}
 	// The held job's item is urgent and stands first, older ones under it.
 	if got, want := printed(t, v), append([]string{"▲ n4", "▲ n1", "▲ n2", "▲ n3", "▲ n5"}, marked(v)...); !slices.Equal(got, want) {
 		t.Errorf("status prints\n%v\nthe view holds\n%v", got, want)
