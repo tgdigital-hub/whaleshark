@@ -35,7 +35,7 @@ func TestEveryMethodIsOneCall(t *testing.T) {
 	}{
 		{func() (any, error) { return terms.Version() }, C{Op: contract.OpVersion}, "double"},
 		{func() (any, error) {
-			p, err := terms.TabCreate("/w", "one", []string{"A=1"})
+			p, err := terms.TabCreate("", "", "/w", "one", []string{"A=1"})
 			return p.ID + " " + p.Tab + " " + p.Label, err
 		},
 			C{Op: contract.OpTabCreate, Cwd: "/w", Label: "one", Env: []string{"A=1"}}, "p1 t1 one"},
@@ -65,6 +65,30 @@ func TestEveryMethodIsOneCall(t *testing.T) {
 		{func() (any, error) { return nil, terms.SetKeys(keys) }, C{Op: contract.OpSetKeys, Keys: keys}, nil},
 		{func() (any, error) { return nil, terms.Overlay([]string{"whaleshark", "ask"}, 0.5, 12) },
 			C{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ask"}, W: 0.5, H: 12}, nil},
+		// Phase 7: a placed overlay, a workspace opened, named and closed, a
+		// tab of a named project and fleet, and what waits in each tab,
+		// which only the dock's pane tells.
+		{func() (any, error) { return nil, terms.OverlayAt([]string{"whaleshark", "ask"}, 24, 4, "p1", 3, 2) },
+			C{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{"whaleshark", "ask"}, W: 24, H: 4, Pane: "p1", X: 3, Y: 2}, nil},
+		{func() (any, error) {
+			p, err := terms.SpaceOpen("/x", "/x/sub")
+			return p.ID + " " + p.Tab + " " + p.Label + " " + p.Workspace + " " + p.Cwd, err
+		},
+			C{Op: contract.OpSpaceOpen, Space: "/x", Cwd: "/x/sub"}, "p3 t2 Orchestrator s2 /x/sub"},
+		{func() (any, error) { return nil, terms.SpaceRename("s2", "shop") }, C{Op: contract.OpSpaceRename, Space: "s2", Label: "shop"}, nil},
+		{func() (any, error) {
+			p, err := terms.TabCreate("/x", "billing", "/x", "leader", nil)
+			return p.ID + " " + p.Tab + " " + p.Workspace + " " + f.Group(p.Tab), err
+		},
+			C{Op: contract.OpTabCreate, Space: "/x", Group: "billing", Cwd: "/x", Label: "leader"}, "p4 t3 s2 billing"},
+		{func() (any, error) {
+			t.Setenv(contract.EnvPane, "dock")
+			defer os.Unsetenv(contract.EnvPane)
+			err := terms.Marks(map[string]int{"t3": 2, "t9": 1})
+			return f.Told(), err
+		},
+			C{Op: contract.OpMarks, Marks: map[string]int{"t3": 2, "t9": 1}, From: "dock"}, map[string]int{"t3": 2}},
+		{func() (any, error) { return nil, terms.SpaceClose("s2") }, C{Op: contract.OpSpaceClose, Space: "s2"}, nil},
 		{func() (any, error) { return nil, terms.PaneClose("p2") }, C{Op: contract.OpPaneClose, Pane: "p2"}, nil},
 		{func() (any, error) { return nil, terms.Dock(contract.DockKeys) }, C{Op: contract.OpDock, Dir: contract.DockKeys}, nil},
 		// The pane that is left, and the dock, which is in every picture.
@@ -84,7 +108,7 @@ func TestEveryMethodIsOneCall(t *testing.T) {
 func TestARefusalKeepsItsName(t *testing.T) {
 	f := fakeengine.New()
 	defer f.Close()
-	pane, _ := f.TabCreate("", "a", nil)
+	pane, _ := f.TabCreate("", "", "", "a", nil)
 	if err := f.PaneClose("p9"); err != contract.ErrNoPane {
 		t.Errorf("closing a pane that is not there: %v", err)
 	}
@@ -109,19 +133,22 @@ func TestARefusalKeepsItsName(t *testing.T) {
 // the keeper stops.
 func TestEventsFollowThePicture(t *testing.T) {
 	f := fakeengine.New()
-	f.TabCreate("", "a", nil)
+	f.TabCreate("", "", "", "a", nil)
 	ctx, cancel := context.WithCancel(t.Context())
 	picture, events, err := f.Events(ctx)
 	if err != nil || len(picture.Panes) != 2 || !picture.Panes[0].Dock || picture.Instance == "" {
 		t.Fatalf("the first picture: %+v, %v", picture, err)
 	}
-	f.TabCreate("", "b", nil)
+	f.TabCreate("", "", "", "b", nil)
 	f.Split("p2", contract.Right, 0.5)
 	f.TabRename("t2", "c")
 	f.PaneFocus("p3", "")
 	f.Drop(contract.StatusWorking, "p1") // told to nobody, so not in the count
 	f.TabClose("t2")
-	want := []string{contract.EvOpened, contract.EvOpened, contract.EvRenamed, contract.EvFocus, contract.EvTabClosed, contract.EvFocus}
+	// The workspace shows another tab once the keys are in it, and again
+	// when that tab is closed: a space event each time.
+	want := []string{contract.EvOpened, contract.EvOpened, contract.EvRenamed, contract.EvFocus, contract.EvSpace,
+		contract.EvTabClosed, contract.EvFocus, contract.EvSpace}
 	for i, kind := range want {
 		select {
 		case e := <-events:
@@ -134,7 +161,7 @@ func TestEventsFollowThePicture(t *testing.T) {
 		}
 	}
 	now, _ := f.Snapshot(t.Context())
-	if !reflect.DeepEqual(picture.Panes, now.Panes) || picture.Seq != now.Seq {
+	if !reflect.DeepEqual(picture.Panes, now.Panes) || !reflect.DeepEqual(picture.Spaces, now.Spaces) || picture.Seq != now.Seq {
 		t.Errorf("the events applied give %+v, the keeper says %+v", picture, now)
 	}
 	cancel()
@@ -198,7 +225,7 @@ func TestAKeeperThatCannotBeTalkedTo(t *testing.T) {
 	if _, err := odd.Snapshot(t.Context()); err != contract.ErrFrame {
 		t.Errorf("a snapshot with no picture in it: %v", err)
 	}
-	if _, err := odd.TabCreate("", "", nil); err != contract.ErrFrame {
+	if _, err := odd.TabCreate("", "", "", "", nil); err != contract.ErrFrame {
 		t.Errorf("a new tab with no pane in it: %v", err)
 	}
 }

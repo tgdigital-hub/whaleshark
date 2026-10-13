@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -205,6 +206,15 @@ func open(c *contract.Call) (any, error) {
 		if v, ok := os.LookupEnv(name); ok {
 			attach.Env = append(attach.Env, name+"="+v)
 		}
+	}
+	// Where this was typed, and the project that folder is of when it is
+	// one this login set up: its workspace is the one the keeper puts in front.
+	attach.Cwd, _ = os.Getwd()
+	p := c.Kit.Platform
+	dirs, _ := p.Dirs()
+	roots, _ := contract.ReadProjects(p.Peek, dirs.State)
+	if slices.ContainsFunc(roots, func(r string) bool { return p.PathKey(r) == p.PathKey(c.Root) }) {
+		attach.Space = c.Root
 	}
 	mu.Lock()
 	if restore != nil {

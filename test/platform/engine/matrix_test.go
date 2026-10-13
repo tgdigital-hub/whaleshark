@@ -274,7 +274,7 @@ func column(t *testing.T) (cells map[string]string, system string) {
 	}
 	got := gather(first, events)
 
-	a, err := terms.TabCreate(root, "one", []string{contract.EnvAttempt + "=A.1"})
+	a, err := terms.TabCreate("", "", root, "one", []string{contract.EnvAttempt + "=A.1"})
 	row("TabCreate", err, a.Tab != "", pane(a.ID).Cwd == root)
 	_, err = terms.Snapshot(ctx)
 	row("Snapshot", err, pane(a.ID).Label == "one")
@@ -286,7 +286,7 @@ func column(t *testing.T) (cells map[string]string, system string) {
 	w, h, err := terms.Size(sh.ID)
 	row("Size", err, w > 0, h > 0)
 	row("TabRename", terms.TabRename(a.Tab, "renamed"), pane(sh.ID).Label == "renamed")
-	b, err := terms.TabCreate(root, "two", nil)
+	b, err := terms.TabCreate("", "", root, "two", nil)
 	row("TabCreate", err)
 	row("TabFocus", terms.TabFocus(b.Tab), pane(b.ID).Focused)
 	to, err := terms.PaneFocus(a.ID, "")

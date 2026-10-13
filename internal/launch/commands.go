@@ -16,6 +16,11 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
+// Phase 7 owes here: a start hands Terminals.TabCreate the project's folder
+// as the workspace and, for a group's leader, the fleet's name as the
+// group; `stop --all`, the person's alone: every agent of the job that is
+// at work stopped and, in a job of fleets, every fleet parked.
+
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("start", start)
@@ -423,7 +428,7 @@ func OwnTab(c *contract.Call, label string, argv ...string) (moved any, err erro
 		return nil, err
 	}
 	label = c.Command.Name + " " + label
-	pane, err := k.Terms.TabCreate(c.Root, label, []string{contract.EnvOwnTab + "=" + w})
+	pane, err := k.Terms.TabCreate("", "", c.Root, label, []string{contract.EnvOwnTab + "=" + w})
 	if err == nil {
 		argv = append([]string{self, c.Command.Name}, append(argv, "--human", "--root", c.Root, "--run", c.Run)...)
 		err = k.Terms.Run(pane.ID, argv)

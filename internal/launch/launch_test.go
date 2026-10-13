@@ -615,7 +615,7 @@ func TestAButtonsStartRunsInATabOfItsOwn(t *testing.T) {
 
 	// The same line, run in such a tab, is still the button's and is not
 	// moved again; it closes the tab when it ends well.
-	pane, err := p.Double.TabCreate(p.Root, "start ready 2", nil)
+	pane, err := p.Double.TabCreate("", "", p.Root, "start ready 2", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

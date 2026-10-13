@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -62,11 +63,68 @@ type Snapshot struct {
 	Instance string    `json:"instance,omitempty"`
 	Seq      uint64    `json:"seq,omitempty"`
 	Panes    []Pane    `json:"panes"`
+	// Spaces are the workspaces, in the order they were opened.
+	Spaces []Space `json:"spaces,omitempty"`
 }
+
+// Space is one workspace as the keeper keeps it: a project's folder (empty
+// for the tabs of no project), the name the left section shows, whether a
+// person gave it, the tab it shows when it is in front, and whether it is.
+// An ID ("s1", "s2", …) is never given twice. Every tab is of one workspace
+// from the moment it is opened until it is closed; one workspace is in
+// front, and the tab row, the tab that shows and the keys are its own. The
+// keeper reads no run file and no list of projects: Root is what the caller
+// said, checked to be a folder. A workspace ends with its last tab.
+type Space struct {
+	ID    string `json:"id"`
+	Root  string `json:"root,omitempty"`
+	Name  string `json:"name"`
+	Named bool   `json:"named,omitempty"`
+	Tab   string `json:"tab,omitempty"`
+	Front bool   `json:"front,omitempty"`
+}
+
+// OtherTabs is the name of the workspace without a folder, and LabelMost
+// the longest label.
+const (
+	OtherTabs = "other tabs"
+	LabelMost = 24
+)
+
+// SpaceName is the name a workspace has until a person gives it one, and
+// again after an empty name: its folder's.
+func SpaceName(root string) string {
+	if root == "" {
+		return OtherTabs
+	}
+	return Label(filepath.Base(root))
+}
+
+// Label is a label as the keeper keeps it, a tab's or a workspace's: one
+// line without what steers a terminal or turns the reading direction, the
+// blanks round it gone, never the form of an option, LabelMost characters
+// at most. A label is a label only: no call takes one as an argument, a
+// path or a pane's name.
+func Label(text string) string {
+	text = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+		if steers(r) {
+			return ' '
+		}
+		return r
+	}, text)), " ")
+	r := []rune(strings.TrimSpace(strings.TrimLeft(text, "- ")))
+	return strings.TrimSpace(string(r[:min(len(r), LabelMost)]))
+}
+
+// IsMainTab says a label reads as the main agent's tab's, in any letter case
+// and with any blanks round it: in one workspace one tab at most has it.
+func IsMainTab(label string) bool { return strings.EqualFold(strings.TrimSpace(label), MainTab) }
 
 // Pane is one pane as the terminals show it. Agent is empty when the pane
 // holds a bare shell. Status is one of the Status constants. Terminal is new
-// each time the pane's program is started; Workspace is always empty.
+// each time the pane's program is started; Workspace is the ID of the Space
+// its tab is of, and stays what it was when the tab was opened whatever
+// folder the pane goes to (empty for the dock, which is beside every one).
 type Pane struct {
 	ID        string `json:"pane"`
 	Tab       string `json:"tab"`
@@ -115,18 +173,33 @@ const (
 	// EvWindow says the window took another width; it names no pane and
 	// changes no picture. The left section fits the two panes again by it.
 	EvWindow = "window"
+	// EvSpace: a workspace was made, named, put in front or ended. Spaces
+	// is the whole list after it, and Pane is empty.
+	EvSpace = "space"
+	// EvMenu: a person asked for the menu of the tab Pane.Tab, at the
+	// window's cell X, Y, by a right press on the tab row or by the key for
+	// the tab that shows. It asks nothing by itself and changes no picture:
+	// only the left section acts on it, by opening a menu there (OverlayAt),
+	// in which a person must still choose.
+	EvMenu = "menu"
 )
 
 // TermEvent is one change, in the order it happened: Seq counts up by one.
 type TermEvent struct {
-	Seq  uint64 `json:"seq"`
-	Kind string `json:"kind"`
-	Pane Pane   `json:"pane"`
+	Seq    uint64  `json:"seq"`
+	Kind   string  `json:"kind"`
+	Pane   Pane    `json:"pane"`
+	Spaces []Space `json:"spaces,omitempty"`
+	X      int     `json:"x,omitempty"`
+	Y      int     `json:"y,omitempty"`
 }
 
 // Apply brings a picture up to date with one event of Events.
 func Apply(s *Snapshot, e TermEvent) {
-	if e.Kind == EvWindow {
+	if e.Kind == EvSpace {
+		s.Spaces = slices.Clone(e.Spaces)
+	}
+	if e.Kind == EvWindow || e.Kind == EvSpace || e.Kind == EvMenu {
 		s.Seq = max(s.Seq, e.Seq)
 		return
 	}
@@ -186,6 +259,13 @@ var (
 	// ErrDock: the call would close, split, swap, zoom or start a program
 	// in the dock, which runs the left section and nothing else.
 	ErrDock = errors.New("the left section's place is the engine's")
+	// ErrSpace: the wall between workspaces (Walled). ErrNotFront: a screen
+	// of ours was asked over a tab of a workspace that is not in front.
+	// ErrMainTab: a label that reads as the main agent's tab's was given
+	// to a second tab of one workspace.
+	ErrSpace    = errors.New("that tab is another workspace's")
+	ErrNotFront = errors.New("that tab is not in front")
+	ErrMainTab  = errors.New("a workspace has one tab named " + MainTab)
 )
 
 // What Dock is told: DockKeys gives the dock the keys, DockBack gives them
@@ -214,9 +294,23 @@ type Terminals interface {
 	// Events takes one snapshot, then delivers every change in order until
 	// the keeper stops, which closes the channel.
 	Events(ctx context.Context) (*Snapshot, <-chan TermEvent, error)
-	// TabCreate opens a tab without focusing it; env is KEY=VALUE.
-	TabCreate(cwd, label string, env []string) (Pane, error)
+	// TabCreate opens a tab without focusing it; env is KEY=VALUE. A tab
+	// opened from a pane is of that pane's workspace and its group, whatever
+	// the call says; else it is of the workspace of the project's folder
+	// space names, made where there is none and not put in front, or with
+	// none named of the one in front. group names the fleet a leader's tab
+	// is the first of; every tab opened from a pane of a group has that
+	// group. The keeper is told a tab's fleet by this one word and reads no
+	// run file for it.
+	TabCreate(space, group, cwd, label string, env []string) (Pane, error)
+	// TabRename gives a tab the label a person typed: Label(label), kept
+	// from then on, so that the tab follows its chat's name no longer (the
+	// label MainTab lets it follow again). ErrMainTab where another tab of
+	// the same workspace reads as MainTab. The keeper's name for an agent
+	// (Pane.Name) is the attempt's own and is not changed by any rename.
 	TabRename(tab, label string) error
+	// TabFocus shows a tab, and PaneFocus gives a pane the keys: the tab's
+	// workspace comes to the front with it.
 	TabFocus(tab string) error
 	TabClose(tab string) error
 	// TabGive makes pane the one that opened tab, as if it had: what a
@@ -261,7 +355,34 @@ type Terminals interface {
 	SetKeys(entries []KeyEntry) error
 	// Overlay runs a program in a pane drawn over the tab until it ends; w
 	// and h are shares of the window, or cells above 1.
+	// ErrNotFront when it is asked from a pane whose workspace is not in front.
 	Overlay(argv []string, w, h float64) error
+	// OverlayAt is Overlay with a place, in cells: the corner of its box at
+	// the cell x, y of pane, or of the window where pane is empty, moved to
+	// stay inside the window. It is how a menu opens for the thing here:
+	// under a right press, under a row's key, or under whatever else a
+	// terminal leaves a person to ask with. A press beside the box closes
+	// it and is used up; so do a change of the window's size and of the
+	// workspace in front.
+	OverlayAt(argv []string, w, h float64, pane string, x, y int) error
+	// SpaceOpen puts the workspace of a project's folder in front, made
+	// with one tab labelled MainTab in cwd where there is none; an empty
+	// root is the tabs of no project. It answers with the pane that then
+	// has the keys there.
+	SpaceOpen(root, cwd string) (Pane, error)
+	// SpaceRename names a workspace by its ID: Label(name), and with an
+	// empty name its folder's again.
+	SpaceRename(space, name string) error
+	// SpaceClose closes every tab of a workspace, and it is gone. Nothing
+	// on disk is touched by it.
+	SpaceClose(space string) error
+	// Marks tells the keeper how many things wait for the person in each
+	// tab, by the tab's id, for the tab row: the whole table each time, and
+	// for each tab what its own agent waits with (the keeper adds a fleet's
+	// tabs up for the fleet's name on the first line). It is taken from the
+	// dock's pane alone, a figure for a tab that is not there is dropped,
+	// and it draws a count and nothing else.
+	Marks(tabs map[string]int) error
 	// Dock moves the keys to or from the dock, or folds it: the Dock words.
 	// Everything else of the dock the keeper does alone: it starts
 	// `ui run side` there and starts it again, draws the place while that
@@ -529,9 +650,18 @@ func (NoStore) Both(string, string, string, func(up, low *State) error) error {
 	return ErrNotBuilt
 }
 
-func (NoTerminals) Version() (string, error)                            { return "", ErrNotBuilt }
-func (NoTerminals) Snapshot(context.Context) (*Snapshot, error)         { return nil, ErrNotBuilt }
-func (NoTerminals) TabCreate(string, string, []string) (Pane, error)    { return Pane{}, ErrNotBuilt }
+func (NoTerminals) Version() (string, error)                    { return "", ErrNotBuilt }
+func (NoTerminals) Snapshot(context.Context) (*Snapshot, error) { return nil, ErrNotBuilt }
+func (NoTerminals) TabCreate(_, _, _, _ string, _ []string) (Pane, error) {
+	return Pane{}, ErrNotBuilt
+}
+func (NoTerminals) SpaceOpen(string, string) (Pane, error) { return Pane{}, ErrNotBuilt }
+func (NoTerminals) SpaceRename(string, string) error       { return ErrNotBuilt }
+func (NoTerminals) SpaceClose(string) error                { return ErrNotBuilt }
+func (NoTerminals) Marks(map[string]int) error             { return ErrNotBuilt }
+func (NoTerminals) OverlayAt([]string, float64, float64, string, int, int) error {
+	return ErrNotBuilt
+}
 func (NoTerminals) TabRename(string, string) error                      { return ErrNotBuilt }
 func (NoTerminals) TabFocus(string) error                               { return ErrNotBuilt }
 func (NoTerminals) TabClose(string) error                               { return ErrNotBuilt }

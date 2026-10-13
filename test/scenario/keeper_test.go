@@ -53,7 +53,7 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 		t.Fatal(err)
 	}
 
-	p, err := terms.TabCreate(root, "third", []string{"A=1"})
+	p, err := terms.TabCreate("", "", root, "third", []string{"A=1"})
 	say("tab-create", err, show(p))
 	p, err = terms.Split("p3", contract.Right, 0.5)
 	say("split right", err, show(p))
@@ -158,7 +158,11 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 					was = p.Terminal
 				}
 			}
-			if e.Kind != contract.EvSession && !e.Pane.Dock && (e.Kind != contract.EvState || e.Pane.Terminal != was) {
+			// Phase 7 owes here: the double tells of its workspaces and the
+			// keeper does not yet. With workspaces in the keeper this one
+			// condition goes, and the two logs are held equal with them.
+			if e.Kind == contract.EvSpace {
+			} else if e.Kind != contract.EvSession && !e.Pane.Dock && (e.Kind != contract.EvState || e.Pane.Terminal != was) {
 				log = append(log, fmt.Sprintf("event %s: %s", e.Kind, show(e.Pane)))
 			}
 			if contract.Apply(first, e); e.Seq < last.Seq {
@@ -182,8 +186,8 @@ func TestTheDoubleAnswersAsTheKeeper(t *testing.T) {
 
 	double := fakeengine.New()
 	defer double.Close()
-	double.TabCreate(p.Root, "Lead", nil)
-	double.TabCreate(p.Root, "you", nil)
+	double.TabCreate("", "", p.Root, "Lead", nil)
+	double.TabCreate("", "", p.Root, "you", nil)
 	if fake := session(t, double, p.Root); strings.Join(fake, "\n") != strings.Join(real, "\n") {
 		t.Errorf("the double:\n%s\n\nthe keeper:\n%s", strings.Join(fake, "\n"), strings.Join(real, "\n"))
 	}

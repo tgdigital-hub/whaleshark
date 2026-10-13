@@ -12,8 +12,8 @@ import (
 func TestTheLeadAgentsTabIsCalledOrchestrator(t *testing.T) {
 	double := fakeengine.New()
 	defer double.Close()
-	bare, _ := double.TabCreate(t.TempDir(), "", nil)
-	named, _ := double.TabCreate(t.TempDir(), "harbour plan", nil)
+	bare, _ := double.TabCreate("", "", t.TempDir(), "", nil)
+	named, _ := double.TabCreate("", "", t.TempDir(), "harbour plan", nil)
 	k := contract.NewKit()
 	k.Terms = double
 	mainTab(k, bare.ID)

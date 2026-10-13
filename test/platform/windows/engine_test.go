@@ -146,7 +146,7 @@ func proveAKeeper(t *testing.T, terms *engine.Client) {
 	t.Helper()
 	k := system()
 	argv, held := script(t, k)
-	pane, err := terms.TabCreate(os.TempDir(), "proof", []string{"WS_PROOF=mark"})
+	pane, err := terms.TabCreate("", "", os.TempDir(), "proof", []string{"WS_PROOF=mark"})
 	if err != nil {
 		t.Fatalf("a tab: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestTheKeeperOnThisSystem(t *testing.T) {
 	if err != nil || !strings.Contains(string(status), "pid ") {
 		t.Errorf("engine status: %v\n%s", err, status)
 	}
-	kept, err := terms.TabCreate(os.TempDir(), "kept", nil)
+	kept, err := terms.TabCreate("", "", os.TempDir(), "kept", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

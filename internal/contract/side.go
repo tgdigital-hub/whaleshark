@@ -102,10 +102,39 @@ func Fit(cols int, l Layout) Form {
 // SideTitle is the left section's own title, and Bottom and Top the two
 // places of a pane of ours that are no side.
 const (
-	SideVersion = 1
+	SideVersion = 2
 	SideTitle   = "WHALESHARK"
 	Bottom, Top = "bottom", "top"
+	// SideSplit is where the agents begin when nothing is said, in
+	// hundredths of the section's height, and what a person may set. The
+	// heavier line is held so that the upper panel keeps its title and
+	// SpaceRows rows, and the lower its title and AgentRows.
+	SideSplit, SideSplitMin, SideSplitMax = 50, 20, 80
+	SpaceRows, AgentRows                  = 2, 4
+	// SideHead and SideFoot are the rows over the upper panel's title (the
+	// section's own title and a blank) and under the agents panel (the two
+	// buttons and the line of how fresh it is); Warn and NewVersion, where
+	// set, are one more row of the foot each.
+	SideHead, SideFoot = 2, 2
 )
+
+// SplitRow is the row of the left section the heavier line stands on, from
+// 0 at its top: split hundredths of height rows down (0 is SideSplit), held
+// between the two panels' least. above is how many rows stand over the
+// upper panel's title and below how many under the agents panel (SideHead
+// and SideFoot). It is a place and not a remainder: the same whatever the
+// number of workspaces. The pane draws by it and a drag is held to it. The
+// upper panel then has SplitRow-above-1 rows for workspaces, with a line
+// between every two: (rows+1)/2 of them fit, and where there are more the
+// last of those rows is "· N more" and the one in front keeps its row.
+func SplitRow(height, split, above, below int) int {
+	if split == 0 {
+		split = SideSplit
+	}
+	split = min(max(split, SideSplitMin), SideSplitMax)
+	least, most := above+1+SpaceRows, height-below-1-AgentRows-1
+	return max(min(height*split/100, most), least)
+}
 
 // SideProject is one project of the login's list as the left section is
 // built from it: its folder, the branch it is on, and its open runs, oldest
@@ -120,7 +149,10 @@ type SideProject struct {
 const WordSaved = "saved"
 
 // SideInput is everything the left section is built from. Rows is how many
-// rows the agents panel has, 0 for no limit; Folded names the fleets the
+// rows the agents panel has, 0 for no limit; Height is the section's rows
+// and Split UIFile.SideSplit, from which the builder says where the heavier
+// line stands and how many workspaces the upper panel has rows for (with
+// Height 0 nothing is cut and Side.Split is 0); Folded names the fleets the
 // person folded, as "run/fleet"; Find is what was typed to narrow the rows;
 // Changed is UIFile.Changed, which Warn is worded from. UI is ui.json, for
 // the first steps and what an agent changed; NewVersion is VersionLine's
@@ -139,13 +171,18 @@ type SideInput struct {
 	Notes      []string
 	UI         UIFile
 	NewVersion string
+	Height     int
+	Split      int
 }
 
 // Side is the one description of the left section, which its pane prints
-// and computes nothing of: no order, no count, no word, no mark. A
-// workspace is a project of the login's list with an open run or a tab open
-// in its folder; tabs in no project are the last one, Other. Rows are the
-// agents panel of the workspace in front. What needs the person is never
+// and computes nothing of: no order, no count, no word, no mark. Since
+// phase 7 the workspaces are the keeper's (Terms.Spaces, in their order,
+// the tabs of no project last) and a tab's workspace is Pane.Workspace: the
+// builder asks no folder. A run is shown in the workspace its lead agent's
+// tab is of, and one with no such tab in the workspace whose Root is its
+// project's; a project with an open run and no workspace has no row and is
+// in Closed. Rows are the agents panel of the workspace in front. What needs the person is never
 // cut from Rows; what gives way, in this order: done rows, which are only
 // ever the count Done; rows of a group that neither need him nor are in
 // front, into one RowMore; fleets not in front, folded to their line.
@@ -174,19 +211,46 @@ type Side struct {
 	Steps      int       `json:"steps,omitempty"`
 	StepsShown bool      `json:"steps_shown,omitempty"`
 	NewVersion string    `json:"new_version,omitempty"`
+	// More is how many workspaces the upper panel has no row for: its last
+	// row then reads "· 2 more", and the one in front always has a row.
+	// Split is the row the heavier line stands on (SplitRow). Job is the one
+	// dim line of a workspace opened on an open job nobody is bound to
+	// (JobOpenHere), or NoFolder. Marks is what the pane hands the keeper
+	// with Terminals.Marks: by tab, how many things wait for the person
+	// with the agent of that tab, in every workspace. Closed is what [+] lists:
+	// the login's projects that have no workspace, those with an open job
+	// first, each with Word as "job open · 4 stopped".
+	More   int            `json:"more,omitempty"`
+	Split  int            `json:"split"`
+	Job    string         `json:"job,omitempty"`
+	Marks  map[string]int `json:"marks,omitempty"`
+	Closed []Workspace    `json:"closed,omitempty"`
 }
 
-// Workspace is one row of the upper panel: the worst look among its agents
-// (empty for none), its folder's name, with its parent folder too where two
-// are named alike, its branch, and how many agents it has.
+// Workspace is one row of the upper panel: its name as the keeper has it
+// (Space.Name: the folder's, or the one a person gave), its branch, and at
+// its right Need, what waits for the person there (needs you, at a prompt),
+// then how many agents it has, or Tabs where it has no job. It carries no
+// mark at its left; Look, the worst among its agents, stays for the rail
+// alone. ID is the Space's and Tab where a click goes: the tab it shows.
+// Offer is its menu's rows, ids of the action table (OfferRows). Gone says
+// its folder is no longer on the disk: the row is dimmed and can be removed.
+// Word is set in Side.Closed only.
 type Workspace struct {
-	Root   string `json:"root,omitempty"`
-	Name   string `json:"name"`
-	Branch string `json:"branch,omitempty"`
-	Look   Look   `json:"look,omitempty"`
-	Agents int    `json:"agents"`
-	Front  bool   `json:"front,omitempty"`
-	Other  bool   `json:"other,omitempty"`
+	Root   string   `json:"root,omitempty"`
+	Name   string   `json:"name"`
+	Branch string   `json:"branch,omitempty"`
+	Look   Look     `json:"look,omitempty"`
+	Agents int      `json:"agents"`
+	Front  bool     `json:"front,omitempty"`
+	Other  bool     `json:"other,omitempty"`
+	ID     string   `json:"id,omitempty"`
+	Need   int      `json:"need,omitempty"`
+	Tab    string   `json:"tab,omitempty"`
+	Tabs   int      `json:"tabs,omitempty"`
+	Offer  []string `json:"offer,omitempty"`
+	Gone   bool     `json:"gone,omitempty"`
+	Word   string   `json:"word,omitempty"`
 }
 
 // The kinds of row in the agents panel: the lead agent (in Fleet Mode the
@@ -204,8 +268,11 @@ var SideMarks = map[string][2]string{RowLead: {"●", "*"}, RowTab: {"·", "."},
 // fleet's row carries the worst look below it, its leader's Tool, its Agents
 // of its Limit (Unlimited prints no limit) and whether it is Open or Parked.
 // Root, Run and Task say what a click or an action is about, and Tab where
-// a click goes: the agent's, the leader's or the lead agent's tab. Actions
-// are ids of the action table offered on the row's mark; Item is the item
+// a click goes: the agent's, the leader's or the lead agent's tab. Offer is
+// the first block of the row's menu (OfferRows, by the row's kind and
+// whether its agent is at work) and Actions what its work offers, which
+// follow under a line in the same menu; both are ids of the action table,
+// and a menu opened on the tab row holds Offer alone. Item is the item
 // "answer" is about, and ItemRun the run it is in where that is not Run: a
 // fleet's worker whose question climbed is answered in the run above.
 type SideRow struct {
@@ -229,6 +296,7 @@ type SideRow struct {
 	Front   bool     `json:"front,omitempty"`
 	Unseen  bool     `json:"unseen,omitempty"`
 	Actions []string `json:"actions,omitempty"`
+	Offer   []string `json:"offer,omitempty"`
 }
 
 // Warned is the one line in the warning colour that every screen carries

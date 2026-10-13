@@ -175,8 +175,24 @@ func (c *Client) Events(ctx context.Context) (*contract.Snapshot, <-chan contrac
 	return first.Snapshot, events, nil
 }
 
-func (c *Client) TabCreate(cwd, label string, env []string) (contract.Pane, error) {
-	return c.pane(contract.WireCall{Op: contract.OpTabCreate, Cwd: cwd, Label: label, Env: env})
+func (c *Client) TabCreate(space, group, cwd, label string, env []string) (contract.Pane, error) {
+	return c.pane(contract.WireCall{Op: contract.OpTabCreate, Space: space, Group: group, Cwd: cwd, Label: label, Env: env})
+}
+
+func (c *Client) SpaceOpen(root, cwd string) (contract.Pane, error) {
+	return c.pane(contract.WireCall{Op: contract.OpSpaceOpen, Space: root, Cwd: cwd})
+}
+
+func (c *Client) SpaceRename(space, name string) error {
+	return c.do(contract.WireCall{Op: contract.OpSpaceRename, Space: space, Label: name})
+}
+
+func (c *Client) SpaceClose(space string) error {
+	return c.do(contract.WireCall{Op: contract.OpSpaceClose, Space: space})
+}
+
+func (c *Client) Marks(tabs map[string]int) error {
+	return c.do(contract.WireCall{Op: contract.OpMarks, Marks: tabs})
 }
 
 func (c *Client) TabRename(tab, label string) error {
@@ -267,4 +283,8 @@ func (c *Client) Hook(event, pane, session, cwd string) error {
 
 func (c *Client) Overlay(argv []string, w, h float64) error {
 	return c.do(contract.WireCall{Op: contract.OpOverlay, Argv: argv, W: w, H: h})
+}
+
+func (c *Client) OverlayAt(argv []string, w, h float64, pane string, x, y int) error {
+	return c.do(contract.WireCall{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: argv, W: w, H: h, Pane: pane, X: x, Y: y})
 }

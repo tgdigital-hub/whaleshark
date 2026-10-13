@@ -32,7 +32,7 @@ func newDesk(t *testing.T) *desk {
 	f := fakeengine.New()
 	t.Cleanup(f.Close)
 	k.Terms = f
-	first, err := f.TabCreate("/project", "1", nil)
+	first, err := f.TabCreate("", "", "/project", "1", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestUIActsInItsOwnTabOnlyAndOnItsOwnPanesOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	other, err := d.double.TabCreate("/project", "elsewhere", nil)
+	other, err := d.double.TabCreate("", "", "/project", "elsewhere", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

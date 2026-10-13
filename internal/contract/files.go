@@ -336,6 +336,45 @@ type UIFile struct {
 	// and Steps the ones ticked so far, a bit each from the first.
 	FirstSteps string `json:"first_steps,omitempty"`
 	Steps      int    `json:"steps,omitempty"`
+	// SideSplit is where the agents begin in the left section, in hundredths
+	// of its height, 0 for SideSplit; ActionsHeight the action pane's rows,
+	// 0 for a quarter of the tab. Panes are the two panes of ours of each
+	// workspace, by the workspace's folder (empty for the tabs of no
+	// project): a pair is opened, moved and closed inside its own workspace
+	// only. FleetPane and ActionsPane are what a file of before phase 7
+	// holds: read once as the pair of the workspace that pane is in, and
+	// written no more.
+	SideSplit     int             `json:"side_split,omitempty"`
+	ActionsHeight int             `json:"actions_height,omitempty"`
+	Panes         map[string]Pair `json:"panes,omitempty"`
+}
+
+// Pair is the two panes of ours in one workspace, by their ids.
+type Pair struct {
+	Fleet   string `json:"fleet,omitempty"`
+	Actions string `json:"actions,omitempty"`
+}
+
+// PairOf is a workspace's two panes as the file names them, an older file's
+// one pair too: snap says which workspace those panes are in.
+func (u UIFile) PairOf(root string, snap *Snapshot) Pair {
+	pair := u.Panes[root]
+	if snap == nil || u.Panes != nil {
+		return pair
+	}
+	space := map[string]string{}
+	for _, s := range snap.Spaces {
+		space[s.ID] = s.Root
+	}
+	for _, p := range snap.Panes {
+		if in, known := space[p.Workspace]; !known || in != root {
+		} else if p.ID == u.FleetPane {
+			pair.Fleet = p.ID
+		} else if p.ID == u.ActionsPane {
+			pair.Actions = p.ID
+		}
+	}
+	return pair
 }
 
 // FirstSteps are the five lines of the left section's empty agents panel.

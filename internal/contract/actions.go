@@ -83,9 +83,86 @@ var SideActions = []Action{
 	{ID: "open-plan", Label: "Open the plan", Run: []string{"graph"}, How: HowTab},
 }
 
-// FindAction is a row of either table by its id.
+// OfferActions are the rows phase 7 adds: what a menu at the pointer holds
+// beside the work's own rows, and nothing else may be run from a menu
+// (OfferRows says which on what). Each is about the one thing the menu was
+// opened for, so they are in no list of every action. A menu's rows are
+// these labels and no name: a name stands in a question and in the typing
+// line only. The typed name goes to the command by a private file, and to
+// the keeper as the call's own field. The three of HowScreen are calls of
+// the keeper: TabRename, SpaceRename and TabClose, which asks first where
+// an agent is in the tab. "remove-space" is run once for every open job of
+// the project, and when each ended well SpaceClose follows; it deletes
+// nothing, by having no code that does.
+var OfferActions = []Action{
+	{ID: "rename", Label: "Rename…", Run: []string{"task", "edit", "{task}", "--name", "--file", "{file}", "--human"}, How: HowChild},
+	{ID: "rename-tab", Label: "Rename…", How: HowScreen},
+	{ID: "rename-space", Label: "Rename…", How: HowScreen},
+	{ID: "close-tab", Label: "Close tab", How: HowScreen},
+	{ID: "stop-close", Label: "Stop agent & close", Run: []string{"stop", "{task}", "--human"}, How: HowChild, Confirm: true},
+	{ID: "remove-space", Label: "Remove from list", Run: []string{"stop", "--all", "--human"}, How: HowChild, Confirm: true},
+}
+
+// The kinds of thing a menu opens for: the third word of `ui run offer`.
+const OfferTab, OfferAgent, OfferFleet, OfferSpace = "tab", "agent", "fleet", "space"
+
+// FilesStay is the dim line under "Remove from list", which is no row.
+const FilesStay = "(your files stay)"
+
+// OfferRows are the first rows of a menu, before the line and the work's own
+// (SideRow.Actions): by what the menu is for, and by whether an agent of
+// ours is at work there (for a fleet: whether it is not parked). A fleet is
+// not renamed, and the tabs of no project have no name to give: other says
+// the workspace is that one. Only what applies is offered. With one of
+// these in a menu, "stop" and "close" are not among the work's own rows,
+// which are then: answer, accept, send-back, note, retry, note-lead.
+func OfferRows(kind string, working, other bool) []string {
+	switch {
+	case kind == OfferFleet && working:
+		return []string{"park", "note-leader"}
+	case kind == OfferFleet:
+		return []string{"retry"}
+	case kind == OfferSpace && other:
+		return []string{"remove-space"}
+	case kind == OfferSpace:
+		return []string{"rename-space", "remove-space"}
+	case kind == OfferAgent && working:
+		return []string{"rename", "stop-close"}
+	case kind == OfferAgent:
+		return []string{"rename", "close-tab"}
+	}
+	return []string{"rename-tab", "close-tab"}
+}
+
+// The words of a menu's questions and of the box they stand in (21.9). A
+// name is cleaned and stands after our own words; N is a count. KeepFirst
+// are the rows whose question opens on the button that does nothing.
+const (
+	AskCloseAgent = "An agent is in this tab. Close it?"
+	AskCloseLead  = "This is the orchestrator's tab. Its %d agents go on without it. Close it?"
+	AskStopClose  = "Stop %s and close its tab? Its work stays in its own copy of the code."
+	AskRemove     = "Remove %s from the list? Its %d agents are stopped and its tabs closed, the orchestrator's chat too. The job stays, stopped. No folder or file is deleted."
+	AskRemoveBare = "Remove %s from the list? Its tabs are closed. No folder or file is deleted."
+	RenameTitle   = "Rename"
+	RenameKeys    = "enter keep · esc leave"
+	ButtonKeep    = "[ Keep ]"
+	ButtonClose   = "[ Close ]"
+	ButtonStop    = "[ Stop & close ]"
+	ButtonRemove  = "[ Remove ]"
+	// NameTaken is what a rename is refused with: the name, and the
+	// workspace whose tab has it.
+	NameTaken = "The name %q is taken by an agent in %s. Give another."
+	// JobOpenHere is the agents panel's one dim line in a workspace opened
+	// on an open job that no agent is bound to.
+	JobOpenHere = "a job is open here · tell your agent to take it over"
+	NoFolder    = "folder not found"
+)
+
+var KeepFirst = []string{"remove-space", "close-tab"}
+
+// FindAction is a row of any of the three tables by its id.
 func FindAction(id string) (Action, bool) {
-	for _, a := range slices.Concat(Actions, SideActions) {
+	for _, a := range slices.Concat(Actions, SideActions, OfferActions) {
 		if a.ID == id {
 			return a, true
 		}

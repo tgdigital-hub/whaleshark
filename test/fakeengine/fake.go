@@ -4,11 +4,15 @@
 // processes through a socket file once Listen has been called. It keeps no
 // sizes and no layout, starts nothing for Run, and a pane's screen is what
 // was typed at it and what its fake agent printed. It has the dock's pane
-// in every picture, as the keeper has, and starts no program in it.
+// in every picture, as the keeper has, and starts no program in it. It
+// keeps workspaces as the keeper does: each tab in one from its opening to
+// its end, one in front, the wall between them; and it draws no tab row,
+// no menu and no line.
 package fakeengine
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -73,11 +77,15 @@ type Fake struct {
 	quiet, closed      bool // a change is being made that is told to nobody; Close was called
 	scripts            map[string]string
 	calls              []contract.WireCall
+	spaces             []*contract.Space // the workspaces, in the order they were opened
+	nSpace             int
+	group              map[string]string // a tab's fleet
+	marks              map[string]int    // what waits in each tab, as the dock said it
 }
 
 // New returns a double with no tab in it, as a keeper has before its first window.
 func New() *Fake {
-	f := &Fake{Build: "double", Width: 120, instance: 1, env: map[string][]string{}, opened: map[string]string{}, readers: map[chan contract.TermEvent]bool{}, scripts: map[string]string{}}
+	f := &Fake{Build: "double", Width: 120, instance: 1, env: map[string][]string{}, opened: map[string]string{}, group: map[string]string{}, readers: map[chan contract.TermEvent]bool{}, scripts: map[string]string{}}
 	f.dock = contract.Pane{ID: layout.DockPane, Label: contract.SideTitle, Status: contract.StatusUnknown, Ours: true, Dock: true, Terminal: "i1.0"}
 	f.Client = &engine.Client{Dial: func(context.Context) (net.Conn, error) {
 		f.mu.Lock()
@@ -149,7 +157,10 @@ const endWait = 10 * time.Second
 func (f *Fake) Load(s *contract.Snapshot) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.panes, f.focus = nil, ""
+	f.panes, f.focus, f.spaces = nil, "", nil
+	for _, sp := range s.Spaces {
+		f.spaces = append(f.spaces, &sp)
+	}
 	past := func(n *int, id string) {
 		digits := len(id) - len(strings.TrimRight(id, "0123456789"))
 		if v, err := strconv.Atoi(id[len(id)-digits:]); err == nil {
@@ -161,13 +172,24 @@ func (f *Fake) Load(s *contract.Snapshot) {
 		past(&f.nTab, rec.Tab)
 		past(&f.nTerm, rec.Terminal)
 		past(&f.nTerm, rec.Session)
+		past(&f.nSpace, rec.Workspace)
 		if rec.Dock { // the double's own stands
 			continue
 		} else if rec.Focused {
 			f.focus = rec.ID
 		}
+		// A picture of before phase 7 lists no workspace: its tabs are
+		// those of no project, under the name it gives them or ours.
+		if rec.Workspace == "" {
+			rec.Workspace = f.of("").ID
+		} else if f.space(rec.Workspace) == nil {
+			f.spaces = append(f.spaces, &contract.Space{ID: rec.Workspace, Name: contract.OtherTabs})
+		}
 		f.panes = append(f.panes, &pane{rec: rec, screen: new(bytes.Buffer)})
 	}
+	f.quiet = true
+	f.settle()
+	f.quiet = false
 }
 
 // Script registers what the fake agent of an attempt plays.
@@ -270,10 +292,99 @@ func (f *Fake) tab(id string) (panes []*pane) {
 	return panes
 }
 
+// Told is what the dock last told of each tab, for a test to read.
+func (f *Fake) Told() map[string]int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return maps.Clone(f.marks)
+}
+
+// Group is the fleet a tab is of, as the keeper keeps it for its tab row.
+func (f *Fake) Group(tab string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.group[tab]
+}
+
+// space finds a workspace by its id, and of by a project's folder: made
+// where there is none, and in front when it is the only one.
+func (f *Fake) space(id string) *contract.Space {
+	for _, sp := range f.spaces {
+		if sp.ID == id {
+			return sp
+		}
+	}
+	return nil
+}
+
+func (f *Fake) of(root string) *contract.Space {
+	for _, sp := range f.spaces {
+		if sp.Root == root {
+			return sp
+		}
+	}
+	f.nSpace++
+	sp := &contract.Space{ID: "s" + strconv.Itoa(f.nSpace), Root: root, Name: contract.SpaceName(root), Front: len(f.spaces) == 0}
+	f.spaces = append(f.spaces, sp)
+	return sp
+}
+
+// front is the workspace in front, nil while there is none.
+func (f *Fake) front() *contract.Space {
+	for _, sp := range f.spaces {
+		if sp.Front {
+			return sp
+		}
+	}
+	return nil
+}
+
+// settle brings the workspaces in line with the tabs and tells every reader
+// when anything of them changed: a workspace ends with its last tab, each
+// shows a tab of its own, the one that holds the keys is in front, and one
+// is in front while any is left.
+func (f *Fake) settle() {
+	was, _ := json.Marshal(f.spaces)
+	keys := ""
+	if p := f.pane(f.focus); p != nil {
+		keys = p.rec.Workspace
+	}
+	f.spaces = slices.DeleteFunc(f.spaces, func(sp *contract.Space) bool {
+		return !slices.ContainsFunc(f.panes, func(p *pane) bool { return p.rec.Workspace == sp.ID })
+	})
+	for _, sp := range f.spaces {
+		if keys != "" {
+			sp.Front = sp.ID == keys
+		}
+		for _, p := range f.panes {
+			if own := p.rec.Workspace == sp.ID; own && (p.rec.ID == f.focus || len(f.tab(sp.Tab)) == 0 || f.tab(sp.Tab)[0].rec.Workspace != sp.ID) {
+				sp.Tab = p.rec.Tab
+			}
+		}
+	}
+	if f.front() == nil && len(f.spaces) > 0 {
+		f.spaces[0].Front = true
+	}
+	if now, _ := json.Marshal(f.spaces); string(now) != string(was) && !f.quiet {
+		f.seq++
+		f.tell(contract.TermEvent{Seq: f.seq, Kind: contract.EvSpace, Spaces: f.list()})
+	}
+}
+
+func (f *Fake) list() (out []contract.Space) {
+	for _, sp := range f.spaces {
+		out = append(out, *sp)
+	}
+	return out
+}
+
 func (f *Fake) open(tab, label, cwd string) *pane {
 	f.nPane++
 	p := &pane{screen: new(bytes.Buffer), rec: contract.Pane{ID: "p" + strconv.Itoa(f.nPane), Tab: tab,
 		Terminal: f.terminal(), Label: label, Cwd: cwd, Status: contract.StatusUnknown}}
+	if in := f.tab(tab); len(in) > 0 {
+		p.rec.Workspace = in[0].rec.Workspace
+	}
 	f.panes = append(f.panes, p)
 	f.emit(contract.EvOpened, p.rec)
 	f.refocus()
@@ -295,9 +406,13 @@ func (f *Fake) emit(kind string, rec contract.Pane) {
 		return
 	}
 	f.seq++
+	f.tell(contract.TermEvent{Seq: f.seq, Kind: kind, Pane: rec})
+}
+
+func (f *Fake) tell(e contract.TermEvent) {
 	for ch := range f.readers {
 		select {
-		case ch <- contract.TermEvent{Seq: f.seq, Kind: kind, Pane: rec}:
+		case ch <- e:
 		default:
 			delete(f.readers, ch)
 			close(ch)
@@ -306,7 +421,7 @@ func (f *Fake) emit(kind string, rec contract.Pane) {
 }
 
 func (f *Fake) snapshot() *contract.Snapshot {
-	s := &contract.Snapshot{At: contract.Now(), Instance: "i" + strconv.Itoa(f.instance), Seq: f.seq, Panes: []contract.Pane{f.dock}}
+	s := &contract.Snapshot{At: contract.Now(), Instance: "i" + strconv.Itoa(f.instance), Seq: f.seq, Panes: []contract.Pane{f.dock}, Spaces: f.list()}
 	for _, p := range f.panes {
 		s.Panes = append(s.Panes, p.rec)
 	}
@@ -328,6 +443,7 @@ func (f *Fake) setFocus(id string) {
 		}
 		f.focus, p.rec.Focused = id, true
 		f.emit(contract.EvFocus, p.rec)
+		f.settle() // the pane's workspace comes to the front with it
 	}
 }
 
@@ -360,12 +476,45 @@ func (f *Fake) close(p *pane) {
 	kill(p)
 	f.panes = slices.DeleteFunc(f.panes, func(q *pane) bool { return q == p })
 	if len(f.tab(p.rec.Tab)) == 0 {
-		delete(f.env, p.rec.Tab)
-		delete(f.opened, p.rec.Tab)
+		f.gone(p.rec.Tab)
 	}
 	f.ran("", p.rec.ID, "")
 	f.emit(contract.EvClosed, p.rec)
 	f.refocus()
+	f.settle()
+}
+
+// gone forgets what was kept of a tab that is closed.
+func (f *Fake) gone(tab string) {
+	delete(f.env, tab)
+	delete(f.opened, tab)
+	delete(f.group, tab)
+	delete(f.marks, tab)
+}
+
+// shut closes a tab whole, with what runs in it.
+func (f *Fake) shut(tab string) {
+	for _, q := range f.tab(tab) {
+		kill(q)
+	}
+	f.panes = slices.DeleteFunc(f.panes, func(q *pane) bool { return q.rec.Tab == tab })
+	f.gone(tab)
+	f.emit(contract.EvTabClosed, contract.Pane{Tab: tab})
+}
+
+// walled says a call from an agent's pane names something of another
+// workspace than that pane's own: the wall of contract.Walled.
+func (f *Fake) walled(c contract.WireCall, from, p *pane, tab []*pane) bool {
+	if from == nil || from.rec.Agent == "" || !slices.Contains(contract.Walled, c.Op) {
+		return false
+	}
+	own := from.rec.Workspace
+	for _, q := range append(tab, p, f.pane(c.Target)) {
+		if q != nil && q.rec.Workspace != own {
+			return true
+		}
+	}
+	return c.Space != "" && c.Space != own
 }
 
 // kill ends a pane's agent with every command it started, as closing a
@@ -526,8 +675,11 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 			return r, contract.Fence(c.Op)
 		}
 	}
+	if f.walled(c, f.pane(c.From), p, tab) {
+		return r, contract.ErrSpace
+	}
 	// The dock is looked at and nothing else, and is told three words.
-	if id := f.dock.ID; c.Op != contract.OpDock && (c.Pane == id || c.Target == id) {
+	if id := f.dock.ID; c.Op != contract.OpDock && c.Op != contract.OpOverlay && (c.Pane == id || c.Target == id) {
 		switch c.Op {
 		case contract.OpScreen:
 		case contract.OpSize:
@@ -547,18 +699,67 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 	case contract.OpSnapshot, contract.OpStatus:
 		r.Snapshot = f.snapshot()
 	case contract.OpTabCreate:
-		f.nTab++
-		id := "t" + strconv.Itoa(f.nTab)
-		if f.env[id] = c.Env; f.pane(c.From) != nil {
-			f.opened[id] = c.From
+		// From a pane the tab is of that pane's workspace and its group,
+		// whatever the call says; else of the workspace the call names, made
+		// where there is none, or of the one in front.
+		from, sp := f.pane(c.From), f.front()
+		if from != nil {
+			sp = f.space(from.rec.Workspace)
+			c.Group = cmp.Or(f.group[from.rec.Tab], c.Group)
+		} else if c.Space != "" || sp == nil {
+			sp = f.of(c.Space)
 		}
-		rec := f.open(id, c.Label, c.Cwd).rec
+		if sp == nil {
+			return r, contract.ErrNoPane
+		}
+		r.Pane = f.create(sp, c)
+		f.settle()
+	case contract.OpSpaceOpen:
+		sp := f.of(c.Space)
+		if len(f.tab(sp.Tab)) == 0 {
+			c.Label, c.Group, c.Env, c.From = contract.MainTab, "", nil, ""
+			f.create(sp, c)
+		}
+		f.setFocus(f.tab(sp.Tab)[0].rec.ID)
+		f.settle()
+		rec := f.tab(sp.Tab)[0].rec
 		r.Pane = &rec
+	case contract.OpSpaceRename, contract.OpSpaceClose:
+		sp := f.space(c.Space)
+		if sp == nil {
+			return r, contract.ErrNoPane
+		}
+		if c.Op == contract.OpSpaceRename {
+			sp.Name, sp.Named = contract.Label(c.Label), contract.Label(c.Label) != ""
+			if !sp.Named {
+				sp.Name = contract.SpaceName(sp.Root)
+			}
+		} else {
+			for _, q := range slices.Clone(f.panes) {
+				if q.rec.Workspace == sp.ID && len(f.tab(q.rec.Tab)) > 0 {
+					f.shut(q.rec.Tab)
+				}
+			}
+			f.refocus()
+		}
+		f.settle()
+	case contract.OpMarks:
+		// The dock's alone; a figure for a tab that is not there is dropped.
+		if c.From != f.dock.ID {
+			return r, contract.Fence(c.Op)
+		}
+		f.marks = maps.Clone(c.Marks)
+		maps.DeleteFunc(f.marks, func(tab string, _ int) bool { return len(f.tab(tab)) == 0 })
 	case contract.OpNotify:
 		if r.Text, r.Delivery = contract.NotifyNoWindow, "on"; f.Attached {
 			r.Text = contract.NotifyShown
 		}
-	case contract.OpSetKeys, contract.OpOverlay:
+	case contract.OpSetKeys:
+	case contract.OpOverlay:
+		// A screen of ours never opens over a project it is not about.
+		if q, sp := f.pane(c.From), f.front(); q != nil && sp != nil && q.rec.Workspace != sp.ID {
+			return r, contract.ErrNotFront
+		}
 	case contract.OpTabRename, contract.OpTabFocus, contract.OpTabClose, contract.OpTabGive:
 		if len(tab) == 0 || c.Op == contract.OpTabGive && f.pane(c.Target) == nil {
 			return r, contract.ErrNoPane
@@ -567,6 +768,13 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 		case contract.OpTabGive:
 			f.opened[c.Tab] = c.Target
 		case contract.OpTabRename:
+			// One tab of a workspace at most reads as the main agent's.
+			c.Label = contract.Label(c.Label)
+			if contract.IsMainTab(c.Label) && slices.ContainsFunc(f.panes, func(q *pane) bool {
+				return q.rec.Tab != c.Tab && q.rec.Workspace == tab[0].rec.Workspace && contract.IsMainTab(q.rec.Label)
+			}) {
+				return r, contract.ErrMainTab
+			}
 			for _, q := range tab {
 				q.rec.Label = c.Label
 			}
@@ -576,14 +784,9 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 				f.setFocus(tab[0].rec.ID)
 			}
 		case contract.OpTabClose:
-			for _, q := range tab {
-				kill(q)
-			}
-			f.panes = slices.DeleteFunc(f.panes, func(q *pane) bool { return q.rec.Tab == c.Tab })
-			delete(f.env, c.Tab)
-			delete(f.opened, c.Tab)
-			f.emit(contract.EvTabClosed, contract.Pane{Tab: c.Tab})
+			f.shut(c.Tab)
 			f.refocus()
+			f.settle()
 		}
 	default:
 		if p == nil {
@@ -592,6 +795,29 @@ func (f *Fake) do(c contract.WireCall) (r contract.WireReply, err error) {
 		return f.onPane(c, p)
 	}
 	return r, nil
+}
+
+// create opens a tab in a workspace, as OpTabCreate asks it.
+func (f *Fake) create(sp *contract.Space, c contract.WireCall) *contract.Pane {
+	f.nTab++
+	id := "t" + strconv.Itoa(f.nTab)
+	if f.env[id] = c.Env; f.pane(c.From) != nil {
+		f.opened[id] = c.From
+	}
+	if c.Group != "" {
+		f.group[id] = c.Group
+	}
+	if sp.Tab == "" {
+		sp.Tab = id
+	}
+	f.nPane++
+	p := &pane{screen: new(bytes.Buffer), rec: contract.Pane{ID: "p" + strconv.Itoa(f.nPane), Tab: id, Workspace: sp.ID,
+		Terminal: f.terminal(), Label: c.Label, Cwd: c.Cwd, Status: contract.StatusUnknown}}
+	f.panes = append(f.panes, p)
+	f.emit(contract.EvOpened, p.rec)
+	f.refocus()
+	rec := p.rec
+	return &rec
 }
 
 // onPane answers a call that is about one pane, which is there.

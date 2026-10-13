@@ -30,7 +30,7 @@ func (f *fix) lead(group, fleet, run string) string {
 	must(f.t, err)
 	must(f.t, k.Rules.Integrated(low, *in))
 	must(f.t, k.Store.Create(f.root, low))
-	tab, err := k.Terms.TabCreate(f.root, fleet, nil)
+	tab, err := k.Terms.TabCreate("", "", f.root, fleet, nil)
 	must(f.t, err)
 	must(f.t, k.Store.Both(f.root, up.Run.ID, run, func(up, low *contract.State) error {
 		id, err := k.Rules.Start(up, group, false, false, contract.TokenHash("token-of-"+group), contract.Agent{Kind: "claude", Name: "a-" + run}, false, now)

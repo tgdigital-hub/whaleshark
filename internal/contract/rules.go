@@ -216,7 +216,14 @@ type Rules interface {
 }
 
 // TaskEdit is what task edit may replace; a nil field is left as it is.
+// Name renames the task, and with it its tab and its card: alone it is
+// taken in every state of the task, a running one too, and held to the rule
+// AddTask holds a name to, against Taken, the labels of every other open tab
+// of the login. The task's id, its branch, its folder and the keeper's name
+// for its agent are not changed by it.
 type TaskEdit struct {
 	Brief, Check *string
 	Owns, After  *[]string
+	Name         *string
+	Taken        []string
 }

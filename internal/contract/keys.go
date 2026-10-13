@@ -84,18 +84,23 @@ var Sections = []string{SecLook, SecLayout, SecNudges, SecKeys, SecScroll, SecFl
 
 const fleetLimit = "2..|unlimited"
 
+// dragIt ends the description of every size that a line shows: 21.5.
+const dragIt = "Drag its edge to change it; a double-click puts it back."
+
 var Keys = []Key{
 	{"theme", SecLook, "Colour scheme", KindChoice, "reef|kelp|ember|paper|mono|none", "reef", StoreConfig, "ui.theme", "", "The colours of every pane of ours, on your terminal's own background; paper is for a light terminal, none leaves the terminal's own colours."},
 	{"ui.marks", SecLook, "Marks", KindChoice, "auto|plain", "auto", StoreConfig, "", "", "Plain marks for a terminal that cannot show the drawn ones; the variable WHALESHARK_MARKS still wins."},
 	{"ui.first_steps", SecLook, "First steps", KindSwitch, "", "on", StoreUI, "first_steps", "", "Five lines in the left section that show a newcomer what to type and where. They tick themselves off and go away. Switch on to see them again."},
 
 	{"side.place", SecLayout, "The left section", KindChoice, "left|right", "left", StoreEngine, "", "", "At which edge of the window it stands. It cannot be switched off."},
-	{"side.width", SecLayout, "Width of the left section", KindNumber, "16..60", "28", StoreEngine, "", "", "In columns; a drag of its edge sets it too. A narrow window shows less of it."},
+	{"side.width", SecLayout, "Width of the left section", KindNumber, "16..60", "28", StoreEngine, "", "", "In columns. A narrow window shows less of it. " + dragIt},
 	{"panes.fleet", SecLayout, "The fleet pane", KindChoice, "right|left|bottom|off", "right", StoreConfig, "", "", "Where it opens when a job starts. Off closes it; its key and whaleshark status remain."},
 	{"panes.actions", SecLayout, "The action pane", KindChoice, "bottom|top|off", "bottom", StoreConfig, "", "", "Where what waits for you is listed. With it off the left section still counts what needs you."},
 	{"actions", "", "", KindChoice, "bottom|top", "bottom", StoreConfig, "panes.actions", "", ""},
-	{"fleet.width", SecLayout, "Width of the fleet pane", KindNumber, "10..500", "46", StoreUI, "fleet_width", "", "In columns, where it stands beside the conversation."},
-	{"fleet.height", SecLayout, "Height of the fleet pane", KindNumber, "5..30", "9", StoreUI, "fleet_height", "", "In rows, where it lies at the bottom."},
+	{"fleet.width", SecLayout, "Width of the fleet pane", KindNumber, "10..500", "46", StoreUI, "fleet_width", "", "In columns, where it stands beside the conversation. " + dragIt},
+	{"fleet.height", SecLayout, "Height of the fleet pane", KindNumber, "5..30", "9", StoreUI, "fleet_height", "", "In rows, where it lies at the bottom. " + dragIt},
+	{"side.split", SecLayout, "Where the agents begin", KindNumber, "20..80", "50", StoreUI, "side_split", "", "How far down the left section the agents begin, in hundredths of its height. As it comes they begin half-way. Drag the heavy line to change it; a double-click puts it back."},
+	{"actions.height", SecLayout, "Height of the action pane", KindNumber, "3..40|0", "0", StoreUI, "actions_height", "", "In rows. 0 is a quarter of the tab, as it comes. " + dragIt},
 	{"folded", SecLayout, "The action pane folded", KindSwitch, "", "off", StoreUI, "", "", "Folded it is one line, and opens when an item holds work up."},
 
 	{"dnd", SecNudges, "Do not disturb", KindChoice, "off|on|until TIME", "off", StoreUI, "", "", "Holds back every nudge that is not urgent, until you switch it off or until a time of day."},
@@ -291,6 +296,7 @@ func (k *Key) Check(value string, tools []Tool) (string, error) {
 		}
 		if n, err := strconv.Atoi(value); value == "unlimited" && slices.Contains(choices, value) {
 			return strconv.Itoa(Unlimited), nil
+		} else if err == nil && slices.Contains(choices[1:], value) { // a figure beside the range, as 0 for "as it comes"
 		} else if err != nil || n < lo || n > hi {
 			return bad("a number, %s or more%s", least, map[bool]string{true: ", or unlimited", false: " and " + most + " at most"}[most == ""])
 		}

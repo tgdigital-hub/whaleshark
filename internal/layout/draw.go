@@ -23,6 +23,9 @@ const (
 	OnMore         // the count of tabs that do not fit; Step says which way they are
 	OnLine         // a dividing line, which Drag moves
 	OnPane         // a pane; X and Y are the cell inside it
+	// OnGroup is a fleet's name on the first of two tab lines; Tab is the
+	// tab a click goes to. Phase 7 owes it: nothing answers with it yet.
+	OnGroup
 )
 
 // Hit is what At found under a cell.

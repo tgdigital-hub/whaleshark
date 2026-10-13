@@ -119,7 +119,7 @@ func crew(t *testing.T) (*scenario.Project, func(exit int, args ...string) func(
 		if err := k.Store.Create(p.Root, k.Rules.NewRun(run, "the fleet "+g[1], 8, nil, contract.Binding{}, now)); err != nil {
 			t.Fatal(err)
 		}
-		tab, err := k.Terms.TabCreate(p.Root, g[1], nil)
+		tab, err := k.Terms.TabCreate("", "", p.Root, g[1], nil)
 		if err == nil {
 			err = k.Store.Both(p.Root, "r1", run, func(up, low *contract.State) error {
 				id, err := k.Rules.Start(up, g[0], false, false, "", contract.Agent{Kind: "claude", Name: "a-" + run}, false, now)
@@ -180,7 +180,7 @@ func TestCancellingAFleetsLastGroupGivesTheFleetUp(t *testing.T) {
 	}
 	stop("r2", "T1")
 	// The tab its worker ran in goes with the fleet, as at the close of a last group.
-	tab, err := p.Kit.Terms.TabCreate(p.Root, runOf(t, p, "r2").Tasks["T1"].Name, nil)
+	tab, err := p.Kit.Terms.TabCreate("", "", p.Root, runOf(t, p, "r2").Tasks["T1"].Name, nil)
 	if err == nil {
 		err = p.Kit.Store.Change(p.Root, "r2", func(s *contract.State) error {
 			s.Attempts["T1.1"].Place = contract.Place{Tab: tab.Tab, Pane: tab.ID, OpenedByUs: true}

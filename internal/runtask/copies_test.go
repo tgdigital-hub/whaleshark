@@ -285,7 +285,7 @@ func TestAClosedRunIsClearedFromItsOwnTab(t *testing.T) {
 	// A tab of the closed run's that is still there (an older program
 	// closed the run, or the tab could not be closed) keeps its task's name
 	// taken; with the tab gone the name is free again.
-	kept, err := h.p.Kit.Terms.TabCreate(h.p.Root, "part A", nil)
+	kept, err := h.p.Kit.Terms.TabCreate("", "", h.p.Root, "part A", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

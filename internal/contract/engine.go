@@ -179,6 +179,13 @@ const (
 	OpHook       = "hook"
 	OpStop       = "stop"
 	OpStatus     = "status"
+	// Phase 7: the three calls about a workspace, and what waits in each tab.
+	OpSpaceOpen   = "space-open"
+	OpSpaceRename = "space-rename"
+	OpSpaceClose  = "space-close"
+	OpMarks       = "marks"
+	// OverAt is OpOverlay's Dir for a placed one (OverlayAt).
+	OverAt = "at"
 )
 
 // Fenced are the calls that are not for an agent the tool started to make
@@ -190,11 +197,25 @@ const (
 // own workers; the record of who opened a tab ends when anyone else runs a
 // program or starts an agent there. OpTabGive names another pane as a tab's
 // opener, for a leader that takes a fleet over: fenced and in no way
-// through, so no agent's pane gives itself or a neighbour anything.
+// through, so no agent's pane gives itself or a neighbour anything. Since
+// phase 7 a name stays for good and one of them says who leads, and a
+// workspace can be made, named and ended: OpTabRename, the three calls of a
+// workspace and OpMarks are fenced too, and OwnTab gains nothing.
+//
+// Walled are the calls that name a pane, a tab or a workspace. From a pane
+// that holds an agent, one the tool started or one a person started (its
+// Pane.Agent is set), the keeper refuses each of them with ErrSpace when
+// what it names is not of that pane's own workspace, and reading a screen
+// or a size is among them. The fence is asked first. Like the fence it
+// names the caller by what the caller says (From): it stops the mistake and
+// the lightly steered agent, and no agent that sets out to pass it.
 var (
 	Fenced = []string{OpPrompt, OpSay, OpRun, OpAgentStart, OpTabFocus, OpPaneFocus,
-		OpPaneClose, OpTabClose, OpTabGive, OpSetKeys, OpOverlay, OpDock}
+		OpPaneClose, OpTabClose, OpTabGive, OpSetKeys, OpOverlay, OpDock,
+		OpTabRename, OpSpaceOpen, OpSpaceRename, OpSpaceClose, OpMarks}
 	OwnTab = []string{OpAgentStart, OpPrompt, OpTabClose, OpPaneClose}
+	Walled = []string{OpTabRename, OpTabFocus, OpTabClose, OpTabGive, OpAgentStart, OpPrompt, OpPoint, OpSay,
+		OpRun, OpScreen, OpSplit, OpSwap, OpResize, OpPaneClose, OpSize, OpPaneFocus, OpSpaceRename, OpSpaceClose}
 )
 
 // Fence is what a fenced call is refused with.
@@ -211,38 +232,48 @@ func Fence(op string) error {
 // Overlay's size in shares or cells, and the window's size in cells for
 // OpAttach and OpWindowSize; Millis is a timeout. For OpAttach, Env
 // holds the window's TERM, COLORTERM, NO_COLOR and TERM_PROGRAM, System
-// the system the person sits at and Reach how the window got here. For
+// the system the person sits at and Reach how the window got here; Cwd is
+// the folder `open` was typed in and Space the project that folder is of,
+// empty for none: the keeper puts that workspace in front as SpaceOpen
+// does, in every window. Space is otherwise a workspace's ID, or for
+// OpTabCreate and OpSpaceOpen a project's folder; Group is OpTabCreate's;
+// X and Y are a cell, of OverlayAt; Marks is OpMarks's table. For
 // OpHook, Kind is the agent's event, Pane the pane the hook ran in, Session
 // and Cwd what the agent said. From is the keeper's pane the caller itself
 // runs in, when it runs in one: the keeper refuses an agent it started the
 // calls that are not an agent's to make.
 type WireCall struct {
-	V       int        `json:"v,omitempty"`
-	ID      uint64     `json:"id,omitempty"`
-	Op      string     `json:"op"`
-	Pane    string     `json:"pane,omitempty"`
-	Tab     string     `json:"tab,omitempty"`
-	Target  string     `json:"target,omitempty"`
-	Name    string     `json:"name,omitempty"`
-	Kind    string     `json:"kind,omitempty"`
-	Label   string     `json:"label,omitempty"`
-	Cwd     string     `json:"cwd,omitempty"`
-	Text    string     `json:"text,omitempty"`
-	Title   string     `json:"title,omitempty"`
-	Dir     string     `json:"dir,omitempty"`
-	Pointer Pointer    `json:"pointer,omitempty"`
-	Session string     `json:"session,omitempty"`
-	System  string     `json:"system,omitempty"`
-	Reach   string     `json:"reach,omitempty"`
-	From    string     `json:"from,omitempty"`
-	Argv    []string   `json:"argv,omitempty"`
-	Env     []string   `json:"env,omitempty"`
-	Keys    []KeyEntry `json:"keys,omitempty"`
-	Ratio   float64    `json:"ratio,omitempty"`
-	W       float64    `json:"w,omitempty"`
-	H       float64    `json:"h,omitempty"`
-	Millis  int64      `json:"millis,omitempty"`
-	Sound   bool       `json:"sound,omitempty"`
+	V       int            `json:"v,omitempty"`
+	ID      uint64         `json:"id,omitempty"`
+	Op      string         `json:"op"`
+	Pane    string         `json:"pane,omitempty"`
+	Tab     string         `json:"tab,omitempty"`
+	Target  string         `json:"target,omitempty"`
+	Name    string         `json:"name,omitempty"`
+	Kind    string         `json:"kind,omitempty"`
+	Label   string         `json:"label,omitempty"`
+	Cwd     string         `json:"cwd,omitempty"`
+	Text    string         `json:"text,omitempty"`
+	Title   string         `json:"title,omitempty"`
+	Dir     string         `json:"dir,omitempty"`
+	Pointer Pointer        `json:"pointer,omitempty"`
+	Session string         `json:"session,omitempty"`
+	System  string         `json:"system,omitempty"`
+	Reach   string         `json:"reach,omitempty"`
+	From    string         `json:"from,omitempty"`
+	Argv    []string       `json:"argv,omitempty"`
+	Env     []string       `json:"env,omitempty"`
+	Keys    []KeyEntry     `json:"keys,omitempty"`
+	Ratio   float64        `json:"ratio,omitempty"`
+	W       float64        `json:"w,omitempty"`
+	H       float64        `json:"h,omitempty"`
+	Millis  int64          `json:"millis,omitempty"`
+	Sound   bool           `json:"sound,omitempty"`
+	Space   string         `json:"space,omitempty"`
+	Group   string         `json:"group,omitempty"`
+	X       int            `json:"x,omitempty"`
+	Y       int            `json:"y,omitempty"`
+	Marks   map[string]int `json:"marks,omitempty"`
 }
 
 // How a window got to the keeper. Only a local one sits at the keeper's own
@@ -282,7 +313,8 @@ var ErrWireVersion = errors.New("restart needed")
 
 // wireErrors are the errors that keep their identity across the socket.
 var wireErrors = []error{ErrAgentNotReady, ErrAgentBlocked, ErrPromptStalled, ErrNoPane,
-	ErrEngineUnreachable, ErrNotBuilt, ErrCannotTell, ErrWireVersion, ErrFrame, ErrDock}
+	ErrEngineUnreachable, ErrNotBuilt, ErrCannotTell, ErrWireVersion, ErrFrame, ErrDock,
+	ErrSpace, ErrNotFront, ErrMainTab}
 
 // ErrCode is the name an error travels under in WireReply.Err: its own text for
 // an error callers tell apart, "failed" for any other, empty for none.

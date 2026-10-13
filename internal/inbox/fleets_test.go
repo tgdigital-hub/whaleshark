@@ -128,7 +128,7 @@ func TestALeaderKilledAndItsFleetTakenOverWithReportsWaiting(t *testing.T) {
 	// The group is started again, as start does it: a new attempt in a tab of
 	// its own, which leads the run that was left.
 	k, root := w.p.Kit, w.p.Root
-	tab, err := k.Terms.TabCreate(root, "billing", nil)
+	tab, err := k.Terms.TabCreate("", "", root, "billing", nil)
 	if err == nil {
 		err = k.Terms.AgentStart("a-new-leader", "codex", tab.ID, nil, 10*time.Second)
 	}

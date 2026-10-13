@@ -76,7 +76,7 @@ func TestStartsAFakeAgentThatPrintsItsSurroundings(t *testing.T) {
 	t.Setenv(contract.EnvClock, filepath.Join(t.TempDir(), "clock"))
 	f := listening(t)
 	f.Script("T1.1", "hang")
-	p, err := f.TabCreate(t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1", contract.EnvTask + "=T1"})
+	p, err := f.TabCreate("", "", t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1", contract.EnvTask + "=T1"})
 	if err != nil || p.Focused != true || p.Label != "login page" {
 		t.Fatalf("the first tab: %+v, %v", p, err)
 	}
@@ -118,7 +118,7 @@ func TestAnAgentThatDiesLeavesABareShell(t *testing.T) {
 	agent(t)
 	f := listening(t)
 	f.Script("T1.1", "die")
-	p, _ := f.TabCreate(t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1"})
+	p, _ := f.TabCreate("", "", t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1"})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if _, _, err := f.Events(ctx); err != nil {
@@ -164,7 +164,7 @@ func TestTakesAPreparedPictureAndRestarts(t *testing.T) {
 			t.Errorf("pane %s is %+v, the fixture says %+v", want.ID, got, want)
 		}
 	}
-	opened, err := f.TabCreate("/work", "one more", []string{"A=1"})
+	opened, err := f.TabCreate("", "", "/work", "one more", []string{"A=1"})
 	if err != nil || slices.ContainsFunc(fx.Terms.Panes, func(p contract.Pane) bool { return p.ID == opened.ID || p.Tab == opened.Tab }) {
 		t.Fatalf("a tab opened after the fixture: %+v, %v", opened, err)
 	}
@@ -175,6 +175,10 @@ func TestTakesAPreparedPictureAndRestarts(t *testing.T) {
 	f.Push(testkit.PushFocused, opened.ID)
 	if e := <-events; e.Kind != contract.EvFocus || e.Pane.Status != contract.StatusBlocked {
 		t.Errorf("after a dropped change and a told one the next event is %+v", e)
+	}
+	// The workspace shows the tab that has the keys now, and says so.
+	if e := <-events; e.Kind != contract.EvSpace || len(e.Spaces) != 1 || e.Spaces[0].Tab != opened.Tab || !e.Spaces[0].Front {
+		t.Errorf("the workspace after its tab was focused: %+v", e)
 	}
 	f.Restart()
 	if _, open := <-events; open {
@@ -225,7 +229,7 @@ func TestClosingEndsWhatAnAgentStarted(t *testing.T) {
 	}
 	f := listening(t)
 	f.Script("T1.1", "progress 50 half")
-	p, _ := f.TabCreate(t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1", contract.EnvBin + "=" + self})
+	p, _ := f.TabCreate("", "", t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1", contract.EnvBin + "=" + self})
 	if err := f.AgentStart("worker-one", "claude", p.ID, nil, time.Second); err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +253,7 @@ func TestARestartedAgentPlaysNothingAgain(t *testing.T) {
 	f.Script("T1.1", "write-result")
 	dir := t.TempDir()
 	result, prompt := filepath.Join(dir, "result.md"), "Read and follow "+filepath.Join(dir, "prompt.md")
-	p, _ := f.TabCreate(t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1"})
+	p, _ := f.TabCreate("", "", t.TempDir(), "login page", []string{contract.EnvAttempt + "=T1.1"})
 	if err := f.AgentStart("worker-one", "claude", p.ID, nil, time.Second); err != nil {
 		t.Fatal(err)
 	}
@@ -273,5 +277,165 @@ func TestARestartedAgentPlaysNothingAgain(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	if _, err := os.Stat(result); err == nil {
 		t.Error("an agent started again by a restart played its script a second time")
+	}
+}
+
+// as makes a call from a pane, as a program in that pane does.
+func as(t *testing.T, f *fakeengine.Fake, from string, c contract.WireCall) (contract.WireReply, error) {
+	t.Helper()
+	c.From = from
+	return f.Call(t.Context(), c)
+}
+
+func spaces(t *testing.T, f *fakeengine.Fake) string {
+	t.Helper()
+	snap, err := f.Snapshot(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, s := range snap.Spaces {
+		out = append(out, s.ID+" "+s.Name+" "+s.Tab+map[bool]string{true: " front"}[s.Front])
+	}
+	return strings.Join(out, ", ")
+}
+
+// The double keeps workspaces as the keeper does: a tab is of one from its
+// opening to its end, a tab opened from a pane is of that pane's whatever
+// the call says, focusing a tab brings its workspace to the front, a
+// workspace ends with its last tab, and all of it comes back after a restart.
+func TestWorkspaces(t *testing.T) {
+	f := fakeengine.New()
+	defer f.Close()
+	f.TabCreate("", "", "/home", "notes", nil)
+	if got := spaces(t, f); got != "s1 other tabs t1 front" {
+		t.Fatalf("the first tab, of no project: %s", got)
+	}
+	shop, err := f.SpaceOpen("/work/shop", "/work/shop/site")
+	if got := spaces(t, f); err != nil || shop.Label != contract.MainTab || shop.Cwd != "/work/shop/site" || got != "s1 other tabs t1, s2 shop t2 front" {
+		t.Fatalf("a project opened: %+v, %v; %s", shop, err, got)
+	}
+	if again, _ := f.SpaceOpen("/work/shop", "/elsewhere"); again.ID != shop.ID {
+		t.Errorf("opened again, another tab was made: %+v", again)
+	}
+	// From a pane: that pane's workspace and its group, though the call names others.
+	r, err := as(t, f, shop.ID, contract.WireCall{Op: contract.OpTabCreate, Space: "/work/blog", Group: "billing", Label: "leader"})
+	if err != nil || r.Pane.Workspace != "s2" || f.Group(r.Pane.Tab) != "billing" {
+		t.Fatalf("a tab opened from a pane: %+v, %v", r.Pane, err)
+	}
+	low, _ := as(t, f, r.Pane.ID, contract.WireCall{Op: contract.OpTabCreate, Group: "search", Label: "worker"})
+	if low.Pane.Workspace != "s2" || f.Group(low.Pane.Tab) != "billing" {
+		t.Errorf("a tab opened from a pane of a fleet is of %s in %s", f.Group(low.Pane.Tab), low.Pane.Workspace)
+	}
+	if beside, _ := f.Split(shop.ID, contract.Right, 0.5); beside.Workspace != "s2" {
+		t.Errorf("a split is of %q", beside.Workspace)
+	}
+	// From no pane: the project the call names, made and not put in front.
+	blog, _ := f.TabCreate("/work/blog", "", "/work/blog", "T1", nil)
+	if got := spaces(t, f); blog.Workspace != "s3" || got != "s1 other tabs t1, s2 shop t2 front, s3 blog t5" {
+		t.Fatalf("a tab of a third project: %s", got)
+	}
+	if err := f.Prompt("nobody", "x", time.Second); spaces(t, f) != "s1 other tabs t1, s2 shop t2 front, s3 blog t5" {
+		t.Errorf("a call that is no focus moved the front: %v", err)
+	}
+	if err := f.TabFocus(blog.Tab); err != nil || spaces(t, f) != "s1 other tabs t1, s2 shop t2, s3 blog t5 front" {
+		t.Fatalf("a tab focused brings its workspace: %v; %s", err, spaces(t, f))
+	}
+	// A screen of ours opens over the project in front only.
+	if _, err := as(t, f, shop.ID, contract.WireCall{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ask"}}); !errors.Is(err, contract.ErrNotFront) {
+		t.Errorf("an overlay asked from behind: %v", err)
+	}
+	// A name is a label: cleaned, and empty gives the folder's back.
+	f.SpaceRename("s3", "  --my\x1b[31m ‮blog and far too long a name to keep ")
+	if got := spaces(t, f); !strings.Contains(got, "s3 my [31m blog and far too t5 front") {
+		t.Errorf("a workspace named: %s", got)
+	}
+	f.SpaceRename("s3", "")
+	if err := f.SpaceRename("s9", "x"); !errors.Is(err, contract.ErrNoPane) || !strings.Contains(spaces(t, f), "s3 blog t5 front") {
+		t.Errorf("the folder's name back: %s, %v", spaces(t, f), err)
+	}
+	// One tab of a workspace reads as the main agent's.
+	if err := f.TabRename(r.Pane.Tab, " orchestrator "); !errors.Is(err, contract.ErrMainTab) {
+		t.Errorf("a second Orchestrator in one workspace: %v", err)
+	}
+	if err := f.TabRename(blog.Tab, "ORCHESTRATOR"); err != nil {
+		t.Errorf("the first Orchestrator of another workspace: %v", err)
+	}
+	f.Restart()
+	if got := spaces(t, f); got != "s1 other tabs t1, s2 shop t2, s3 blog t5 front" || pane(t, f, blog.ID).Workspace != "s3" {
+		t.Errorf("after a restart: %s", got)
+	}
+	// A workspace ends with its last tab, and never leaves the window on nothing.
+	f.TabClose(blog.Tab)
+	if got := spaces(t, f); got != "s1 other tabs t1 front, s2 shop t2" {
+		t.Errorf("after its last tab: %s", got)
+	}
+	if err := f.SpaceClose("s2"); err != nil || spaces(t, f) != "s1 other tabs t1 front" || pane(t, f, shop.ID).ID != "" {
+		t.Errorf("a workspace closed: %v; %s", err, spaces(t, f))
+	}
+	if again, _ := f.SpaceOpen("/work/shop", "/work/shop"); again.Workspace != "s4" {
+		t.Errorf("an id was given twice: %+v", again)
+	}
+}
+
+// The wall: from a pane that holds an agent, a person's own too, every call
+// that names a pane, a tab or a workspace of another workspace is refused
+// and the picture is what it was; inside its own workspace the wall says
+// nothing.
+func TestTheWallBetweenWorkspaces(t *testing.T) {
+	f := fakeengine.New()
+	defer f.Close()
+	near, _ := f.SpaceOpen("/work/shop", "/work/shop")
+	mine, _ := f.TabCreate("/work/shop", "", "/work/shop", "mine", nil)
+	far, _ := f.TabCreate("/work/blog", "", "/work/blog", "theirs", nil)
+	f.AgentStart("bob", "claude", far.ID, nil, time.Second)
+	f.AgentStart("ann", "claude", mine.ID, nil, time.Second)
+	// The agent a person started by hand, which no fence is about.
+	if err := f.Hook("SessionStart", near.ID, "", ""); err != nil || pane(t, f, near.ID).Agent == "" {
+		t.Fatal("no agent in the pane", err)
+	}
+	call := func(op string, to contract.Pane, name, space string) contract.WireCall {
+		c := contract.WireCall{Op: op, Pane: to.ID, Tab: to.Tab, Name: name, Dir: contract.Right, Text: "x", Label: "x", Kind: "claude", Argv: []string{"x"}}
+		switch op {
+		case contract.OpSpaceRename, contract.OpSpaceClose:
+			c.Space = space
+		case contract.OpSwap, contract.OpTabGive:
+			c.Target = to.ID
+		}
+		return c
+	}
+	before, _ := f.Snapshot(t.Context())
+	for _, op := range contract.Walled {
+		if _, err := as(t, f, near.ID, call(op, far, "bob", "s2")); !errors.Is(err, contract.ErrSpace) {
+			t.Errorf("%s on another workspace's tab: %v", op, err)
+		}
+	}
+	after, _ := f.Snapshot(t.Context())
+	if !slices.Equal(before.Panes, after.Panes) || !slices.Equal(before.Spaces, after.Spaces) {
+		t.Errorf("the picture changed:\n%+v\n%+v", before, after)
+	}
+	for _, op := range contract.Walled {
+		if op == contract.OpSpaceClose || op == contract.OpTabClose || op == contract.OpPaneClose {
+			continue // they would end what the next ones are about
+		}
+		if _, err := as(t, f, near.ID, call(op, mine, "ann", "s1")); errors.Is(err, contract.ErrSpace) {
+			t.Errorf("%s inside its own workspace met the wall", op)
+		}
+	}
+	// A pane that holds no agent is the person's own: no wall.
+	plain, _ := f.TabCreate("", "", "/work/shop", "a shell", nil)
+	if _, err := as(t, f, plain.ID, call(contract.OpScreen, far, "", "")); err != nil {
+		t.Errorf("a person's shell reading another workspace's screen: %v", err)
+	}
+	// What an agent the tool started may not do at all it may not do here either.
+	f.AgentStart("cy", "claude", plain.ID, nil, time.Second)
+	mine = pane(t, f, plain.ID)
+	for _, op := range []string{contract.OpTabRename, contract.OpSpaceOpen, contract.OpSpaceRename, contract.OpSpaceClose, contract.OpMarks} {
+		if _, err := as(t, f, mine.ID, call(op, mine, "", "s1")); err == nil || errors.Is(err, contract.ErrSpace) || !strings.Contains(err.Error(), "not a call for an agent") {
+			t.Errorf("%s from the pane of an agent the tool started: %v", op, err)
+		}
+	}
+	if _, err := as(t, f, far.ID, contract.WireCall{Op: contract.OpMarks, Marks: map[string]int{mine.Tab: 1}}); err == nil || f.Told() != nil {
+		t.Errorf("marks from a pane that is not the dock's: %v, %v", err, f.Told())
 	}
 }

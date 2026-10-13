@@ -706,7 +706,7 @@ func (p *pane) goTo(tab string) {
 // newTab opens a tab in a folder and brings it to the front.
 func (p *pane) newTab(dir, label string) {
 	p.keeper(func() error {
-		tab, err := p.k.Terms.TabCreate(dir, label, nil)
+		tab, err := p.k.Terms.TabCreate("", "", dir, label, nil)
 		if err == nil {
 			err = p.k.Terms.TabFocus(tab.Tab)
 		}

@@ -146,7 +146,7 @@ func Try(k *contract.Kit, t contract.Tool, wait time.Duration) (tr Trial, err er
 		return tr, err
 	}
 	defer os.RemoveAll(dir)
-	pane, err := k.Terms.TabCreate(dir, "try "+t.Name, nil)
+	pane, err := k.Terms.TabCreate("", "", dir, "try "+t.Name, nil)
 	if err != nil {
 		return tr, err
 	}

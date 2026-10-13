@@ -119,7 +119,7 @@ type trial struct {
 	args          []string
 }
 
-func (t *trial) TabCreate(cwd, label string, env []string) (contract.Pane, error) {
+func (t *trial) TabCreate(_, _, cwd, label string, env []string) (contract.Pane, error) {
 	t.asked, t.dir = append(t.asked, "tab "+label), cwd
 	return contract.Pane{ID: "p4", Tab: "t2"}, nil
 }
