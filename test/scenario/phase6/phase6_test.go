@@ -359,7 +359,9 @@ func TestAnAppPairsByACodeAndIsUsed(t *testing.T) {
 	}
 	s, _ := p.Record()
 	events := len(s.Inbox.Events)
-	if code, said := app("POST", contract.APIv1+contract.APITell, `{"text":"the price list may go"}`, true); code != http.StatusNoContent {
+	// Typed into the lead agent's tab as the app's holder's line, or, with
+	// the agent not at rest in that instant, waiting for it: the app is told which.
+	if code, said := app("POST", contract.APIv1+contract.APITell, `{"text":"the price list may go"}`, true); code != http.StatusNoContent && (code != http.StatusAccepted || !strings.Contains(said, `"chat":true`)) {
 		t.Errorf("a message to the lead agent: %d %s", code, said)
 	}
 	if s, _ = p.Record(); len(s.Inbox.Events) != events+1 || !strings.Contains(s.Inbox.Events[events].Text, "the price list may go") {
