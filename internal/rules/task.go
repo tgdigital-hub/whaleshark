@@ -22,7 +22,7 @@ func (r Rules) AddTask(s *contract.State, t contract.Task, taken []string, now t
 	if t.Check == "" {
 		return refuse(contract.ExitUsage, "no_check", "A task needs a check: a command, or the word none.")
 	}
-	if err := name(s, &t, taken); err != nil {
+	if err := name(s, &t, nil, taken); err != nil {
 		return err
 	}
 	if err := place(s, &t, taken); err != nil {
@@ -48,9 +48,10 @@ func (r Rules) AddTask(s *contract.State, t contract.Task, taken []string, now t
 
 // name fills in and checks the name a task's tab and card carry: three words
 // and 24 characters at most, a given one not an option once the spaces round
-// it are gone, and on no other tab of the login.
-func name(s *contract.State, t *contract.Task, taken []string) error {
-	given := t.Name != ""
+// it are gone, and on no other tab of the login. own is the task a rename
+// gives the name to: a name is always given then, and its own is not taken.
+func name(s *contract.State, t, own *contract.Task, taken []string) error {
+	given := own != nil || t.Name != ""
 	if !given {
 		t.Name = t.Title
 	}
@@ -64,7 +65,9 @@ func name(s *contract.State, t *contract.Task, taken []string) error {
 	}
 	taken = slices.Clone(taken)
 	for id, other := range s.Tasks {
-		taken = append(taken, id, other.Name)
+		if other != own {
+			taken = append(taken, id, other.Name)
+		}
 	}
 	if slices.ContainsFunc(append(taken, lead, contract.MainTab), func(n string) bool { return strings.EqualFold(n, t.Name) }) {
 		return refused("name_taken", "The name %q is taken. Give another with --name.", t.Name)
@@ -112,8 +115,17 @@ func (r Rules) EditTask(s *contract.State, id string, edit contract.TaskEdit, no
 	if err != nil {
 		return nil, err
 	}
-	switch t.Status {
-	case contract.TaskPending, contract.TaskReady, contract.TaskFailed:
+	// A name alone is taken in every state: it changes what the task is
+	// called and nothing of its work.
+	var renamed contract.Task
+	if edit.Name != nil {
+		renamed.Name = *edit.Name
+		if err := name(s, &renamed, t, edit.Taken); err != nil {
+			return nil, err
+		}
+	}
+	switch alone := edit.Name != nil && edit.Brief == nil && edit.Check == nil && edit.Owns == nil && edit.After == nil; {
+	case alone, t.Status == contract.TaskPending, t.Status == contract.TaskReady, t.Status == contract.TaskFailed:
 	default:
 		return nil, refused("not_editable", "%s is %s; only a pending, ready or failed task can be changed.", t.ID, t.Status)
 	}
@@ -146,6 +158,9 @@ func (r Rules) EditTask(s *contract.State, id string, edit contract.TaskEdit, no
 	}
 	if edit.Owns != nil {
 		t.Owns = slices.Clone(*edit.Owns)
+	}
+	if edit.Name != nil {
+		t.Name = renamed.Name
 	}
 	return promote(s), nil
 }

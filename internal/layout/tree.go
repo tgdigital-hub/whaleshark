@@ -3,6 +3,7 @@ package layout
 import (
 	"errors"
 	"slices"
+	"strconv"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -38,32 +39,61 @@ type Node struct {
 	B     *Node   `json:"b,omitempty"`
 }
 
+// Space is one workspace: a project's folder, none for the tabs of no
+// project, the name it goes by and whether a person gave it, and the tab of
+// its own that it shows while it is in front. An ID is never given twice.
+type Space struct {
+	ID     string            `json:"id"`
+	Root   string            `json:"root,omitempty"`
+	Name   string            `json:"name"`
+	Named  bool              `json:"named,omitempty"`
+	Active string            `json:"active"`
+	first  [2]int            // the first name each of its tab lines shows
+	seen   map[string]string // by group, the tab of it that showed last
+	last   string            // the group whose tab showed last
+}
+
 // Tab is one tab: its tree, the pane that has the keys in it, and the pane
-// zoomed to the whole tab, if one is.
+// zoomed to the whole tab, if one is. It is of one workspace from the moment
+// it is opened until it is closed. Group is the fleet it is of, and Head
+// says it is that fleet's first tab, its leader's.
 type Tab struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	// Chat: the label follows the name a person gives the chat in there. The
-	// main agent's tab, until somebody names the tab itself.
+	// main agent's tab, until somebody names the tab itself, which is Named.
 	Chat  bool   `json:"chat,omitempty"`
+	Named bool   `json:"named,omitempty"`
+	Space string `json:"space,omitempty"`
+	Group string `json:"group,omitempty"`
+	Head  bool   `json:"head,omitempty"`
 	Focus string `json:"focus"`
 	Zoom  string `json:"zoom,omitempty"`
 	Root  *Node  `json:"root"`
 }
 
-// Layout is every tab, in the order of the tab row, at one window size. The
-// first row of the window is the tab row, the second a line under it, and the
-// rest is the tab that shows. A layout with no size yet refuses no split.
+// Layout is every tab of every workspace in the order they were opened, at
+// one window size, and the workspaces in theirs. One workspace is in front:
+// the first row of the window is its tab row, on one line or two, under it
+// is a line, and the rest is the tab that shows, which is one of its own. A
+// layout with no size yet refuses no split.
 type Layout struct {
-	Tabs   []*Tab `json:"tabs"`
-	Active int    `json:"active"`
-	W, H   int    `json:"-"`
+	Tabs   []*Tab   `json:"tabs"`
+	Active int      `json:"active"`
+	Spaces []*Space `json:"spaces,omitempty"`
+	Front  string   `json:"front,omitempty"`
+	// Made is the number the last workspace was given.
+	Made int `json:"spaces_made,omitempty"`
+	// Marks is how many things wait for the person in each tab, as the dock
+	// said it: shown with a fleet's name on the first of two tab lines.
+	Marks map[string]int `json:"-"`
+	W, H  int            `json:"-"`
 	// Over is a pane drawn over the tab that shows, and OverAt its inside:
 	// the keeper's, kept here so that At can say a click landed in it.
-	Over   string `json:"-"`
-	OverAt Rect   `json:"-"`
-	Dock   Dock   `json:"-"`
-	first  int    // the first tab the tab row shows
+	Over   string  `json:"-"`
+	OverAt Rect    `json:"-"`
+	Dock   Dock    `json:"-"`
+	whole  *Layout // what a layout made by Walk is a part of
 }
 
 // Dock is the place of the one pane that is in no tab and shows beside every
@@ -119,31 +149,106 @@ func (l *Layout) Of(pane string) *Tab {
 	return nil
 }
 
-// Add opens a tab of one pane after the others, without showing it.
+// Space is the workspace with that id.
+func (l *Layout) Space(id string) *Space {
+	if i := slices.IndexFunc(l.Spaces, func(s *Space) bool { return s.ID == id }); i >= 0 {
+		return l.Spaces[i]
+	}
+	return nil
+}
+
+// Open is the workspace of a project's folder, of the tabs of no project
+// for none: made after the others where there is none, and in front when it
+// is the only one. One that gets no tab is gone at the next Remove.
+func (l *Layout) Open(root string) *Space {
+	if i := slices.IndexFunc(l.Spaces, func(s *Space) bool { return s.Root == root }); i >= 0 {
+		return l.Spaces[i]
+	}
+	l.Made++
+	s := &Space{ID: "s" + strconv.Itoa(l.Made), Root: root, Name: contract.SpaceName(root)}
+	if l.Spaces = append(l.Spaces, s); l.Front == "" {
+		l.Front = s.ID
+	}
+	return s
+}
+
+// Add opens a tab of one pane after the others, without showing it, in the
+// workspace in front: the tabs of no project where there is none yet.
 func (l *Layout) Add(id, label, pane string) *Tab {
-	t := &Tab{ID: id, Label: label, Focus: pane, Root: &Node{Pane: pane}}
-	l.Tabs = append(l.Tabs, t)
+	s := l.Space(l.Front)
+	if s == nil {
+		s = l.Open("")
+	}
+	return l.AddIn(s, id, label, pane)
+}
+
+// AddIn is Add in a workspace of the caller's choosing.
+func (l *Layout) AddIn(s *Space, id, label, pane string) *Tab {
+	t := &Tab{ID: id, Label: label, Space: s.ID, Focus: pane, Root: &Node{Pane: pane}}
+	if l.Tabs = append(l.Tabs, t); s.Active == "" {
+		s.Active = id
+	}
 	return t
 }
 
-// Remove closes a tab. The tab after it shows in its place.
+// in is the tabs of one workspace, in their order.
+func (l *Layout) in(space string) (out []*Tab) {
+	for _, t := range l.Tabs {
+		if t.Space == space {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// Remove closes a tab. The tab after it in its workspace shows in its place,
+// or the one before it. A workspace ends with its last tab, and the first of
+// those that are left is then in front.
 func (l *Layout) Remove(id string) {
 	i := slices.IndexFunc(l.Tabs, func(t *Tab) bool { return t.ID == id })
 	if i < 0 {
 		return
 	}
+	t, shown := l.Tabs[i], l.shown()
 	l.Tabs = slices.Delete(l.Tabs, i, i+1)
-	if l.Active > i || l.Active == len(l.Tabs) {
-		l.Active = max(l.Active-1, 0)
+	delete(l.Marks, id)
+	if s := l.Space(t.Space); s != nil && s.Active == id {
+		s.Active = ""
+		for j, o := range l.Tabs {
+			if o.Space != s.ID {
+				continue
+			} else if s.Active = o.ID; j >= i {
+				break
+			}
+		}
 	}
+	l.Spaces = slices.DeleteFunc(l.Spaces, func(s *Space) bool { return s.Active == "" })
+	if l.Space(l.Front) == nil {
+		if l.Front = ""; len(l.Spaces) > 0 {
+			l.Front = l.Spaces[0].ID
+		}
+	}
+	if s := l.Space(l.Front); shown == t && s != nil {
+		shown = l.Tab(s.Active)
+	}
+	l.Active = max(slices.Index(l.Tabs, shown), 0)
 	l.reveal()
 }
 
-// Show makes a tab the one that shows.
+// Show makes a tab the one that shows, and its workspace the one in front.
 func (l *Layout) Show(id string) bool {
 	i := slices.IndexFunc(l.Tabs, func(t *Tab) bool { return t.ID == id })
 	if i >= 0 {
-		l.Active = i
+		t := l.Tabs[i]
+		l.Active, l.Front = i, t.Space
+		if s := l.Space(t.Space); s != nil {
+			if s.Active = id; s.seen == nil {
+				s.seen = map[string]string{}
+			}
+			if g := l.group(t); g != "" {
+				s.last, s.seen[g] = g, id
+			}
+		}
 		l.reveal()
 	}
 	return i >= 0
@@ -261,9 +366,14 @@ func (l *Layout) Zoom(pane string) bool {
 }
 
 // Sound reports whether a layout read from a file can be used: every split
-// has two sides and a share, every pane and tab an id nothing else has, and
-// what a tab names as focused or zoomed is a pane of its own.
+// has two sides and a share, every pane, tab and workspace an id nothing
+// else has, and what a tab names as focused or zoomed is a pane of its own;
+// every tab's workspace is there, every workspace shows a tab of its own,
+// and the tab that shows is of the workspace in front.
 func (l *Layout) Sound() bool {
+	if slices.Contains(l.Spaces, nil) {
+		return false
+	}
 	seen := map[string]bool{"pane " + DockPane: true}
 	fresh := func(kind, id string) bool {
 		ok := id != "" && !seen[kind+id]
@@ -280,10 +390,18 @@ func (l *Layout) Sound() bool {
 		return n.Pane == "" && n.Share >= 0 && n.Share <= 1 && n.Cells >= 0 && sound(n.A) && sound(n.B)
 	}
 	for _, t := range l.Tabs {
-		if t == nil || !fresh("tab ", t.ID) || !sound(t.Root) ||
+		if t == nil || !fresh("tab ", t.ID) || !sound(t.Root) || l.Space(t.Space) == nil ||
 			!slices.Contains(t.Panes(), t.Focus) || t.Zoom != "" && !slices.Contains(t.Panes(), t.Zoom) {
 			return false
 		}
 	}
-	return l.Active >= 0 && l.Active < max(len(l.Tabs), 1)
+	for _, s := range l.Spaces {
+		if s == nil || !fresh("space ", s.ID) || l.Tab(s.Active) == nil || l.Tab(s.Active).Space != s.ID {
+			return false
+		}
+	}
+	if len(l.Tabs) == 0 {
+		return l.Active == 0 && l.Front == ""
+	}
+	return l.Active >= 0 && l.Active < len(l.Tabs) && l.Tabs[l.Active].Space == l.Front
 }

@@ -9,10 +9,5 @@ package restore
 
 import "github.com/tgdigital-hub/whaleshark/internal/contract"
 
-// Phase 7 owes here: the layout file's new fields under a version raised by
-// one, and a file of before read once: each tab into the workspace of the
-// project its first pane's folder lies in, by the login's list, else into
-// the tabs of no project.
-
 // Plug binds this package's part into the kit: it has no command of its own.
 func Plug(*contract.Kit) {}

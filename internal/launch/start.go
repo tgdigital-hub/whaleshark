@@ -701,7 +701,9 @@ func (l *launcher) bring(task string) outcome {
 		env = append(env, slot.Env(l.block)...)
 	}
 	var found []string
-	pane, err := k.Terms.TabCreate("", "", folder, tabName(t), env)
+	// The tab is of the project's workspace and, a leader's, the first of
+	// its fleet's; opened from a pane it is that pane's, whatever is said.
+	pane, err := k.Terms.TabCreate(l.c.Root, t.Fleet, folder, tabName(t), env)
 	if err != nil {
 		return l.failed(r, err, "the tab could not be opened", false)
 	}

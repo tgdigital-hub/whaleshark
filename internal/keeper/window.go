@@ -78,7 +78,7 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	}
 	bytes, feed := io.Pipe()
 	w := &window{link: l, w: side(c.W), h: side(c.H), wake: make(chan struct{}, 1), gone: make(chan struct{}),
-		look: layout.Look{Text: in("text"), Dim: in("dim"), Frame: in("frame"), Accent: in("accent"), Plain: !known},
+		look: layout.Look{Text: in("text"), Dim: in("dim"), Frame: in("frame"), Accent: in("accent"), Need: in("needs"), Plain: !known},
 		sys:  c.System, env: env}
 	// Only a window that says it is on the keeper's own computer, or comes
 	// through connect, is at a clipboard the keeper can be sure of.
@@ -90,6 +90,12 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	w.in.Keys = input.New(k.set, w.sys)
 	k.wins = append(k.wins, w)
 	k.use(w)
+	if c.Cwd != "" {
+		// The folder `open` was typed in: the workspace of its project, or of
+		// the tabs of no project, comes to the front in every window, made
+		// with its first tab where there is none.
+		k.do(contract.WireCall{Op: contract.OpSpaceOpen, Space: c.Space, Cwd: c.Cwd})
+	}
 	if len(k.lay.Tabs) == 0 {
 		// A window on nothing is no use to anybody: it gets a first tab,
 		// in the folder the keeper was started in, which is written down:

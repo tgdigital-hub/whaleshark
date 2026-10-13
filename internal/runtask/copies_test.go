@@ -22,7 +22,12 @@ type shop struct {
 
 func open(t *testing.T, scripts map[string]string) *shop {
 	t.Helper()
-	p := scenario.Prepare(t, nil, scripts)
+	return openOn(t, scenario.Double, scripts)
+}
+
+func openOn(t *testing.T, on scenario.Backend, scripts map[string]string) *shop {
+	t.Helper()
+	p := scenario.PrepareOn(t, on, nil, scripts)
 	testkit.Git(t, p.Root, "init", "-q", "-b", "main")
 	testkit.Git(t, p.Root, "config", "user.name", "a test")
 	testkit.Git(t, p.Root, "config", "user.email", "test@localhost")

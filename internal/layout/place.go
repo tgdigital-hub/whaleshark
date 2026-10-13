@@ -47,10 +47,15 @@ func (l *Layout) side() (at, line Rect, x, w int) {
 	return at, line, l.W - w, w
 }
 
-// area is the window under the tab row and its line, beside the dock.
-func (l *Layout) area() Rect {
+// area is the window under the tab row and its line, beside the dock, for
+// the workspace in front; areaOf is a workspace's own, whose tab row may
+// have another count of lines.
+func (l *Layout) area() Rect { return l.areaOf(l.Front) }
+
+func (l *Layout) areaOf(space string) Rect {
 	_, _, x, w := l.side()
-	return Rect{x, 2, w, max(l.H-2, 0)}
+	y := l.lines(space) + 1
+	return Rect{x, y, w, max(l.H-y, 0)}
 }
 
 // least is the smallest a node can be, down or across.
@@ -127,7 +132,7 @@ func walk(n *Node, r Rect, fn func(*Node, Rect)) {
 
 // place is the place a node of a tab has when nothing is zoomed.
 func (l *Layout) place(t *Tab, of *Node) (at Rect) {
-	walk(t.Root, l.area(), func(n *Node, r Rect) {
+	walk(t.Root, l.areaOf(t.Space), func(n *Node, r Rect) {
 		if n == of {
 			at = r
 		}
@@ -146,9 +151,9 @@ func (l *Layout) Places(t *Tab) (out []Place) {
 	if t == nil {
 		return out
 	} else if t.Zoom != "" {
-		return append(out, Place{t.Zoom, l.area()})
+		return append(out, Place{t.Zoom, l.areaOf(t.Space)})
 	}
-	walk(t.Root, l.area(), func(n *Node, r Rect) {
+	walk(t.Root, l.areaOf(t.Space), func(n *Node, r Rect) {
 		if n.A == nil {
 			out = append(out, Place{n.Pane, r})
 		}
@@ -166,7 +171,7 @@ func (l *Layout) Beside(pane, direction string) string {
 	if l.W == 0 || l.H == 0 {
 		// Before the first window nothing has a place; the panes lie as
 		// they would in any window with room for them all.
-		roomy := Layout{Tabs: l.Tabs, Active: l.Active, W: 1 << 12, H: 1 << 12}
+		roomy := Layout{Tabs: l.Tabs, Active: l.Active, Front: l.Front, W: 1 << 12, H: 1 << 12}
 		return roomy.Beside(pane, direction)
 	}
 	places := l.Places(t)
@@ -232,7 +237,7 @@ func (l *Layout) Resize(pane, direction string, amount float64) error {
 	}
 	var near, far *Node
 	var nr, fr Rect
-	walk(t.Root, l.area(), func(n *Node, r Rect) {
+	walk(t.Root, l.areaOf(t.Space), func(n *Node, r Rect) {
 		if n.A == nil || n.Down != down {
 			return
 		}

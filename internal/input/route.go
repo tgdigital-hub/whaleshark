@@ -30,6 +30,11 @@ const (
 	Allow                    // let Pane's program copy what it asked to
 	Settings                 // open the settings screen over the tab
 	Width                    // a drag of the dock's edge ended: its width is written
+	Menu                     // the menu of the tab or the group Hit is asked for, at the window's cell X, Y
+	Reset                    // put the dividing line Hit back to how it came
+	Lit                      // the line Hit is the lit one, Step says how; a Hit of no kind is no line
+	Put                      // put the line Hit at the cell X, Y: the press after a click on it
+	Away                     // a press beside the pane drawn over the tab, which reached nothing else
 	tabBy                    // show the tab Step places on
 	tabAt                    // show tab number Step
 )
@@ -46,6 +51,16 @@ type Act struct {
 	Step   int
 	Action term.Action
 }
+
+// Twice is the most that lies between the two presses of a double-click.
+const Twice = 500 * time.Millisecond
+
+// How a line is lit, a Lit's Step.
+const (
+	Under = iota // the pointer came onto it with no button down
+	Held         // the button went down on it
+	Waits        // it was clicked and not dragged: the next press puts it
+)
 
 // The wheel moves three lines a notch; a resize by key a twentieth of the split.
 const (
@@ -76,6 +91,7 @@ func New(s contract.Settings, system string) *Keys {
 		"n": {Kind: tabBy, Step: 1}, "p": {Kind: tabBy, Step: -1},
 		"z": {Kind: Zoom}, "l": {Kind: Redraw}, "v": {Kind: Mark}, "y": {Kind: Allow},
 		"b": call(contract.OpDock, contract.DockFold, 0), "g": call(contract.OpDock, contract.DockKeys, 0), "s": {Kind: Settings},
+		".": {Kind: Menu}, // of the tab that shows; the keeper says where under its name
 	}
 	for _, dir := range []string{contract.Left, contract.Right, contract.Up, contract.Down} {
 		k.after[dir] = call(contract.OpPaneFocus, dir, 0)
@@ -111,8 +127,11 @@ type In struct {
 	Keys  *Keys
 	Armed bool
 	to    Kind       // whose the held button is: Drag, Select, or Type for a program
-	edge  time.Time  // when the dock's edge was last pressed
+	at    time.Time  // when a line was last pressed, until it moves
 	held  layout.Hit // where it went down, or was last seen inside its pane
+	put   layout.Hit // the line a click left waiting for the press that puts it
+	lit   layout.Hit // the line the keeper was last told is lit, and how
+	how   int
 }
 
 func typed(pane, text string) []Act {
@@ -144,6 +163,10 @@ func (in *In) Take(ev term.Event, v View) []Act {
 	}
 	switch ev.Kind {
 	case term.KeyPress:
+		if in.put.Kind != 0 && ev.Key == "esc" {
+			in.put = layout.Hit{} // the line waits no longer, and the key is used up
+			return in.light(layout.Hit{}, Under)
+		}
 		if a, mine := in.shortcut(canon(ev.Key), v, focus); mine {
 			return a
 		}
@@ -197,15 +220,49 @@ func (in *In) shortcut(key string, v View, focus string) ([]Act, bool) {
 			return nil, true
 		}
 		a = Act{Kind: Call, Call: contract.WireCall{Op: contract.OpTabFocus, Tab: tabs[a.Step-1].ID}}
+	case a.Kind == Menu:
+		if n := v.Lay.Active; n >= 0 && n < len(tabs) {
+			a.Hit = layout.Hit{Kind: layout.OnTab, Tab: tabs[n].ID}
+		}
 	}
 	return []Act{a}, true
 }
 
-// mouse routes a mouse report: the tab row and a dividing line are the
-// engine's; a pane's program gets what it asked for; and in a pane whose
-// program did not ask, the wheel scrolls back and a drag selects.
+// light tells the keeper which line is lit and how, when that changed.
+func (in *In) light(h layout.Hit, how int) []Act {
+	if h.Kind != layout.OnLine {
+		h, how = layout.Hit{}, Under
+	}
+	if h == in.lit && how == in.how {
+		return nil
+	}
+	in.lit, in.how = h, how
+	return []Act{{Kind: Lit, Hit: h, Step: how}}
+}
+
+// mouse routes a mouse report to what is under it, and then says which
+// line is lit: the one that waits, else the one held, else the one the
+// pointer came onto. Only a movement with no button down lights a line
+// under the pointer, so a terminal that reports none leaves none lit.
 func (in *In) mouse(ev term.Event, v View, focus string, modes func(string) screen.Modes) []Act {
 	h := v.Lay.At(ev.X, ev.Y)
+	acts := in.point(h, ev, v, focus, modes)
+	line, how := layout.Hit{}, Under
+	switch {
+	case in.put.Kind != 0:
+		line, how = in.put, Waits
+	case in.to == Drag:
+		line, how = in.held, Held
+	case ev.Button == term.NoButton && v.Over == "":
+		line = h
+	}
+	return append(acts, in.light(line, how)...)
+}
+
+// point routes a mouse report at h: the tab row and a dividing line are
+// the engine's; a pane's program gets what it asked for; and in a pane
+// whose program did not ask, the wheel scrolls back and a drag selects.
+func (in *In) point(h layout.Hit, ev term.Event, v View, focus string, modes func(string) screen.Modes) []Act {
 	on := h.Kind == layout.OnPane && (v.Over == "" || h.Pane == v.Over)
 	if ev.Action != term.Press {
 		to, was := in.to, in.held
@@ -216,8 +273,13 @@ func (in *In) mouse(ev term.Event, v View, focus string, modes func(string) scre
 		case ev.Button == term.NoButton && on:
 			return typed(h.Pane, Mouse(ev, modes(h.Pane), h.X, h.Y))
 		case to == Drag && ev.Action == term.Move:
-			in.edge = time.Time{}
+			in.at = time.Time{}
 			return []Act{{Kind: Drag, Hit: was, X: ev.X, Y: ev.Y}}
+		case to == Drag && !in.at.IsZero():
+			// Pressed and let go with no movement between: the line waits
+			// for the press that says where it should go.
+			in.put = was
+			return nil
 		case to == Drag && was.Pane == layout.DockPane:
 			return []Act{{Kind: Width}}
 		case to == Select:
@@ -235,6 +297,10 @@ func (in *In) mouse(ev term.Event, v View, focus string, modes func(string) scre
 	}
 	wheel := map[term.Button]int{term.WheelUp: -1, term.WheelDown: 1}[ev.Button]
 	switch {
+	case v.Over != "" && !on && wheel == 0:
+		// Beside a pane drawn over the tab a press reaches nothing; the
+		// keeper closes a placed one by it.
+		return []Act{{Kind: Away}}
 	case v.Over != "" && !on:
 		return nil
 	case wheel != 0 && on:
@@ -250,19 +316,28 @@ func (in *In) mouse(ev term.Event, v View, focus string, modes func(string) scre
 		return []Act{{Kind: Scroll, Pane: h.Pane, Step: wheel * notch}}
 	case wheel != 0 && ev.Y == 0:
 		return []Act{{Kind: Row, Step: wheel}}
-	case wheel != 0, !on && ev.Button != term.Left:
+	case wheel != 0:
 		return nil
-	case h.Kind == layout.OnTab:
+	case in.put.Kind != 0 && v.Over == "":
+		// The press after a click on a line is used up: on that line again
+		// within the span of a double-click it puts the line back, else it
+		// puts the line where the press is.
+		put := in.put
+		if in.put = (layout.Hit{}); h == put && time.Since(in.at) < Twice {
+			return []Act{{Kind: Reset, Hit: put}}
+		}
+		return []Act{{Kind: Put, Hit: put, X: ev.X, Y: ev.Y}}
+	case ev.Menu() && (h.Kind == layout.OnTab || h.Kind == layout.OnGroup):
+		// The menu of this thing, here: whatever press term says asks for one.
+		return []Act{{Kind: Menu, Hit: h, X: ev.X, Y: ev.Y}}
+	case !on && (ev.Menu() || ev.Button != term.Left):
+		return nil
+	case h.Kind == layout.OnTab, h.Kind == layout.OnGroup:
 		return []Act{{Kind: Call, Call: contract.WireCall{Op: contract.OpTabFocus, Tab: h.Tab}}}
 	case h.Kind == layout.OnMore:
 		return []Act{{Kind: Row, Step: h.Step}}
 	case h.Kind == layout.OnLine:
-		// A second press on the dock's edge within half a second folds it.
-		twice := h.Pane == layout.DockPane && time.Since(in.edge) < 500*time.Millisecond
-		if in.to, in.held, in.edge = Drag, h, time.Now(); twice {
-			in.to, in.edge = 0, time.Time{}
-			return []Act{call(contract.OpDock, contract.DockFold, 0)}
-		}
+		in.to, in.held, in.at = Drag, h, time.Now()
 		return nil
 	case !on:
 		return nil

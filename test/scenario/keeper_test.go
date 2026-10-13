@@ -27,21 +27,30 @@ import (
 // pane is closed or after, and on the double a run starts no program. The
 // dock is in both pictures and answers alike; the events of its program's
 // starts are left out, since the keeper starts that program on its own
-// clock, again whenever it ends, and the double starts none.
-func session(t *testing.T, terms contract.Terminals, root string) []string {
+// clock, again whenever it ends, and the double starts none. second is the
+// folder of a second workspace: both backends keep workspaces, and the log
+// holds each pane's, every picture's list of them and every change to it.
+func session(t *testing.T, terms contract.Terminals, root, second string) []string {
 	t.Helper()
 	var log []string
 	say := func(what string, err error, answer ...any) {
 		log = append(log, strings.TrimSpace(fmt.Sprintf("%s: %s %q", what, fmt.Sprint(answer...), contract.ErrCode(err))))
 	}
 	show := func(p contract.Pane) string {
-		return fmt.Sprintf("%s in %s %q focused=%v", p.ID, p.Tab, p.Label, p.Focused)
+		return fmt.Sprintf("%s in %s of %s %q focused=%v", p.ID, p.Tab, p.Workspace, p.Label, p.Focused)
+	}
+	spaces := func(list []contract.Space) (out string) {
+		for _, sp := range list {
+			out += fmt.Sprintf(" %s %q named=%v shows %s front=%v;", sp.ID, sp.Name, sp.Named, sp.Tab, sp.Front)
+		}
+		return out
 	}
 	picture := func(what string, s *contract.Snapshot, err error) {
 		if say(what, err); s != nil {
 			for _, p := range s.Panes {
 				log = append(log, "  "+show(p))
 			}
+			log = append(log, "  workspaces:"+spaces(s.Spaces))
 		}
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -139,6 +148,40 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 	say("say from no place of the person's", terms.Say("p2", "an agent", "x"))
 	say("say to a pane that is not there", terms.Say("p9", contract.WherePhone, "x"))
 	fence("tab-close of a tab it was given", contract.WireCall{Op: contract.OpTabClose, Tab: "t2"})
+	// A second workspace: opened with its first tab and in front, opened
+	// again with nothing made, left behind while a tab is opened in it; its
+	// tabs are held to its own rules, refuse a screen of ours and are behind
+	// the wall for an agent of the first; it shows another tab when the one
+	// it showed is closed, and it is closed whole. What waits in a tab is
+	// the dock's alone to tell.
+	from := func(what, pane string, c contract.WireCall) {
+		c.From = pane
+		_, err := raw.Call(ctx, c)
+		say(what, err)
+	}
+	sp, err := terms.SpaceOpen(second, second)
+	say("space-open", err, show(sp))
+	sp, err = terms.SpaceOpen(second, root)
+	say("space-open again", err, show(sp))
+	say("tab-focus of a tab of the first workspace", terms.TabFocus("t1"))
+	behind, err := terms.TabCreate(second, "", second, "behind", nil)
+	say("tab-create in the workspace behind", err, show(behind))
+	say("space-rename of one that is not there", terms.SpaceRename("s9", "x"))
+	say("tab-rename to a second main tab", terms.TabRename(behind.Tab, " orchestrator"))
+	say("tab-rename", terms.TabRename(behind.Tab, "--still\tbehind, and with a name that is too long"))
+	from("overlay from the workspace behind", behind.ID, contract.WireCall{Op: contract.OpOverlay, Argv: []string{agent, "hang"}})
+	from("screen of another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpScreen, Pane: behind.ID})
+	from("size of another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpSize, Pane: behind.ID})
+	from("swap with another workspace's pane, from an agent's", "p3", contract.WireCall{Op: contract.OpSwap, Pane: "p5", Target: behind.ID})
+	from("size inside its own workspace", "p3", contract.WireCall{Op: contract.OpSize, Pane: "p5"})
+	from("screen of another workspace's pane, from a pane with no agent", "p2", contract.WireCall{Op: contract.OpScreen, Pane: behind.ID})
+	log = append(log, fmt.Sprintf("marks from no pane: refused=%v", terms.Marks(map[string]int{behind.Tab: 2}) != nil))
+	from("marks from the dock", dock, contract.WireCall{Op: contract.OpMarks, Marks: map[string]int{behind.Tab: 2, "t9": 1}})
+	say("tab-focus of the tab behind", terms.TabFocus(behind.Tab))
+	say("tab-focus back", terms.TabFocus("t1"))
+	say("tab-close of the tab the workspace behind showed", terms.TabClose(behind.Tab))
+	say("space-close", terms.SpaceClose(sp.Workspace))
+	say("space-close again", terms.SpaceClose(sp.Workspace))
 	say("tab-close", terms.TabClose("t3"))
 	last, err := terms.Snapshot(ctx)
 	picture("snapshot", last, err)
@@ -158,10 +201,8 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 					was = p.Terminal
 				}
 			}
-			// Phase 7 owes here: the double tells of its workspaces and the
-			// keeper does not yet. With workspaces in the keeper this one
-			// condition goes, and the two logs are held equal with them.
 			if e.Kind == contract.EvSpace {
+				log = append(log, "event space:"+spaces(e.Spaces))
 			} else if e.Kind != contract.EvSession && !e.Pane.Dock && (e.Kind != contract.EvState || e.Pane.Terminal != was) {
 				log = append(log, fmt.Sprintf("event %s: %s", e.Kind, show(e.Pane)))
 			}
@@ -182,13 +223,15 @@ func session(t *testing.T, terms contract.Terminals, root string) []string {
 // is left that it has not built.
 func TestTheDoubleAnswersAsTheKeeper(t *testing.T) {
 	p := PrepareOn(t, Keeper, nil, nil)
-	real := session(t, p.Kit.Terms, p.Root)
+	second := filepath.Join(t.TempDir(), "second")
+	p.must(os.Mkdir(second, 0o700))
+	real := session(t, p.Kit.Terms, p.Root, second)
 
 	double := fakeengine.New()
 	defer double.Close()
 	double.TabCreate("", "", p.Root, "Lead", nil)
 	double.TabCreate("", "", p.Root, "you", nil)
-	if fake := session(t, double, p.Root); strings.Join(fake, "\n") != strings.Join(real, "\n") {
+	if fake := session(t, double, p.Root, second); strings.Join(fake, "\n") != strings.Join(real, "\n") {
 		t.Errorf("the double:\n%s\n\nthe keeper:\n%s", strings.Join(fake, "\n"), strings.Join(real, "\n"))
 	}
 	t.Log("\n" + strings.Join(real, "\n"))

@@ -60,10 +60,11 @@ type pane struct {
 	shown atomic.Bool   // in the tab that shows
 }
 
-// fresh is a new pane of a tab, with no program in it yet.
-func (k *Keeper) fresh(tab, label, cwd string) *pane {
+// fresh is a new pane of a tab and so of the tab's workspace, with no
+// program in it yet.
+func (k *Keeper) fresh(tab, space, label, cwd string) *pane {
 	k.nPane++
-	p := &pane{rec: contract.Pane{ID: "p" + strconv.Itoa(k.nPane), Tab: tab, Label: label, Cwd: cwd, Status: contract.StatusUnknown}}
+	p := &pane{rec: contract.Pane{ID: "p" + strconv.Itoa(k.nPane), Tab: tab, Workspace: space, Label: label, Cwd: cwd, Status: contract.StatusUnknown}}
 	k.panes[p.rec.ID] = p
 	return p
 }

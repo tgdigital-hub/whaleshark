@@ -40,7 +40,8 @@ func run(t *term.Term) {
 		case ev.Kind == term.Mouse && ev.Action == term.Move:
 			px, py = ev.X, ev.Y
 		case ev.Kind == term.Mouse && ev.Action == term.Press:
-			button := [...]string{"", "clicked", "middle button on", "wheel up on", "wheel down on"}[ev.Button]
+			button := [...]string{term.Left: "clicked", term.Middle: "middle button on", term.Right: "right button on",
+				term.WheelUp: "wheel up on", term.WheelDown: "wheel down on"}[ev.Button]
 			said = fmt.Sprintf("%s %s at column %d, row %d", button, nameAt(ev.X, ev.Y), ev.X, ev.Y)
 			if ev.Y == t.H-2 {
 				line.Click(ev.X - 2)

@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -315,7 +316,7 @@ func TestLoad(t *testing.T) {
 			t.Fatalf("a save after %q: %v", bad, err)
 		}
 	}
-	newer := `{"version":2,"layout":{}}`
+	newer := `{"version":3,"layout":{}}`
 	write(newer)
 	if f, _, err := restore.Load(p, dirs); f != nil || !errors.Is(err, contract.ErrNewer) {
 		t.Fatalf("a newer file: %v, %v", f, err)
@@ -336,12 +337,86 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []restore.Pane{{Rec: contract.Pane{ID: "p9", Tab: "t4", Label: "reef", Status: contract.StatusUnknown}},
-		{Rec: contract.Pane{ID: "p3", Tab: "t4", Label: "reef", Cwd: "/reef", Status: contract.StatusUnknown}, Lines: []string{"one"}}}
+	want := []restore.Pane{{Rec: contract.Pane{ID: "p9", Tab: "t4", Workspace: "s1", Label: "reef", Status: contract.StatusUnknown}},
+		{Rec: contract.Pane{ID: "p3", Tab: "t4", Workspace: "s1", Label: "reef", Cwd: "/reef", Status: contract.StatusUnknown}, Lines: []string{"one"}}}
 	got, _ := json.Marshal(f.Panes)
 	wanted, _ := json.Marshal(want)
 	if string(got) != string(wanted) || f.NTab != 4 || f.NPane != 9 || len(f.Vars) != 1 || lay.W != 100 || lay.H != 30 {
 		t.Fatalf("got %s, counters %d and %d, variables %v, window %dx%d", got, f.NTab, f.NPane, f.Vars, lay.W, lay.H)
+	}
+}
+
+// A layout file of before there were workspaces is read once: each tab goes
+// into the workspace of the project its first pane's folder lies in, the
+// innermost of the login's list, and a tab in no project into the tabs of no
+// project; the tab that showed still shows, and its workspace is in front.
+// Saved again and read back it is the same, under the same ids. And a file
+// that says which tab is of which workspace is held to it.
+func TestAFileOfBeforeWorkspaces(t *testing.T) {
+	p := platform.New(runtime.GOOS)
+	_, dirs := login(t)
+	os.MkdirAll(dirs.State, 0o700)
+	reef, deep, away := filepath.Join(t.TempDir(), "reef"), "", t.TempDir()
+	deep = filepath.Join(reef, "kelp")
+	if err := contract.WriteProjects(p, dirs.State, []string{reef, deep}); err != nil {
+		t.Fatal(err)
+	}
+	tab := func(id, pane string) string {
+		return `{"id":"` + id + `","label":"` + id + `","focus":"` + pane + `","root":{"pane":"` + pane + `"}}`
+	}
+	in := func(pane, dir string) string {
+		cwd, _ := json.Marshal(dir)
+		return `{"pane":{"pane":"` + pane + `","cwd":` + string(cwd) + `}}`
+	}
+	old := `{"version":1,"w":100,"h":30,"layout":{"tabs":[` + tab("t1", "p1") + "," + tab("t2", "p2") + "," + tab("t3", "p3") + "," + tab("t4", "p4") + "," + tab("t5", "p5") +
+		`],"active":3},"panes":[` + in("p1", reef) + "," + in("p2", away) + "," + in("p3", filepath.Join(deep, "src")) + "," + in("p4", filepath.Join(reef, "docs")) + "," + in("p5", reef+"-two") + `]}`
+	if err := os.WriteFile(restore.Path(dirs), []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	said := func() string {
+		t.Helper()
+		f, lay, err := restore.Load(p, dirs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var b strings.Builder
+		for _, s := range lay.Spaces {
+			fmt.Fprintf(&b, "%s %q shows %s front=%v;", s.ID, strings.TrimPrefix(s.Root, filepath.Dir(reef)), s.Active, s.ID == lay.Front)
+		}
+		for _, q := range f.Panes {
+			fmt.Fprintf(&b, " %s in %s of %s", q.Rec.ID, q.Rec.Tab, q.Rec.Workspace)
+		}
+		if lay.Tabs[lay.Active].ID != "t4" || lay.Made != 3 {
+			t.Errorf("%s shows, and %d workspaces were made", lay.Tabs[lay.Active].ID, lay.Made)
+		}
+		f.Layout, _ = json.Marshal(lay)
+		if err := restore.Save(p, dirs, f); err != nil {
+			t.Fatal(err)
+		}
+		return b.String()
+	}
+	sep := string(filepath.Separator)
+	want := `s1 "` + sep + `reef" shows t4 front=true;s2 "" shows t2 front=false;s3 "` + sep + `reef` + sep + `kelp" shows t3 front=false;` +
+		" p1 in t1 of s1 p2 in t2 of s2 p3 in t3 of s3 p4 in t4 of s1 p5 in t5 of s2"
+	if got := said(); got != want {
+		t.Errorf("read once:\n%s\nwant\n%s", got, want)
+	}
+	if got := said(); got != want {
+		t.Errorf("saved and read again:\n%s\nwant\n%s", got, want)
+	}
+	if data, _ := os.ReadFile(restore.Path(dirs)); !strings.Contains(string(data), `"version": 2`) {
+		t.Errorf("the file was saved as\n%s", data)
+	}
+	for name, layout := range map[string]string{
+		"a tab of a workspace that is not there": `{"tabs":[` + strings.Replace(tab("t1", "p1"), "{", `{"space":"s7",`, 1) + `],"spaces":[{"id":"s1","name":"x","active":"t1"}],"front":"s1"}`,
+		"a workspace with no tab":                `{"tabs":[` + strings.Replace(tab("t1", "p1"), "{", `{"space":"s1",`, 1) + `],"spaces":[{"id":"s1","name":"x","active":"t1"},{"id":"s2","name":"y","active":""}],"front":"s1"}`,
+		"a workspace that shows another's tab":   `{"tabs":[` + strings.Replace(tab("t1", "p1"), "{", `{"space":"s1",`, 1) + "," + strings.Replace(tab("t2", "p2"), "{", `{"space":"s2",`, 1) + `],"spaces":[{"id":"s1","name":"x","active":"t1"},{"id":"s2","name":"y","active":"t1"}],"front":"s1"}`,
+		"no workspace in front":                  `{"tabs":[` + strings.Replace(tab("t1", "p1"), "{", `{"space":"s1",`, 1) + `],"spaces":[{"id":"s1","name":"x","active":"t1"}],"front":"s4"}`,
+	} {
+		os.WriteFile(restore.Path(dirs), []byte(`{"version":2,"layout":`+layout+`,"panes":[]}`), 0o600)
+		if f, _, err := restore.Load(p, dirs); f != nil || !errors.Is(err, restore.ErrUnusable) {
+			t.Errorf("%s: %v, %v", name, f, err)
+		}
 	}
 }
 
@@ -508,7 +583,7 @@ func TestSaver(t *testing.T) {
 	read := func() string {
 		t.Helper()
 		f, lay := &restore.File{}, &layout.Layout{}
-		err := contract.ReadVersioned(fs.Read, restore.Path(dirs), contract.FileVersion, f)
+		err := contract.ReadVersioned(fs.Read, restore.Path(dirs), restore.Version, f)
 		if err == nil {
 			err = json.Unmarshal(f.Layout, lay)
 		}

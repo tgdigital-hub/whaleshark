@@ -28,7 +28,8 @@ func TestTheDemoSaysWhatWasClicked(t *testing.T) {
 	expect("clicked nothing at column 49, row 0")
 	s.Type("\x1b[<64;14;2M")
 	expect("wheel up on dim at column 13, row 1")
-	s.Type("\x1b[<2;14;2M") // the right button: nothing happens
+	s.Type("\x1b[<2;14;2M")
+	expect("right button on dim at column 13, row 1")
 	s.Key("y")
 	s.Paste("es\nplease")
 	expect("> yes please")

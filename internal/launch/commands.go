@@ -16,11 +16,6 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
-// Phase 7 owes here: a start hands Terminals.TabCreate the project's folder
-// as the workspace and, for a group's leader, the fleet's name as the
-// group; `stop --all`, the person's alone: every agent of the job that is
-// at work stopped and, in a job of fleets, every fleet parked.
-
 // Plug binds this package's handlers and puts its implementations into the kit.
 func Plug(k *contract.Kit) {
 	k.Handle("start", start)
@@ -204,15 +199,47 @@ type stopped struct {
 // group's stop parks its fleet: the leader and every agent of the fleet are
 // stopped and their tabs closed, and the fleet's run stays open. A leader
 // that holds another open group sits on, and the one group is stopped.
+//
+// With --all, the person's alone, every task of the job with an agent at
+// work is stopped so, one after the other: in a job of fleets that parks
+// every fleet. A task that will not stop is passed by and named at the end.
 func stop(c *contract.Call) (any, error) {
-	if len(c.Args) != 1 {
-		return nil, usage(c, "stop takes one task.")
+	if all := c.Flags["all"] != nil; all == (len(c.Args) == 1) || len(c.Args) > 1 {
+		return nil, usage(c, "stop takes one task, or --all.")
+	} else if !all {
+		return stopOne(c, c.Args[0])
 	}
+	s, err := read(c)
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for id, t := range s.Tasks {
+		if n := len(t.Attempts); n > 0 && s.Attempts[t.Attempts[n-1]].State.Live() {
+			ids = append(ids, id)
+		}
+	}
+	slices.SortFunc(ids, byID)
+	done := []stopped{}
+	for _, id := range ids {
+		r, bad := stopOne(c, id)
+		if bad == nil {
+			done = append(done, r)
+		}
+		err = cmp.Or(err, bad)
+	}
+	if len(ids) == 0 {
+		fmt.Fprintln(c.Out, "No agent is at work.")
+	}
+	return map[string]any{"stopped": done}, err
+}
+
+func stopOne(c *contract.Call, task string) (stopped, error) {
 	k, keep := c.Kit, c.Flags["keep-tab"] != nil
 	var name string
 	var a contract.Attempt
 	plain := func(s *contract.State) error {
-		t, err := k.Rules.FindTask(s, c.Args[0])
+		t, err := k.Rules.FindTask(s, task)
 		if err == nil {
 			err = k.Rules.Stop(s, t.ID, keep, c.Now)
 		}
@@ -223,12 +250,12 @@ func stop(c *contract.Call) (any, error) {
 	}
 	s, err := read(c)
 	if err != nil {
-		return nil, err
+		return stopped{}, err
 	}
 	fleet, parked := map[string]contract.Attempt{}, false // the fleet's agents that go with its leader, by their tabs' names
-	t, err := k.Rules.FindTask(s, c.Args[0])
+	t, err := k.Rules.FindTask(s, task)
 	if err != nil {
-		return nil, err
+		return stopped{}, err
 	}
 	if f := s.Run.Fleets[t.Fleet]; f != nil && f.EndedAt.IsZero() {
 		err = both(c, f.Run, func(up, low *contract.State) error {
@@ -252,7 +279,7 @@ func stop(c *contract.Call) (any, error) {
 		err = change(c, plain)
 	}
 	if err != nil {
-		return nil, err
+		return stopped{}, err
 	}
 	r := stopped{Task: a.Task, Attempt: a.ID, Tab: "kept", Parked: len(fleet)}
 	if !keep {
@@ -428,7 +455,7 @@ func OwnTab(c *contract.Call, label string, argv ...string) (moved any, err erro
 		return nil, err
 	}
 	label = c.Command.Name + " " + label
-	pane, err := k.Terms.TabCreate("", "", c.Root, label, []string{contract.EnvOwnTab + "=" + w})
+	pane, err := k.Terms.TabCreate(c.Root, "", c.Root, label, []string{contract.EnvOwnTab + "=" + w})
 	if err == nil {
 		argv = append([]string{self, c.Command.Name}, append(argv, "--human", "--root", c.Root, "--run", c.Run)...)
 		err = k.Terms.Run(pane.ID, argv)
