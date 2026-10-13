@@ -342,10 +342,17 @@ func (g integrator) Protected(root string, s *contract.State, patterns []string)
 // from where the commit left the run's base (the branch as it stands now, so
 // that what a sync brought in is not the job's), with its mode and the id of
 // its contents there. A file put back as it was is not among them. The names
-// come with -z and go to the matcher and into the hash, nowhere else.
+// come with -z and go to the matcher and into the hash, nowhere else. A path
+// is held to the list whatever the case of its letters, since on a Mac and
+// on Windows Deploy is the folder deploy; and a link counts where a folder
+// of the list would begin, since what lies behind it lies under that path.
 func protected(root string, s *contract.State, tip string, patterns []string) (string, []string, error) {
 	if len(patterns) == 0 || s.Run.Base == nil {
 		return "", nil, nil
+	}
+	low := make([]string, len(patterns))
+	for i, p := range patterns {
+		low[i] = strings.ToLower(p)
 	}
 	base, err := at(root, s.Run.Base.Ref)
 	if err != nil {
@@ -358,7 +365,8 @@ func protected(root string, s *contract.State, tip string, patterns []string) (s
 	var files []string
 	sum := sha256.New()
 	for rec := strings.Split(out, "\x00"); len(rec) > 1; rec = rec[2:] {
-		if f := strings.Fields(rec[0]); len(f) > 3 && contract.Owned(patterns, rec[1]) {
+		name := strings.ToLower(rec[1])
+		if f := strings.Fields(rec[0]); len(f) > 3 && (contract.Owned(low, name) || f[1] == "120000" && contract.Above(low, name)) {
 			files = append(files, rec[1])
 			fmt.Fprintf(sum, "%s %s %s\x00", f[1], f[3], rec[1])
 		}

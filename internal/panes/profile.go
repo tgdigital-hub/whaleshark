@@ -120,6 +120,16 @@ func load(c *contract.Call, file string) (any, error) {
 		if d.key.Section == contract.SecGuards && d.to == contract.Off {
 			fmt.Fprintln(c.Out, "      This switches a guard off.")
 		}
+		// Two fields of a tool that run nothing and still decide what holds its
+		// agents and what init writes where: said by name, not left in the count.
+		switch d.key.Path {
+		case "hooks":
+			if d.to == contract.HooksNone && d.from != "" {
+				fmt.Fprintln(c.Out, "      Without its hooks Stop all and a guard's hold do not stop this tool's agents.")
+			}
+		case "rules":
+			fmt.Fprintln(c.Out, "      whaleshark init writes its rules into this file of your home folder.")
+		}
 	}
 	done := []string{}
 	if c.JSON || len(plain)+len(runs) == 0 {

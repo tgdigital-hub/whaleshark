@@ -1,6 +1,6 @@
 # What an agent can and cannot do, and what is and is not protected
 
-Four security reviews have tried this program, each on one Mac; the fourth also tried the release: its files, its installer, its packages and the hosted jobs that make it. **None of it has been tried with a second login, on Linux or Windows, on a real server, from the public internet, or with a real phone.** What follows is what the program does, and what it cannot do for you.
+Five security reviews have tried this program, each on one Mac; the fourth also tried the release: its files, its installer, its packages and the hosted jobs that make it, and the fifth what came after: Fleet Mode and the fence between agents' tabs, the note typed into the orchestrator's chat, agent tools wired in by a description, saved fleets, settings through the orchestrator, the saved profile, the guardrails, the interface for apps and the version notice. **None of it has been tried with a second login, on Linux or Windows, on a real server, from the public internet, or with a real phone.** What follows is what the program does, and what it cannot do for you.
 
 ## The two limits
 
@@ -30,13 +30,14 @@ A second lead agent started by mistake can look and cannot change the run. `--hu
 |---|---|---|
 | call itself you | add `--human` in a pane of its own making or through a wrapper; clear the variables that mark it as a worker; run the command under a pretended terminal | records every action taken as you with where the command **says** it came from, hands it to the lead agent, shows it in the task's history, and counts those that came from neither a pane nor the page under "done as you" on the strip and in every catch-up |
 | pass as a button on the page | clear its variables and set the page's mark | the record says "page". **This one is not counted under "done as you"** |
-| have a sentence typed into the lead agent's chat as yours | call itself you, or pass as the page, and send a note with `whaleshark tell lead` | the line begins with where the command says it came from ("typed at a terminal:", "from the page:", "from your phone:"), and the note is an event in the record; a worker, a fleet leader and the lead agent itself are refused, and no other tab is ever typed into |
+| have a sentence typed into the lead agent's chat as yours | call itself you, or pass as the page, and send a note with `whaleshark tell lead`; or write the note into the record, or ask the keeper itself | the line begins with where the command says it came from ("typed at a terminal:", "from the page:", "from your phone:"), and the note is an event in the record; a worker, a fleet leader and the lead agent itself are refused, and no other tab is ever typed into |
 | answer an item, approve a sign-off, pair a phone, press Stop all | the same; or type into the action pane | the same record. An answer typed into the pane looks exactly like yours; it can be undone until something has used it |
 | type into any other tab, the lead agent's included, and so answer another agent's permission prompt | every agent of a login can reach that login's keeper | a call that types, focuses or closes is refused when it comes from a pane the keeper knows as an agent's; an agent that leaves the pane's name out passes |
 | approve a project's settings | `whaleshark trust`, and "yes" | shows what changed since the last approval; the approval stays on every screen, in red, until the next |
 | accept its own work | as you, or with another attempt's token file | the check still runs on the merged work; the record says who accepted |
 | merge into your main branch on that machine | `git merge`, with or without the tool | nothing |
 | change the record, another worker's copy of the code, or the approvals file | edit the files; they are its login's | nothing, and an edited record leaves no trace |
+| switch a guardrail off, lift a limit, silence the nudges, or wire in an agent tool of its choosing | write your settings files (`config.toml`, the engine's `settings.toml`, a description under `tools/`); they are its login's | `whaleshark set` refuses it or asks you, and for Claude Code the gate turns down a command line that writes that folder; a file written another way leaves no item and no line on any screen |
 | make git run its program inside the lead agent's commands | write the repository's own git settings or hooks, which git obeys | nothing |
 | read the page's key, and sign in or approve a phone as you | the key is a file of its login | nothing |
 
@@ -47,7 +48,7 @@ A second lead agent started by mistake can look and cannot change the run. `--hu
 1. Answer or dismiss an agent's permission prompt or its question whether it trusts a folder, or send any key to an agent. Stop all types nothing and ends no program: each agent stops at its next step.
 2. Start an agent with wider permissions than the project's approved settings say. It has no default that widens anything.
 3. Run a project's setup script, landing check, team file or changed agent arguments that you have not approved by content with `whaleshark trust`. A change needs approval again. The approval is kept in your login's own folder, never in the project.
-4. Use a `.whaleshark` folder your login did not make. One that came with a repository, an archive or a copy is refused by every command until you type `whaleshark init --adopt`.
+4. Use a `.whaleshark` folder your login did not make. One that came with a repository, an archive or a copy is refused by every command until you type `whaleshark init --adopt`. Adopting takes all of it on: its runs, their checks, and the sentence of each saved fleet, which your agents then read.
 5. Put work into your main branch, or push anything, outside `land`.
 6. Delete work that is not proven merged.
 7. Install software or change another login's files, outside `whaleshark server`, which only the administrator can run.
@@ -88,7 +89,7 @@ More of the same kind, for the page and the phone, is in [phone.md](phone.md); f
 
 ## What the terminal engine holds
 
-Nothing a program prints is passed on to your terminal: the keeper reads it into cells and the window draws only what the keeper composes. A program in a pane cannot retitle or lock your terminal or make it type text back, and can write your clipboard only if you allowed it (`programs` under `[clipboard]` in the engine's `settings.toml`, off unless set). The keeper opens no network port; its socket is a file only your login can open. On Windows the folder's permissions are the whole of that defence, and it is unproven on a shared Windows machine.
+Nothing a program prints is passed on to your terminal: the keeper reads it into cells and the window draws only what the keeper composes. A program in a pane cannot retitle or lock your terminal or make it type text back, and can write your clipboard only if you allowed it (`programs` under `[clipboard]` in the engine's `settings.toml`: you are asked each time unless you set it on or off, and no agent's `set` and no request from a browser changes it). The keeper opens no network port; its socket is a file only your login can open. On Windows the folder's permissions are the whole of that defence, and it is unproven on a shared Windows machine.
 
 ## Files
 

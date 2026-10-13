@@ -127,16 +127,17 @@ func fill(a *contract.Action, form url.Values, v *contract.View) (argv []string,
 
 var (
 	notListed  = said("not_listed", "That button is not on the page any more: go back and look again.")
-	notAPhones = said("not_from_a_phone", "That setting names a program or is no setting of the table: it is set at the computer.")
+	notAPhones = said("not_from_a_phone", "That setting names a program or is no setting of the table: it is set in the settings screen, or typed in a tab of your own.")
 )
 
 // press carries out one row for a job, with a form's fields: for the page's
-// button and for an app alike. From a phone, `set` takes a key the person's
-// agent could ask for and no other, so never one that names a program.
+// button and for an app alike. From a browser or an app, at the computer as
+// from a phone, `set` takes a key the person's agent could ask for and no
+// other: never one that names a program or reaches outside (18.7).
 func (s *server) press(ctx context.Context, a *contract.Action, form url.Values, j job, all []job, told any) (catch *contract.Catchup, err error) {
 	phone := from(ctx)
 	argv, ok := fill(a, form, s.view(ctx, j, all, true))
-	if key, _ := contract.FindKey(form.Get("key")); ok && phone != "" && a.ID == "set" && (key == nil || key.Agent() == contract.SetPerson) {
+	if key, _ := contract.FindKey(form.Get("key")); ok && a.ID == "set" && (key == nil || key.Agent() == contract.SetPerson) {
 		return nil, notAPhones
 	} else if !ok {
 		return nil, notListed
