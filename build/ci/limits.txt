@@ -438,7 +438,10 @@ lines 4060 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
 # 10 fewer when the second part of phase 6 was put together: that part needed
 # nothing here.
-lines 80 theme internal/theme
+# 10 back when the panes stopped painting a ground: how a name is written on
+# the terminal's own background is said here once, for the panes and for the
+# keeper's tab row; built at 88. The keeper is 6 smaller by it.
+lines 90 theme internal/theme
 # hook: 60 more at the start of phase 2, for the settings of a second kind
 # of agent; it stood at 383.
 # It gives 25 when the first part of phase 5 was put together: a tool's hooks

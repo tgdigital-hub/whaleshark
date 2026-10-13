@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
-	"github.com/tgdigital-hub/whaleshark/internal/term"
 	"github.com/tgdigital-hub/whaleshark/internal/theme"
 )
 
@@ -16,17 +15,17 @@ import (
 // too, and when Do not disturb ends the pane unfolds.
 func TestWhatDoNotDisturbKeepsBack(t *testing.T) {
 	p, view, _ := still(t, actions, 110, 30)
-	dim := term.RGB(theme.Get("reef").Colours["dim"])
+	dim := theme.Get("reef").Ink("dim")
 	all := view.Items
 	view.Items, view.Held, view.Strip.DND, p.stale = all[:2], all[2:], true, true
 	p.draw()
 	p.find(t, "3 waiting · 2 hold work up · 1 held")
 	_, y := p.find(t, "held: 1 · do not disturb is on")
 	x, at := p.find(t, "● price list")
-	if at != y+1 || p.t.At(x, at).Style.Fg != dim || p.t.At(x+2, at).Style.Fg != dim {
+	if at != y+1 || p.t.At(x, at).Style != dim || p.t.At(x+2, at).Style != dim {
 		t.Errorf("the held item stands in row %d under the line in row %d, drawn %+v", at, y, p.t.At(x, at).Style)
 	}
-	if x, y := p.find(t, "▲ photo upload"); p.t.At(x, y).Style.Fg == dim {
+	if x, y := p.find(t, "▲ photo upload"); p.t.At(x, y).Style == dim {
 		t.Errorf("an item that waits is drawn dim")
 	}
 	p.find(t, "[ Approve ]")

@@ -343,7 +343,7 @@ func TestHowTheFleetIsColoured(t *testing.T) {
 			t.Errorf("the context bar %q is drawn in %x, want the scheme's %s", text, got, name)
 		}
 	}
-	if st := p.t.At(5, 5).Style; st.Bg != term.RGB(reef.Ground) {
+	if st := p.t.At(5, 5).Style; st != (term.Style{}) {
 		t.Errorf("the pane's ground is drawn %+v", st)
 	}
 
@@ -354,8 +354,8 @@ func TestHowTheFleetIsColoured(t *testing.T) {
 	if !strings.HasPrefix(p.t.Row(45), " STALE since ") || p.t.At(1, 45).Style.Fg != term.RGB(reef.Colours["blocked"]) {
 		t.Errorf("the last line of a stale pane is %q, drawn %+v", p.t.Row(45), p.t.At(1, 45).Style)
 	}
-	if got := fg("▲ sign-up page", 0, 0); got != term.RGB(reef.Colours["dim"]) {
-		t.Errorf("a stale card's mark is drawn in %x", got)
+	if x, y := p.find(t, "▲ sign-up page"); p.t.At(x, y).Style != (term.Style{Dim: true}) {
+		t.Errorf("a stale card's mark is drawn %+v", p.t.At(x, y).Style)
 	}
 
 	p.scheme = theme.Get(theme.None)
@@ -363,6 +363,34 @@ func TestHowTheFleetIsColoured(t *testing.T) {
 	p.find(t, "▓▓▓▓▓▓▓▓▓▓░░░░░░░░░  50%")
 	if st := p.t.At(5, 5).Style; st.Fg != 0 || st.Bg != 0 {
 		t.Errorf("with no colour a cell is drawn %+v", st)
+	}
+}
+
+// No pane paints a ground of its own, in any scheme: it stands on the
+// terminal's, as the tab beside it does, so the window is one surface. A
+// cell has a background only where something is lit, and then it is one of
+// the scheme's colours, never the ground the scheme is made for.
+func TestNoSchemePaintsAPanesGround(t *testing.T) {
+	for _, kind := range []string{fleet, actions, side} {
+		p, _, _ := still(t, kind, 110, 40)
+		for _, s := range theme.Schemes {
+			p.scheme = s
+			p.event(term.Event{Kind: term.Focus, Focused: true})
+			p.draw()
+			lit := 0
+			for i := range 110 * 40 {
+				st := p.t.At(i%110, i/110).Style
+				if st.Bg != 0 {
+					lit++
+				}
+				if st.Bg != 0 && (st.Bg == term.RGB(s.Ground) || s.Name == theme.None) {
+					t.Fatalf("%s in %s: the cell at %d,%d is drawn %+v", kind, s.Name, i%110, i/110, st)
+				}
+			}
+			if p.t.Row(0) == "" || lit > 110*40/10 {
+				t.Errorf("%s in %s: row 0 is %q and %d cells have a background", kind, s.Name, p.t.Row(0), lit)
+			}
+		}
 	}
 }
 
@@ -714,11 +742,11 @@ func TestWhatIsLit(t *testing.T) {
 	if st := p.t.At(x+2, y).Style; st != lit {
 		t.Errorf("the button under the pointer is drawn %+v", st)
 	}
-	if st := p.t.At(x+12, y).Style; st.Bg != term.RGB(reef.Ground) {
+	if st := p.t.At(x+12, y).Style; st.Bg != 0 {
 		t.Errorf("the button beside it is drawn %+v", st)
 	}
 
-	if st := p.t.At(1, 0).Style; st.Bg != term.RGB(reef.Ground) {
+	if st := p.t.At(1, 0).Style; st.Bg != 0 {
 		t.Errorf("the title of a pane without the keys is drawn %+v", st)
 	}
 	p.event(term.Event{Kind: term.Focus, Focused: true})
@@ -732,7 +760,7 @@ func TestWhatIsLit(t *testing.T) {
 	if st := p.t.At(dnd, 0).Style; st.Bg != term.RGB(reef.Colours["blocked"]) {
 		t.Errorf("Do not disturb, switched on, is drawn %+v", st)
 	}
-	if st := p.t.At(mute, 0).Style; st.Bg != term.RGB(reef.Ground) {
+	if st := p.t.At(mute, 0).Style; st.Bg != 0 {
 		t.Errorf("Mute, switched off, is drawn %+v", st)
 	}
 

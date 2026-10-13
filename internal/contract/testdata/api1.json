@@ -45,7 +45,7 @@
   "values": "reef|kelp|ember|paper|mono|none",
   "default": "reef",
   "store": "config",
-  "help": "The colours of every pane of ours; none leaves the terminal's own.",
+  "help": "The colours of every pane of ours, on your terminal's own background; paper is for a light terminal, none leaves the terminal's own colours.",
   "value": "kelp",
   "agent": "free"
  },

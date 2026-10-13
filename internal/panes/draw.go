@@ -32,12 +32,13 @@ func (p *pane) under(button bool) int {
 
 func (p *pane) plain() bool { return len(p.scheme.Colours) == 0 || p.t.Mode == term.NoColour }
 
-// st is the style of one of the sixteen colour names on the scheme's ground.
+// st is the style of one of the sixteen colour names, on the terminal's own
+// ground: a pane paints none, so it stands on what the tab beside it does.
 func (p *pane) st(name string) term.Style {
 	if p.plain() {
 		return term.Style{Dim: name == "dim"}
 	}
-	return term.Style{Fg: term.RGB(p.scheme.Colours[name]), Bg: term.RGB(p.scheme.Ground)}
+	return p.scheme.Ink(name)
 }
 
 // on is dark text on a ground of that colour: a lit button, a switch that is

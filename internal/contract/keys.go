@@ -85,7 +85,7 @@ var Sections = []string{SecLook, SecLayout, SecNudges, SecKeys, SecScroll, SecFl
 const fleetLimit = "2..|unlimited"
 
 var Keys = []Key{
-	{"theme", SecLook, "Colour scheme", KindChoice, "reef|kelp|ember|paper|mono|none", "reef", StoreConfig, "ui.theme", "", "The colours of every pane of ours; none leaves the terminal's own."},
+	{"theme", SecLook, "Colour scheme", KindChoice, "reef|kelp|ember|paper|mono|none", "reef", StoreConfig, "ui.theme", "", "The colours of every pane of ours, on your terminal's own background; paper is for a light terminal, none leaves the terminal's own colours."},
 	{"ui.marks", SecLook, "Marks", KindChoice, "auto|plain", "auto", StoreConfig, "", "", "Plain marks for a terminal that cannot show the drawn ones; the variable WHALESHARK_MARKS still wins."},
 	{"ui.first_steps", SecLook, "First steps", KindSwitch, "", "on", StoreUI, "first_steps", "", "Five lines in the left section that show a newcomer what to type and where. They tick themselves off and go away. Switch on to see them again."},
 

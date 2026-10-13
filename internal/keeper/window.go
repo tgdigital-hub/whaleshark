@@ -72,15 +72,9 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	// A terminal that says nothing of itself gets the plain marks, and no
 	// request to draw in one go.
 	known := env("TERM") != "" && env("TERM") != "dumb"
-	colours := theme.Get(theme.None).Colours
+	in := theme.Get(theme.None).Ink
 	if cfg, err := contract.ReadPerson(k.kit.Platform.Peek, k.dirs.Config); err == nil {
-		colours = theme.Get(cfg.UI.Theme).Colours
-	}
-	in := func(name string) term.Style {
-		if v, ok := colours[name]; ok {
-			return term.Style{Fg: term.RGB(v)}
-		}
-		return term.Style{}
+		in = theme.Get(cfg.UI.Theme).Ink
 	}
 	bytes, feed := io.Pipe()
 	w := &window{link: l, w: side(c.W), h: side(c.H), wake: make(chan struct{}, 1), gone: make(chan struct{}),

@@ -9,12 +9,22 @@ import "github.com/tgdigital-hub/whaleshark/internal/contract"
 func Plug(*contract.Kit) {}
 
 // Scheme is one colour scheme. Colours are 0xRRGGBB by name. Ground is the
-// background the scheme is made for: it is what the contrast of every
-// colour is measured against, and the dark text on a lit button.
+// background the scheme is made for and never one it paints: the contrast of
+// every colour is measured against it; it is the text on a lit button.
 type Scheme struct {
 	Name    string
 	Ground  uint32
 	Colours map[string]uint32
+}
+
+// Ink is how a name is written in a terminal: on the terminal's own
+// background, as a tab is. Words are the terminal's own ink, so they read on
+// any background; the other names are the scheme's colours.
+func (s Scheme) Ink(name string) contract.Style {
+	if c, ok := s.Colours[name]; ok && name != "text" && name != "dim" {
+		return contract.Style{Fg: contract.RGB(c)}
+	}
+	return contract.Style{Dim: name == "dim"}
 }
 
 // None is the scheme without colour: every state is still told apart by its
