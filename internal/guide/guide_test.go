@@ -252,6 +252,21 @@ func TestLeadGuideUnder150Lines(t *testing.T) {
 	}
 }
 
+// Each project is a workspace with a job of its own, and a command is about
+// the project of the folder it is typed in. Two real lead agents typed theirs
+// from another folder, were refused there, and stopped to ask whose the
+// project was; a third, sent into another workspace, was told only how to
+// take its job over. Both guides say where a command belongs.
+func TestTheGuidesSayWhoseProjectACommandIsAbout(t *testing.T) {
+	for name, g := range map[string]string{"lead": Lead, "orchestrator": Orchestrator} {
+		for _, words := range []string{"in the project of the folder you type it in", "Not in another project's folder: that job has its own lead agent."} {
+			if !strings.Contains(g, words) {
+				t.Errorf("the %s guide does not say %q", name, words)
+			}
+		}
+	}
+}
+
 func TestBlockHasMarkersAndNoVersion(t *testing.T) {
 	lines := strings.Split(strings.TrimSuffix(Block, "\n"), "\n")
 	if !strings.HasPrefix(lines[0], beginMark) || !strings.HasPrefix(lines[len(lines)-1], endMark) {

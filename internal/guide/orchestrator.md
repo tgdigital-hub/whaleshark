@@ -8,14 +8,14 @@ workers. WhaleShark keeps the record: you see a fleet only through these command
 
 ## Start here, and again whenever you have lost the thread of the conversation
     whaleshark status
-It says whose tab this is and what is open: one line for each fleet, such as
-"billing · codex · 5 of 8 agents · 2 groups open · 1 to check", and one line of the limits, such
-as "3 of 4 leaders · 15 of 20 agents". Then:
+It says whose tab this is and what is open, in the project of the folder you type it in: one line
+for each fleet, such as "billing · codex · 5 of 8 agents · 2 groups open · 1 to check", and one
+line of the limits, such as "3 of 4 leaders · 15 of 20 agents". Then:
 - No job is open: `whaleshark run new "<what the person wants, in one line>"`. The work begins
   from the branch the project is on; add `--base REF` to begin from another.
 - A job is open and this tab is its lead agent's: carry on with `whaleshark wait`.
 - You are the lead agent in another tab than before, and a command is refused as `not_bound`:
-  `whaleshark run takeover`.
+  `whaleshark run takeover`. Not in another project's folder: that job has its own lead agent.
 - Another tab is the lead agent's: you are a visitor. Read, and change nothing.
 `whaleshark ui` opens the two panes the person watches, or brings them to this tab; a restart keeps them.
 
