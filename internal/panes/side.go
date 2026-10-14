@@ -469,7 +469,11 @@ func (p *pane) sideRow(y int, r contract.SideRow, do func()) {
 		if right = c; term.Width(r.Name)+1+term.Width(c) <= room {
 			break
 		}
-		right = ""
+		// A fleet keeps how full it is while four cells are left of its
+		// name, which is cut for it.
+		if r.Kind != contract.RowFleet || r.Parked || room-term.Width(c)-1 < 4 {
+			right = ""
+		}
 	}
 	rw := term.Width(right)
 	if rw > 0 {
