@@ -120,9 +120,14 @@ func (k *Keeper) tool(kind string) (contract.Tool, bool) {
 
 // env is what a pane's program is started with: what the keeper itself was
 // started with, the tab's own variables over that, those of an agent's tool,
-// and the keeper's three last. Nothing of a window is in it.
+// and the keeper's three last. Nothing of a window is in it. A program drawn
+// over the tab is the person's and has none of the tab's variables: over a
+// worker's tab it would else be taken for that worker.
 func (k *Keeper) env(p *pane) []string {
 	set := slices.Clone(k.tabs[p.rec.Tab])
+	if p == k.over {
+		set = nil
+	}
 	t, _ := k.tool(p.rec.Agent)
 	for name, v := range t.Env {
 		set = append(set, name+"="+v)

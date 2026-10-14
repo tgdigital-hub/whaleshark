@@ -459,3 +459,44 @@ func cellsOf(text string, but layout.Rect) string {
 	}
 	return b.String()
 }
+
+// A program drawn over the tab is the person's own, whatever tab is in
+// front: over a worker's tab it has none of that tab's variables, by which
+// a command knows a worker, and it is told which pane the person was in.
+func TestAPaneOverAWorkersTabIsNotThatWorker(t *testing.T) {
+	r := dockRig(t)
+	c := r.dial()
+	r.window(200, 30)
+	made := c.call(contract.WireCall{Op: contract.OpTabCreate, Label: "a worker", Env: []string{contract.EnvAttempt + "=T1.1", contract.EnvTask + "=T1"}})
+	if made.Err != "" || made.Pane == nil {
+		t.Fatal(made)
+	}
+	c.call(contract.WireCall{Op: contract.OpTabFocus, Tab: made.Pane.Tab})
+	has := func(env []string, name string) string {
+		for _, v := range env {
+			if n, val, _ := strings.Cut(v, "="); n == name {
+				return val
+			}
+		}
+		return ""
+	}
+	if has(r.program(made.Pane.ID).spec.Env, contract.EnvAttempt) != "T1.1" {
+		t.Fatal("the worker's own pane has not its tab's variables")
+	}
+	for _, call := range []contract.WireCall{
+		{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{"the-menu"}, W: 24, H: 4, X: 60, Y: 5, From: layout.DockPane},
+		{Op: contract.OpOverlay, Argv: []string{"a-screen"}, From: made.Pane.ID},
+	} {
+		if reply := c.call(call); reply.Err != "" {
+			t.Fatal(reply)
+		}
+		var over string
+		r.locked(func() bool { over = r.k.over.rec.ID; return true })
+		env := r.program(over).spec.Env
+		if has(env, contract.EnvAttempt) != "" || has(env, contract.EnvTask) != "" || has(env, contract.EnvPane) != over || has(env, contract.EnvActivePane) != made.Pane.ID {
+			t.Errorf("%v over a worker's tab is started with attempt %q, task %q, pane %q, the person's pane %q", call.Argv,
+				has(env, contract.EnvAttempt), has(env, contract.EnvTask), has(env, contract.EnvPane), has(env, contract.EnvActivePane))
+		}
+		c.call(contract.WireCall{Op: contract.OpPaneClose, Pane: over})
+	}
+}
