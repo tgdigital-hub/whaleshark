@@ -92,6 +92,13 @@ func TestAPaneFitsWhatItSaysToItsSize(t *testing.T) {
 	shows(p, "3 waiting · 2 hold work up", "[ Catch me up ]", "[ Yes ]", "▲ photo upload · Which sizes should a photo be kept in?", "● price list · Prices load")
 	p, _, _ = still(t, actions, 85, 6)
 	shows(p, "3 waiting · 2 hold work up", "[Catch up]", "[ Yes ]", "+2 more · j k")
+	// One item holds work up, as every other screen says it.
+	p, v, _ = still(t, actions, 122, 8)
+	one := *v
+	one.Counts.Waiting, one.Counts.Holding = 1, 1
+	p.make, p.stale = func(contract.ViewInput) contract.View { return one }, true
+	p.draw()
+	shows(p, "1 waiting · 1 holds work up")
 	p, _, _ = still(t, actions, 60, 3)
 	shows(p, "ACTIONS  3 · ▲2", "[Stop all]", "▲ sign-up page · Must the old sign-up link keep working?")
 	p, _, _ = still(t, actions, 47, 4)

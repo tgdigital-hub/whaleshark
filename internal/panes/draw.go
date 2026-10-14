@@ -845,7 +845,7 @@ func (p *pane) strip(now time.Time) {
 	}
 	// As much as fits: the full words, then the short buttons, then the
 	// short counts too, with less and less of what else there is to say.
-	long := fmt.Sprintf("%d waiting · %d hold work up", v.Counts.Waiting, v.Counts.Holding)
+	long := fmt.Sprintf("%d waiting · %d hold%s work up", v.Counts.Waiting, v.Counts.Holding, map[bool]string{true: "s"}[v.Counts.Holding == 1])
 	brief := fmt.Sprintf("%d · %s%d", v.Counts.Waiting, p.glyph(contract.Looks[0].Mark, contract.Looks[0].Plain), v.Counts.Holding)
 	counts, texts, total := "", make([]string, len(ids)), 0
 	for form := 0; form <= 2+len(more); form++ {
