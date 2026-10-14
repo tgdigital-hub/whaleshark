@@ -252,9 +252,9 @@ func (p *pane) drawOffer() {
 	if mw, mh := th.menu(); p.boxed == [2]int{} {
 		p.boxed = [2]int{mw, mh}
 	}
-	if p.boxed != [2]int{W, H} {
+	if w, h := float64(W), float64(H); p.boxed != [2]int{W, H} {
 		p.boxed = [2]int{W, H}
-		p.helper(func() { _ = p.k.Terms.OverlayAt(nil, float64(W), float64(H), "", 0, 0) })
+		p.helper(func() { _ = p.k.Terms.OverlayAt(nil, w, h, "", 0, 0) })
 	}
 	W = min(W, t.W)
 	frame, text, dim, accent := p.st("frame"), p.st("text"), p.st("dim"), p.st("accent")

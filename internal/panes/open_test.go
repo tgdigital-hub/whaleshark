@@ -419,5 +419,25 @@ func TestADraggedEdgeIsStoredOnceItHasRested(t *testing.T) {
 		if got := wd.children("set " + c.key); len(got) != 1 {
 			t.Errorf("%s: one drag wrote %v", c.kind, got)
 		}
+		// Another line was dragged, the left section's edge or the other
+		// pane's: this pane changed along its other side only, and the two
+		// measure together what they did. Nothing is written.
+		mu.Lock()
+		talkW, talkH := tw, th
+		mu.Unlock()
+		move(c.to[0]-4*map[bool]int{true: 1}[c.kind == actions], c.to[1]-4*map[bool]int{true: 1}[c.kind == fleet], talkW, talkH)
+		wd.s.Still(3 * twice)
+		if got := wd.children("set " + c.key); len(got) != 1 {
+			t.Errorf("%s: a change along its other side wrote %v", c.kind, got)
+		}
+		// The action pane put back to the quarter it comes as is written as 0.
+		if sum := c.to[1] + talkH; c.kind == actions {
+			quarter := sum - int(talkShare*float64(sum)+0.5)
+			move(c.to[0]-4, quarter, talkW, sum-quarter)
+			wd.s.Still(3 * twice)
+			if got := wd.children("set " + c.key); len(got) != 2 || !strings.HasPrefix(got[1], "set actions.height 0 ") {
+				t.Errorf("the action pane put back to a quarter wrote %v", got)
+			}
+		}
 	}
 }

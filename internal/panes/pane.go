@@ -189,9 +189,9 @@ type pane struct {
 	boxed      [2]int // the size of its box the keeper was last asked for
 	until      time.Time
 	// The size of a pane beside the conversation: how often it changed, and
-	// what the two together measured when it last rested.
-	sized, both int
-	resized     time.Time // until when a change of size is this pane's own asking
+	// what the two together, and this one alone, measured when it last rested.
+	sized, both, mine int
+	resized           time.Time // until when a change of size is this pane's own asking
 }
 
 // sided says the pane is built from the left section's model: the section

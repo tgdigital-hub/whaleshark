@@ -128,8 +128,9 @@ func set(c *contract.Call) (any, error) {
 			}
 			err = k.Panes(k, at)
 		} else if n, _ := strconv.Atoi(value); err == nil && serr == nil && key == "actions.height" && n > 0 {
-			// A figure typed for a line moves the line at once, as a drag does.
-			if at, _ := talk(k.Terms, pair); fit(k.Terms, at, pair.Actions, n, true, person(k, dirs).Panes.Actions == contract.Top) != nil {
+			// A figure typed for a line moves the line at once, as a drag
+			// does; the keys stay where they are, in whichever workspace.
+			if fit(k.Terms, beside(snap, pair.Actions), pair.Actions, n, true, person(k, dirs).Panes.Actions == contract.Top) != nil {
 				fmt.Fprintln(c.Out, "the open action pane keeps its height; the next one opens at this one")
 			}
 		}

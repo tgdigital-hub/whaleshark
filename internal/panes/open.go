@@ -71,6 +71,24 @@ func fit(t contract.Terminals, me, pane string, n int, tall, above bool) error {
 	return t.Resize(pane, map[bool]string{true: more, false: less}[n > w], min(math.Abs(float64(n-w))/float64(w+mine), most))
 }
 
+// beside is the conversation beside a pane of ours: the pane of its tab that
+// is not ours and was opened first. It is found in the picture, and no key
+// moves for it.
+func beside(snap *contract.Snapshot, ours string) (talks string) {
+	tab := ""
+	for _, q := range snap.Panes {
+		if q.ID == ours {
+			tab = q.Tab
+		}
+	}
+	for _, q := range snap.Panes {
+		if q.Tab == tab && tab != "" && !q.Ours && (talks == "" || len(q.ID) < len(talks) || len(q.ID) == len(talks) && q.ID < talks) {
+			talks = q.ID
+		}
+	}
+	return talks
+}
+
 // rootOf is the folder of the workspace a pane is in: empty for the tabs of
 // no project, and for a pane the picture does not have.
 func rootOf(snap *contract.Snapshot, pane string) string {
@@ -102,8 +120,10 @@ func (p *pane) pair() contract.Pair { return pairOf(p.ui, p.picture, rootOf(p.pi
 // conversation, so the two together measure what they did: then the fleet's
 // width, or its height at the bottom, or the action pane's height is
 // written, as its keys write it. A window that changed changes what the two
-// measure together, and a size this pane asked for itself is no drag: then
-// nothing is written. With store false the two are only measured. A strip
+// measure together, a size this pane asked for itself is no drag, and a
+// pane that only changed along its other side was not dragged: then
+// nothing is written. An action pane put back to the quarter it comes as
+// is written as 0. With store false the two are only measured. A strip
 // has nothing to remember, nor has the fleet in a window so narrow that Fit
 // decides its width.
 func (p *pane) rested(store bool) {
@@ -136,9 +156,12 @@ func (p *pane) rested(store bool) {
 		dw, _, _ := p.k.Terms.Size(dock)
 		p.tell(news{do: func() {
 			sum := mine + map[bool]int{true: tw, false: th}[wide]
-			same := sum == p.both
-			if p.both = sum; err == nil && store && same && mine != had && (!wide || sum+dw+2 >= contract.SideNamesFrom) {
-				p.child(p.cmd("set", key, strconv.Itoa(mine)), "", p.quiet)
+			same, moved, now := sum == p.both, mine != p.mine, mine
+			if p.kind == actions && mine == sum-int(talkShare*float64(sum)+0.5) {
+				now = 0 // the quarter it comes as, at any size of the window
+			}
+			if p.both, p.mine = sum, mine; err == nil && store && same && moved && now != had && (!wide || sum+dw+2 >= contract.SideNamesFrom) {
+				p.child(p.cmd("set", key, strconv.Itoa(now)), "", p.quiet)
 			}
 		}})
 	})

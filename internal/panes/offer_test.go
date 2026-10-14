@@ -297,7 +297,7 @@ func TestAMenuRenamesAnAgentThroughTheCommand(t *testing.T) {
 // A stop asks once, on the button that does it; a refusal is the command's
 // own sentence in the box for two seconds, and then the box closes.
 func TestAMenuStopsAnAgentAndShowsARefusal(t *testing.T) {
-	wd := spaced(t, offer, 34, 9, agentMenu("sign-up page"))
+	wd := spaced(t, offer, 26, 7, agentMenu("sign-up page")) // the menu's own box, narrower than its question
 	wd.shows("Stop agent & close")
 	os.WriteFile(filepath.Join(wd.home, "refuse"), []byte("That task is being accepted."), 0o600)
 	// The keeper is asked for the size of what the box turns into, each
@@ -319,8 +319,9 @@ func TestAMenuStopsAnAgentAndShowsARefusal(t *testing.T) {
 		}
 	}
 	wd.key("down", "enter")
-	wd.shows("›[ Stop & close ]  [ Keep ]", "its tab?")
 	asked(34, 6)
+	wd.s.Resize(34, 6)
+	wd.shows("›[ Stop & close ]  [ Keep ]", "its tab?")
 	task := wd.rowOf("sign-up page").Task
 	wd.key("enter")
 	if got := wd.ran("stop " + task); got != "stop "+task+" --human" {

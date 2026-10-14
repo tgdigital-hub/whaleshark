@@ -762,6 +762,13 @@ func TestSetMovesThePanesAndSaysWhatALimitMeans(t *testing.T) {
 	if got := d.did(); !strings.Contains(got, "split "+d.me+" right 46") || !strings.Contains(got, "split "+d.me+" down 0.75") {
 		t.Errorf("the layout as it comes opened\n%s", got)
 	}
+	// A height typed for the action pane moves its line at once, and no key
+	// moves for it: from a workspace behind, the keys would bring that
+	// workspace to the front.
+	run("actions.height", "12")
+	if got := d.did(); !strings.Contains(got, "resize ") || strings.Contains(got, "focus") {
+		t.Errorf("set actions.height 12 asked the terminals for\n%s", got)
+	}
 	for _, step := range []struct{ key, value, want, not string }{
 		{"panes.fleet", "left", "split " + d.me + " left 46", ""},
 		{"panes.fleet", "bottom", "split " + d.me + " down 9", " right "},
