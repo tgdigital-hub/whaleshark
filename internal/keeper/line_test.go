@@ -492,6 +492,9 @@ func TestAPaneOverAWorkersTabIsNotThatWorker(t *testing.T) {
 	r := dockRig(t)
 	c := r.dial()
 	r.window(200, 30)
+	// The window comes on a line of its own: a menu placed before its size
+	// is known is closed when it comes, as at any other size of the window.
+	r.until("the window's size", func() bool { return r.locked(func() bool { return r.k.lay.W == 200 }) })
 	made := c.call(contract.WireCall{Op: contract.OpTabCreate, Label: "a worker", Env: []string{contract.EnvAttempt + "=T1.1", contract.EnvTask + "=T1"}})
 	if made.Err != "" || made.Pane == nil {
 		t.Fatal(made)
@@ -516,7 +519,15 @@ func TestAPaneOverAWorkersTabIsNotThatWorker(t *testing.T) {
 			t.Fatal(reply)
 		}
 		var over string
-		r.locked(func() bool { over = r.k.over.rec.ID; return true })
+		r.locked(func() bool {
+			if r.k.over != nil {
+				over = r.k.over.rec.ID
+			}
+			return true
+		})
+		if over == "" {
+			t.Fatalf("%v is not over the tab once opened", call.Argv)
+		}
 		env := r.program(over).spec.Env
 		if has(env, contract.EnvAttempt) != "" || has(env, contract.EnvTask) != "" || has(env, contract.EnvPane) != over || has(env, contract.EnvActivePane) != made.Pane.ID {
 			t.Errorf("%v over a worker's tab is started with attempt %q, task %q, pane %q, the person's pane %q", call.Argv,
