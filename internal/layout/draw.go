@@ -368,11 +368,13 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 		glyphs, corner, menu, marks = plain, "+", "=", strings.NewReplacer("·", "-", "▲", "!")
 	}
 	rows, dim := l.rows()
-	for y := range l.Head() {
-		if y == 1 {
+	for y, row := range rows {
+		if y >= l.Head() {
+			break
+		} else if y == 1 {
 			g.Put(l.area().X+1, y, 1, corner, k.Frame)
 		}
-		for i, s := range rows[y] {
+		for i, s := range row {
 			st := k.Text
 			if s.step != 0 || dim && y == 1 {
 				st = k.Dim

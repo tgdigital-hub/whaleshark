@@ -32,7 +32,7 @@ func TestAPictureFollowsItsWorkspaces(t *testing.T) {
 func TestALabelIsALabelOnly(t *testing.T) {
 	for in, want := range map[string]string{
 		"sign-up page": "sign-up page", "  two   words ": "two words", "--help": "help", " - -x": "x", "a\x1b[31mb\nc": "a [31mb c",
-		"left‮right⁦!": "left right !", "an exceedingly long name for one tab": "an exceedingly long name", "": "", "\t\n": "",
+		"left\u202eright\u2066!": "left right !", "an exceedingly long name for one tab": "an exceedingly long name", "": "", "\t\n": "",
 	} {
 		if got := Label(in); got != want {
 			t.Errorf("Label(%q) = %q, want %q", in, got, want)

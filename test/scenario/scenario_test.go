@@ -145,10 +145,18 @@ func TestARemoveDeletesNothing(t *testing.T) {
 					} else if d.IsDir() && d.Name() == ".whaleshark" {
 						return filepath.SkipDir
 					}
-					info, err := d.Info()
+					// Each entry is asked for by its own name: what Windows
+					// hands out with a folder's list may be an older size
+					// and time. A folder is held to its name and mode only:
+					// its time moves when git's lock file comes and goes.
+					info, err := os.Lstat(path)
 					if err == nil {
 						rel, _ := filepath.Rel(p.Root, path)
-						out = append(out, fmt.Sprint(rel, " ", info.Size(), " ", info.ModTime().UnixNano(), " ", info.Mode()))
+						when := info.ModTime().UnixNano()
+						if d.IsDir() {
+							when = 0
+						}
+						out = append(out, fmt.Sprint(rel, " ", info.Size(), " ", when, " ", info.Mode()))
 					}
 					return err
 				})

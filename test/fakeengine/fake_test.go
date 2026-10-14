@@ -361,7 +361,7 @@ func TestWorkspaces(t *testing.T) {
 		t.Errorf("an overlay asked from behind: %v", err)
 	}
 	// A name is a label: cleaned, and empty gives the folder's back.
-	f.SpaceRename("s3", "  --my\x1b[31m ‮blog and far too long a name to keep ")
+	f.SpaceRename("s3", "  --my\x1b[31m \u202eblog and far too long a name to keep ")
 	if got := spaces(t, f); !strings.Contains(got, "s3 my [31m blog and far too t5 front") {
 		t.Errorf("a workspace named: %s", got)
 	}
