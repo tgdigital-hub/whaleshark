@@ -86,6 +86,10 @@ func TestTheDocksEdgeLitHeldPutAndPutBack(t *testing.T) {
 	w.release(40, 10)
 	r.sized(c, layout.DockPane, contract.SideWidth, 30)
 	r.width(contract.SideWidth)
+	// The window may still show the first press's waiting edge at 40.
+	r.until("the window to show the edge plain where it comes", func() bool {
+		return !strings.Contains(w.text(), "click where") && w.cell(contract.SideWidth, 10) == "│"
+	})
 	if r.dockIs(func(d layout.Dock) bool { return d.Fold }) {
 		t.Error("two presses on the edge folded the dock")
 	}

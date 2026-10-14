@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -254,6 +255,20 @@ func refit(k *contract.Kit) error {
 	return nil
 }
 
+// placing holds the lock that every change of ui.json is made under, the
+// contract's own, until what it returns is called. A setting's own command
+// and the left section that saw it change both place the panes, and a pane
+// writes its own marks: one after the other, or one writes back what it read
+// before the other wrote, and the file names panes that are gone.
+func placing(k *contract.Kit) (unlock func()) {
+	if dirs, err := k.Platform.Dirs(); err == nil {
+		if unlock, err := k.Platform.Lock(filepath.Join(dirs.State, "ui.lock"), true); err == nil {
+			return unlock
+		}
+	}
+	return func() {}
+}
+
 // place opens and closes our two panes beside the pane the command was run
 // in: the pair of that pane's workspace, and no other workspace's. One that
 // is open in another tab of it is closed there first. want says, for
@@ -264,6 +279,7 @@ func refit(k *contract.Kit) error {
 // ever closed.
 func place(c *contract.Call, want func(kind string, open bool) bool) (any, error) {
 	k, me, anew := c.Kit, c.Caller.Pane, want == nil
+	defer placing(k)()
 	dirs, ui, file, err := screen(k)
 	if err != nil {
 		return nil, err

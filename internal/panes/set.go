@@ -50,6 +50,8 @@ func set(c *contract.Call) (any, error) {
 	} else if !human {
 		own = ""
 	}
+	unlock := placing(k)
+	defer func() { unlock() }()
 	dirs, ui, file, err := screen(k)
 	if err != nil {
 		return nil, err
@@ -114,8 +116,15 @@ func set(c *contract.Call) (any, error) {
 	default:
 		// Every other key of the contract's table is set in its own file. A
 		// key that places a pane of ours moves the open panes at once.
+		// The table writes ui.json under the lock itself, and what is open
+		// is read again: the left section may have placed the panes since.
+		unlock()
 		value, err = contract.Set(c, key, value)
+		unlock = placing(k)
+		_, ui, _, _ = screen(k)
 		snap, serr := k.Terms.Snapshot(context.Background())
+		unlock()
+		unlock = func() {}
 		pair := pairOf(ui, snap, rootOf(snap, c.Caller.Pane))
 		if err == nil && serr == nil && (strings.HasPrefix(key, "panes.") || key == actions) {
 			// They move within the tab they are open in, in the workspace the

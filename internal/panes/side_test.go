@@ -837,19 +837,34 @@ func TestALockFilesChangeIsNoNews(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// still is the count of reads once none has come for a while: a busy
+	// machine hands a change on late, and its reads come one by one.
+	still := func() int32 {
+		n := wd.reads.Load()
+		for range 40 {
+			if time.Sleep(300 * time.Millisecond); wd.reads.Load() == n {
+				return n
+			}
+			n = wd.reads.Load()
+		}
+		t.Fatalf("the reads do not rest: %d", n)
+		return n
+	}
+	was := wd.reads.Load()
 	touch("lock") // the files are there before they are counted
 	touch("turn")
 	touch("current")
-	time.Sleep(300 * time.Millisecond)
-	before := wd.reads.Load()
+	if !wd.until(3*time.Second, func() bool { return wd.reads.Load() > was }) {
+		t.Fatal("a file that says something brought no read")
+	}
+	before := still()
 	for range 10 {
 		touch("lock")
 		touch("turn")
 		touch("worktrees.lock")
 		time.Sleep(30 * time.Millisecond)
 	}
-	time.Sleep(300 * time.Millisecond)
-	if n := wd.reads.Load() - before; n != 0 {
+	if n := still() - before; n != 0 {
 		t.Errorf("the locks' changes brought %d reads of the record", n)
 	}
 	touch("current")
