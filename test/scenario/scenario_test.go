@@ -2,6 +2,8 @@ package scenario
 
 import (
 	"context"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -122,6 +124,83 @@ func TestJoin(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Errorf("the click on the card of T3 did not go to its tab: %+v", p.Double.Calls())
+}
+
+// A workspace removed from the list deletes nothing. What the menu's row
+// does is done here with the real command: every agent of the project's open
+// job stopped and every fleet parked by `stop --all`, as the person, and then
+// the workspace closed. After it no attempt is live, no tab of the workspace
+// is open, the job is open still, every copy of the code stands, and
+// everything of the project's folder outside its record is what it was, to
+// each file's size and time.
+func TestARemoveDeletesNothing(t *testing.T) {
+	for _, on := range []Backend{Double, Keeper} {
+		t.Run(string(on), func(t *testing.T) {
+			p := RunOn(t, on, filepath.Join("testdata", "remove.scn"), tabs)
+			listing := func() string {
+				var out []string
+				filepath.WalkDir(p.Root, func(path string, d fs.DirEntry, err error) error {
+					if err != nil || path == p.Root {
+						return err
+					} else if d.IsDir() && d.Name() == ".whaleshark" {
+						return filepath.SkipDir
+					}
+					info, err := d.Info()
+					if err == nil {
+						rel, _ := filepath.Rel(p.Root, path)
+						out = append(out, fmt.Sprint(rel, " ", info.Size(), " ", info.ModTime().UnixNano(), " ", info.Mode()))
+					}
+					return err
+				})
+				return strings.Join(out, "\n")
+			}
+			copies := func() (dirs []string) {
+				found, _ := filepath.Glob(filepath.Join(p.Root, ".whaleshark", "worktrees", "*"))
+				return found
+			}
+			was, had := listing(), copies()
+			if len(had) == 0 || !strings.Contains(was, "brief.md") {
+				t.Fatalf("the project before the remove: %d copies of the code, and\n%s", len(had), was)
+			}
+			snap, err := p.Terms().Snapshot(t.Context())
+			p.must(err)
+			space := ""
+			for _, q := range snap.Panes {
+				if q.ID == p.Lead {
+					space = q.Workspace
+				}
+			}
+			if out, err := p.Command(Human, "stop", "--all").CombinedOutput(); err != nil {
+				t.Fatalf("stop --all: %v\n%s", err, out)
+			}
+			p.must(p.Terms().SpaceClose(space))
+			for _, run := range []string{"r1", "r2", "r3"} {
+				s, err := p.Kit.Store.Read(p.Root, run)
+				p.must(err)
+				for _, a := range s.Attempts {
+					if a.State.Live() {
+						t.Errorf("after the remove %s of %s is %s", a.ID, run, a.State)
+					}
+				}
+				if run == "r1" && !s.Run.ClosedAt.IsZero() {
+					t.Error("the remove closed the job")
+				}
+			}
+			snap, err = p.Terms().Snapshot(t.Context())
+			p.must(err)
+			for _, q := range snap.Panes {
+				if q.Workspace == space {
+					t.Errorf("after the remove the tab %q of the workspace is open", q.Label)
+				}
+			}
+			if now := listing(); now != was {
+				t.Errorf("the project's folder changed.\nbefore:\n%s\nafter:\n%s", was, now)
+			}
+			if now := copies(); !slices.Equal(now, had) {
+				t.Errorf("the copies of the code were %v and are %v", had, now)
+			}
+		})
+	}
 }
 
 // After a restart of the keeper a worker's tab holds its pane and its variables.

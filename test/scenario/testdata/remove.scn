@@ -1,0 +1,29 @@
+# A project whose workspace is about to be removed from the list: a job of
+# fleets, one fleet's leader and two workers at work with a change in a copy
+# of the code, the other fleet parked. The test that plays this file then
+# does what "Remove from list" does, with the real command, and holds the
+# project's folder to what it was.
+agent G1.1: listen
+agent G2.1: listen
+agent B1.1: edit refunds.txt | commit | progress 40 "refunds half done" | hang
+agent B2.1: progress 10 "the invoice is begun" | hang
+agent S1.1: hang
+
+file brief.md: Target: the shop | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+git
+orch: init
+human: set fleets.mode on
+orch: run new "the shop, by fleets"                 -> expect r1
+task G1 "Build billing" --name "billing one" --fleet billing --check "exit 0" --brief brief.md
+task G2 "Build search" --name "search one" --fleet search --check "exit 0" --brief brief.md
+orch: start G1                                      -> expect "(G1.1)"
+orch: start G2                                      -> expect "(G2.1)"
+as-worker G1.1: task add B1 "Refunds" --name "refund flow" --owns refunds.txt --check "exit 0" --brief brief.md
+as-worker G1.1: task add B2 "Invoices" --name "invoice pdf" --owns invoice.txt --check "exit 0" --brief brief.md
+as-worker G1.1: start B1 B2                         -> expect "(B1.1)" "(B2.1)"
+as-worker G2.1: task add S1 "The box" --name "search box" --owns search.txt --check "exit 0" --brief brief.md
+as-worker G2.1: start S1                            -> expect "(S1.1)"
+await: in r2: attempts B1.1 working, B2.1 working; in r3: attempts S1.1 working
+# The second fleet is parked: its leader and its worker stopped, its work kept.
+orch: stop G2
+await: attempts G2.1 stopped; in r3: attempts S1.1 stopped
