@@ -321,9 +321,6 @@ func column(t *testing.T) (cells map[string]string, system string) {
 		})
 		reason, _, err = terms.Notify("matrix", "in a window", false)
 		w, h, _ = terms.Size(up.ID)
-		// The command key as it comes, then a full stop, typed into the
-		// window: the menu of the tab that shows is asked for.
-		window.Write([]byte{0, '.'})
 		row(rowWindow, err, attached, reason == contract.NotifyShown, w < 120, h == 5)
 	} else {
 		row(rowWindow, err)
@@ -361,6 +358,29 @@ func column(t *testing.T) (cells map[string]string, system string) {
 	row("Overlay", err, over != "")
 	over = cmp.Or(over, sh.ID)
 	row("PaneClose", terms.PaneClose(over), pane(over).ID == "")
+	if window != nil {
+		// The command key as it comes, then a full stop, typed into the
+		// window: the menu of the tab that shows is asked for. The left
+		// section answers with that tab's menu in a pane over the tab,
+		// which is closed again, so that the picture is at rest.
+		window.Write([]byte{0, '.'})
+		until(func() bool { return got.saw(contract.EvMenu) })
+		menu := ""
+		until(func() bool {
+			if s, _ := terms.Snapshot(ctx); s != nil {
+				for _, p := range s.Panes {
+					if p.Ours && !p.Dock {
+						menu = p.ID
+					}
+				}
+			}
+			return menu != ""
+		})
+		if menu != "" {
+			terms.PaneClose(menu)
+			until(func() bool { return pane(menu).ID == "" })
+		}
+	}
 	dirs, _ := kit.Platform.Dirs()
 	err = terms.SetKeys([]contract.KeyEntry{{Key: "shift+a", Type: "shell", Argv: []string{"whaleshark", "pause"}}})
 	settings, _ := kit.Platform.Read(contract.SettingsPath(dirs))

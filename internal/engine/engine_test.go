@@ -67,22 +67,26 @@ func TestEveryMethodIsOneCall(t *testing.T) {
 		{func() (any, error) { return nil, terms.SetKeys(keys) }, C{Op: contract.OpSetKeys, Keys: keys}, nil},
 		{func() (any, error) { return nil, terms.Overlay([]string{"whaleshark", "ask"}, 0.5, 12) },
 			C{Op: contract.OpOverlay, Argv: []string{"whaleshark", "ask"}, W: 0.5, H: 12}, nil},
+		// A pane drawn over the tab is a pane like any other to close, and
+		// one stands at a time.
+		{func() (any, error) { return nil, terms.PaneClose("p3") }, C{Op: contract.OpPaneClose, Pane: "p3"}, nil},
 		// Phase 7: a placed overlay, a workspace opened, named and closed, a
 		// tab of a named project and fleet, and what waits in each tab,
 		// which only the dock's pane tells.
 		{func() (any, error) { return nil, terms.OverlayAt([]string{"whaleshark", "ask"}, 24, 4, "p1", 3, 2) },
 			C{Op: contract.OpOverlay, Dir: contract.OverAt, Argv: []string{"whaleshark", "ask"}, W: 24, H: 4, Pane: "p1", X: 3, Y: 2}, nil},
+		{func() (any, error) { return nil, terms.PaneClose("p4") }, C{Op: contract.OpPaneClose, Pane: "p4"}, nil},
 		{func() (any, error) {
 			p, err := terms.SpaceOpen(x, sub)
 			return p.ID + " " + p.Tab + " " + p.Label + " " + p.Workspace + " " + p.Cwd, err
 		},
-			C{Op: contract.OpSpaceOpen, Space: x, Cwd: sub}, "p3 t2 Orchestrator s2 " + sub},
+			C{Op: contract.OpSpaceOpen, Space: x, Cwd: sub}, "p5 t2 Orchestrator s2 " + sub},
 		{func() (any, error) { return nil, terms.SpaceRename("s2", "shop") }, C{Op: contract.OpSpaceRename, Space: "s2", Label: "shop"}, nil},
 		{func() (any, error) {
 			p, err := terms.TabCreate(x, "billing", x, "leader", nil)
 			return p.ID + " " + p.Tab + " " + p.Workspace + " " + f.Group(p.Tab), err
 		},
-			C{Op: contract.OpTabCreate, Space: x, Group: "billing", Cwd: x, Label: "leader"}, "p4 t3 s2 billing"},
+			C{Op: contract.OpTabCreate, Space: x, Group: "billing", Cwd: x, Label: "leader"}, "p6 t3 s2 billing"},
 		{func() (any, error) {
 			t.Setenv(contract.EnvPane, "dock")
 			defer os.Unsetenv(contract.EnvPane)

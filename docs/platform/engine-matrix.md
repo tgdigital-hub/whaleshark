@@ -74,7 +74,7 @@ One keeper, two tabs, an agent, a window, in this order.
 | `PaneFocus` | the keys to a pane by its name, and to its neighbour on the right |
 | `Swap`, `Resize` | the call is answered |
 | `Notify` | with no window, the answer is "no window" |
-| `open` | the real window, in a terminal the engine itself made: it attaches, the same notice is then "shown", the panes take the window's size, and the pane five cells high is five cells high; the command key and a full stop are then typed into it, for the event `menu` |
+| `open` | the real window, in a terminal the engine itself made: it attaches, the same notice is then "shown", the panes take the window's size, and the pane five cells high is five cells high |
 | `AgentStart` | the agent's program starts in the pane in the shell's place, and the pane is known as that agent's |
 | `Screen` | the pane's text holds what the agent printed |
 | `Prompt` | the prompt is typed and the agent goes to work on it |
@@ -86,6 +86,7 @@ One keeper, two tabs, an agent, a window, in this order.
 | `SetKeys` | the shortcut is in the settings file |
 | `TabClose` | the tab's panes are gone |
 | `status` | the word a pane reads once its shell is at its prompt, waited for ten seconds |
+| event `menu` | the command key and a full stop are typed into the window; the left section answers with the menu of the tab that shows, in a pane over the tab, which is closed again |
 | an event | at least one of its kind came in the stream |
 
 ## Over ssh
