@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -264,6 +265,14 @@ func refit(k *contract.Kit) error {
 // ever closed.
 func place(c *contract.Call, want func(kind string, open bool) bool) (any, error) {
 	k, me, anew := c.Kit, c.Caller.Pane, want == nil
+	// A setting's own command and the left section that saw it change both
+	// place the panes: one after the other, or each closes what the other
+	// opened and the file names a pane that is gone.
+	if dirs, err := k.Platform.Dirs(); err == nil {
+		if unlock, err := k.Platform.Lock(filepath.Join(dirs.State, "panes.lock"), true); err == nil {
+			defer unlock()
+		}
+	}
 	dirs, ui, file, err := screen(k)
 	if err != nil {
 		return nil, err
