@@ -1,0 +1,35 @@
+# Phase 7 as real agents met it in the trial: a working agent renamed by the
+# person from its menu and then by the lead agent itself, the two names that
+# are refused, and an agent stopped by the person while it works: its work
+# stays in its own copy of the code, the lead agent is told and starts it
+# again.
+agent T1.1: edit ship.txt | commit | progress 40 "the ship is written" | hang
+agent T1.2: hang
+agent T2.1: hang
+
+file brief.md: Target: the harbour | Change: your part | Constraints: none | Ownership: your own files | Acceptance: the check passes
+git
+orch: init
+orch: run new "the harbour"                         -> expect r1
+task T1 "The ship" --name "slow ship" --owns ship.txt --check "exit 0" --brief brief.md
+task T2 "The tide" --name "tide table" --owns tide.txt --check "exit 0" --brief brief.md
+orch: start T1 T2                                   -> expect "(T1.1)" "(T2.1)"
+await: attempts T1.1 working, T2.1 working; T1.1 progress.pct 40
+# The person renames a working agent, as Rename in its menu does.
+human: task edit T1 --name "bee word"               -> expect "Changed: name"
+orch: status                                        -> expect "bee word"
+# The lead agent renames it itself, and still finds it by its id.
+orch: task edit T1 --name "tall ship"               -> expect "Changed: name"
+orch: show T1                                       -> expect "tall ship"
+# A name of more than three words, and a name another agent has, are refused
+# in words that say what to do, and nothing changes.
+orch: task edit T1 --name "the very slow old ship"  -> expect exit 2 "must be 3 words at most"
+orch: task edit T2 --name "tall ship"               -> expect exit 5 "is taken by an agent" "Give another."
+# The person stops the working agent, as Stop agent & close does.
+human: stop T1
+await: attempts T1.1 stopped
+orch: wait --timeout 0                              -> expect "T1"
+orch: wait --ack last --timeout 0
+orch: start T1 --retry                              -> expect "(T1.2)"
+await: attempts T1.2 working
+assert: T1 name "tall ship"; T2 name "tide table"; no event lost; no event twice
