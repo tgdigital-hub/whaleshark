@@ -102,7 +102,9 @@ func (k *Keeper) input(w *window) {
 				// and only a width that is another than the one written.
 				if width := k.lay.Dock.Width; a.Kind != input.Drag && (a.Kind == input.Width || a.Hit.Pane == layout.DockPane) && width != k.set.Side.Width {
 					k.set.Side.Width = width
-					after = append(after, func() { contract.Set(&contract.Call{Kit: k.kit}, "side.width", strconv.Itoa(width)) })
+					// The person's own doing: no screen says an agent changed it.
+					drag := &contract.Call{Kit: k.kit, Caller: contract.Caller{Kind: contract.Human}}
+					after = append(after, func() { contract.Set(drag, "side.width", strconv.Itoa(width)) })
 				}
 			case a.Kind == input.Run && len(a.Argv) > 0:
 				// #nosec G204 -- the person's own shortcut, from their own settings file

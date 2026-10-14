@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -113,6 +114,13 @@ func TestTheDocksEdgeLitHeldPutAndPutBack(t *testing.T) {
 	w.click(90, 25)
 	r.until("the keys in the pane that was pressed", func() bool { return r.focused() == "p2" })
 	r.sized(c, layout.DockPane, 50, 30)
+	// Every width was written as the person's own: none is noted as a
+	// setting an agent changed.
+	var ui contract.UIFile
+	contract.ReadVersioned(r.kit.Platform.Peek, filepath.Join(r.k.dirs.State, contract.UIFileName), contract.FileVersion, &ui)
+	if len(ui.ByAgent) != 0 {
+		t.Errorf("a dragged edge is noted as an agent's change: %+v", ui.ByAgent)
+	}
 	// A window that leaves with the edge held leaves no line lit behind.
 	w.press(50, 10)
 	lit("the edge to be held", func(l *layout.Layout) bool { return l.Held })
