@@ -29,6 +29,7 @@ var look = Look{
 	Dim:    term.Style{Fg: term.RGB(2)},
 	Frame:  term.Style{Fg: term.RGB(3)},
 	Accent: term.Style{Fg: term.RGB(4)},
+	Lit:    term.Style{Fg: term.RGB(5), Bold: true},
 }
 
 // shop is the design's evening with thirteen tabs.

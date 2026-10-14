@@ -11,7 +11,7 @@ import (
 
 // drawn is what the layout itself puts into a window: the tab row, the
 // lines and the label of a held one, as text; lit names the cells that are
-// in the accent.
+// in the lit line's own colour, which is not the accent of the keys' frame.
 func drawn(l *Layout, k Look) (text string, lit func(x, y int) bool) {
 	g := term.NewGrid(l.W, l.H)
 	l.Draw(g, k)
@@ -24,7 +24,7 @@ func drawn(l *Layout, k Look) (text string, lit func(x, y int) bool) {
 		}
 		b.WriteString(strings.TrimRight(row.String(), " ") + "\n")
 	}
-	return b.String(), func(x, y int) bool { return g.At(x, y).Style == k.Accent }
+	return b.String(), func(x, y int) bool { return g.At(x, y).Style == k.Lit }
 }
 
 // screen is the design's own: four tabs beside the dock, the fleet's pane
@@ -167,11 +167,23 @@ func TestTheLabelSaysTheLimit(t *testing.T) {
 			t.Errorf("the line at %d, %d dragged to %d, %d: %q, not %q", c.x, c.y, c.tx, c.ty, l.said(), c.want)
 		}
 	}
-	// A split by shares says its first side.
+	// A split by shares says the side that was split off, as one by cells
+	// does: the new pane on the right or below, or on the left or above.
 	l = docked(Dock{}, 101, 20)
 	l.Split("p1", contract.Right, 0.3, "p2")
-	if l.Lit, l.Held = l.At(30, 5), true; l.said() != "◀▶ 30 columns" {
-		t.Errorf("a split by shares: %q", l.said())
+	if l.Lit, l.Held = l.At(30, 5), true; l.said() != "◀▶ 70 columns" {
+		t.Errorf("a split by shares, the new pane on the right: %q", l.said())
+	}
+	l = docked(Dock{}, 101, 20)
+	l.Split("p1", contract.Up, 0.75, "p2")
+	at := Hit{}
+	for y := range l.H {
+		if h := l.At(30, y); h.Kind == OnLine {
+			at = h
+		}
+	}
+	if l.Lit, l.Held = at, true; l.said() != "▲▼ 4 rows" {
+		t.Errorf("a split by shares, the new pane above with a quarter: %q", l.said())
 	}
 }
 

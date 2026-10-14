@@ -314,7 +314,7 @@ func (p *pane) heavy(row int) int {
 		}
 	}
 	if p.py == row || label != "" {
-		st = p.st("accent")
+		st = bold(p.st("blocked")) // as the keeper lights a line of its own
 	}
 	p.t.Put(0, row, w, strings.Repeat(p.glyph(mark[0], mark[1]), w), st)
 	if label != "" {

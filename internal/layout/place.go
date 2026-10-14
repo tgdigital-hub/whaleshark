@@ -352,8 +352,9 @@ func (l *Layout) held() (line Rect, n *Node, in Rect) {
 }
 
 // said is the label of the held line: the size it gives, of the dock, or of
-// the side of a split that is held to its cells, else the first; and the
-// limit the line stands at.
+// the side of a split that was split off, which is the fleet pane's width,
+// the action pane's height and the new pane of a split a person made; and
+// the limit the line stands at.
 func (l *Layout) said() string {
 	line, n, in := l.held()
 	if l.Said != "" || line.W == 0 {
@@ -371,7 +372,7 @@ func (l *Layout) said() string {
 		if size = a.W; n.Down {
 			free, size, unit = a.H+b.H, a.H, "▲▼ %d rows"
 		}
-		if lo, hi = n.A.least(n.Down), free-n.B.least(n.Down); n.Cells > 0 && n.Last {
+		if lo, hi = n.A.least(n.Down), free-n.B.least(n.Down); n.Last {
 			size, lo, hi = free-size, free-hi, free-lo
 		}
 	}

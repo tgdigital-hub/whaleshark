@@ -15,7 +15,10 @@ import (
 // the terminal cannot show the line characters.
 type Look struct {
 	Text, Dim, Frame, Accent, Need term.Style
-	Plain                          bool
+	// Lit is the dividing line under the pointer, or held, and its label:
+	// another colour than Accent, in which the pane with the keys is framed.
+	Lit   term.Style
+	Plain bool
 }
 
 // What a cell of the window is part of.
@@ -416,7 +419,7 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 		}
 	}
 	at := func(x, y int) bool { return x >= 0 && y >= 0 && x < l.W && y < l.H && ends[y*l.W+x] != 0 }
-	// The lit line is in the accent; held, it is heavy over its whole length.
+	// The lit line is in its own colour; held, it is heavy over its whole length.
 	line, split, _ := l.held()
 	across, thick := split != nil && split.Down, [3]string{"┃", "┳", "┻"}
 	if k.Plain {
@@ -435,7 +438,9 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 			}
 		}
 		st, text := k.Frame, glyphs[e]
-		if keys.has(x, y) || line.has(x, y) {
+		if line.has(x, y) {
+			st = k.Lit
+		} else if keys.has(x, y) {
 			st = k.Accent
 		}
 		if l.Held && line.has(x, y) {
@@ -448,7 +453,7 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 	a := map[bool]int{true: 1}[across]
 	for i, c := range [2][2]int{{line.X - a, line.Y - 1 + a}, {line.X + a*line.W, line.Y + (1-a)*line.H}} {
 		if l.Held && line.W > 0 && at(c[0], c[1]) {
-			g.Put(c[0], c[1], 1, thick[1+i], k.Accent)
+			g.Put(c[0], c[1], 1, thick[1+i], k.Lit)
 		}
 	}
 }
@@ -470,8 +475,10 @@ func (l *Layout) Say(g *term.Grid, k Look) {
 		x, y = max(min(l.Lit.X-w/2, line.X+line.W-w), line.X), line.Y
 	} else if x+w > l.W {
 		x = max(line.X-w, 0)
+	} else if x+w < l.W {
+		text, w = text+" ", w+1 // a blank between the label and what the pane shows
 	}
-	g.Put(x, y, w, text, k.Accent)
+	g.Put(x, y, w, text, k.Lit)
 }
 
 // Named is the cell a tab's own name begins at on the tab row, and the

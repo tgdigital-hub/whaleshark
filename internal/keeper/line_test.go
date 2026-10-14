@@ -150,7 +150,8 @@ func TestADragPastTheWindowsWidthWritesNothing(t *testing.T) {
 
 // Every dividing line of a tab: held, it is heavy and says the size at
 // every cell; dragged, the panes take the size, which a restart brings
-// back; two presses put it back to what the split was opened with.
+// back; two presses put it back to what the split was opened with. The label
+// is the size of the pane that was split off.
 func TestALineOfASplitHeldDraggedAndPutBack(t *testing.T) {
 	r := newRig(t)
 	c := r.dial()
@@ -172,10 +173,10 @@ func TestALineOfASplitHeldDraggedAndPutBack(t *testing.T) {
 		x, y, tx, ty int
 		held, moved  string
 	}{
-		{r.at("p2").X - 1, 5, r.at("p2").X - 11, 5, "┃◀▶ 50 columns", "┃◀▶ 40 columns"},
-		{10, r.at("p3").Y - 1, 10, r.at("p3").Y - 5, " ▲▼ 14 rows ", " ▲▼ 10 rows "},
+		{r.at("p2").X - 1, 5, r.at("p2").X - 11, 5, "┃◀▶ 50 columns", "┃◀▶ 60 columns"},
+		{10, r.at("p3").Y - 1, 10, r.at("p3").Y - 5, " ▲▼ 13 rows ", " ▲▼ 17 rows "},
 		{70, r.at("p4").Y - 1, 70, r.at("p4").Y - 4, " ▲▼ 6 rows ", " ▲▼ 9 rows "},
-		{r.at("p5").X - 1, 5, r.at("p5").X + 4, 5, "┃◀▶ 12 columns", "┃◀▶ 17 columns"},
+		{r.at("p5").X - 1, 5, r.at("p5").X + 4, 5, "┃◀▶ 37 columns", "┃◀▶ 32 columns"},
 	} {
 		before := sizes()
 		w.press(l.x, l.y)

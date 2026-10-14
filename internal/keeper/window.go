@@ -76,9 +76,11 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	if cfg, err := contract.ReadPerson(k.kit.Platform.Peek, k.dirs.Config); err == nil {
 		in = theme.Get(cfg.UI.Theme).Ink
 	}
+	lit := in("blocked") // the scheme's amber, as the chosen drawing has a moving line
+	lit.Bold = true
 	bytes, feed := io.Pipe()
 	w := &window{link: l, w: side(c.W), h: side(c.H), wake: make(chan struct{}, 1), gone: make(chan struct{}),
-		look: layout.Look{Text: in("text"), Dim: in("dim"), Frame: in("frame"), Accent: in("accent"), Need: in("needs"), Plain: !known},
+		look: layout.Look{Text: in("text"), Dim: in("dim"), Frame: in("frame"), Accent: in("accent"), Need: in("needs"), Lit: lit, Plain: !known},
 		sys:  c.System, env: env}
 	// Only a window that says it is on the keeper's own computer, or comes
 	// through connect, is at a clipboard the keeper can be sure of.

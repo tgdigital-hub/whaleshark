@@ -228,12 +228,12 @@ func mouse(p *pane, b term.Button, a term.Action, x, y int) {
 	p.draw()
 }
 
-// While the heavier line is held it follows the pointer, in the accent, and
+// While the heavier line is held it follows the pointer, in its own colour, and
 // says the rows over it; at a limit it says which; under the pointer with no
 // button down it is lit; a press let go where it was leaves it waiting.
 func TestTheHeldLineSaysItsRowsAndItsLimit(t *testing.T) {
 	p := afternoon(t, 28, 30, nil)
-	accent, frame := p.st("accent"), p.st("frame")
+	accent, frame := bold(p.st("blocked")), p.st("frame") // the lit line's own colour
 	if st := p.t.At(5, 15).Style; st != frame {
 		t.Errorf("the line at rest is drawn %+v", st)
 	}
