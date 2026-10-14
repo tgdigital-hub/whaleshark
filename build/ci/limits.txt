@@ -115,7 +115,10 @@ lines 6900 contract internal/contract cmd/whaleshark
 # input and layout pay.
 # 10 more when the first part of phase 6 was put together: a path reached
 # through a link has the key of the folder itself. It stands at 1,317.
-lines 1320 platform internal/platform
+# 10 more for the long list of projects: the watcher keeps its files by
+# folder, so that a folder's look reads its own and not thousands. It
+# stands at 1,326. keeper, at 2,293 of its 2,510, pays.
+lines 1330 platform internal/platform
 # cli: 40 more at the start of phase 2. Recording what the person does left
 # it four lines short of full, with three phases still to pass through it.
 # 30 more at the start of phase 3: the program typed alone sets a project up
@@ -602,7 +605,8 @@ lines 1380 screen internal/screen
 # held with its label, a line put back, a click and then a click, the menu's
 # event, the placed overlay 160. Counted at twice its plan, as every part of
 # this kind has come out.
-lines 2510 keeper internal/keeper
+# It gives 10 to platform for the watcher's files kept by folder.
+lines 2500 keeper internal/keeper
 # layout gives 135 and input 120 after the Windows proof, to platform,
 # guide, runtask and doctor: both are built whole, at 763 and 467.
 # 70 more for phase 5: the dock's place, the tab row beside it, its edge.

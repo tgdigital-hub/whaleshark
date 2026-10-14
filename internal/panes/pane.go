@@ -258,11 +258,11 @@ func (p *pane) loop() bool {
 		case path, open := <-changes:
 			// A lock file's own change is no news: reading a record takes the
 			// lock, and a pane that read again for that would never rest.
-			news := open && !lockFile(path)
+			news := open && !noNews(path)
 			for more := open; more; {
 				select {
 				case path, more = <-changes:
-					news = news || more && !lockFile(path)
+					news = news || more && !noNews(path)
 				default:
 					more = false
 				}
@@ -686,11 +686,14 @@ func (p *pane) ids() []string {
 	return ids
 }
 
-// lockFile says a changed file is one of the record's locks, which every
-// reader touches.
-func lockFile(path string) bool {
+// noNews says a changed file tells nothing: one of the record's locks, which
+// every reader touches, or a file made to take another's place, as
+// state.json.tmp or ui.json.123, whose move into it is told by that name.
+func noNews(path string) bool {
 	base := filepath.Base(path)
-	return base == "lock" || base == "turn" || strings.HasSuffix(base, ".lock")
+	ext := filepath.Ext(base)
+	half := ext == ".tmp" || len(ext) > 1 && strings.Trim(ext, ".0123456789") == ""
+	return base == "lock" || base == "turn" || ext == ".lock" || half && base != ext
 }
 
 // event takes a key, a click or a report from the terminal, and reports

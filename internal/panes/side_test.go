@@ -827,11 +827,18 @@ func TestSetMovesThePanesAndSaysWhatALimitMeans(t *testing.T) {
 
 // The left section rests. Every read of a record takes the record's lock,
 // which changes a file in the folder the left section watches: that is no
-// news and brings no new read, or the section would read for ever. A file
-// that says something still does.
+// news and brings no new read, or the section would read for ever; nor is
+// a file made to take another's place. A file that says something still does.
 func TestALockFilesChangeIsNoNews(t *testing.T) {
 	wd, _ := sideWorld(t, 32, 40)
 	wd.shows("AGENTS · ", "sign-up page")
+	// The pane notes the first steps it saw in ui.json with a command of its
+	// own, which on Windows lands a second or more after it began: that is
+	// news, read once, and done before anything is counted.
+	dirs, _ := wd.sys.Dirs()
+	if !wd.until(20*time.Second, func() bool { _, err := os.Stat(filepath.Join(dirs.State, contract.UIFileName)); return err == nil }) {
+		t.Fatal("the pane did not note its first steps")
+	}
 	wd.settle()
 	ours := filepath.Join(wd.home, contract.ProjectDir)
 	touch := func(name string) {
@@ -864,6 +871,7 @@ func TestALockFilesChangeIsNoNews(t *testing.T) {
 		touch("lock")
 		touch("turn")
 		touch("worktrees.lock")
+		touch("current.tmp")
 		time.Sleep(30 * time.Millisecond)
 	}
 	if n := still() - before; n != 0 {
@@ -874,9 +882,10 @@ func TestALockFilesChangeIsNoNews(t *testing.T) {
 		t.Error("a file that says something brought no read")
 	}
 	for path, want := range map[string]bool{"/p/.whaleshark/lock": true, "/p/.whaleshark/turn": true, "/p/.whaleshark/runs/r1/wait.lock": true,
-		"/p/.whaleshark/current": false, "/p/.whaleshark/runs/r1/state.json": false, "/p/locksmith.txt": false} {
-		if lockFile(path) != want {
-			t.Errorf("lockFile(%s) = %v", path, !want)
+		"/p/.whaleshark/current": false, "/p/.whaleshark/runs/r1/state.json": false, "/p/locksmith.txt": false,
+		"/p/.whaleshark/runs/r1/state.json.tmp": true, "/s/ui.json.2006626400": true, "/p/.tmp": false, "/p/r1": false} {
+		if noNews(path) != want {
+			t.Errorf("noNews(%s) = %v", path, !want)
 		}
 	}
 }
