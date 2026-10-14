@@ -155,12 +155,15 @@ func (p *pane) rested(store bool) {
 		tw, th, err := p.k.Terms.Size(talks)
 		dw, _, _ := p.k.Terms.Size(dock)
 		p.tell(news{do: func() {
-			sum := mine + map[bool]int{true: tw, false: th}[wide]
+			// Beside the conversation the left section counts too: its edge
+			// dragged gives and takes from the conversation alone, and tells
+			// this pane nothing.
+			sum := mine + map[bool]int{true: tw + dw, false: th}[wide]
 			same, moved, now := sum == p.both, mine != p.mine, mine
 			if p.kind == actions && mine == sum-int(talkShare*float64(sum)+0.5) {
 				now = 0 // the quarter it comes as, at any size of the window
 			}
-			if p.both, p.mine = sum, mine; err == nil && store && same && moved && now != had && (!wide || sum+dw+2 >= contract.SideNamesFrom) {
+			if p.both, p.mine = sum, mine; err == nil && store && same && moved && now != had && (!wide || sum+2 >= contract.SideNamesFrom) {
 				p.child(p.cmd("set", key, strconv.Itoa(now)), "", p.quiet)
 			}
 		}})

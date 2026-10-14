@@ -369,13 +369,14 @@ type measured struct {
 	contract.Terminals
 	mu   *sync.Mutex
 	w, h *int
+	dock *int // what the left section has more than its width as it comes
 }
 
 func (m measured) Size(pane string) (int, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if pane == "dock" {
-		return contract.SideWidth, 40, nil
+		return contract.SideWidth + *m.dock, 40, nil
 	}
 	return *m.w, *m.h, nil
 }
@@ -391,10 +392,10 @@ func TestADraggedEdgeIsStoredOnceItHasRested(t *testing.T) {
 		to        [2]int
 	}{{fleet, "fleet.width", 46, 30, [2]int{52, 30}}, {actions, "actions.height", 100, 12, [2]int{100, 15}}} {
 		var mu sync.Mutex
-		tw, th := 150-c.w, 43-c.h
+		tw, th, dock := 150-c.w, 43-c.h, 0
 		wd := begin(t, c.kind, c.w, c.h, nil, func(wd *world) {
 			ours(wd)
-			wd.p.k.Terms = measured{wd.double, &mu, &tw, &th}
+			wd.p.k.Terms = measured{wd.double, &mu, &tw, &th, &dock}
 		})
 		move := func(w, h, talkW, talkH int) {
 			mu.Lock()
@@ -409,6 +410,11 @@ func TestADraggedEdgeIsStoredOnceItHasRested(t *testing.T) {
 		if got := wd.children("set " + c.key); len(got) != 0 {
 			t.Errorf("%s: a window that changed wrote %v", c.kind, got)
 		}
+		// The left section's edge was dragged: the conversation alone gave
+		// it three cells, and this pane was told nothing.
+		mu.Lock()
+		tw, dock = tw-3, 3
+		mu.Unlock()
 		// A drag of the edge: what this pane gains the conversation loses.
 		move(c.to[0], c.to[1], tw-(c.to[0]-c.w-2), th-(c.to[1]-c.h-2))
 		want := fmt.Sprintf("set %s %d --human", c.key, max(c.to[0]*map[bool]int{true: 1}[c.kind == fleet], c.to[1]*map[bool]int{true: 1}[c.kind == actions]))
