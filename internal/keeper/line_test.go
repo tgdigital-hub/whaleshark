@@ -191,7 +191,7 @@ func TestALineOfASplitHeldDraggedAndPutBack(t *testing.T) {
 			t.Fatalf("the line at %d, %d did not move: %s", l.x, l.y, moved)
 		}
 		r.again()
-		c = r.dial()
+		r.dial()
 		w = r.window(101, 30)
 		w.shows("first")
 		if got := sizes(); got != moved {

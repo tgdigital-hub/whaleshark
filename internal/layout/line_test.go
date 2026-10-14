@@ -155,7 +155,7 @@ func TestTheLabelSaysTheLimit(t *testing.T) {
 			t.Errorf("%d columns, dragged to %d: %q, not %q", c.w, c.x, l.said(), c.want)
 		}
 	}
-	l := screen(160, 30, 46, 9)
+	var l *Layout
 	for _, c := range []struct {
 		x, y, tx, ty int
 		want         string

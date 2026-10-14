@@ -535,7 +535,7 @@ func TestTheHeavierLineIsDraggedPutBackAndStored(t *testing.T) {
 	wd.shows("AGENTS · shop")
 	line := func() int {
 		for y := range 40 {
-			if strings.HasPrefix(wd.s.Row(y), "━") || strings.HasPrefix(wd.s.Row(y), "━") {
+			if strings.HasPrefix(wd.s.Row(y), "━") {
 				return y
 			}
 		}
