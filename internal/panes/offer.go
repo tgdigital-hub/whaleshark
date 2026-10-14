@@ -18,6 +18,9 @@ const (
 	twice = 500 * time.Millisecond
 	// A refusal stands in a menu's box for saidFor, and then the box closes.
 	saidFor = 2 * time.Second
+	// none stands on a menu's command line for a part its thing has not. It
+	// is no lone dash: for that every command reads its standard input.
+	none = "."
 	// The least a menu's box is wide, the box of a typing line, and the box
 	// of a refusal.
 	menuWide, lineWide, saidWide = 24, 30, 34
@@ -197,7 +200,7 @@ func (p *pane) offerAt(pane, kind, id string, about contract.SideRow, full bool,
 	if !ok {
 		return
 	}
-	argv := []string{cmp.Or(p.self, "whaleshark"), "ui", "run", offer, kind, cmp.Or(id, "-"), cmp.Or(about.Root, "-"), cmp.Or(about.Run, "-"), cmp.Or(about.Task, "-")}
+	argv := []string{cmp.Or(p.self, "whaleshark"), "ui", "run", offer, kind, cmp.Or(id, none), cmp.Or(about.Root, none), cmp.Or(about.Run, none), cmp.Or(about.Task, none)}
 	if full {
 		argv = append(argv, "row")
 	}
@@ -228,7 +231,12 @@ func (p *pane) menuAt(tab string, x, y int) {
 // sentence a refusal is said with.
 func (p *pane) drawOffer() {
 	if p.th == nil && p.picture != nil {
-		word := func(i int) string { return strings.TrimPrefix(append(p.want, "", "", "", "", "", "")[i], "-") }
+		word := func(i int) string {
+			if w := append(p.want, "", "", "", "", "", "")[i]; w != none {
+				return w
+			}
+			return ""
+		}
 		th, ok := p.thingOf(word(0), word(1), contract.SideRow{Root: word(2), Run: word(3), Task: word(4)}, word(5) == "row")
 		if p.th, p.done = &th, !ok; !ok {
 			return // it changed before the menu stood: nothing is drawn of it

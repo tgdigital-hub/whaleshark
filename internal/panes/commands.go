@@ -29,7 +29,7 @@ func Plug(k *contract.Kit) {
 // action pane the keys, or, as `ui run` and `ui menu`, is the program inside
 // a pane until the pane closes or the person leaves it. `ui run offer` is the
 // menu at the pointer: for a kind of thing and its id, then its project, its
-// run and its task where it has them, a dash for one it has not, and the
+// run and its task where it has them, a full stop for one it has not, and the
 // word "row" where it opens on a row of the left section.
 func ui(c *contract.Call) (any, error) {
 	a := append(c.Args, "", "")[:max(len(c.Args), 2)]

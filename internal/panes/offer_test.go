@@ -61,7 +61,7 @@ func TestTheMenusAreTheFrames(t *testing.T) {
 │›Rename…              │
 │ Stop agent & close   │
 └──────────────────────┘`},
-		{"a workspace", []string{contract.OfferSpace, "s3", ops, "-", "-"}, `
+		{"a workspace", []string{contract.OfferSpace, "s3", ops, none, none}, `
 ┌──────────────────────┐
 │›Rename…              │
 │ Remove from list     │
@@ -75,7 +75,7 @@ func TestTheMenusAreTheFrames(t *testing.T) {
 │ Answer                 │
 │ Send a note or a link  │
 └────────────────────────┘`},
-		{"the orchestrator's row", []string{contract.OfferTab, "t-p1", toms, "r1", "-", "row"}, `
+		{"the orchestrator's row", []string{contract.OfferTab, "t-p1", toms, "r1", none, "row"}, `
 ┌─────────────────────────────┐
 │›Rename…                     │
 │ Close tab                   │
@@ -171,7 +171,7 @@ func TestWhatATakenRowTurnsTheBoxInto(t *testing.T) {
 	}{
 		{[]string{contract.OfferSpace, "s2"}, "r", "", false},
 		{[]string{contract.OfferSpace, "s2"}, "down", "", false},
-		{[]string{contract.OfferTab, "t-p1", toms, "r1", "-", "row"}, "c", fmt.Sprintf(contract.AskCloseLead, 3), true},
+		{[]string{contract.OfferTab, "t-p1", toms, "r1", none, "row"}, "c", fmt.Sprintf(contract.AskCloseLead, 3), true},
 		{[]string{contract.OfferAgent, "t-p2", toms, "r1", "T1"}, "s", fmt.Sprintf(contract.AskStopClose, "sign-up page"), false},
 	} {
 		p := boxOf(t, 60, 20, c.want...)
@@ -498,7 +498,9 @@ func TestTheLeftSectionOpensTheMenuOfTheThingUnderIt(t *testing.T) {
 	// A workspace's row, and the tabs of no project.
 	sx, sy, _ := wd.s.Find("shop")
 	wd.raw(2, sx, sy, true)
-	if c := wd.placed(); strings.Join(c.Argv[1:6], " ") != "ui run offer space s1" || c.Y != sy+1 {
+	// No part of the command line is a lone dash, for which the command
+	// would read its standard input and the menu never stand.
+	if c := wd.placed(); strings.Join(c.Argv[1:6], " ") != "ui run offer space s1" || c.Y != sy+1 || slices.Contains(c.Argv, "-") || c.Argv[len(c.Argv)-1] != none {
 		t.Errorf("the menu of a workspace was asked for with %+v", c)
 	}
 	// The keeper's word: a person asked for the menu of a tab on the tab row.
