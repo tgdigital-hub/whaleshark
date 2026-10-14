@@ -404,7 +404,7 @@ func (p *pane) tick(n int) {
 			p.keeper(func() error { return refit(p.k) })
 		}
 	}
-	if p.watch == nil || p.run == "" && !p.sided() {
+	if p.kind != offer && (p.watch == nil || p.run == "" && !p.sided()) {
 		p.load()
 	}
 	p.checked()

@@ -54,6 +54,12 @@ func (p *pane) loadSide(dirs contract.Dirs) {
 		paths = append(paths, r.Dir(root, ""), filepath.Dir(r.Dir(root, "r1")))
 		p.in.Projects = append(p.in.Projects, pr)
 	}
+	// A menu is fixed when it opens: it reads the list once and watches
+	// none of its folders, so that its rows show at once however long the
+	// list is. The notices of thousands of folders take half a minute.
+	if p.kind == offer {
+		return
+	}
 	if watched := strings.Join(paths, "\n"); watched != p.watched || p.watch == nil {
 		if p.watch != nil {
 			p.watch.Close()
