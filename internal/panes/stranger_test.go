@@ -181,3 +181,35 @@ func TestAKeyAFileDoesNotHoldIsLeftAlone(t *testing.T) {
 		t.Errorf("a file that holds two keys: %v\n%s\n%+v", err, out, after)
 	}
 }
+
+// A pane's own mark is written under the lock that every change of ui.json
+// is made under: while another holds it the mark waits, and what the other
+// wrote meanwhile is kept, not written over with what was read before.
+func TestAMarkWaitsForTheFilesLock(t *testing.T) {
+	k := contract.NewKit()
+	k.Platform = system(t.TempDir(), map[string]string{"PATH": ""})
+	dirs, _ := k.Platform.Dirs()
+	os.MkdirAll(dirs.State, 0o700)
+	unlock, err := k.Platform.Lock(filepath.Join(dirs.State, "ui.lock"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { _, err := loaded(t, k, "", "", "shut", "r1/billing"); done <- err }()
+	select {
+	case <-done:
+		t.Fatal("the mark was written while the lock was held")
+	case <-time.After(300 * time.Millisecond):
+	}
+	file := filepath.Join(dirs.State, contract.UIFileName)
+	ui := contract.UIFile{Panes: map[string]contract.Pair{"/p": {Fleet: "p7"}}}
+	contract.WriteVersioned(k.Platform, file, contract.FileVersion, ui)
+	unlock()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	contract.ReadVersioned(k.Platform.Read, file, contract.FileVersion, &ui)
+	if ui.Panes["/p"].Fleet != "p7" || len(ui.Shut) != 1 {
+		t.Errorf("the file after the mark: %+v", ui)
+	}
+}
