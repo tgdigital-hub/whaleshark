@@ -382,6 +382,59 @@ func TestAMenuRenamesAndClosesATabThroughTheKeeper(t *testing.T) {
 	}
 }
 
+// A menu shows its rows at once, whatever the login's list of projects
+// holds. It is fixed when it opens, so it reads the list once and watches
+// none of its folders: a list of thousands, most of them folders that are
+// gone, once left its box blank for half a minute while their notices
+// were set up, in every terminal.
+func TestAMenuShowsItsRowsAtOnceWhateverTheListHolds(t *testing.T) {
+	tab := func(home string, s *contract.Side) []string {
+		return []string{contract.OfferTab, rowOf(s, "sign-up page").Tab}
+	}
+	wd := startWith(t, offer, 34, 6, nil, func(wd *world) {
+		spaceIn(t, wd, tab)
+		dirs, _ := wd.sys.Dirs()
+		roots := []string{wd.home}
+		for i := range 5000 {
+			roots = append(roots, filepath.Join(wd.home, "gone", fmt.Sprint(i)))
+		}
+		if err := contract.WriteProjects(wd.sys, dirs.State, roots); err != nil {
+			t.Fatal(err)
+		}
+		wd.p.k.Store = rooted{wd.p.k.Store.(listed)}
+	})
+	wd.shows("›Rename…", "Close tab")
+	wd.inLoop(func(p *pane) {
+		if p.watch != nil {
+			t.Error("a menu watches the folders of the list")
+		}
+	})
+}
+
+// A menu drawn before its box has its size, in a pane of no cells or of a
+// few, draws its rows whole when the size comes.
+func TestAMenuWhoseSizeComesLateDrawsItsRows(t *testing.T) {
+	for _, at := range [][2]int{{0, 0}, {1, 1}, {5, 2}} {
+		p := boxOf(t, at[0], at[1], contract.OfferTab, "t-p5")
+		p.t.Resize(24, 4)
+		p.draw()
+		if got, want := strings.TrimRight(grid(p), "\n"), "┌──────────────────────┐\n│›Rename…              │\n│ Close tab            │\n└──────────────────────┘"; p.done || got != want {
+			t.Errorf("a menu first drawn at %v is, at its size,\n%s", at, got)
+		}
+	}
+}
+
+// rooted is listed with each project's record in its own folder, as the
+// store has it, and not in the one folder of the test's world.
+type rooted struct{ listed }
+
+func (r rooted) Dir(root, run string) string {
+	if run == "" {
+		return filepath.Join(root, contract.ProjectDir)
+	}
+	return filepath.Join(root, contract.ProjectDir, "runs", run)
+}
+
 // listing is a folder as a person would compare it: every file under it
 // with its size and when it was last written, but for the project's own
 // record, and for what is the test's and not the project's: what it wrote
