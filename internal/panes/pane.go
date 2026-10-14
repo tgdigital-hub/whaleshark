@@ -220,6 +220,7 @@ func (p *pane) loop() bool {
 	}()
 	p.helper(p.listen)
 	p.load()
+	p.checked()
 	if p.folded, p.shut = p.ui.Folded, slices.Clone(p.ui.Shut); p.kind == menu {
 		p.over = menu
 	}
@@ -406,9 +407,7 @@ func (p *pane) tick(n int) {
 	if p.watch == nil || p.run == "" && !p.sided() {
 		p.load()
 	}
-	if p.readErr == nil || errors.Is(p.readErr, contract.ErrNoRun) {
-		p.filesOK = p.now()
-	}
+	p.checked()
 	if n%compareEvery == 0 {
 		p.snapshot(1)
 		p.sweep()
@@ -418,6 +417,14 @@ func (p *pane) tick(n int) {
 	if st, err := os.Stat(p.self); n%lookEvery == 0 && err == nil && !st.ModTime().Equal(p.born) {
 		p.leave()
 		p.again = true
+	}
+}
+
+// checked notes that the files' side is in order: they were read, and
+// what was read is what the pane shows. The first frame says so already.
+func (p *pane) checked() {
+	if p.readErr == nil || errors.Is(p.readErr, contract.ErrNoRun) {
+		p.filesOK = p.now()
 	}
 }
 

@@ -450,3 +450,27 @@ func TestDirChangeNames(t *testing.T) {
 		t.Errorf("nothing gave %q", got)
 	}
 }
+
+// TestThousandsOfFoldersThatAreGone: a watch over thousands of files whose
+// folders are not there begins in a time that grows with their number, not
+// with its square: a tenth of a second here, a minute were it the square.
+// A file among them that is there is still told of.
+func TestThousandsOfFoldersThatAreGone(t *testing.T) {
+	dir := t.TempDir()
+	state := filepath.Join(dir, "state.json")
+	replaceFile(t, state, "0")
+	paths := []string{state}
+	for i := range 8000 {
+		gone := filepath.Join(dir, "gone", fmt.Sprintf("Test%04d", i), "001", ".whaleshark")
+		paths = append(paths, gone, filepath.Join(gone, "runs"))
+	}
+	start := time.Now()
+	w := watch(mute{}, paths)
+	defer w.Close()
+	took := time.Since(start)
+	if t.Logf("the watch over %d files began in %v", len(paths), took); took > 20*time.Second {
+		t.Errorf("the watch over %d files took %v to begin", len(paths), took)
+	}
+	replaceFile(t, state, "1")
+	told(t, w, soon, state, holds(state, "1"))
+}

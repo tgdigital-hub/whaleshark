@@ -400,6 +400,8 @@ func sideWorld(t *testing.T, w, h int) (*world, func(func(*contract.Side))) {
 		if err := contract.WriteProjects(wd.sys, dirs.State, []string{wd.home, filepath.Join(wd.home, "elsewhere")}); err != nil {
 			t.Fatal(err)
 		}
+		// A project whose folder is not there is not shown: this one is.
+		os.MkdirAll(filepath.Join(wd.home, "elsewhere"), 0o700)
 		k := wd.p.k
 		k.Store = listed{k.Store.(reader)}
 		k.Side = func(in contract.SideInput) *contract.Side {

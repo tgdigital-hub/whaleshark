@@ -3,6 +3,7 @@ package panes
 import (
 	"cmp"
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -23,6 +24,12 @@ func (p *pane) loadSide(dirs contract.Dirs) {
 	paths := []string{dirs.State, filepath.Join(dirs.Config, contract.ConfigFile)}
 	p.in.Projects, p.in.NewVersion = nil, contract.VersionLine(contract.ReadVersion(peek, dirs.State).Seen, contract.Version)
 	for _, root := range roots {
+		// A folder that is not on the disk, as one of a drive that is not
+		// plugged in, costs one look: it is not read, not watched and not
+		// shown, and it stays on the list for when it is back.
+		if info, err := os.Stat(root); err != nil || !info.IsDir() {
+			continue
+		}
 		pr := contract.SideProject{Root: root}
 		head, _ := peek(filepath.Join(root, ".git", "HEAD"))
 		pr.Branch, _ = strings.CutPrefix(strings.TrimSpace(string(head)), "ref: refs/heads/")

@@ -64,6 +64,9 @@ type watcher struct {
 	slow  atomic.Bool
 	dirs  map[string]*folder
 	files map[string]fs.FileInfo // each watched file as last seen; nil when absent
+	// in is the watched files of each folder by name: a folder's look reads
+	// its own, never the whole list, which can be thousands long.
+	in map[string]map[string]bool
 	// unheard are changes the last check found where a notice was due.
 	unheard map[string]bool
 	// found is when a look found a file changed, and told of it, before the
@@ -77,14 +80,14 @@ type watcher struct {
 // notices, and takes their place four times a second once one has failed.
 func watch(n notifier, paths []string) *watcher {
 	w := &watcher{n: n, out: make(chan string), done: make(chan struct{}),
-		dirs: map[string]*folder{}, files: map[string]fs.FileInfo{}, unheard: map[string]bool{}, found: map[string]time.Time{}}
+		dirs: map[string]*folder{}, files: map[string]fs.FileInfo{}, in: map[string]map[string]bool{}, unheard: map[string]bool{}, found: map[string]time.Time{}}
 	for _, p := range paths {
 		p = filepath.Clean(p)
 		d := filepath.Dir(p)
 		if info, err := os.Stat(p); err == nil && info.IsDir() {
 			d = p
 		} else {
-			w.files[p] = nil
+			w.keep(p, nil)
 		}
 		if w.dirs[d] == nil {
 			w.dirs[d] = &folder{}
@@ -186,10 +189,8 @@ func (w *watcher) attach(d string, f *folder) bool {
 // folder everything that is in it now.
 func (w *watcher) entries(d string, f *folder) []string {
 	var list []string
-	for p := range w.files {
-		if filepath.Dir(p) == d {
-			list = append(list, p)
-		}
+	for p := range w.in[d] {
+		list = append(list, p)
 	}
 	if f.whole {
 		names, _ := os.ReadDir(d)
@@ -230,8 +231,9 @@ func (w *watcher) see(p string) bool {
 	parent := w.dirs[filepath.Dir(p)]
 	if now == nil && parent.whole {
 		delete(w.files, p)
+		delete(w.in[filepath.Dir(p)], p)
 	} else {
-		w.files[p] = now
+		w.keep(p, now)
 	}
 	if now == nil || now.IsDir() {
 		// A folder's own time says nothing here. One that was named before it
@@ -242,6 +244,16 @@ func (w *watcher) see(p string) bool {
 		return replaced
 	}
 	return replaced || !now.ModTime().Equal(old.ModTime()) || now.Size() != old.Size()
+}
+
+// keep remembers a watched file as it was seen, nil when absent.
+func (w *watcher) keep(p string, info fs.FileInfo) {
+	w.files[p] = info
+	d := filepath.Dir(p)
+	if w.in[d] == nil {
+		w.in[d] = map[string]bool{}
+	}
+	w.in[d][p] = true
 }
 
 func (w *watcher) tell(p string) {
