@@ -99,6 +99,17 @@ func TestAPaneFitsWhatItSaysToItsSize(t *testing.T) {
 	p.make, p.stale = func(contract.ViewInput) contract.View { return one }, true
 	p.draw()
 	shows(p, "1 waiting · 1 holds work up")
+	// At every width the head is whole in one of its forms, never cut.
+	for w := 60; w <= 130; w++ {
+		p, v, _ = still(t, actions, w, 8)
+		one = *v
+		one.Counts.Waiting, one.Counts.Holding = 1, 1
+		p.make, p.stale = func(contract.ViewInput) contract.View { return one }, true
+		p.draw()
+		if row := p.t.Row(0); !strings.Contains(row, "1 holds work up ") && !strings.Contains(row, "1 · ▲1 ") {
+			t.Errorf("%d columns: the head is cut: %q", w, row)
+		}
+	}
 	p, _, _ = still(t, actions, 60, 3)
 	shows(p, "ACTIONS  3 · ▲2", "[Stop all]", "▲ sign-up page · Must the old sign-up link keep working?")
 	p, _, _ = still(t, actions, 47, 4)

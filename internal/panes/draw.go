@@ -859,11 +859,11 @@ func (p *pane) strip(now time.Time) {
 			}
 			total += term.Width(texts[i]) + 1
 		}
-		if 10+term.Width(counts)+total <= w {
+		if 10+term.Width(counts)+total < w { // the title's room ends a cell before the buttons
 			break
 		}
 	}
-	if 10+term.Width(counts)+total > w {
+	if 10+term.Width(counts)+total >= w {
 		// Too narrow for both: the counts stand where the name stood.
 		p.title(brief, "", w-total-1)
 	} else {
