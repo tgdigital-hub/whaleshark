@@ -469,7 +469,14 @@ lines 1320 term internal/term
 # two panes of each workspace and the sizes that stay 140; what waits in each
 # tab told to the keeper 40; a note of what is owed 11. Counted at twice its
 # plan, as this folder has come out in every phase.
-lines 4885 panes internal/panes
+# 165 more when the second part of phase 7 was put together. It stood two
+# lines under its line, and the first look at the real program cost 52: a
+# menu's pane is its box at each size the box takes, a pane's size is stored
+# after a drag of its own line only, a typed height moves no keys, an idle
+# agent's row says for how long, a fleet's row keeps its count where the
+# section is narrow. Built at 4,935; the rest is for the trial with real
+# agents, which every phase's first look in a real window has needed.
+lines 5050 panes internal/panes
 # theme gives 30 at the start of phase 5, to contract: built whole at 78.
 # 10 fewer when the second part of phase 6 was put together: that part needed
 # nothing here.
@@ -604,7 +611,12 @@ lines 2510 keeper internal/keeper
 # out. When the first part of phase 7 was put together it stood at 1,148: the
 # keys ask it which tabs they walk, so it keeps no narrowed copy of itself,
 # and the 140 for the lines stand whole. The line stays.
-lines 1290 layout internal/layout
+# 50 more when the second part of phase 7 was put together: the lines were
+# built at 141 where 70 were planned and left one line free, and the look
+# cost 19: a line that went with its split is no line, a lit line has a
+# colour of its own, its label names the pane that was split off. Built at
+# 1,308.
+lines 1340 layout internal/layout
 # pty gives 50 to restore when phase 2 was put together; it is built whole at
 # 617.
 lines 710 pty internal/pty
@@ -728,7 +740,15 @@ skip _test.go testdata testkit
 # together sets this to what is built. It is a figure that is told, not a cap
 # that decides what is built. With the first part put together the tree
 # stands at 45,943 and the lines sum to 47,885: runtask's 40.
-total 48000
+# 47,400 with the second part put together and looked at in the real program
+# for the first time: the tree stands at 47,096. The two parts were built at
+# 1,041 lines where 555 were planned, and putting them together with the look
+# cost 112: a menu that is its box, a program over a worker's tab that is
+# the person's, sizes stored after a drag only, a lit line in a colour of its
+# own, a window that follows the colour scheme. Phase 7 is 2,405 lines so
+# far, where about 3,000 were told. The 304 that are left are for the trial
+# with real agents and the review, which cost 75 to 100 lines each time.
+total 47400
 
 # The whole module list, not only the direct ones.
 modules 4
