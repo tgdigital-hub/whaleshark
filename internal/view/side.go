@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
@@ -283,6 +284,10 @@ func (w *space) agents(v *contract.View, depth int, root string) (rows []contrac
 				Actions: slices.DeleteFunc(slices.Clone(c.Actions), func(a string) bool { return a == "go" || a == "stop" || a == "close" })}
 			if r.Item != "" {
 				r.Actions = answer(r.Actions)
+			}
+			// An idle agent's row says for how long, as its card does.
+			if idle := v.At.Sub(c.Since); c.Look == contract.LookIdle && r.Word == "" && !c.Since.IsZero() && idle >= time.Minute {
+				r.Word = string(c.Look) + " " + age(idle)
 			}
 			rows = append(rows, r)
 			if needs(c.Look) {

@@ -76,7 +76,7 @@ var frames = []struct {
   ● orchestrator
   ▲ sign-up page  needs you
  ▌◐ login page     building
-  ◌ help pages         idle
+  ◌ help pages     idle 12m
 
 
 

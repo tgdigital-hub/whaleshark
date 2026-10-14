@@ -428,7 +428,9 @@ func (p *pane) sideRow(y int, r contract.SideRow, do func()) {
 	case r.Kind == contract.RowMore:
 		name = p.st("dim")
 	case wide:
-		rights = []string{cmp.Or(r.Word, string(r.Look))}
+		if rights = []string{cmp.Or(r.Word, string(r.Look))}; r.Look == contract.LookIdle && r.Word != "" {
+			rights = append(rights, string(r.Look)) // without its time where the name leaves that no room
+		}
 	}
 	if r.Unseen {
 		name = bold(name)

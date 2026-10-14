@@ -96,6 +96,8 @@ func Spaces() *ThreeSpaces {
 	asked.Item = "q1"
 	keys := agent(contract.LookBuilding, "login page", "T2", "t-p3", "note")
 	keys.Front = true
+	rests := agent(contract.LookIdle, "help pages", "T3", "t-p4", "note")
+	rests.Word = "idle 12m" // for how long, as the frame of the design has it
 	side := &contract.Side{Version: contract.SideVersion, At: now, NeedYou: 2, First: &asked, Title: "tomsleeps",
 		Fresh: contract.Fresh{Checked: now}, Steps: 15, StepsShown: true,
 		Workspaces: []contract.Workspace{
@@ -106,7 +108,7 @@ func Spaces() *ThreeSpaces {
 		Rows: []contract.SideRow{
 			{Kind: contract.RowLead, Name: "orchestrator", Root: toms, Run: "r1", Tab: "t-p1",
 				Offer: contract.OfferRows(contract.OfferTab, false, false, true), Actions: []string{"note-lead"}},
-			asked, keys, agent(contract.LookIdle, "help pages", "T3", "t-p4", "note"),
+			asked, keys, rests,
 		},
 		// Thirty rows, the line half-way down: row 15, as the frame has it.
 		Split: contract.SplitRow(in.Height, in.Split, contract.SideHead, contract.SideFoot),
