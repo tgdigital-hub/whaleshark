@@ -461,3 +461,54 @@ func TestAFleetsTabsAndTheSecondTabLine(t *testing.T) {
 		t.Errorf("with no fleet left the lead's pane was told %q", got)
 	}
 }
+
+// A workspace that comes to the front gives the keys to its conversation:
+// an action pane of ours left holding them keeps them no longer. Seen in the
+// trial with real agents: after an answer in one workspace's action pane, a
+// person went to another workspace and back, and the sentence meant for the
+// orchestrator went to the pane. A workspace that was in front already, and
+// a pane given the keys by name, are left as they are.
+func TestAWorkspaceInFrontGivesTheKeysToItsConversation(t *testing.T) {
+	r := newRig(t)
+	c := r.dial()
+	must := func(call contract.WireCall) contract.WireReply {
+		t.Helper()
+		reply := c.call(call)
+		if reply.Err != "" {
+			t.Fatalf("%s: %+v", call.Op, reply)
+		}
+		return reply
+	}
+	reef, kelp := t.TempDir(), t.TempDir()
+	lead := must(contract.WireCall{Op: contract.OpSpaceOpen, Space: reef, Cwd: reef}).Pane
+	actions := must(contract.WireCall{Op: contract.OpSplit, Pane: lead.ID, Dir: contract.Down, Ratio: 10}).Pane
+	must(contract.WireCall{Op: contract.OpRun, Pane: actions.ID, Argv: []string{"whaleshark", "ui", "run", "actions"}})
+	r.until("the action pane is ours", func() bool { return r.locked(func() bool { return r.k.panes[actions.ID].rec.Ours }) })
+	focused := func() string {
+		var f string
+		r.locked(func() bool { f = r.k.lay.Tab(lead.Tab).Focus; return true })
+		return f
+	}
+	must(contract.WireCall{Op: contract.OpPaneFocus, Pane: actions.ID})
+	if focused() != actions.ID {
+		t.Fatalf("the keys asked for by name went to %s", focused())
+	}
+	// In front already: the keys stay where they are.
+	must(contract.WireCall{Op: contract.OpSpaceOpen, Space: reef, Cwd: reef})
+	if focused() != actions.ID {
+		t.Errorf("opening the workspace in front moved its keys to %s", focused())
+	}
+	// Away and back by a workspace's row, which is space-open.
+	must(contract.WireCall{Op: contract.OpSpaceOpen, Space: kelp, Cwd: kelp})
+	must(contract.WireCall{Op: contract.OpSpaceOpen, Space: reef, Cwd: reef})
+	if focused() != lead.ID || r.focused() != lead.ID {
+		t.Errorf("back in front, the keys are in %s (the keeper's %s), not the conversation %s", focused(), r.focused(), lead.ID)
+	}
+	// Away and back by a tab's name, which is tab-focus.
+	must(contract.WireCall{Op: contract.OpPaneFocus, Pane: actions.ID})
+	must(contract.WireCall{Op: contract.OpSpaceOpen, Space: kelp, Cwd: kelp})
+	must(contract.WireCall{Op: contract.OpTabFocus, Tab: lead.Tab})
+	if focused() != lead.ID {
+		t.Errorf("back by its tab, the keys are in %s, not the conversation %s", focused(), lead.ID)
+	}
+}

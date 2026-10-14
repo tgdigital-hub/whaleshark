@@ -245,7 +245,9 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		if err != nil {
 			break
 		}
+		was := k.lay.Front
 		k.lay.Show(sp.Active)
+		k.talk(was)
 		k.changed()
 		rec := k.panes[k.focus].rec
 		r.Pane = &rec
@@ -431,7 +433,9 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 			tab.Named = !tab.Chat
 			k.rename(tab, label)
 		case contract.OpTabFocus:
+			was := k.lay.Front
 			k.lay.Show(c.Tab) // its workspace comes to the front with it
+			k.talk(was)
 			k.lay.Dock.Keys, k.lay.Dock.Open = false, false
 			k.changed()
 		case contract.OpTabClose:
@@ -496,4 +500,26 @@ func (k *Keeper) setKeys(keys []contract.KeyEntry) error {
 		return err
 	}
 	return k.kit.Platform.Replace(tmp.Name(), path)
+}
+
+// talk gives the keys of a workspace that has just come to the front to the
+// conversation of the tab that shows: a pane of ours there that was left
+// holding them, the action pane after an answer, keeps them no longer, or
+// what is typed next would go to it and not to the agent. A workspace that
+// was in front already keeps its keys where they are.
+func (k *Keeper) talk(was string) {
+	s := k.lay.Space(k.lay.Front)
+	if k.lay.Front == was || s == nil {
+		return
+	}
+	if t := k.lay.Tab(s.Active); t == nil || k.panes[t.Focus] == nil || !k.panes[t.Focus].rec.Ours {
+		return
+	}
+	t := k.lay.Tab(s.Active)
+	for _, at := range k.lay.Places(t) {
+		if p := k.panes[at.Pane]; p != nil && !p.rec.Ours && !p.rec.Dock {
+			k.lay.Focus(at.Pane)
+			return
+		}
+	}
 }
