@@ -101,8 +101,9 @@ near side's surroundings and with no terminal, as a command typed after `ssh ser
 
 - **The events `space` and `menu` were seen on macOS.** On Linux and Windows it is the same
   code, to be seen at the next run there. The `menu` event is asked for with the command key
-  then a full stop, typed into the window; a right press on a tab's name is held by the
-  keeper's own tests.
+  then a full stop, typed into the window; a right press on a tab's name, and a plain press
+  on the mark `≡` after the name that shows (for a terminal that reports no right button), are
+  held by the keeper's own tests.
 - **On Windows the program in front in a pane is worked out, not asked for**: the system has
   no such thing. The keeper reads it from the pane's own processes: the pane's first program,
   and from each shell on the way down the program that shell started last. Seen here: a pane

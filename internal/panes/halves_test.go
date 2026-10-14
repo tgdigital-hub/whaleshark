@@ -59,7 +59,7 @@ var frames = []struct {
  WHALESHARK              ▲2
 
  WORKSPACES             [+]
- ▌tomsleeps  main      ▲1 4
+ ▌tomsleeps  main     ▲1 4 ≡
  ──────────────────────────
   TestRunFoldersAndPoint… 1
  ──────────────────────────
@@ -75,7 +75,7 @@ var frames = []struct {
  AGENTS · tomsleeps
   ● orchestrator
   ▲ sign-up page  needs you
- ▌◐ login page     building
+ ▌◐ login page    building ≡
   ◌ help pages     idle 12m
 
 
@@ -90,7 +90,7 @@ var frames = []struct {
  WHALESHARK        ▲2
 
  WORKSPACES
- ▌tomsleeps      ▲1 4
+ ▌tomsleeps     ▲1 4 ≡
  ────────────────────
   TestRunFoldersAn… 1
  ────────────────────
@@ -106,7 +106,7 @@ var frames = []struct {
  AGENTS · tomsleeps
   ● orchestrator
   ▲ sign-up page
- ▌◐ login page
+ ▌◐ login page       ≡
   ◌ help pages
 
 

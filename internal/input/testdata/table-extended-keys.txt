@@ -212,6 +212,7 @@ A => p1 <- "A"
 \x1b[<64;6;6M\x1b[<64;6;6M => scroll p1 -3 | scroll p1 -3
 \x1b[<0;2;1M\x1b[<0;2;1m => call {"op":"tab-focus","tab":"t1"}
 \x1b[<0;9;1M\x1b[<0;9;1m => call {"op":"tab-focus","tab":"t2"}
+\x1b[<0;6;1M\x1b[<0;6;1m => menu of t1 at 5,0
 \x1b[<0;31;1M\x1b[<0;31;1m => nothing
 \x1b[<0;11;2M\x1b[<0;11;2m => nothing
 \x1b[<0;41;11M\x1b[<32;31;11M\x1b[<32;21;13M\x1b[<0;21;13m => line lit, held | line to 30,10 | line to 20,12 | no line lit

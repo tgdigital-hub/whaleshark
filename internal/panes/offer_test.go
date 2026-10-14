@@ -504,6 +504,22 @@ func TestTheLeftSectionOpensTheMenuOfTheThingUnderIt(t *testing.T) {
 	if c := wd.placed(); strings.Join(c.Argv[1:6], " ") != "ui run offer space s1" || c.Y != sy+1 || slices.Contains(c.Argv, "-") || c.Argv[len(c.Argv)-1] != none {
 		t.Errorf("the menu of a workspace was asked for with %+v", c)
 	}
+	// A plain click on the mark at the end of the chosen row opens the same
+	// menu, for a terminal that reports no right button; a click on the row
+	// beside the mark opens none.
+	mx, my, _ := wd.s.Find("≡")
+	wd.raw(0, mx, my, true)
+	if c := wd.placed(); my != sy || mx != 27 || strings.Join(c.Argv[1:6], " ") != "ui run offer space s1" || c.X != mx || c.Y != my+1 {
+		t.Errorf("a click on the mark at %d, %d asked for %+v", mx, my, c)
+	}
+	n0 := len(wd.double.Calls())
+	wd.raw(0, mx-1, my, true)
+	wd.settle()
+	for _, c := range wd.double.Calls()[n0:] {
+		if c.Op == contract.OpOverlay {
+			t.Errorf("a click beside the mark opened a menu: %+v", c)
+		}
+	}
 	// The keeper's word: a person asked for the menu of a tab on the tab row.
 	wd.double.Menu(r.Tab, 40, 0)
 	if c := wd.placed(); c.Pane != "" || c.X != 41 || c.Y != 1 || slices.Contains(c.Argv, "row") || c.Argv[4] != contract.OfferAgent {

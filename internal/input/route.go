@@ -342,8 +342,9 @@ func (in *In) point(h layout.Hit, ev term.Event, v View, focus string, modes fun
 			return []Act{{Kind: Reset, Hit: put}}
 		}
 		return []Act{{Kind: Put, Hit: put, X: ev.X, Y: ev.Y}}
-	case ev.Menu() && (h.Kind == layout.OnTab || h.Kind == layout.OnGroup):
-		// The menu of this thing, here: whatever press term says asks for one.
+	case (ev.Menu() || ev.Button == term.Left && h.Menu) && (h.Kind == layout.OnTab || h.Kind == layout.OnGroup):
+		// The menu of this thing, here: whatever press term says asks for
+		// one, and a plain press on the mark after the name that shows.
 		return []Act{{Kind: Menu, Hit: h, X: ev.X, Y: ev.Y}}
 	case !on && (ev.Menu() || ev.Button != term.Left):
 		return nil

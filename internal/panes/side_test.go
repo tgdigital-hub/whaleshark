@@ -97,7 +97,7 @@ var pictures = []struct {
  WHALESHARK                  ▲1
 
  WORKSPACES                 [+]
- ▌shop-site  main         ▲1 19
+ ▌shop-site  main        ▲1 19 ≡
  ──────────────────────────────
   blog  drafts                3
  ──────────────────────────────
@@ -119,7 +119,7 @@ var pictures = []struct {
     ◐ card retries     building
     ◐ receipt mail     building
   ▾ search           claude 6/8
-  ▌ ◐ search box       building
+  ▌ ◐ search box      building ≡
     · 5 more
   ▸ help pages       hermes 4/8
  [ Menu ]  [ Settings ]
@@ -129,7 +129,7 @@ var pictures = []struct {
  WHALESHARK        ▲1
 
  WORKSPACES
- ▌shop-site     ▲1 19
+ ▌shop-site    ▲1 19 ≡
  ────────────────────
   blog              3
  ────────────────────
@@ -151,7 +151,7 @@ var pictures = []struct {
     ◐ card retries
     ◐ receipt mail
   ▾ search        6/8
-  ▌ ◐ search box
+  ▌ ◐ search box     ≡
     · 5 more
   ▸ help pages    4/8
  [Menu] [Settings]

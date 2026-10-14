@@ -1,7 +1,7 @@
  WHALESHARK
 
  WORKSPACES                 [+]
- ▌shop-site  main             1
+ ▌shop-site  main            1 ≡
 
 
 

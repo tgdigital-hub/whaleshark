@@ -279,7 +279,9 @@ func (p *pane) spaceRow(y int, ws contract.Workspace) {
 	}
 	if ws.Front || id == p.sel {
 		t.Put(1, y, 1, p.glyph("▌", "|"), p.st("accent"))
-		name = bold(name)
+		if name = bold(name); w > contract.SideCut {
+			w = p.asks(y, id)
+		}
 	}
 	x := w - 1 - term.Width(count)
 	t.Put(x, y, w-x, count, name)
@@ -290,9 +292,20 @@ func (p *pane) spaceRow(y int, ws contract.Workspace) {
 	}
 	room := x - 3
 	at := 2 + t.Put(2, y, room, p.short(ws.Name, room), name)
-	if w > contract.SideNames && ws.Branch != "" && at+2+term.Width(ws.Branch) <= 2+room {
+	if t.W > contract.SideNames && ws.Branch != "" && at+2+term.Width(ws.Branch) <= 2+room {
 		t.Put(at+2, y, room, ws.Branch, p.st("dim"))
 	}
+}
+
+// asks puts the menu's mark in the last cell of the chosen row: a plain
+// click on it opens the row's menu, for a terminal that reports no right
+// button. It is called once the row's own click is in place, and returns the
+// width left to the row, one cell less, so a blank stands before the mark.
+func (p *pane) asks(y int, id string) int {
+	x := p.t.W - 1
+	p.t.Put(x, y, 1, p.glyph("≡", "="), p.st("accent"))
+	p.hits = append(p.hits, hit{x, y, 1, 1, false, func() { p.menus[id](x, y+1) }})
+	return x
 }
 
 // heavy draws the heavier line the agents begin under, from edge to edge on
@@ -435,7 +448,8 @@ func (p *pane) sideRow(y int, r contract.SideRow, do func()) {
 	if r.Unseen {
 		name = bold(name)
 	}
-	if r.Front && p.sel == "" || id == p.sel {
+	chosen := r.Front && p.sel == "" || id == p.sel
+	if chosen {
 		t.Put(x-1-r.Depth, y, 1, p.glyph("▌", "|"), p.st("accent"))
 		name = bold(name)
 	}
@@ -463,6 +477,9 @@ func (p *pane) sideRow(y int, r contract.SideRow, do func()) {
 	}
 	if rail {
 		return
+	}
+	if chosen && r.Kind != contract.RowMore && !tight {
+		w = p.asks(y, id)
 	}
 	room, right := w-x-3, ""
 	for _, c := range rights {

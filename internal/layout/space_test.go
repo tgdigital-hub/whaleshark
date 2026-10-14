@@ -85,10 +85,10 @@ func TestTwoTabLines(t *testing.T) {
 		w, dock int
 		want    string
 	}{
-		{160, 28, " Orchestrator │ [front desk · 3] <▲1> │ back office · 2 │ misc · 1\n └ leader │ sign-up page │ [login page] │ help pages\n"},
-		{120, 22, " Orchestrator │ [front desk · 3] <▲1> │ back office · 2 │ misc · 1\n └ leader │ sign-up page │ [login page] │ help pages\n"},
-		{80, 14, " Orchestrator │ [front desk · 3] <▲1> │ back office · 2 │ misc · 1\n └ leader │ sign-up page │ [login page] │ help pages\n"},
-		{72, 14, " Orchestrator │ [front desk · 3] <▲1> │ back office · 2 │ {+1}\n └ leader │ sign-up page │ [login page] │ help pages\n"},
+		{160, 28, " Orchestrator │ [front desk · 3] <▲1> ≡ back office · 2 │ misc · 1\n └ leader │ sign-up page │ [login page] ≡ help pages\n"},
+		{120, 22, " Orchestrator │ [front desk · 3] <▲1> ≡ back office · 2 │ misc · 1\n └ leader │ sign-up page │ [login page] ≡ help pages\n"},
+		{80, 14, " Orchestrator │ [front desk · 3] <▲1> ≡ back office · 2 │ misc · 1\n └ leader │ sign-up page │ [login page] ≡ help pages\n"},
+		{72, 14, " Orchestrator │ [front desk · 3] <▲1> ≡ back office · 2 │ {+1}\n └ leader │ sign-up page │ [login page] ≡ help pages\n"},
 	} {
 		l := morning(c.w, 30, c.dock)
 		if got := rows(l, k); got != c.want {
@@ -106,7 +106,7 @@ func TestTwoTabLines(t *testing.T) {
 	}
 	plain := k
 	plain.Plain = true
-	if got, want := rows(morning(100, 30, 0), plain), " Orchestrator | [front desk - 3] <!1> | back office - 2 | misc - 1\n + leader | sign-up page | [login page] | help pages\n"; got != want {
+	if got, want := rows(morning(100, 30, 0), plain), " Orchestrator | [front desk - 3] <!1> = back office - 2 | misc - 1\n + leader | sign-up page | [login page] = help pages\n"; got != want {
 		t.Errorf("in plain marks the tab row is\n%s\nwant\n%s", got, want)
 	}
 	sound(t, morning(100, 30, 0))
@@ -146,7 +146,7 @@ func TestTwoTabLines(t *testing.T) {
 	// The Orchestrator shows: the second line is the fleet looked at last, dim.
 	l.Show("t10")
 	l.Show("t1")
-	if got, want := rows(l, k), " [Orchestrator] │ front desk · 3 <▲1> │ back office · 2 │ misc · 1\n └ {leader} │ {exports} │ {audit}\n"; got != want {
+	if got, want := rows(l, k), " [Orchestrator] ≡ front desk · 3 <▲1> │ back office · 2 │ misc · 1\n └ {leader} │ {exports} │ {audit}\n"; got != want {
 		t.Errorf("with the Orchestrator in front the tab row is\n%s\nwant\n%s", got, want)
 	}
 	if got := at("back office", 0); got.Tab != "t10" {
@@ -176,16 +176,16 @@ func TestTwoTabLines(t *testing.T) {
 	l.AddIn(l.Space("s1"), "t13", "notes", "p13")
 	l.AddIn(l.Space("s1"), "t14", "a shell", "p14")
 	l.Show("t14")
-	if got, want := rows(l, k), " Orchestrator │ front desk · 3 <▲1> │ back office · 2 │ misc · 1 │ [other · 2]\n └ notes │ [a shell]\n"; got != want {
+	if got, want := rows(l, k), " Orchestrator │ front desk · 3 <▲1> │ back office · 2 │ misc · 1 │ [other · 2]\n └ notes │ [a shell] ≡\n"; got != want {
 		t.Errorf("with tabs opened by hand the tab row is\n%s\nwant\n%s", got, want)
 	}
 	l.Fit(100, 15)
-	if got := rows(l, k); l.Head() != 1 || l.area().Y != 2 || got != " {+3} │ back office │ login page │ help pages │ exports │ audit │ misc │ site map │ notes │ [a shell]\n" {
+	if got := rows(l, k); l.Head() != 1 || l.area().Y != 2 || got != " {+3} │ back office │ login page │ help pages │ exports │ audit │ misc │ site map │ notes │ [a shell] ≡\n" {
 		t.Errorf("in fifteen rows the tab row is\n%s", got)
 	}
 	// The wheel moves the line it is given; a count on the second line says so.
 	l = morning(40, 30, 0)
-	if got, want := rows(l, k), " Orchestrator │ [front desk · 3] <▲1> │ {+2}\n └ {+1} │ sign-up page │ [login page] │ {+1}\n"; got != want {
+	if got, want := rows(l, k), " Orchestrator │ [front desk · 3] <▲1> ≡ {+2}\n └ {+1} │ sign-up page │ [login page] ≡ {+1}\n"; got != want {
 		t.Fatalf("in forty columns the tab row is\n%s\nwant\n%s", got, want)
 	}
 	if h := at("+1", 1); h.Kind != OnMore || h.Step != -Lower {
@@ -193,7 +193,7 @@ func TestTwoTabLines(t *testing.T) {
 	}
 	l.Wheel(Lower)
 	l.Wheel(1)
-	if got, want := rows(l, k), " {+1} │ [front desk · 3] <▲1> │ {+2}\n └ {+2} │ [login page] │ help pages\n"; got != want {
+	if got, want := rows(l, k), " {+1} │ [front desk · 3] <▲1> ≡ {+2}\n └ {+2} │ [login page] ≡ help pages\n"; got != want {
 		t.Errorf("wheeled on by one on each line the tab row is\n%s\nwant\n%s", got, want)
 	}
 }
@@ -215,7 +215,7 @@ func TestEachWorkspaceItsOwnTabs(t *testing.T) {
 	if got := said(); got != "s1 shows t6: s1=t6 s2=t2" {
 		t.Fatal(got)
 	}
-	if l.Show("t7"); said() != "s2 shows t7: s1=t6 s2=t7" || rows(l, look) != " Orchestrator │ [invoices]\n" {
+	if l.Show("t7"); said() != "s2 shows t7: s1=t6 s2=t7" || rows(l, look) != " Orchestrator │ [invoices] ≡\n" {
 		t.Errorf("a tab of the second workspace shown: %s\n%s", said(), rows(l, look))
 	}
 	if l.Remove("t6"); said() != "s2 shows t7: s1=t8 s2=t7" {

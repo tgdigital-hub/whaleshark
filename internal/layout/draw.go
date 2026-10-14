@@ -42,6 +42,10 @@ type Hit struct {
 	Pane string
 	X, Y int
 	Step int
+	// Menu says the cell is the small mark after the name that shows, in
+	// place of the line to the next name: a plain press there asks for
+	// that thing's menu, where a terminal reports no right button.
+	Menu bool
 	line *Node
 	side *Node // the line's first side when it was hit: Has
 }
@@ -69,6 +73,14 @@ type span struct {
 	tab        *Tab
 	on, group  bool
 }
+
+// menu reports that a name carries the menu's mark: the one that shows,
+// but the group of the tabs opened by hand, which have no menu together.
+func (s span) menu() bool { return s.on && s.step == 0 && !(s.group && s.tab.Group == "") }
+
+// asks reports that x is the cell of a name's menu mark: where the line
+// between it and the next name would stand, so that no name moves for it.
+func (s span) asks(x int) bool { return s.menu() && s.w > 0 && x == s.x+s.w+1 }
 
 // Head is how many lines the tab row of the workspace in front has.
 func (l *Layout) Head() int { return l.lines(l.Front) }
@@ -298,6 +310,8 @@ func (l *Layout) At(x, y int) (h Hit) {
 		rows, _ := l.rows()
 		for _, s := range rows[y] {
 			switch {
+			case s.asks(x) && x < l.area().X+l.area().W:
+				return Hit{Kind: map[bool]int{false: OnTab, true: OnGroup}[s.group], Tab: s.tab.ID, Menu: true}
 			case x < s.x || x >= s.x+s.w:
 			case s.step != 0:
 				return Hit{Kind: OnMore, Step: s.step * [2]int{1, Lower}[y]}
@@ -349,9 +363,9 @@ var (
 // shows is in the accent and bold; a second line begins with a corner under
 // the first line's start, and is dim while no tab of it shows.
 func (l *Layout) Draw(g *term.Grid, k Look) {
-	glyphs, corner, marks := lines, "└", strings.NewReplacer()
+	glyphs, corner, menu, marks := lines, "└", "≡", strings.NewReplacer()
 	if k.Plain {
-		glyphs, corner, marks = plain, "+", strings.NewReplacer("·", "-", "▲", "!")
+		glyphs, corner, menu, marks = plain, "+", "=", strings.NewReplacer("·", "-", "▲", "!")
 	}
 	rows, dim := l.rows()
 	for y := range l.Head() {
@@ -378,6 +392,13 @@ func (l *Layout) Draw(g *term.Grid, k Look) {
 				g.Put(s.x+w+1, y, m, s.mark, k.Need)
 			}
 			g.Put(s.x, y, w, s.text, st)
+		}
+		// The menu's mark stands after the name that shows, in place of the
+		// line to the next name, and is drawn after those lines.
+		for _, s := range rows[y] {
+			if x := s.x + s.w + 1; s.asks(x) && x < l.area().X+l.area().W {
+				g.Put(x, y, 1, menu, k.Accent)
+			}
 		}
 	}
 	ends := make([]byte, l.W*l.H)
