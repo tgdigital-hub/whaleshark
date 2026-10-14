@@ -395,8 +395,8 @@ func TestAFileOfBeforeWorkspaces(t *testing.T) {
 		}
 		return b.String()
 	}
-	sep := string(filepath.Separator)
-	want := `s1 "` + sep + `reef" shows t4 front=true;s2 "" shows t2 front=false;s3 "` + sep + `reef` + sep + `kelp" shows t3 front=false;` +
+	// The folders are written as %q writes them, which doubles a backslash.
+	want := fmt.Sprintf("s1 %q shows t4 front=true;s2 \"\" shows t2 front=false;s3 %q shows t3 front=false;", filepath.FromSlash("/reef"), filepath.FromSlash("/reef/kelp")) +
 		" p1 in t1 of s1 p2 in t2 of s2 p3 in t3 of s3 p4 in t4 of s1 p5 in t5 of s2"
 	if got := said(); got != want {
 		t.Errorf("read once:\n%s\nwant\n%s", got, want)
