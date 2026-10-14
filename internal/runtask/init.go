@@ -175,7 +175,7 @@ func (i *setting) project() error {
 	}
 	ours := k.Store.Dir(c.Root, "")
 	if _, err := os.Stat(ours); err == nil && !cli.SetUp(c, c.Root) && f["adopt"] == nil {
-		return &contract.Refusal{Exit: contract.ExitEnv, Code: "brought_record", Message: cli.Foreign, Next: []string{"whaleshark init --adopt"}}
+		return &contract.Refusal{Exit: contract.ExitEnv, Code: "brought_record", Message: cli.ForeignAt(ours), Next: []string{"whaleshark init --adopt"}}
 	}
 	err := os.MkdirAll(ours, 0o700)
 	if err == nil {

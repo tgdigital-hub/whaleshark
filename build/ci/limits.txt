@@ -135,7 +135,10 @@ lines 1320 platform internal/platform
 # folder.
 # 20 more for phase 6: every setting with its value now and what an agent
 # may do with it, where to report, the line of a newer release.
-lines 1065 cli internal/cli
+# 10 more for the trial of phase 7 with real agents: a refused record names
+# the folder it is about, and a job led from another tab is said to be so,
+# where an agent that came by was told only how to take it over.
+lines 1075 cli internal/cli
 # rules: 140 more for phase 5: a group's states, the limits, a question's twin.
 # 90 more when its first part was put together. The six rules of Fleet Mode
 # took 242 lines where 170 were planned, and what the plan had not counted is
@@ -748,6 +751,9 @@ skip _test.go testdata testkit
 # own, a window that follows the colour scheme. Phase 7 is 2,405 lines so
 # far, where about 3,000 were told. The 304 that are left are for the trial
 # with real agents and the review, which cost 75 to 100 lines each time.
+# The trial with real agents cost 49: the menu's mark after the name that
+# shows and at the end of the chosen row, for a terminal that reports no
+# right button, and the words of two refusals. The tree stands at 47,145.
 total 47400
 
 # The whole module list, not only the direct ones.

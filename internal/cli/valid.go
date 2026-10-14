@@ -54,7 +54,7 @@ func Valid(kind, v, root string) error {
 	case r.Max > 0 && utf8.RuneCountInString(v) > r.Max:
 		why = fmt.Sprintf("is longer than %d characters", r.Max)
 	case r.Words > 0 && (len(strings.Fields(v)) == 0 || len(strings.Fields(v)) > r.Words):
-		why = fmt.Sprintf("must be one to %d words", r.Words)
+		why = fmt.Sprintf("must be %d words at most", r.Words)
 	case r.re != nil && !r.re.MatchString(v):
 		why = "has a character or a form that is not allowed"
 	case r.OneLine && strings.ContainsFunc(v, unsafe):

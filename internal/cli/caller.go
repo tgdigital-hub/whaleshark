@@ -62,6 +62,12 @@ func rootOf(c *contract.Call) (string, error) {
 // login never made.
 const Foreign = "A " + contract.ProjectDir + " folder is here that this login did not make: it came with a copy, an archive or a repository, or the project was moved. Its runs, checks and settings are somebody else's word and are not used. If it is not yours, delete it and run whaleshark init. If it is your own, moved or taken out with init --remove, whaleshark init --adopt takes it on again."
 
+// ForeignAt is Foreign with the folder named. A command is about the nearest
+// record above the folder it is typed in, which from inside another project
+// is not the one its caller has in mind: a real agent told only "is here"
+// offered to delete its own project's record.
+func ForeignAt(dir string) string { return Foreign + " The folder: " + dir + "." }
+
 // Brought lists what git tracks in the project's folder of ours. That folder
 // is the login's own record and no part of a repository: files of it that
 // come along with one are somebody else's word about runs, the commands
@@ -123,7 +129,7 @@ func locate(c *contract.Call, sub string) *contract.Refusal {
 	// The login's own list of projects decides whose a record is: init is
 	// the one way in for a folder this login did not make.
 	if _, err := os.Stat(store.Dir(root, "")); err == nil && !SetUp(c, root) && c.Command.Name != "init" {
-		problem = &contract.Refusal{Exit: contract.ExitEnv, Code: "brought_record", Message: Foreign, Next: []string{"whaleshark init --adopt"}}
+		problem = &contract.Refusal{Exit: contract.ExitEnv, Code: "brought_record", Message: ForeignAt(store.Dir(root, "")), Next: []string{"whaleshark init --adopt"}}
 	}
 	var leads []string // the open runs that record this pane as their lead agent's
 	its := ""          // the open run with a live attempt in this pane
@@ -272,6 +278,10 @@ func permit(c *contract.Call, sub string) *contract.Refusal {
 			} else if s, err := c.Kit.Reader().Read(c.Root, c.Run); err == nil && !s.Run.ClosedAt.IsZero() {
 				// The last job is closed: there is nothing to take over.
 				r.Message, r.Next = "No run is open here: "+c.Run+" is closed.", []string{`whaleshark run new "<objective>"`}
+			} else if err == nil && s.Run.Orchestrator != nil && s.Run.Orchestrator.Pane != "" {
+				// Another tab leads it. The next line alone read as an
+				// invitation to an agent that came by from its own job.
+				r.Message = "Only the tab a run is bound to may change it: " + c.Run + " is led from another tab. Take it over only if that tab is gone, or the person asks you to lead this job."
 			}
 			return r
 		}

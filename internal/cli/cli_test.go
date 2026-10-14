@@ -347,6 +347,18 @@ func TestAClosedJobIsNoRunToTakeOver(t *testing.T) {
 	}
 }
 
+// A job that another tab leads is said to be so to a tab that comes by. A
+// real lead agent, sent into another workspace's project, was told only
+// "Next: whaleshark run takeover", which is the way through the wall.
+func TestAJobLedFromAnotherTabSaysSo(t *testing.T) {
+	k, _ := world(t)
+	r, exit := refusal(t, k, other, "accept", "T7")
+	if exit != contract.ExitRefused || r.Code != "not_bound" || !slices.Equal(r.Next, []string{"whaleshark run takeover"}) ||
+		r.Message != "Only the tab a run is bound to may change it: r3 is led from another tab. Take it over only if that tab is gone, or the person asks you to lead this job." {
+		t.Errorf("exit %d: %+v", exit, r)
+	}
+}
+
 // A next line with --human reaches the person and nobody else.
 func TestHumanNeverShown(t *testing.T) {
 	for _, w := range []scene{lead, other, person} {
@@ -820,6 +832,9 @@ func TestTheProgramTypedAlone(t *testing.T) {
 	}
 	if _, errw, exit := call(t, k, person, "status"); exit != contract.ExitEnv || !strings.Contains(errw, "init --adopt") {
 		t.Errorf("status in the same folder: exit %d, said %q", exit, errw)
+	} else if !strings.Contains(errw, "The folder: "+k.Store.Dir(dir, "")+".") {
+		// Named, because from inside another project it is the one above.
+		t.Errorf("the refusal does not say which folder it is about: %q", errw)
 	}
 
 	// What init refuses stops it: the window is not opened over a refusal.

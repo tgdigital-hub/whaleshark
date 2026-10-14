@@ -123,16 +123,16 @@ Next: whaleshark guide worker
 exit 5
 
 $ whaleshark start T3    # as another tab
-Only the tab a run is bound to may change it.
+Only the tab a run is bound to may change it: r3 is led from another tab. Take it over only if that tab is gone, or the person asks you to lead this job.
 Next: whaleshark run takeover
 exit 5
 
 $ whaleshark start T3 --json    # as another tab
-{"ok":false,"error":{"code":"not_bound","message":"Only the tab a run is bound to may change it.","next":["whaleshark run takeover"]}}
+{"ok":false,"error":{"code":"not_bound","message":"Only the tab a run is bound to may change it: r3 is led from another tab. Take it over only if that tab is gone, or the person asks you to lead this job.","next":["whaleshark run takeover"]}}
 exit 5
 
 $ whaleshark accept T7    # as no tab and no terminal
-Only the tab a run is bound to may change it.
+Only the tab a run is bound to may change it: r3 is led from another tab. Take it over only if that tab is gone, or the person asks you to lead this job.
 Next: whaleshark run takeover
 exit 5
 
