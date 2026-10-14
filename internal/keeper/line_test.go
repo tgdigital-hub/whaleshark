@@ -9,6 +9,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/layout"
+	"github.com/tgdigital-hub/whaleshark/internal/theme"
 )
 
 // The pointer as a terminal reports it: a movement with no button down, a
@@ -507,5 +508,31 @@ func TestAPaneOverAWorkersTabIsNotThatWorker(t *testing.T) {
 				has(env, contract.EnvAttempt), has(env, contract.EnvTask), has(env, contract.EnvPane), has(env, contract.EnvActivePane))
 		}
 		c.call(contract.WireCall{Op: contract.OpPaneClose, Pane: over})
+	}
+}
+
+// The keeper's own parts follow the colour scheme the person chooses while
+// a window is open: the tab row and the lines change with the panes, and
+// are not left in the scheme the window was opened in.
+func TestAWindowFollowsTheColourScheme(t *testing.T) {
+	r := newRig(t)
+	c := r.dial()
+	c.call(contract.WireCall{Op: contract.OpTabCreate, Label: "first"})
+	w := r.window(100, 20)
+	x, y := w.shows("first")
+	fg := func() contract.Colour {
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		p := w.scr.Picture()
+		return p.Cells[y*p.W+x].Style.Fg
+	}
+	was := fg()
+	if _, err := contract.Set(&contract.Call{Kit: r.kit, Caller: contract.Caller{Kind: contract.Human}}, "theme", "paper"); err != nil {
+		t.Fatal(err)
+	}
+	want := contract.RGB(theme.Get("paper").Colours["accent"])
+	r.until("the tab's name in the new scheme's accent", func() bool { return fg() == want })
+	if was == want {
+		t.Error("the window was in that scheme before it was chosen")
 	}
 }

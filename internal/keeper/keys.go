@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -191,9 +192,11 @@ func (k *Keeper) modes(pane string) (m screen.Modes) {
 }
 
 // notice reads the person's settings again whenever their file changes: every
-// window's keys, the dock's edge and width, the scroll-back of later panes.
+// window's keys, the dock's edge and width, the scroll-back of later panes;
+// and with the file of their own choices the colour scheme of every window,
+// so that the tab row and the lines change with the panes.
 func (k *Keeper) notice() {
-	w, err := k.kit.Platform.Watch(contract.SettingsPath(k.dirs))
+	w, err := k.kit.Platform.Watch(contract.SettingsPath(k.dirs), filepath.Join(k.dirs.Config, contract.ConfigFile))
 	if err != nil {
 		return
 	}
@@ -207,7 +210,7 @@ func (k *Keeper) notice() {
 		k.mu.Lock()
 		k.set = k.settings()
 		for _, win := range k.wins {
-			win.in.Keys = input.New(k.set, win.sys)
+			win.in.Keys, win.look = input.New(k.set, win.sys), k.look(win.look.Plain)
 		}
 		k.lay.Dock.Right, k.lay.Dock.Width = k.set.Side.Place == contract.Right, k.set.Side.Width
 		k.changed()

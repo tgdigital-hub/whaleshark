@@ -58,6 +58,19 @@ func (w *window) later(b []byte) {
 
 func side(v float64) int { return min(max(int(v), 1), maxSide) }
 
+// look is how the keeper's own parts are drawn in a window: in the person's
+// colour scheme as it is now. A line under the pointer or held has the
+// scheme's amber, as the chosen drawing has a moving line.
+func (k *Keeper) look(plain bool) layout.Look {
+	in := theme.Get(theme.None).Ink
+	if cfg, err := contract.ReadPerson(k.kit.Platform.Peek, k.dirs.Config); err == nil {
+		in = theme.Get(cfg.UI.Theme).Ink
+	}
+	lit := in("blocked")
+	lit.Bold = true
+	return layout.Look{Text: in("text"), Dim: in("dim"), Frame: in("frame"), Accent: in("accent"), Need: in("needs"), Lit: lit, Plain: plain}
+}
+
 // attach serves a window until its connection ends: what it sends is typed
 // into the pane with the keys, and what the keeper composes is sent to it.
 func (k *Keeper) attach(l *link, c contract.WireCall) {
@@ -72,16 +85,9 @@ func (k *Keeper) attach(l *link, c contract.WireCall) {
 	// A terminal that says nothing of itself gets the plain marks, and no
 	// request to draw in one go.
 	known := env("TERM") != "" && env("TERM") != "dumb"
-	in := theme.Get(theme.None).Ink
-	if cfg, err := contract.ReadPerson(k.kit.Platform.Peek, k.dirs.Config); err == nil {
-		in = theme.Get(cfg.UI.Theme).Ink
-	}
-	lit := in("blocked") // the scheme's amber, as the chosen drawing has a moving line
-	lit.Bold = true
 	bytes, feed := io.Pipe()
 	w := &window{link: l, w: side(c.W), h: side(c.H), wake: make(chan struct{}, 1), gone: make(chan struct{}),
-		look: layout.Look{Text: in("text"), Dim: in("dim"), Frame: in("frame"), Accent: in("accent"), Need: in("needs"), Lit: lit, Plain: !known},
-		sys:  c.System, env: env}
+		look: k.look(!known), sys: c.System, env: env}
 	// Only a window that says it is on the keeper's own computer, or comes
 	// through connect, is at a clipboard the keeper can be sure of.
 	w.board = pick.Board{System: c.System, Connect: c.Reach == contract.ReachConnect,
