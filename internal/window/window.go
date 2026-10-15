@@ -21,9 +21,10 @@ const (
 	// What the window asks of the terminal is what a pane asks, and keys in
 	// the extended form where the terminal has it (it keeps one such
 	// setting for each of its two screens, so it is asked for on the second
-	// and given back there). A terminal that has none ignores both.
-	enter = term.Enter + "\x1b[>1u"
-	leave = "\x1b[<u" + term.Leave
+	// and given back there). A terminal that has none ignores both. The
+	// title says WhaleShark until the window is gone.
+	enter = term.Enter + "\x1b[>1u" + term.Title
+	leave = term.Untitle + "\x1b[<u" + term.Leave
 
 	// A keeper that is starting is waited for this long, and asked this often.
 	startWait, startStep = 5 * time.Second, 50 * time.Millisecond

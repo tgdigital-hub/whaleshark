@@ -19,6 +19,16 @@ const (
 	Leave = "\x1b[?2004l\x1b[?1004l\x1b[?1006l\x1b[?1003l\x1b[?1002l\x1b[?1000l\x1b[0m\x1b[?25h\x1b[?1049l"
 )
 
+// Title is what the window puts in the terminal's title bar while it is
+// open: the title there is kept aside where the terminal can, the shark is
+// the mark, and no folder or document is named. A pane's own title and
+// folder never get this far. Untitle clears it, so that a terminal that
+// keeps nothing aside shows its own again, and takes back the kept one.
+const (
+	Title   = "\x1b[22;0t\x1b]0;🦈 WhaleShark\a\x1b]6;\a\x1b]7;\a"
+	Untitle = "\x1b]0;\a\x1b[23;0t"
+)
+
 // Term is one terminal: the grid a program draws into, and its events.
 type Term struct {
 	*Grid

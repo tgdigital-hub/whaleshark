@@ -137,3 +137,22 @@ func TestTheSettingsScreenHasOneFrame(t *testing.T) {
 		t.Errorf("it was started at %d by %d", spec.Cols, spec.Rows)
 	}
 }
+
+// What a pane's program says of its title, its folder or its document stays
+// with the pane: the person's terminal is told none of it, so its title bar
+// says what the window set and nothing a program in a pane does.
+func TestAPaneTitleNeverReachesThePersonsTerminal(t *testing.T) {
+	r := newRig(t)
+	w := r.window(100, 30)
+	w.shows("pane=p1")
+	r.program("p1").print("\x1b]0;git\a\x1b]1;claude\x1b\\\x1b]2;caffeinate\a\x1b]7;file://host/tmp\a\x1b]6;file://host/tmp/a.txt\a\x1b[22;0t\x1b[23;0tdone\r\n")
+	w.shows("done")
+	w.mu.Lock()
+	sent := w.sent.String()
+	w.mu.Unlock()
+	for _, leak := range []string{"\x1b]0;", "\x1b]1;", "\x1b]2;", "\x1b]6;", "\x1b]7;", "\x1b[22;", "\x1b[23;", "caffeinate", "file://"} {
+		if strings.Contains(sent, leak) {
+			t.Errorf("the person's terminal was sent %q of a pane's title: %q", leak, sent)
+		}
+	}
+}

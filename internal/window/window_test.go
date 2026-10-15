@@ -301,6 +301,10 @@ func TestKeysClicksAPasteAndASizeChangeArrive(t *testing.T) {
 	if got := s.shown(); !strings.HasPrefix(got, enter+k.greeting) || s.cooked() {
 		t.Fatalf("the window did not take the terminal over before the first frame: %q", got)
 	}
+	// The title bar says WhaleShark from the start, the old title kept aside.
+	if got := s.shown(); !strings.Contains(got, "\x1b[22;0t\x1b]0;🦈 WhaleShark\a\x1b]6;\a\x1b]7;\a") {
+		t.Errorf("the window did not set its title: %q", got)
+	}
 
 	fmt.Fprint(s.outer, "a\x1b[99;9u\x1b[<0;5;3M\x1b[<0;5;3m\x1b[200~two\nlines\x1b[201~\x03\x1b[I")
 	want := []term.Event{{Kind: term.KeyPress, Key: "a", Rune: 'a'}, {Kind: term.KeyPress, Key: "super+c"},
@@ -337,6 +341,9 @@ func TestKeysClicksAPasteAndASizeChangeArrive(t *testing.T) {
 		t.Errorf("closed by the keeper, the window ended with %d: %s", code, s.errs.String())
 	}
 	s.usable()
+	if got := s.shown(); !strings.Contains(got, "\x1b]0;\a\x1b[23;0t") {
+		t.Errorf("the window did not give the title back: %q", got)
+	}
 	wait(t, "the window did not say it had closed", func() bool { return strings.Contains(s.shown(), "The window is closed.") })
 }
 

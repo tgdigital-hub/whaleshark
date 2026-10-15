@@ -20,6 +20,7 @@ type outer struct {
 	mu    sync.Mutex
 	scr   *screen.Screen
 	bells int
+	sent  bytes.Buffer // every byte, as the terminal got it
 }
 
 // attach makes the connection a window of that size; nothing is read yet.
@@ -41,6 +42,7 @@ func (o *outer) read() {
 		if kind == contract.FrameBytes {
 			o.mu.Lock()
 			o.scr.Write(body)
+			o.sent.Write(body)
 			o.bells += bytes.Count(body, []byte{'\a'})
 			o.mu.Unlock()
 		}
