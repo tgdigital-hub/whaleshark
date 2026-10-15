@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -156,5 +157,23 @@ func TestPublish(t *testing.T) {
 	}
 	if errs := marks("staged", added("+++ b/x\n+ok\n-"+key+"\n+"+key+"\n")); len(errs) != 1 {
 		t.Errorf("only the added key should be found, got %v", errs)
+	}
+}
+
+// The gate run in a worker's tab hands none of that tab's variables to what
+// it starts, the program it times among them.
+func TestTheGateIsNoTabs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no env program")
+	}
+	for _, name := range []string{"WHALESHARK_ATTEMPT", "WHALESHARK_TASK", "WHALESHARK_PANE", "WHALESHARK_RUN"} {
+		t.Setenv(name, "from the tab")
+	}
+	out, err := (&gate{root: t.TempDir()}).cmd([]string{"WHALESHARK_MARKS=the gate's own"}, "env")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "from the tab") || !strings.Contains(out, "WHALESHARK_MARKS=the gate's own") {
+		t.Errorf("the gate started a program with:\n%s", out)
 	}
 }

@@ -34,7 +34,7 @@ var tools, module, serverFile string
 // that no test starts a real agent, and names the fake agent for the double.
 func Main(m *testing.M) {
 	os.Exit(func() int {
-		defer ownlogin.Fresh()() // no test and no program it starts is in the login of whoever runs it
+		defer ownlogin.Fresh()() // no test and no program it starts is in the login, or the tab, of whoever runs it
 		dir, err := os.MkdirTemp("", "scenario")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "scenario:", err)

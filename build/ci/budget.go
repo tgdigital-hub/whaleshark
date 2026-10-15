@@ -219,6 +219,11 @@ func (g *gate) timing() error {
 	if err != nil {
 		return err
 	}
+	// The program is timed in its own folder, as in a checkout of CI's: a
+	// copy of the tree inside a project of the tool's would time its reading
+	// of that project's record.
+	in := *g
+	in.root = dir
 	var errs []error
 	for _, row := range g.lim["time"] {
 		limit, err := time.ParseDuration(row[0])
@@ -228,7 +233,7 @@ func (g *gate) timing() error {
 		took, note := make([]time.Duration, 21), ""
 		for i := range took {
 			start := time.Now()
-			_, err := g.cmd(nil, file, row[1:]...)
+			_, err := in.cmd(nil, file, row[1:]...)
 			took[i] = time.Since(start)
 			if err != nil && strings.Contains(err.Error(), contract.ErrNotBuilt.Error()) {
 				note = "  (not built yet: this is the start alone)"

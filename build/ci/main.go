@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/tgdigital-hub/whaleshark/test/ownlogin"
 )
 
 type gate struct {
@@ -144,7 +146,9 @@ func (g *gate) cmd(env []string, name string, args ...string) (string, error) {
 	// #nosec G204 -- the tools this folder names, with a list of arguments and no shell
 	c := exec.Command(name, args...)
 	c.Dir = g.root
-	c.Env = append(append(os.Environ(), "CGO_ENABLED=0"), env...)
+	// The gate run in a worker's tab would time, and test, the program as
+	// that worker's: it reaches for the run and the engine of the tab.
+	c.Env = append(append(ownlogin.NoTab(os.Environ()), "CGO_ENABLED=0"), env...)
 	var errOut bytes.Buffer
 	c.Stderr = &errOut
 	out, err := c.Output()

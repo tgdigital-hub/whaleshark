@@ -10,6 +10,8 @@ package ownlogin
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -20,8 +22,8 @@ var folders = map[string]string{"XDG_CONFIG_HOME": "config", "XDG_STATE_HOME": "
 
 // Fresh points this process, and with it every program it starts, at a
 // login made for it in a temporary folder, whatever login it was started
-// in, names no engine of that login's and lets no shell keep a history.
-// done removes the folder. The
+// in, names no engine of that login's, is no tab's and lets no shell keep a
+// history. done removes the folder. The
 // path is short: the engine's socket lies in it. The Go command a test
 // starts keeps its cache and its settings where they were, since both are
 // found by the same variables; a test that needs a login of a certain kind
@@ -40,11 +42,42 @@ func Fresh() (done func()) {
 	for name, folder := range folders {
 		os.Setenv(name, filepath.Join(dir, folder))
 	}
-	os.Unsetenv("WHALESHARK_SOCKET")
+	// A test run in a worker's tab would start the program as that worker.
+	// One that wants a variable of ours sets it itself, after this.
+	for _, kv := range os.Environ() {
+		if name, _, _ := strings.Cut(kv, "="); ours(name) {
+			os.Unsetenv(name)
+		}
+	}
 	// A shell a test starts in a pane writes what was typed at it into the
 	// history file of the home folder, which stays the person's own.
 	os.Setenv("HISTFILE", os.DevNull)
 	return func() { os.RemoveAll(dir) }
+}
+
+// NoTab is env without the variables of ours, which say whose tab a
+// program runs in, at which engine and in which run, and how it was
+// started: the gate runs the program with this, as Fresh leaves a test.
+func NoTab(env []string) (out []string) {
+	for _, kv := range env {
+		if name, _, _ := strings.Cut(kv, "="); !ours(name) {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+// tests are the beginnings of the variables of ours that are a test's own
+// and no program's: what a test hands the test program it runs again, and
+// the switches a person turns a test on with.
+var tests = []string{"WHALESHARK_TEST_", "WHALESHARK_SOAK", "WHALESHARK_CONTAINERS", "WHALESHARK_INSIDE",
+	"WHALESHARK_REAL_AGENT", "WHALESHARK_PAGE_OUT", "WHALESHARK_CORPUS_EXTRA"}
+
+// ours is whether a variable is one the program reads of its own: every
+// one that begins as ours does, a test's own aside.
+func ours(name string) bool {
+	name = strings.ToUpper(name)
+	return strings.HasPrefix(name, "WHALESHARK_") && !slices.ContainsFunc(tests, func(t string) bool { return strings.HasPrefix(name, t) })
 }
 
 // Main is the TestMain of a package whose tests need nothing else done

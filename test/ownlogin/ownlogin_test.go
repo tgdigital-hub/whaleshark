@@ -2,6 +2,7 @@ package ownlogin_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -80,5 +81,41 @@ func TestThePackagesOwnTestsHaveOne(t *testing.T) {
 	}
 	if os.Getenv("WHALESHARK_SOCKET") != "" || os.Getenv("HISTFILE") != os.DevNull {
 		t.Errorf("an engine of the login the tests were started in is named, or a shell would keep its history in %q", os.Getenv("HISTFILE"))
+	}
+}
+
+// A test started in a worker's tab is no tab's: no variable of ours reaches
+// a program it starts, which would otherwise take itself for that worker,
+// but one the test sets itself after does, and so do a test's own.
+func TestATestIsNoTabs(t *testing.T) {
+	tab := []string{"WHALESHARK_ROOT", "WHALESHARK_RUN", "WHALESHARK_TASK", "WHALESHARK_ATTEMPT", "WHALESHARK_DEPTH",
+		"WHALESHARK_BIN", "WHALESHARK_EVIDENCE", "WHALESHARK_PANE", "WHALESHARK_SOCKET", "WHALESHARK_CLOCK"}
+	for _, name := range tab {
+		t.Setenv(name, "from the tab")
+	}
+	t.Setenv("WHALESHARK_TEST_ROLE", "the test's own")
+	t.Setenv("WHALESHARK_SOAK", "the person's switch")
+	defer ownlogin.Fresh()()
+	t.Setenv("WHALESHARK_MARKS", "the test's own")
+	shell := exec.Command("env")
+	if runtime.GOOS == "windows" {
+		shell = exec.Command("cmd", "/c", "set")
+	}
+	out, err := shell.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range tab {
+		if strings.Contains(string(out), name+"=") {
+			t.Errorf("%s reached a program the test started", name)
+		}
+	}
+	for _, kv := range []string{"WHALESHARK_MARKS=the test's own", "WHALESHARK_TEST_ROLE=the test's own", "WHALESHARK_SOAK=the person's switch"} {
+		if !strings.Contains(string(out), kv) {
+			t.Errorf("%s did not reach the program:\n%s", kv, out)
+		}
+	}
+	if got := ownlogin.NoTab([]string{"WHALESHARK_TASK=T1", "HOME=/h", "whaleshark_pane=p2"}); len(got) != 1 || got[0] != "HOME=/h" {
+		t.Errorf("NoTab left %q", got)
 	}
 }
