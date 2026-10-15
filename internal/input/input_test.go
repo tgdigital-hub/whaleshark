@@ -501,3 +501,41 @@ func FuzzTake(f *testing.F) {
 		}
 	})
 }
+
+// Command-V in Apple's Terminal is the terminal's own key: what comes is a
+// paste, which reaches the pane with the keys whole, between marks when its
+// program asked for them and plain when it did not, and is never a key or a
+// shortcut, also right after the command key, whatever it holds. The empty
+// paste a terminal may send for a picture is passed on where there are
+// marks. The command key then "." still asks for the menu, and Control-V is
+// the program's key as it always was, on every system.
+func TestCommandV(t *testing.T) {
+	big := strings.Repeat("line of text\r", 400)
+	marked, plain := screen.Modes{Paste: true}, screen.Modes{}
+	for _, c := range []struct {
+		system, bytes string
+		m             screen.Modes
+		want          string
+	}{
+		{"darwin", "\x1b[200~hello\x1b[201~", marked, `p1 <- "\x1b[200~hello\x1b[201~"`},
+		{"darwin", "\x1b[200~hello\x1b[201~", plain, `p1 <- "hello"`},
+		{"darwin", "\x1b[200~one\rtwo\r\rthree\r\x1b[201~", marked, `p1 <- "\x1b[200~one\rtwo\r\rthree\r\x1b[201~"`},
+		{"darwin", "\x1b[200~one\rtwo\nthree\x1b[201~", plain, `p1 <- "one\rtwo\rthree"`},
+		{"darwin", "\x1b[200~" + big + "\x1b[201~", marked, fmt.Sprintf("p1 <- %q", "\x1b[200~"+big+"\x1b[201~")},
+		{"darwin", "\x1b[200~\x1b[201~", marked, `p1 <- "\x1b[200~\x1b[201~"`},
+		{"darwin", "\x1b[200~\x1b[201~", plain, "nothing"},
+		{"darwin", "\x1b[200~a\x00.\x00t\x1b[201~", marked, `p1 <- "\x1b[200~a.t\x1b[201~"`},
+		{"darwin", "\x00\x1b[200~.w\x1b[201~", marked, `p1 <- "\x1b[200~.w\x1b[201~"`},
+		{"darwin", "\x00\x1b[200~x\x1b[201~.", marked, `p1 <- "\x1b[200~x\x1b[201~" | p1 <- "."`},
+		{"darwin", "\x00.", marked, "menu of t1 at 0,0"},
+		{"darwin", "\x16", plain, `p1 <- "\x16"`},
+		{"windows", "\x16", marked, `p1 <- "\x16"`},
+		{"windows", "\x1b[200~hi\x1b[201~", marked, `p1 <- "\x1b[200~hi\x1b[201~"`},
+	} {
+		in := In{Keys: New(settings(), c.system)}
+		v := View{Lay: fixture(), Modes: all(c.m)}
+		if got := shown(take(&in, v, c.bytes)); got != c.want || in.Armed {
+			t.Errorf("%s %.40q (marks %v): %.80s (armed %v)", c.system, c.bytes, c.m.Paste, got, in.Armed)
+		}
+	}
+}

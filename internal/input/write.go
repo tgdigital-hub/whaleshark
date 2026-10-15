@@ -165,6 +165,8 @@ func Mouse(ev term.Event, m screen.Modes, x, y int) string {
 // for them, else with each line break as Enter. Control characters other
 // than the tab and the line break are taken out first, the well-known
 // defence against pasted text that pretends the paste is over or presses keys.
+// An empty paste, which a terminal may send for a picture on the clipboard,
+// is passed on too where there are marks: the program may fetch the picture.
 func Paste(text string, m screen.Modes) string {
 	text = strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) && r != '\t' && r != '\n' && r != '\r' {
@@ -172,10 +174,7 @@ func Paste(text string, m screen.Modes) string {
 		}
 		return r
 	}, text)
-	switch {
-	case text == "":
-		return ""
-	case m.Paste:
+	if m.Paste {
 		return "\x1b[200~" + text + "\x1b[201~"
 	}
 	return strings.NewReplacer("\r\n", "\r", "\n", "\r").Replace(text)

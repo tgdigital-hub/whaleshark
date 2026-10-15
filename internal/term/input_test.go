@@ -3,6 +3,7 @@ package term
 import (
 	"io"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -111,6 +112,56 @@ func TestEscapeIsKeptUntilTheTimerSaysSo(t *testing.T) {
 	}
 	if got := p.Feed([]byte(" done\x1b[201~")); !reflect.DeepEqual(got, []Event{{Kind: Paste, Text: "half done"}}) {
 		t.Fatalf("paste in two reads: %+v", got)
+	}
+}
+
+// A paste as Apple's Terminal sends it on Command-V, with its line breaks
+// as Enter: short, of many lines, and bigger than a read. However a read
+// cuts it past the Escape and "[", which alone are keys, and whenever the
+// timer comes between, it is one paste and no key.
+func TestAPasteAsTerminalSendsIt(t *testing.T) {
+	big := strings.Repeat("0123456789 abcdef \x1b[A ctrl+space \x00 é\r", 400)
+	for _, text := range []string{"hello world", "one\rtwo\r\rthree\r", big} {
+		in, want := "\x1b[200~"+text+"\x1b[201~", []Event{{Kind: Paste, Text: text}}
+		for cut := 3; cut <= len(in); cut += 1 + cut/64 {
+			var p Parser
+			got := p.Feed([]byte(in[:cut]))
+			if p.Pending() {
+				got = append(got, p.Flush()...)
+			}
+			if got = append(got, p.Feed([]byte(in[cut:]))...); !reflect.DeepEqual(got, want) || p.Pending() {
+				t.Fatalf("%.20q cut at byte %d, the timer between: %d events", text, cut, len(got))
+			}
+		}
+	}
+}
+
+// Through the reader on a real clock: a paste's mark cut in two, the rest
+// late, and a paste bigger than one read in pieces.
+func TestAPasteThroughTheReader(t *testing.T) {
+	const wait = 20 * time.Millisecond
+	r, w := io.Pipe()
+	out := make(chan Event, 8)
+	go Read(r, out, wait)
+	for _, pieces := range [][]string{{"\x1b[20", "0~hi\rthere\x1b[201~"}, {"\x1b[2", "00~a\rb", "\x1b[2", "01~"},
+		{"\x1b[200~" + strings.Repeat("x\r", 5000), strings.Repeat("y", 9000) + "\x1b[201~"}} {
+		for _, s := range pieces {
+			w.Write([]byte(s))
+			time.Sleep(3 * wait)
+		}
+		all := strings.Join(pieces, "")
+		select {
+		case ev := <-out:
+			if want := all[6 : len(all)-6]; ev.Kind != Paste || ev.Text != want {
+				t.Fatalf("%.20q in %d pieces: %v %.20q", all, len(pieces), ev.Kind, ev.Text)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("%.20q: no paste", all)
+		}
+	}
+	w.Close()
+	if ev := <-out; ev.Kind != End {
+		t.Fatalf("an event too many: %+v", ev)
 	}
 }
 

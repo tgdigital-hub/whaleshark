@@ -81,9 +81,11 @@ func (p *Parser) Feed(b []byte) []Event {
 }
 
 // Pending reports that bytes are kept which a timer must settle: a lone
-// Escape, or the start of a report. A paste is waited for without a timer.
+// Escape, or the start of a report. A paste is waited for without a timer,
+// and so is a report that may be its mark cut by a read: a terminal sends
+// the rest of a report at once, and settled early the paste came in as keys.
 func (p *Parser) Pending() bool {
-	return len(p.buf) > 0 && !bytes.HasPrefix(p.buf, pasteStart)
+	return len(p.buf) > 0 && !bytes.HasPrefix(p.buf, pasteStart) && !(len(p.buf) > 2 && bytes.HasPrefix(pasteStart, p.buf))
 }
 
 // Flush is called when nothing more came in time: a kept Escape is the

@@ -172,6 +172,9 @@ func (in *In) Take(ev term.Event, v View) []Act {
 		}
 		return typed(keys, Key(ev, modes(keys)))
 	case term.Paste:
+		// Pasted text is never a key: after the command key it is no
+		// shortcut, and the key waits no longer.
+		in.Armed = false
 		return typed(keys, Paste(ev.Text, modes(keys)))
 	case term.Focus:
 		return typed(keys, Focus(ev.Focused, modes(keys)))
