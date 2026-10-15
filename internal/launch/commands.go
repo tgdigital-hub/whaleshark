@@ -64,6 +64,23 @@ func refusal(err error) *contract.Refusal {
 	return refuse(contract.ExitFailed, "failed", "%v.", err)
 }
 
+// down is a command's end when the terminals cannot be reached. Only the
+// person opens the window: an agent asks them to, and they are told how.
+func down(c *contract.Call, err error) *contract.Refusal {
+	r := refusal(err)
+	if errors.Is(err, contract.ErrEngineUnreachable) {
+		r.Next = []string{opener(c)}
+	}
+	return r
+}
+
+func opener(c *contract.Call) string {
+	if c.Caller.Kind == contract.Human {
+		return "whaleshark open"
+	}
+	return `whaleshark need todo "Open the WhaleShark window: whaleshark open"`
+}
+
 // read loads the command's run and refuses a caller the rules refuse.
 func read(c *contract.Call) (*contract.State, error) {
 	s, err := c.Kit.Store.Read(c.Root, c.Run)

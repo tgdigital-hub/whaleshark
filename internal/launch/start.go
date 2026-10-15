@@ -304,13 +304,19 @@ func start(c *contract.Call) (any, error) {
 		}
 		argv = append(argv, "--model", l.model)
 	}
+	// A start reaches no agent while the engine is not running: it is
+	// refused before an attempt is written, so it counts as no try.
+	if len(ids) > 0 {
+		snap, err := k.Terms.Snapshot(context.Background())
+		if err != nil {
+			return nil, down(c, err)
+		}
+		if l.retry {
+			l.snap = snap
+		}
+	}
 	if moved, err := OwnTab(c, strings.Join(names, ", "), argv...); moved != nil || err != nil {
 		return moved, err
-	}
-	if l.retry {
-		if l.snap, err = k.Terms.Snapshot(context.Background()); err != nil {
-			return nil, refusal(err)
-		}
 	}
 	// Plan first: in a job nothing starts that the person has not approved,
 	// and their own start is their yes. The refusal is kept: the item it
@@ -941,7 +947,10 @@ func (l *launcher) failed(r outcome, cause error, what string, atPrompt bool) ou
 	e.Message = fmt.Sprintf("%s did not start: %s.", r.Attempt, why)
 	e.Data = map[string]any{"created": []outcome{r}}
 	// At a prompt there is nothing for an agent to run: the item is the person's.
-	if !atPrompt {
+	switch {
+	case errors.Is(cause, contract.ErrEngineUnreachable):
+		e.Next = []string{opener(c)}
+	case !atPrompt:
 		e.Next = []string{line(c, "close "+r.Task), line(c, "start "+r.Task+" --retry")}
 	}
 	r.Error = e

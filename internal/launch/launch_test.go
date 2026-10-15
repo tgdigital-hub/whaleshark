@@ -320,6 +320,9 @@ func TestTerminalsFailingAtEachStage(t *testing.T) {
 			if err := json.Unmarshal([]byte(out), &e); err != nil || e.Error.Code != tc.code || len(e.Error.Data.Created) != 1 {
 				t.Fatalf("expected the code %s and one thing created: %v\n%s", tc.code, err, out)
 			}
+			if tc.code == "unreachable" && (!strings.Contains(out, "need todo") || strings.Contains(out, "--retry")) {
+				t.Errorf("an engine gone in the middle of a start points at a retry, not at the window:\n%s", out)
+			}
 			a := attempt(t, p, "R1.1", contract.AttemptStartFailed)
 			s, _ := p.Record()
 			if task := s.Tasks["R1"]; task.Status != contract.TaskReady || task.Failures != 0 {
@@ -350,6 +353,30 @@ func TestTerminalsFailingAtEachStage(t *testing.T) {
 			must(t, p.Command(scenario.Orch, "start", "R1", "--retry"), 0, "working (R1.2)")
 		})
 	}
+}
+
+// With no engine a start reaches no agent: nothing is written, so it is no
+// try, and the next step is the window, which only the person opens.
+func TestAStartWithNoEngine(t *testing.T) {
+	p := evening(t, 1, nil)
+	for _, tc := range []struct{ who, next string }{
+		{scenario.Orch, `Next: whaleshark need todo "Open the WhaleShark window: whaleshark open"`},
+		{scenario.Human, "Next: whaleshark open\n"},
+	} {
+		for range 2 {
+			cmd := p.Command(tc.who, "start", "R1")
+			cmd.Env = append(cmd.Env, contract.EnvSocket+"="+filepath.Join(t.TempDir(), "none"))
+			out := must(t, cmd, contract.ExitEnv, "the engine is not running", tc.next)
+			if strings.Contains(out, "--retry") || strings.Contains(out, "close R1") || strings.Contains(out, "engine --") {
+				t.Errorf("%s was told a step that cannot help:\n%s", tc.who, out)
+			}
+		}
+	}
+	s, _ := p.Record()
+	if task := s.Tasks["R1"]; task.Status != contract.TaskReady || len(task.Attempts) != 0 || task.Failures != 0 {
+		t.Errorf("R1 is %s with the tries %v: a start that reached no agent counts none", task.Status, task.Attempts)
+	}
+	must(t, p.Command(scenario.Orch, "start", "R1"), 0, "working (R1.1)")
 }
 
 // begin starts a command and waits until n of its calls are being held.
