@@ -50,13 +50,18 @@ whaleshark start <task>... | --ready [--retry] [--resume] [--agent KIND] [--mode
   start a worker for each task, each in a tab named after it; run it in the background
 
 For:      the lead agent, the person
-Flags:    --ready
-          --retry
-          --resume  (phase 2)
-          --agent KIND
-          --model M
-          --allow-overlap
-Always:   --json, --run ID, --root DIR, --help, --human, --file PATH
+Flags:    --ready           every task that can start now
+          --retry           a new attempt at a task that ended
+          --resume          with --retry, the new attempt carries on where the last stopped  (phase 2)
+          --agent KIND      the agent tool for this start
+          --model M         the model for this start
+          --allow-overlap   start though it may change the files of a running task
+Always:   --json            print the result as JSON
+          --run ID          this run, not the open one
+          --root DIR        the project in this folder, not the one here
+          --help            this help
+          --human           you are the person, typing in a tab of an agent's
+          --file PATH       the text from this file, or from standard input for -
 Exits:    0 done, 1 failed, 3 environment unusable, 5 refused
 Example:  whaleshark start T3
 
@@ -82,12 +87,17 @@ For:      the lead agent, the person
           run show: the lead agent, the person, a tab not bound to a run
           run rm: the lead agent, the person, a tab not bound to a run
           run fleet: the lead agent, the person, a tab not bound to a run
-Flags:    --base REF
-          --limit N
-          --park
-          --abandon
-          --forget
-Always:   --json, --run ID, --root DIR, --help, --human, --file PATH
+Flags:    --base REF   new: the branch, tag or commit the work starts from
+          --limit N    new: the most agents at once
+          --park       new: leave the open run open beside it
+          --abandon    close: without landing the accepted work
+          --forget     fleet: stop keeping that fleet
+Always:   --json       print the result as JSON
+          --run ID     this run, not the open one
+          --root DIR   the project in this folder, not the one here
+          --help       this help
+          --human      you are the person, typing in a tab of an agent's
+          --file PATH  the text from this file, or from standard input for -
 Exits:    0 done, 4 not found, 5 refused
 Example:  whaleshark run close
 
@@ -99,8 +109,13 @@ whaleshark pause [--everywhere]
   Stop all: every agent stops at its next step and nothing new starts
 
 For:      the person
-Flags:    --everywhere
-Always:   --json, --run ID, --root DIR, --help, --human, --file PATH
+Flags:    --everywhere   in every project of this login
+Always:   --json         print the result as JSON
+          --run ID       this run, not the open one
+          --root DIR     the project in this folder, not the one here
+          --help         this help
+          --human        you are the person, typing in a tab of an agent's
+          --file PATH    the text from this file, or from standard input for -
 Exits:    0 done
 Example:  whaleshark pause --human
 
@@ -112,8 +127,12 @@ whaleshark pause [--everywhere]
   Stop all: every agent stops at its next step and nothing new starts
 
 For:      the person
-Flags:    --everywhere
-Always:   --json, --run ID, --root DIR, --help, --file PATH
+Flags:    --everywhere   in every project of this login
+Always:   --json         print the result as JSON
+          --run ID       this run, not the open one
+          --root DIR     the project in this folder, not the one here
+          --help         this help
+          --file PATH    the text from this file, or from standard input for -
 Exits:    0 done
 Example:  whaleshark pause
 
@@ -126,9 +145,13 @@ whaleshark answer <id> --undo
   answer a question or an item; --undo reopens one whose answer nothing has used yet
 
 For:      the lead agent, the person
-Flags:    --relayed
-          --undo  (the person only)
-Always:   --json, --run ID, --root DIR, --help, --file PATH
+Flags:    --relayed    you pass on what the person told you
+          --undo       reopen it  (the person only)
+Always:   --json       print the result as JSON
+          --run ID     this run, not the open one
+          --root DIR   the project in this folder, not the one here
+          --help       this help
+          --file PATH  the text from this file, or from standard input for -
 Exits:    0 done, 2 usage error, 4 not found, 5 refused
 Example:  whaleshark answer q7 "use main"
 
@@ -140,8 +163,12 @@ whaleshark report done|failed "<summary>" [--task ID]
   say that the task is finished, or that it could not be
 
 For:      a worker
-Flags:    --task ID
-Always:   --json, --run ID, --root DIR, --help, --file PATH
+Flags:    --task ID    a fleet leader's: which of its groups
+Always:   --json       print the result as JSON
+          --run ID     this run, not the open one
+          --root DIR   the project in this folder, not the one here
+          --help       this help
+          --file PATH  the text from this file, or from standard input for -
 Exits:    0 done, 1 failed, 5 refused
 Example:  whaleshark report done "Parser handles IPv6; 41 tests pass."
 
@@ -149,6 +176,35 @@ Not built yet: it comes with phase 1.
 exit 0
 
 $ whaleshark help need --json    # as the lead agent
-{"ok":true,"result":{"name":"need","section":"runs","phase":1,"built":false,"who":["orchestrator","human"],"usage":"need question|choice|signoff|todo \"<text>\" [--task T] [--holds] [--options a,b] [--urgent] [--wait [--timeout SEC]] / need close <id>","help":"put an item in front of the person, or withdraw one","exits":[0,4,5,75],"flags":[{"name":"task","value":"T"},{"name":"holds","phase":2},{"name":"options","value":"a,b"},{"name":"urgent"},{"name":"wait","phase":2},{"name":"timeout","value":"SEC","phase":2},{"name":"json"},{"name":"run","value":"ID"},{"name":"root","value":"DIR"},{"name":"help"},{"name":"file","value":"PATH"}],"example":"whaleshark need choice \"ship with the old API kept?\" --task T10 --holds"}}
+{"ok":true,"result":{"name":"need","section":"runs","phase":1,"built":false,"who":["orchestrator","human"],"usage":"need question|choice|signoff|todo \"<text>\" [--task T] [--holds] [--options a,b] [--urgent] [--wait [--timeout SEC]] / need close <id>","help":"put an item in front of the person, or withdraw one","exits":[0,4,5,75],"flags":[{"name":"task","value":"T","help":"the task it is about"},{"name":"holds","help":"with --task, the task waits for the answer","phase":2},{"name":"options","value":"a,b","help":"the answers to choose from"},{"name":"urgent","help":"put it on top"},{"name":"wait","help":"wait here for the answer","phase":2},{"name":"timeout","value":"SEC","help":"with --wait, give up after this many seconds","phase":2},{"name":"json","help":"print the result as JSON"},{"name":"run","value":"ID","help":"this run, not the open one"},{"name":"root","value":"DIR","help":"the project in this folder, not the one here"},{"name":"help","help":"this help"},{"name":"file","value":"PATH","help":"the text from this file, or from standard input for -"}],"example":"whaleshark need choice \"ship with the old API kept?\" --task T10 --holds"}}
 exit 0
+
+$ whaleshark help init    # as the lead agent
+whaleshark init [--agent KIND,...] [--keys] [--at-login] [--print-block] [--remove [--all]] [--allow-synced] [--adopt]
+  set this project up, check what it needs, and offer the rules for the lead agent
+
+For:      the lead agent, the person, a tab not bound to a run
+Flags:    --agent KIND,...  write the rules and the hooks for these agent tools
+          --keys            show the shortcuts and, on your yes, write them into your terminals' settings
+          --at-login        on Windows, start the engine when you log on
+          --print-block     print the rules for the lead agent, and change nothing
+          --remove          take out what init wrote for this project
+          --all             with --remove, for every project of this login
+          --allow-synced    set up a project in a folder synced to other machines
+          --adopt           take on a record this login did not make, with its runs and checks  (the person only)
+Always:   --json            print the result as JSON
+          --run ID          this run, not the open one
+          --root DIR        the project in this folder, not the one here
+          --help            this help
+          --file PATH       the text from this file, or from standard input for -
+Exits:    0 done, 3 environment unusable
+Example:  whaleshark init --agent claude
+
+Not built yet: it comes with phase 1.
+exit 0
+
+$ whaleshark help nope    # as the lead agent
+There is no command "nope".
+Next: whaleshark help
+exit 2
 

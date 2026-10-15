@@ -147,7 +147,44 @@ func TestHelpGolden(t *testing.T) {
 		{"the lead agent", lead, "help answer"},
 		{"a worker", worker, "help report"},
 		{"the lead agent", lead, "help need --json"},
+		{"the lead agent", lead, "help init"},
+		{"the lead agent", lead, "help nope"},
 	}))
+}
+
+// Every flag has its line in help, for whoever may see it.
+func TestEveryFlagIsSaid(t *testing.T) {
+	for i := range contract.Commands {
+		cmd := &contract.Commands[i]
+		k, _ := world(t)
+		out, _, _ := call(t, k, person, "help", cmd.Name)
+		for _, f := range flagsOf(cmd) {
+			if f.Help == "" || !strings.Contains(out, f.Help) {
+				t.Errorf("help %s: --%s has no line of its own: %q", cmd.Name, f.Name, f.Help)
+			}
+		}
+	}
+}
+
+// A slip is corrected only into a command the caller may run, and never into
+// the window or the keeper for an agent.
+func TestDidYouMeanWhatYouMay(t *testing.T) {
+	for _, tc := range []struct {
+		w          scene
+		word, want string
+	}{
+		{lead, "nope", ""}, {other, "nope", ""}, {nobody, "nope", ""}, {person, "nope", "open"},
+		{lead, "engin", ""}, {person, "engin", "engine"}, {lead, "strat", "start"}, {worker, "strat", ""}, {worker, "mial", "mail"},
+	} {
+		k, _ := world(t)
+		_, errw, _ := call(t, k, tc.w, "help", tc.word)
+		if said := strings.Contains(errw, "Did you mean"); said != (tc.want != "") || tc.want != "" && !strings.Contains(errw, fmt.Sprintf("%q", tc.want)) {
+			t.Errorf("help %s as %+v: %q, want %q", tc.word, tc.w, errw, tc.want)
+		}
+	}
+	if slices.Contains(names(""), "open") || slices.Contains(names(contract.Unbound), "engine") || !slices.Contains(names(contract.Human), "open") {
+		t.Error("the window and the keeper are offered to an agent, or not to the person")
+	}
 }
 
 func TestErrorsGolden(t *testing.T) {
@@ -490,11 +527,11 @@ func TestEnvelopeAndExit(t *testing.T) {
 // The nearest word is offered, and never a destructive one.
 func TestDidYouMean(t *testing.T) {
 	for word, want := range map[string]string{"strat": "start", "statsu": "status", "hlep": "help", "acept": "accept", "xyzzy": ""} {
-		if got, _ := NoSuch("command", word, names(), "x").Data.(map[string]string); got["did_you_mean"] != want {
+		if got, _ := NoSuch("command", word, names(""), "x").Data.(map[string]string); got["did_you_mean"] != want {
 			t.Errorf("%s: %q, want %q", word, got["did_you_mean"], want)
 		}
 	}
-	known := append(names(), contract.Destructive...)
+	known := append(names(""), contract.Destructive...)
 	for _, d := range contract.Destructive {
 		for i := range d {
 			for _, slip := range []string{d[:i] + d[i+1:], d[:i] + "x" + d[i:], d[:i] + "x" + d[i+1:]} {

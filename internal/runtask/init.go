@@ -233,6 +233,9 @@ func (i *setting) project() error {
 			i.say("no agent tool was set up: nobody is at a terminal to say which. It is set up with `whaleshark init --agent KIND`")
 		}
 	}
+	if len(kinds) == 0 {
+		i.say("the rules for the lead agent were written nowhere: `whaleshark init --print-block` prints them")
+	}
 	for _, kind := range kinds {
 		if err = cli.Valid("agent", kind, ""); err != nil {
 			return usage(c, "%v.", err)

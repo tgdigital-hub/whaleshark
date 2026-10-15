@@ -102,7 +102,7 @@ func run(c *contract.Call, argv []string) (any, error) {
 	}
 	cmd := contract.Find(argv[0])
 	if cmd == nil {
-		return nil, NoSuch("command", argv[0], names(), "whaleshark help")
+		return nil, NoSuch("command", argv[0], names(""), "whaleshark help")
 	}
 	p, bad := parse(cmd, argv[1:])
 	if bad != nil {
@@ -172,10 +172,16 @@ func run(c *contract.Call, argv []string) (any, error) {
 	return result, err
 }
 
-func names() []string {
-	out := make([]string, len(contract.Commands))
-	for i, c := range contract.Commands {
-		out[i] = c.Name
+// names lists the commands a kind of caller may run, in one form at least;
+// with no kind yet, every command. The window and the keeper are offered to
+// the person alone: an agent is told never to start them.
+func names(kind contract.CallerKind) []string {
+	var out []string
+	for _, c := range contract.Commands {
+		may := kind == "" || c.May(kind, "") || slices.ContainsFunc(c.Subs, func(s contract.Sub) bool { return c.May(kind, s.Name) })
+		if may && (kind == contract.Human || c.Name != "open" && c.Name != "engine") {
+			out = append(out, c.Name)
+		}
 	}
 	return out
 }

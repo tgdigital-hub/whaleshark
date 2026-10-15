@@ -34,7 +34,7 @@ func openOn(t *testing.T, on scenario.Backend, scripts map[string]string) *shop 
 	write(t, filepath.Join(p.Root, "local.env"), "not for git\n")
 	testkit.Commit(t, p.Root, "start", map[string]string{"b.md": briefText, ".gitignore": "local.env\nwhaleshark.toml\n"})
 	h := &shop{t, p}
-	h.orch(0, "init")()
+	h.orch(0, "init")("--print-block")
 	h.orch(0, "run", "new", "a shop")("r1")
 	return h
 }

@@ -63,6 +63,7 @@ type keyRow struct {
 type flagRow struct {
 	Name  string   `json:"name"`
 	Value string   `json:"value,omitempty"`
+	Help  string   `json:"help,omitempty"`
 	Phase int      `json:"phase,omitempty"`
 	Who   []string `json:"who,omitempty"`
 }
@@ -92,7 +93,7 @@ func rowOf(c *contract.Call, cmd *contract.Command) row {
 		if f.Name == "human" && !human {
 			continue
 		}
-		fr := flagRow{Name: f.Name, Value: f.Value, Phase: f.Phase}
+		fr := flagRow{Name: f.Name, Value: f.Value, Help: f.Help, Phase: f.Phase}
 		if f.Who != 0 {
 			fr.Who, _ = who(&contract.Command{Who: f.Who}, "")
 		}
@@ -125,7 +126,7 @@ func help(c *contract.Call) (any, error) {
 	}
 	cmd := contract.Find(c.Args[0])
 	if cmd == nil {
-		return nil, NoSuch("command", c.Args[0], names(), "whaleshark help")
+		return nil, NoSuch("command", c.Args[0], names(c.Caller.Kind), "whaleshark help")
 	}
 	r := rowOf(c, cmd)
 	for form := range strings.SplitSeq(cmd.Usage, " / ") {
@@ -139,8 +140,15 @@ func help(c *contract.Call) (any, error) {
 		_, words := who(cmd, s.Name)
 		line("", cmd.Name+" "+s.Name+": "+strings.Join(words, ", "))
 	}
+	width := 0
+	for _, f := range r.Flags {
+		width = max(width, len(f.Name+f.Value))
+	}
 	label := "Flags:"
-	for _, f := range r.Flags[:len(cmd.Flags)] {
+	for i, f := range r.Flags {
+		if i == len(cmd.Flags) {
+			label = "Always:"
+		}
 		note := ""
 		if f.Phase != 0 {
 			note = "  (phase " + contract.PhaseName(f.Phase) + ")"
@@ -148,10 +156,9 @@ func help(c *contract.Call) (any, error) {
 		if f.Who != nil {
 			note += "  (the person only)"
 		}
-		line(label, strings.TrimSpace("--"+f.Name+" "+f.Value)+note)
+		line(label, fmt.Sprintf("%-*s  %s", width+3, "--"+f.Name+" "+f.Value, f.Help)+note)
 		label = ""
 	}
-	line("Always:", strings.Join(spell(contract.CommonFlags, c.Caller.Kind == contract.Human), ", "))
 	var codes []string
 	for _, e := range cmd.Exits {
 		codes = append(codes, fmt.Sprintf("%d %s", e, exits[e]))
