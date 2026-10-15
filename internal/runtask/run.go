@@ -316,7 +316,9 @@ func runList(c *contract.Call, runs []string) (any, error) {
 			id, l.State, l.Tasks, l.Done, l.Live, l.Limit, l.Pane, cli.Plain(l.Objective))
 		lines = append(lines, l)
 	}
-	if c.Args[0] == "list" {
+	if c.Args[0] == "list" && len(lines) == 0 {
+		fmt.Fprintln(c.Out, "No run is kept.")
+	} else if c.Args[0] == "list" {
 		fmt.Fprintf(c.Out, "%d kept. Each costs every command from a pane one read; remove a finished one with `whaleshark run rm <id>`.\n", len(lines))
 	}
 	return map[string]any{"runs": lines, "kept": len(lines)}, nil

@@ -1,6 +1,9 @@
 package runtask
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -28,5 +31,20 @@ func TestTheLeadAgentsTabIsCalledOrchestrator(t *testing.T) {
 	}
 	if got[bare.ID] != contract.MainTab || got[named.ID] != "harbour plan" {
 		t.Errorf("the tabs are called %q and %q", got[bare.ID], got[named.ID])
+	}
+}
+
+// A name compared with the run's tasks only is said so, unless no engine
+// runs: then no tab is open, and none can hold the name.
+func TestTheTabsNoteOnlyWhereATabCouldHoldTheName(t *testing.T) {
+	for err, said := range map[error]bool{
+		fmt.Errorf("%w: dial unix: no such file", contract.ErrEngineUnreachable): false,
+		errors.New("the reply was cut short"):                                    true,
+	} {
+		var out bytes.Buffer
+		unasked(&contract.Call{Err: &out}, err)
+		if got := out.String() != ""; got != said {
+			t.Errorf("after %q the note was said: %v\n%s", err, got, out.String())
+		}
 	}
 }

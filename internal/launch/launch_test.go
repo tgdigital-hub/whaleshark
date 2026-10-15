@@ -366,7 +366,7 @@ func TestAStartWithNoEngine(t *testing.T) {
 		for range 2 {
 			cmd := p.Command(tc.who, "start", "R1")
 			cmd.Env = append(cmd.Env, contract.EnvSocket+"="+filepath.Join(t.TempDir(), "none"))
-			out := must(t, cmd, contract.ExitEnv, "the engine is not running", tc.next)
+			out := must(t, cmd, contract.ExitEnv, "The engine is not running.\n", tc.next)
 			if strings.Contains(out, "--retry") || strings.Contains(out, "close R1") || strings.Contains(out, "engine --") {
 				t.Errorf("%s was told a step that cannot help:\n%s", tc.who, out)
 			}

@@ -495,8 +495,26 @@ func TestTaskAddSaysWhenOwnedFilesMeet(t *testing.T) {
 	if out := add("B", "--owns", "src/**", "--after", "A"); strings.Contains(out, "may change") {
 		t.Fatalf("B waits for A, yet:\n%s", out)
 	}
-	if out := add("C", "--owns", "src/model/user.go,docs"); !strings.Contains(out, "C may change files that A, B, D may change too") {
+	if out := add("C", "--owns", "src/model/user.go,docs"); !strings.Contains(out, "C may change files that A, B, D may change too, by their --owns.") {
 		t.Fatalf("C meets A, B and D:\n%s", out)
+	}
+}
+
+// With no engine running no tab is open: task add and a rename say nothing
+// of tabs that could not be asked.
+func TestTaskAddWithNoEngineSaysNothingOfTabs(t *testing.T) {
+	p := scenario.Prepare(t, nil, nil)
+	write(t, filepath.Join(p.Root, "b.md"), briefText)
+	play(t, p.Command(scenario.Orch, "run", "new", "a shop"), 0)
+	p.Double.Close()
+	for _, args := range [][]string{
+		{"task", "add", "A", "data model", "--brief", "b.md", "--check", "none"},
+		{"task", "add", "B", "list page", "--brief", "b.md", "--check", "none"},
+		{"task", "edit", "B", "--name", "the list"},
+	} {
+		if out := play(t, p.Command(scenario.Orch, args...), 0); strings.Contains(out, "tabs could not be asked") {
+			t.Errorf("%v printed:\n%s", args, out)
+		}
 	}
 }
 
@@ -521,6 +539,10 @@ func TestAParkedRunIsNamedToThePerson(t *testing.T) {
 	play(t, p.Command(scenario.Human, "run", "close"), 0, "closed")
 	play(t, p.Command(scenario.Human, "run", "rm", "r1"), 0, "removed")
 	play(t, p.Command(scenario.Human, "status"), 0, "No run is open in this project", "whaleshark run new")
+	// At zero there is nothing to cost a read, and nothing to remove.
+	if out := play(t, p.Command(scenario.Human, "run", "list"), 0); out != "No run is kept.\n" {
+		t.Errorf("run list with nothing kept printed:\n%s", out)
+	}
 }
 
 // A removed run's number is given to the next run. The person's pointer,

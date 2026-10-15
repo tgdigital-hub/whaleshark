@@ -169,7 +169,7 @@ func TestTwoFleetsOnOneFileThroughScanSyncMergeAndLanding(t *testing.T) {
 	must(t, os.WriteFile(filepath.Join(search, "cart.js"), []byte(alpha(10, 11)+"// with billing's total\n"), 0o600))
 	f.git(search, "add", "cart.js")
 	f.git(search, "commit", "-q", "-m", "T2: brought up to date with the collected work")
-	said(t, f.play(0, "overlap"), "Nothing is shared, and everything lands")
+	said(t, f.play(0, "overlap"), "No file the tasks have changed is shared, and everything lands.")
 	f.leader(0, "G2", "report", "done", "search is done, on top of billing")
 	said(t, f.play(0, "accept", "G2"), "G2 is done, checked")
 	tip = f.git(f.root, "rev-parse", "whaleshark/r2")

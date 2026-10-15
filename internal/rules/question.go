@@ -223,7 +223,12 @@ func use(s *contract.State, q *contract.Question, now time.Time) {
 			mail(s, a, "Decided: "+q.Text+" Answer: "+q.Answer, "", now)
 		}
 	}
-	if (q.For == contract.ForHuman || q.Up != nil) && q.From != contract.FromTool {
+	// The run's lead agent is not handed back its own act, an answer it passed on.
+	lead := contract.Orchestrator
+	if s.Run.Parent != nil {
+		lead = contract.Leader
+	}
+	if (q.For == contract.ForHuman || q.Up != nil) && q.From != contract.FromTool && (q.AnsweredBy == nil || q.AnsweredBy.Caller != lead) {
 		raise(s, "answered", t, a, q.Answer, map[string]any{"id": q.ID}, now)
 	}
 }

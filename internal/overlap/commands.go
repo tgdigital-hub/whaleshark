@@ -111,7 +111,7 @@ func (o scanner) overlap(c *contract.Call) (any, error) {
 	case clash:
 		r = refuse(contract.ExitClash, "clash", "Work of two tasks would conflict: accept the first of each pair, then bring the second up to date.", next...)
 	case len(next) == 0 && len(out.Findings) == 0:
-		fmt.Fprintln(c.Out, "Nothing is shared, and everything lands.")
+		fmt.Fprintln(c.Out, "No file the tasks have changed is shared, and everything lands.")
 		fallthrough
 	case len(next) == 0:
 		return out, nil

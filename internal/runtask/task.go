@@ -16,6 +16,14 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/launch"
 )
 
+// unasked notes a name compared with the run's tasks only. With no engine
+// running no tab is open, so no tab can hold the name and there is nothing to say.
+func unasked(c *contract.Call, err error) {
+	if !errors.Is(err, contract.ErrEngineUnreachable) {
+		fmt.Fprintln(c.Err, "The open tabs could not be asked, so the name was compared with this run's tasks only.")
+	}
+}
+
 func task(c *contract.Call) (any, error) {
 	sub, args, err := form(c, map[string]int{"add": 2, "edit": 1, "cancel": 1, "reset": 1})
 	if err != nil {
@@ -54,7 +62,7 @@ func task(c *contract.Call) (any, error) {
 		if err = cli.Valid("name", last(c, "name"), ""); err != nil {
 			return nil, usage(c, "%v.", err)
 		} else if picture, err = k.Terms.Snapshot(context.Background()); err != nil {
-			fmt.Fprintln(c.Err, "The open tabs could not be asked, so the name was compared with this run's tasks only.")
+			unasked(c, err)
 		}
 	}
 	var t contract.Task
@@ -277,7 +285,7 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 			taken = append(taken, p.Label)
 		}
 	} else {
-		fmt.Fprintln(c.Err, "The open tabs could not be asked, so the name was compared with this run's tasks only.")
+		unasked(c, err)
 	}
 	var meets []string
 	var parent *contract.Twin
@@ -320,7 +328,7 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 	out := map[string]any{"id": t.ID, "name": t.Name, "status": t.Status}
 	if len(meets) > 0 {
 		out["meets"] = meets
-		fmt.Fprintf(c.Out, "%s may change files that %s may change too. Let one wait for the other (--after), or expect them to overlap.\n", t.ID, strings.Join(meets, ", "))
+		fmt.Fprintf(c.Out, "%s may change files that %s may change too, by their --owns. Let one wait for the other (--after), or expect them to overlap.\n", t.ID, strings.Join(meets, ", "))
 	}
 	if across := abroad(c, parent, t.Owns); len(across) > 0 {
 		out["meets_fleets"] = across

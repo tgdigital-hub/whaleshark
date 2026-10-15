@@ -254,6 +254,21 @@ func TestAskAndHold(t *testing.T) {
 			t.Errorf("escalating nothing: %v", err)
 		}
 	})
+	t.Run("relayed by the lead agent: the worker gets it, and the lead agent is not told its own act", func(t *testing.T) {
+		s := in(t, contract.AttemptAsked)
+		must(t, r.Escalate(s, "q1", t0))
+		before := len(s.Inbox.Events)
+		must(t, r.Answer(s, "q1", "main", relayed, 0, t0))
+		if got, ok, _ := r.Use(s, "q1", t0); !ok || got != "main" || s.Attempts["T1.1"].State != contract.AttemptWorking {
+			t.Fatalf("the worker did not get the answer: %q %v", got, ok)
+		}
+		id, err := r.Need(s, contract.Question{Form: contract.FormChoice, Text: "keep the old link?"}, t0)
+		must(t, err)
+		must(t, r.Answer(s, id, "yes", relayed, 0, t0))
+		if b, _, _, _ := r.Batch(s, []string{"answered"}, t0); b != nil || len(s.Inbox.Events) != before || s.Questions[id].State != contract.QuestionUsed {
+			t.Errorf("the lead agent was handed back its own answers: %+v", s.Inbox.Events[before:])
+		}
+	})
 	t.Run("the attempt ends: the question closes, and a late answer is kept for the next prompt", func(t *testing.T) {
 		for _, state := range []string{"open", "answered"} {
 			s := in(t, contract.AttemptAsked)

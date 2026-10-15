@@ -53,7 +53,9 @@ func refusal(err error) *contract.Refusal {
 	case errors.As(err, &r):
 		return r
 	case errors.Is(err, contract.ErrEngineUnreachable):
-		return refuse(contract.ExitEnv, "unreachable", "%v.", err)
+		// A sentence begins with a capital, as every other message does.
+		msg := err.Error()
+		return refuse(contract.ExitEnv, "unreachable", "%s%s.", strings.ToUpper(msg[:1]), msg[1:])
 	case errors.Is(err, contract.ErrNewer):
 		return refuse(contract.ExitEnv, "newer_state", "The record was %v.", err)
 	case errors.Is(err, contract.ErrNoRun):
