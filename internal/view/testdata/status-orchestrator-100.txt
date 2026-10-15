@@ -1,5 +1,5 @@
 this tab is the lead agent's
-TEAM   run r3 "new shop site" · 12 agents · 2 need you · 1 check failed · 1 to check     8 Oct 21:14
+TEAM   run r3 "new shop site" · 12 agents · 3 for you · 1 check failed · 1 to check      8 Oct 21:14
 
 FOR YOU   3 waiting · 2 hold work up
  ▲ q7   sign-up page       question       3m  must the old sign-up link keep working? (yes / no)

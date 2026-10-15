@@ -1,4 +1,4 @@
-PLAN   run r3 · 19 tasks · 5 done · 12 open · 2 queued · 3 things for you
+PLAN   run r3 · 19 tasks · 5 done · 12 open · 2 pending · 3 things for you
        8 Oct 21:14
 
 FOR YOU
@@ -33,8 +33,8 @@ FOR YOU
  ◐ T10  checkout form      20%                after P1
  ◐ T11  order emails       asking             after P1
  ◌ T12  admin page         idle               after P1
- ○ T13  whole site         queued             after T1 ... T12 (waits on 12)
- ○ T14  go live            queued             after T13
+ ○ T13  whole site         pending            after T1 ... T12 (waits on 12)
+ ○ T14  go live            pending            after T13
 
 Longest chain left: T2 > T13 > T14.
 Nothing new can start until T1, T2, T3 and 9 more are done.

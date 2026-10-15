@@ -19,6 +19,7 @@ type Options struct {
 	Width      int
 	PlainMarks bool // the terminal cannot show the marks (contract.PlainMarks)
 	Items      bool // only what waits for the person
+	All        bool // the done tasks are listed: no hint that they can be
 	// Colours is the scheme's colours by name where the text goes to a
 	// terminal that takes them: empty for one that wants no colour, which
 	// still shows what is unseen in bold; nil for anything else.
@@ -74,7 +75,7 @@ func Text(w io.Writer, v *contract.View, o Options) {
 		for _, n := range []struct {
 			n         int
 			one, many string
-		}{{c.NeedYou, "needs you", "need you"}, {c.CheckFailed, "check failed", "check failed"}, {c.ToCheck, "to check", "to check"}} {
+		}{{c.Waiting, "for you", "for you"}, {c.CheckFailed, "check failed", "check failed"}, {c.ToCheck, "to check", "to check"}} {
 			if n.n > 0 {
 				parts = append(parts, plural(n.n, n.one, n.many))
 			}
@@ -93,7 +94,10 @@ func Text(w io.Writer, v *contract.View, o Options) {
 			p.block(clean(s.Name), sections[i])
 		}
 		c := v.Counts
-		parts := []string{plural(c.Agents, "agent", "agents"), fmt.Sprint(c.DoneToday, " done today (whaleshark status --all)")}
+		parts := []string{plural(c.Agents, "agent", "agents"), fmt.Sprint(c.DoneToday, " done today")}
+		if !o.All {
+			parts[1] += " (whaleshark status --all)"
+		}
 		if v.Strip.DND {
 			parts = append(parts, "do not disturb")
 		}
@@ -134,11 +138,18 @@ func (p *printer) alerts() {
 func (p *printer) fresh(w io.Writer) {
 	v := p.v
 	fresh := "live · checked " + seconds(v.At.Sub(v.Fresh.Checked)) + " ago"
-	if v.At.Sub(v.Fresh.Checked) > contract.StaleAfter {
+	switch {
+	case v.Fresh.Checked.IsZero():
+		// Nothing has been seen yet, so there is no time to be stale since.
+		fresh = noSweep
+	case v.At.Sub(v.Fresh.Checked) > contract.StaleAfter:
 		fresh = "STALE since " + v.Fresh.Checked.Format("15:04")
 	}
+	said := fresh
 	for _, note := range v.Fresh.Notes {
-		fresh += " · " + clean(note)
+		if note != said {
+			fresh += " · " + clean(note)
+		}
 	}
 	p.line("", fresh, "")
 	io.WriteString(w, p.out.String())

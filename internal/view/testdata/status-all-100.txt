@@ -1,5 +1,5 @@
 this tab is the lead agent's
-TEAM   run r3 "new shop site" · 12 agents · 2 need you · 1 check failed · 1 to check     8 Oct 21:14
+TEAM   run r3 "new shop site" · 12 agents · 3 for you · 1 check failed · 1 to check      8 Oct 21:14
 
 FOR YOU   3 waiting · 2 hold work up
  ▲ q7   sign-up page       question       3m  must the old sign-up link keep working? (yes / no)
@@ -44,9 +44,9 @@ IDLE
           or stop T12
 
 QUEUED
- ○ T13  whole site         queued        44m  after T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11,
+ ○ T13  whole site         pending       44m  after T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11,
                                               T12
- ○ T14  go live            queued        44m  after T13
+ ○ T14  go live            pending       44m  after T13
 
 DONE
  ✔ P1   the project        done          54m
@@ -55,5 +55,5 @@ DONE
  ✔ P4   the layout         done          51m
  ✔ P5   the words          done          50m
 
-12 agents · 5 done today (whaleshark status --all)
+12 agents · 5 done today
 live · checked 0s ago

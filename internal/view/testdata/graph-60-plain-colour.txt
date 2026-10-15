@@ -1,4 +1,4 @@
-PLAN   run r3 · 19 tasks · 5 done · 12 open · 2 queued · 3
+PLAN   run r3 · 19 tasks · 5 done · 12 open · 2 pending · 3
        things for you                            8 Oct 21:14
 
 FOR YOU
@@ -43,9 +43,9 @@ FOR YOU
         after P1
  [38;2;169;189;208m?[39m T12  admin page         [38;2;169;189;208midle[39m
         after P1
- [38;2;142;164;184m.[39m T13  whole site         [38;2;142;164;184mqueued[39m
+ [38;2;142;164;184m.[39m T13  whole site         [38;2;142;164;184mpending[39m
         after T1 ... T12 (waits on 12)
- [38;2;142;164;184m.[39m T14  go live            [38;2;142;164;184mqueued[39m
+ [38;2;142;164;184m.[39m T14  go live            [38;2;142;164;184mpending[39m
         after T13
 
 Longest chain left: T2 > T13 > T14.

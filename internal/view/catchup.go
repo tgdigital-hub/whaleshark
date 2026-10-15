@@ -71,6 +71,7 @@ func away(v *contract.View, s *contract.State, fleets map[string]*contract.State
 		return contract.CatchLine{N: len(parts), Text: strings.Join(parts, sep)}
 	}
 
+	// Each item is a clause of its own: who it is from, and what it is about.
 	var parts []string
 	for _, it := range append(slices.Clone(v.Items), v.Held...) {
 		switch {
@@ -79,10 +80,10 @@ func away(v *contract.View, s *contract.State, fleets map[string]*contract.State
 		case it.Name == "" || it.Name == leadName:
 			parts = append(parts, it.Source)
 		default:
-			parts = append(parts, it.Source+": "+it.Title())
+			parts = append(parts, it.Source+" about "+it.Title())
 		}
 	}
-	c.Waiting = line(parts, ", ")
+	c.Waiting = line(parts, "; ")
 
 	// The last failed check of each task and the last time each went quiet,
 	// earliest first.

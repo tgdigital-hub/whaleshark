@@ -332,7 +332,7 @@ func TestFormsAndWords(t *testing.T) {
 		"T7":  {contract.LookToCheck, "", []string{"go", "accept-by-hand", "send-back", "stop", "note"}},
 		"P1":  {contract.LookDone, contract.WordDoneByHand, []string(nil)},
 		"T14": {contract.LookStopped, "", []string(nil)},
-		"T13": {contract.LookQueued, "", []string(nil)},
+		"T13": {contract.LookQueued, string(contract.TaskPending), []string(nil)},
 	} {
 		c, _ := card(t, v, task)
 		same(t, task, []any{c.Look, c.Word, c.Actions}, want)

@@ -1,4 +1,4 @@
-TEAM   run r3 "new shop site" · 12 agents · 2 need you · 1 check failed · 1 to check     8 Oct 21:14
+TEAM   run r3 "new shop site" · 12 agents · 3 for you · 1 check failed · 1 to check      8 Oct 21:14
 
 FOR YOU   3 waiting · 2 hold work up
  [38;2;255;127;107m![39m q7   sign-up page       [38;2;255;127;107mquestion[39m       3m  must the old sign-up link keep working? (yes / no)

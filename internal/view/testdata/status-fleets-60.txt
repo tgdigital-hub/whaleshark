@@ -1,4 +1,4 @@
-TEAM   run r1 "" · 18 agents · 1 needs you      12 Oct 10:20
+TEAM   run r1 "" · 18 agents · 1 for you        12 Oct 10:20
 
 FOR YOU   1 waiting · 1 holds work up
  ▲ q1   billing › refund flow  question       2m

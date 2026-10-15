@@ -141,6 +141,9 @@ func Build(in contract.ViewInput) *contract.View {
 	return v
 }
 
+// noSweep is the note while no sweep has run.
+const noSweep = "no sweep yet"
+
 // seat gives a task its card from what the record says and what the terminals show.
 func (b *builder) seat(t *contract.Task) *seat {
 	c := &contract.Card{Task: t.ID, Name: cli.Plain(t.Name), Look: contract.LookQueued, Since: t.CreatedAt}
@@ -150,8 +153,12 @@ func (b *builder) seat(t *contract.Task) *seat {
 	}
 	a := st.try
 	if a == nil {
-		if t.Status == contract.TaskCancelled {
+		// A task not yet started goes by the word task add gave it.
+		switch t.Status {
+		case contract.TaskCancelled:
 			c.Look = contract.LookStopped
+		case contract.TaskReady, contract.TaskPending:
+			c.Word = string(t.Status)
 		}
 		if waits := unmet(b.s, t); len(waits) > 0 {
 			c.News = "after " + strings.Join(waits, ", ")
@@ -670,7 +677,7 @@ func (b *builder) around(v *contract.View) {
 	// One note about the sweep, never two: that none has run yet says all
 	// there is to say until one has.
 	if !in.Swept.Ran {
-		v.Fresh.Notes = append(v.Fresh.Notes, "no sweep yet")
+		v.Fresh.Notes = append(v.Fresh.Notes, noSweep)
 	} else if !in.Watched {
 		v.Fresh.Notes = append(v.Fresh.Notes, "nobody is sweeping")
 	}

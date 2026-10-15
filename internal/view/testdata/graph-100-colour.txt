@@ -1,4 +1,4 @@
-PLAN   run r3 · 19 tasks · 5 done · 12 open · 2 queued · 3 things for you                8 Oct 21:14
+PLAN   run r3 · 19 tasks · 5 done · 12 open · 2 pending · 3 things for you               8 Oct 21:14
 
 FOR YOU
  [38;2;255;127;107m▲[39m q7   sign-up page       [38;2;255;127;107mquestion[39m       3m  must the old sign-up link keep working? (yes / no)
@@ -26,8 +26,8 @@ FOR YOU
  [38;2;62;207;154m◐[39m T10  checkout form      [38;2;62;207;154m20%[39m                after P1
  [38;2;62;207;154m◐[39m T11  order emails       [38;2;62;207;154masking[39m             after P1
  [38;2;169;189;208m◌[39m T12  admin page         [38;2;169;189;208midle[39m               after P1
- [38;2;142;164;184m○[39m T13  whole site         [38;2;142;164;184mqueued[39m             after T1 ... T12 (waits on 12)
- [38;2;142;164;184m○[39m T14  go live            [38;2;142;164;184mqueued[39m             after T13
+ [38;2;142;164;184m○[39m T13  whole site         [38;2;142;164;184mpending[39m            after T1 ... T12 (waits on 12)
+ [38;2;142;164;184m○[39m T14  go live            [38;2;142;164;184mpending[39m            after T13
 
 Longest chain left: T2 > T13 > T14.
 Nothing new can start until T1, T2, T3 and 9 more are done.

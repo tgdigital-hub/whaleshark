@@ -426,7 +426,7 @@ func TestGraphAndLog(t *testing.T) {
 	f := later(t)
 	f.State.Tasks["T14"].After, f.State.Tasks["T14"].Status = nil, contract.TaskReady
 	c, out, _, n := view(t, f, "graph", contract.Orchestrator)
-	if pl := run(t, c).(*contract.Plan); len(pl.Rows) != len(f.State.Tasks) || !strings.HasPrefix(out.String(), "PLAN   run r3 · 19 tasks · 5 done · 12 open · 2 queued") {
+	if pl := run(t, c).(*contract.Plan); len(pl.Rows) != len(f.State.Tasks) || !strings.HasPrefix(out.String(), "PLAN   run r3 · 19 tasks · 5 done · 12 open · 1 ready · 1 pending") {
 		t.Errorf("graph: %d rows\n%s", len(pl.Rows), out)
 	}
 	c, out, _, _ = view(t, f, "graph", contract.Unbound)

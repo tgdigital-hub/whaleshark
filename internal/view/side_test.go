@@ -701,7 +701,7 @@ func TestFleetsInStatusShowAndCatchup(t *testing.T) {
 	}
 	golden(t, "show-fleet-G1.txt", out.String())
 	c, out = morning(t, contract.On, "catchup")
-	if b := run(t, c).(*contract.Catchup); b.Waiting.Text != "passed up by the orchestrator: billing › refund flow" || b.StillBuilding != 2 {
+	if b := run(t, c).(*contract.Catchup); b.Waiting.Text != "passed up by the orchestrator about billing › refund flow" || b.StillBuilding != 2 {
 		t.Errorf("catchup gives %+v\n%s", b, out)
 	}
 }

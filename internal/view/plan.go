@@ -121,9 +121,11 @@ func planText(w io.Writer, v *contract.View, pl *contract.Plan, o Options) {
 		items = append(items, r)
 	}
 	count := map[contract.Look]int{}
+	words := map[string]int{}
 	for _, pr := range pl.Rows {
 		c := pr.Card
 		count[c.Look]++
+		words[c.Word]++
 		r := p.card(c)
 		r.name, r.age, r.text, r.trail, r.next = c.Name, "", "", "", nil
 		switch {
@@ -148,7 +150,13 @@ func planText(w io.Writer, v *contract.View, pl *contract.Plan, o Options) {
 
 	p.alerts()
 	n, done, queued := len(pl.Rows), count[contract.LookDone], count[contract.LookQueued]
-	parts := []string{"run " + clean(v.Run), plural(n, "task", "tasks"), fmt.Sprint(done, " done"), fmt.Sprint(n-done-queued, " open"), fmt.Sprint(queued, " queued")}
+	parts := []string{"run " + clean(v.Run), plural(n, "task", "tasks"), fmt.Sprint(done, " done"), fmt.Sprint(n-done-queued, " open")}
+	// A task not started goes by task add's word for it, counted where there is one.
+	for _, w := range []contract.TaskStatus{contract.TaskReady, contract.TaskPending} {
+		if k := words[string(w)]; k > 0 {
+			parts = append(parts, fmt.Sprint(k, " ", w))
+		}
+	}
 	if v.Counts.Waiting > 0 {
 		parts = append(parts, plural(v.Counts.Waiting, "thing for you", "things for you"))
 	}

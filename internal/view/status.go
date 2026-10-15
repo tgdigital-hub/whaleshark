@@ -86,7 +86,7 @@ func status(c *contract.Call) (any, error) {
 		return everywhere(c, in, append([]job{{c.Root, v, ""}}, others...)), nil
 	}
 	o := options(c)
-	o.Items = has("items")
+	o.Items, o.All = has("items"), in.All
 	Text(c.Out, v, o)
 	return v, nil
 }
