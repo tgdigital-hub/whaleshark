@@ -359,6 +359,20 @@ func TestAJobLedFromAnotherTabSaysSo(t *testing.T) {
 	}
 }
 
+// A land from no tab and no terminal is the person's, typed where they can.
+// The run's other tab read as if the lead agent were to land it.
+func TestALandFromNoTerminalIsThePersons(t *testing.T) {
+	k, _ := world(t)
+	r, exit := refusal(t, k, nobody, "land", "--local")
+	if exit != contract.ExitRefused || r.Code != "not_bound" || r.Next != nil ||
+		r.Message != "The person lands the work, typed in a terminal of their own: here is no terminal and no tab." {
+		t.Errorf("exit %d: %+v", exit, r)
+	}
+	if r, _ := refusal(t, k, other, "land", "--local"); !strings.Contains(r.Message, "led from another tab") {
+		t.Errorf("from another tab: %+v", r)
+	}
+}
+
 // A next line with --human reaches the person and nobody else.
 func TestHumanNeverShown(t *testing.T) {
 	for _, w := range []scene{lead, other, person} {

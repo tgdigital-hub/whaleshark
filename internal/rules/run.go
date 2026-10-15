@@ -43,7 +43,9 @@ func live(s *contract.State) (n int) {
 	return n
 }
 
-func (Rules) CloseRun(s *contract.State, abandon bool, now time.Time) error {
+// CloseRun with abandon withdraws the run's open items as need close would:
+// nobody is left to act on an answer.
+func (r Rules) CloseRun(s *contract.State, abandon bool, now time.Time) error {
 	if err := open(s); err != nil {
 		return err
 	}
@@ -59,6 +61,11 @@ func (Rules) CloseRun(s *contract.State, abandon bool, now time.Time) error {
 	}
 	if in := s.Run.Integration; unlanded && !abandon && s.Run.Parent == nil && in != nil && in.Landed != in.Tip {
 		return next(refused("not_landed", "Accepted work has not been landed."), "whaleshark land --pr", "whaleshark land --local", "whaleshark run close --abandon")
+	}
+	for id := range s.Questions {
+		if abandon {
+			r.CloseQuestion(s, id, now) // refused, a worker's question or the person's own item stays
+		}
 	}
 	s.Run.ClosedAt = now
 	return nil

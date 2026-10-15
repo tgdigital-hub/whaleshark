@@ -278,6 +278,10 @@ func permit(c *contract.Call, sub string) *contract.Refusal {
 			} else if s, err := c.Kit.Reader().Read(c.Root, c.Run); err == nil && !s.Run.ClosedAt.IsZero() {
 				// The last job is closed: there is nothing to take over.
 				r.Message, r.Next = "No run is open here: "+c.Run+" is closed.", []string{`whaleshark run new "<objective>"`}
+			} else if cmd.Name == "land" && c.Caller.Pane == "" {
+				// No tab and no terminal: the lead's tab is no way to it, and
+				// read as one.
+				r.Message, r.Next = "The person lands the work, typed in a terminal of their own: here is no terminal and no tab.", nil
 			} else if err == nil && s.Run.Orchestrator != nil && s.Run.Orchestrator.Pane != "" {
 				// Another tab leads it. The next line alone read as an
 				// invitation to an agent that came by from its own job.

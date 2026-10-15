@@ -199,7 +199,10 @@ func TestAcceptSeveral(t *testing.T) {
 
 	// run rm takes what is left: E's copy and every branch proven merged.
 	// E's work was never collected, so its branch is kept and named; the
-	// run's own branch was not landed and stays too.
+	// run's own branch was not landed and stays too. Landing is the
+	// person's: a lead agent is told to hand it to them, the person how.
+	h.orch(5, "run", "close")("landing is the person's", `Next: whaleshark need signoff "The work of r1 is ready: land it with whaleshark land --pr`, "Next: whaleshark run close --abandon")
+	play(t, h.p.Command(scenario.Human, "run", "close"), 5, "Accepted work has not been landed.", "Next: whaleshark land --pr", "Next: whaleshark land --local")
 	h.orch(0, "run", "close", "--abandon")()
 	play(t, h.p.Command(scenario.Human, "run", "rm", "r1"), 0, "Kept, not proven merged: whaleshark/r1-E-part-e", "whaleshark/r1-G-part-g", "removed")
 	if left := h.git("worktree", "list"); strings.Count(left, "\n") != 0 {

@@ -682,3 +682,21 @@ func TestLeadSeen(t *testing.T) {
 		t.Error(msg)
 	}
 }
+
+// R11: a run given up withdraws what it left waiting for the person, as
+// need close would; a plain close leaves it, and the person's own item stays.
+func TestAbandonWithdrawsItems(t *testing.T) {
+	for _, abandon := range []bool{false, true} {
+		s := newRun()
+		lead, _ := r.Need(s, contract.Question{Form: contract.FormSignoff, Text: "land?"}, t0)
+		plan, _ := r.Need(s, contract.Question{Form: contract.FormSignoff, From: contract.FromTool, Cause: contract.CausePlan, Text: "plan?"}, t0)
+		must(t, r.CloseRun(s, abandon, t0))
+		want := map[bool]string{false: contract.QuestionOpen, true: contract.QuestionClosed}[abandon]
+		if got := s.Questions[lead].State; got != want {
+			t.Errorf("abandon %v: the lead's item is %s, want %s", abandon, got, want)
+		}
+		if got := s.Questions[plan].State; got != contract.QuestionOpen {
+			t.Errorf("abandon %v: the person's own item is %s", abandon, got)
+		}
+	}
+}

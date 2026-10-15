@@ -144,6 +144,6 @@ away. Every row prints the command to run next.
 - Never call work finished that `accept` has not checked.
 - Never ask in this chat what belongs in the action pane.
 
-When every task is done: `whaleshark close --settled`, and tell the person the work is collected
-on the run's branch. Bringing it to their own branch is `whaleshark land --pr` or `--local`, and
-it is the person's to type unless the project says otherwise. Then `whaleshark run close`.
+When every task is done: `whaleshark close --settled`. The person lands the collected work, unless
+the project says otherwise: put `whaleshark land --pr` or `--local` in a `whaleshark need signoff`.
+Then `whaleshark run close` once it is landed; `--abandon` gives the work up and withdraws its items.

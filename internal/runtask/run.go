@@ -168,6 +168,12 @@ func run(c *contract.Call) (any, error) {
 			r.Next = []string{`whaleshark run new "<objective>"`}
 		}
 	}
+	// Landing is the person's unless the project says otherwise: a lead
+	// agent hands it to them, or gives the work up, and lands nothing.
+	if p, _ := contract.ReadProjectFile(c.Root); errors.As(err, &r) && r.Code == "not_landed" && c.Caller.Kind == contract.Orchestrator && p.Land.Who == contract.ForHuman {
+		r.Message = "Accepted work has not been landed, and landing is the person's. Tell them it is ready and which command lands it, typed in a tab of their own; the run closes after that. Closing now gives the work up."
+		r.Next = []string{`whaleshark need signoff "The work of ` + id + ` is ready: land it with whaleshark land --pr, or --local, typed in a tab of your own."`, "whaleshark run close --abandon"}
+	}
 	if err != nil {
 		return nil, err
 	}
