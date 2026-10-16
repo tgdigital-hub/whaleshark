@@ -217,7 +217,9 @@ func (w *space) run(in contract.SideInput, p contract.SideProject, s *contract.S
 			}
 		}
 	}
-	if b := s.Run.Orchestrator; b != nil {
+	// A lead agent whose tab is gone has no row: the job shows as one to
+	// take over, and the tab of whoever takes it is the person's own.
+	if b := s.Run.Orchestrator; b != nil && tabs[b.Pane] != "" {
 		// A name its tab took from the chat, or was given, is its row's too.
 		for _, p := range cmp.Or(in.Terms, &contract.Snapshot{}).Panes {
 			if p.ID == b.Pane && p.Label != "" && !strings.EqualFold(p.Label, contract.MainTab) {
@@ -226,7 +228,7 @@ func (w *space) run(in contract.SideInput, p contract.SideProject, s *contract.S
 		}
 		// Its menu is its tab's: the row is the record's word for who leads.
 		w.rows = append(w.rows, contract.SideRow{Kind: contract.RowLead, Name: name, Root: p.Root, Run: s.Run.ID, Tab: tabs[b.Pane],
-			Offer: contract.OfferRows(contract.OfferTab, false, false, tabs[b.Pane] != ""), Actions: []string{"note-lead"}})
+			Offer: contract.OfferRows(contract.OfferTab, false, false, true), Actions: []string{"note-lead"}})
 	}
 	v := Build(vin)
 	var fleets [][]contract.SideRow

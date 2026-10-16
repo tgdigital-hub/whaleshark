@@ -776,3 +776,27 @@ func TestASavedFleetHasItsRowWithNoWork(t *testing.T) {
 		}
 	}
 }
+
+// A job whose lead agent's tab went with a restart of the keeper, in a
+// workspace the person named, where the person's own chat tab now runs: the
+// tab shows once, as the person's, and the job as one to take over. Another
+// project's job, led from a workspace of its own, adds nothing here.
+func TestALeadWhoseTabIsGoneHasNoRow(t *testing.T) {
+	now := time.Date(2026, 10, 16, 11, 0, 0, 0, time.UTC)
+	snap := &contract.Snapshot{At: now, Instance: "k2",
+		Spaces: []contract.Space{{ID: "s3", Root: "/work/whaleshark", Name: "whaleshark", Tab: "t3"}, {ID: "s4", Root: "/work/tomsleeps", Name: "dice wars 2", Named: true, Tab: "t6", Front: true}},
+		Panes: []contract.Pane{{ID: "p10", Tab: "t3", Workspace: "s3", Label: contract.MainTab, Agent: "claude"},
+			{ID: "p21", Tab: "t6", Workspace: "s4", Label: contract.MainTab, Agent: "claude", Focused: true}}}
+	job := func(id, pane string) *contract.State {
+		return &contract.State{Version: contract.StateVersion, Run: contract.Run{ID: id, CreatedAt: now.Add(-time.Hour), Orchestrator: &contract.Binding{Pane: pane}},
+			Tasks: map[string]*contract.Task{}, Attempts: map[string]*contract.Attempt{}, Questions: map[string]*contract.Question{}}
+	}
+	side := Side(contract.SideInput{Now: now, Terms: snap, Person: contract.PersonDefaults(), Projects: []contract.SideProject{
+		{Root: "/work/tomsleeps", Runs: []*contract.State{job("r1", "p1")}}, {Root: "/work/whaleshark", Runs: []*contract.State{job("r7", "p10")}}}})
+	if got := strings.Join(names(side.Rows), ", "); got != contract.MainTab || side.Rows[0].Kind != contract.RowTab || side.Rows[0].Tab != "t6" || !side.Rows[0].Front {
+		t.Errorf("dice wars 2 reads %q: %+v", got, side.Rows)
+	}
+	if side.Title != "dice wars 2" || side.Job != contract.JobOpenHere || side.Workspaces[1].Agents != 1 {
+		t.Errorf("the job of a gone lead: title %q, job %q, %+v", side.Title, side.Job, side.Workspaces)
+	}
+}
