@@ -1,8 +1,9 @@
 // Command release makes a release's files from the commit it is run in, the
-// same bytes every time: the program for five systems, install.sh with the
-// version and the release key filled in, the list of their checksums, and
-// the same files packed for apt, Homebrew and winget. It signs nothing and
-// publishes nothing. Run it from the top of the repository:
+// same bytes every time: the program for five systems, install.sh and
+// install.ps1 with the version and the release key filled in, the list of
+// their checksums, and the same files packed for apt, Homebrew and winget.
+// It signs nothing and publishes nothing. Run it from the top of the
+// repository:
 //
 //	go run ./build/release -version 1.2.3
 //
@@ -31,11 +32,14 @@ const (
 )
 
 var (
-	notices   = []string{"LICENSE", "NOTICE"}
-	targets   = []string{"darwin-arm64", "darwin-amd64", "linux-amd64", "linux-arm64", "windows-amd64"}
-	versionRE = regexp.MustCompile(`^\d+\.\d+\.\d+(-[0-9a-z.]+)?$`)
-	signerRE  = regexp.MustCompile(`^release namespaces="file" [a-z0-9@.-]+ [A-Za-z0-9+/=]+$`)
-	pinRE     = regexp.MustCompile(`^[0-9A-Za-z.~+:-]*$`)
+	notices = []string{"LICENSE", "NOTICE"}
+	// installers are the one-line installs a release carries: one for
+	// macOS and Linux, one for Windows.
+	installers = []string{"install.sh", "install.ps1"}
+	targets    = []string{"darwin-arm64", "darwin-amd64", "linux-amd64", "linux-arm64", "windows-amd64"}
+	versionRE  = regexp.MustCompile(`^\d+\.\d+\.\d+(-[0-9a-z.]+)?$`)
+	signerRE   = regexp.MustCompile(`^release namespaces="file" [a-z0-9@.-]+ [A-Za-z0-9+/=]+$`)
+	pinRE      = regexp.MustCompile(`^[0-9A-Za-z.~+:-]*$`)
 )
 
 type release struct {
@@ -88,12 +92,14 @@ func run(args []string) error {
 	if r.when, err = when(root); err != nil {
 		return err
 	}
-	installer, server, err := r.scripts()
+	scripts, err := r.scripts()
 	if err != nil {
 		return err
 	}
-	if err := r.put("install.sh", []byte(installer), 0o644); err != nil {
-		return err
+	for _, name := range installers {
+		if err := r.put(name, []byte(scripts[name]), 0o644); err != nil {
+			return err
+		}
 	}
 	// The licences of what is compiled into the program go with it.
 	for _, name := range notices {
@@ -105,7 +111,7 @@ func run(args []string) error {
 			return err
 		}
 	}
-	if err := r.compile(installer, server); err != nil {
+	if err := r.compile(scripts); err != nil {
 		return err
 	}
 	return r.pack()
@@ -161,42 +167,46 @@ func when(root string) (time.Time, error) {
 	return time.Unix(sec, 0).UTC(), err
 }
 
-// scripts gives the two shell scripts with the release's values in them. A
-// line that is not there exactly once fails the release: a script that
-// changed must not ship unfilled. The root script's test folder goes too.
-func (r *release) scripts() (installer, server string, err error) {
+// scripts gives the three scripts with the release's values in them, by
+// their names: the two installers and the server's. A line that is not
+// there exactly once fails the release: a script that changed must not
+// ship unfilled. The root script's test folder goes too.
+func (r *release) scripts() (map[string]string, error) {
 	var errs []error
-	read := func(name string) string {
+	texts := map[string]string{}
+	for _, name := range append(installers, "server.sh") {
 		data, err := os.ReadFile(filepath.Join(r.root, "install", name))
 		errs = append(errs, err)
-		return string(data)
+		texts[name] = string(data)
 	}
-	stamp := func(text *string, old, new string) {
-		if strings.Count(*text, old) != 1 {
-			errs = append(errs, fmt.Errorf("the scripts do not hold the line %q once", strings.TrimSpace(old)))
+	stamp := func(name, old, new string) {
+		text := texts[name]
+		if strings.Count(text, old) != 1 {
+			errs = append(errs, fmt.Errorf("%s does not hold the line %q once", name, strings.TrimSpace(old)))
 		}
-		*text = strings.Replace(*text, old, new, 1)
+		texts[name] = strings.Replace(text, old, new, 1)
 	}
-	installer, server = read("install.sh"), read("server.sh")
-	stamp(&installer, "\nVERSION=dev\n", "\nVERSION="+r.version+"\n")
-	stamp(&installer, "\nSIGNER=''\n", "\nSIGNER='"+r.set["signer"]+"'\n")
-	stamp(&server, "\nR=${WHALESHARK_TEST_ROOT:-}\n", "\nR=\n")
-	stamp(&server, "\nCONNECTOR=''\n", "\nCONNECTOR='"+r.set["connector"]+"'\n")
-	stamp(&server, "\nCONNECTOR_KEY=''\n", "\nCONNECTOR_KEY='"+r.set["connector-key"]+"'\n")
-	return installer, server, errors.Join(errs...)
+	stamp("install.sh", "\nVERSION=dev\n", "\nVERSION="+r.version+"\n")
+	stamp("install.sh", "\nSIGNER=''\n", "\nSIGNER='"+r.set["signer"]+"'\n")
+	stamp("install.ps1", "\n$VERSION = 'dev'\n", "\n$VERSION = '"+r.version+"'\n")
+	stamp("install.ps1", "\n$SIGNER = ''\n", "\n$SIGNER = '"+r.set["signer"]+"'\n")
+	stamp("server.sh", "\nR=${WHALESHARK_TEST_ROOT:-}\n", "\nR=\n")
+	stamp("server.sh", "\nCONNECTOR=''\n", "\nCONNECTOR='"+r.set["connector"]+"'\n")
+	stamp("server.sh", "\nCONNECTOR_KEY=''\n", "\nCONNECTOR_KEY='"+r.set["connector-key"]+"'\n")
+	return texts, errors.Join(errs...)
 }
 
 // compile builds the five files with the filled-in scripts laid over the
 // tree's own, so the tree is not touched. Nothing of the machine goes in:
 // no path, no debug symbols, no word of the checkout's state.
-func (r *release) compile(installer, server string) error {
+func (r *release) compile(scripts map[string]string) error {
 	tmp, err := os.MkdirTemp("", "whaleshark-release")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
 	over := map[string]string{}
-	for name, text := range map[string]string{"install.sh": installer, "server.sh": server} {
+	for name, text := range scripts {
 		over[filepath.Join(r.root, "install", name)] = filepath.Join(tmp, name)
 		if err := os.WriteFile(filepath.Join(tmp, name), []byte(text), 0o600); err != nil {
 			return err

@@ -11,9 +11,10 @@ It writes into `dist/` (or the folder `-out` names):
 | File | What it is |
 |---|---|
 | `whaleshark-<system>-<processor>` | the program for five systems, built without debug symbols, with cgo off and with no path or name of the machine in it |
-| `install.sh` | the installer, with this version and the release key filled in |
+| `install.sh` | the installer for macOS and Linux, with this version and the release key filled in |
+| `install.ps1` | its twin for Windows, filled in the same way |
 | `LICENSE`, `NOTICE` | the licence, and the licences of the four modules compiled into the program, which ask to go with it |
-| `SHA256SUMS` | a first line `# whaleshark 1.2.3`, then the checksum of each of the eight files above. `install.sh` refuses a list whose first line names another version than its own |
+| `SHA256SUMS` | a first line `# whaleshark 1.2.3`, then the checksum of each of the nine files above. `install.sh` and `install.ps1` refuse a list whose first line names another version than its own |
 | `apt/` | a `.deb` for each of the two Linux files, the index apt reads (`dists/stable/Release`), and `whaleshark.asc`, the public half of the key that index is signed with. A package holds the program and, as `/usr/share/doc/whaleshark/copyright`, the two licence texts; it brings no script that runs at an install |
 | `brew/whaleshark.rb` | the Homebrew formula: each file's address and checksum |
 | `winget/` | the three files of a version in Windows' package list |
@@ -28,7 +29,7 @@ What that rests on: the Go that `go.mod` names and no other (the program refuses
 
 ## The two keys
 
-The **release key** is an SSH key. Its public half is the `signer` line of `settings.txt`, one allowed-signers line; `install.sh` carries that line and the README prints it. Its private half signs the list:
+The **release key** is an SSH key. Its public half is the `signer` line of `settings.txt`, one allowed-signers line; `install.sh` and `install.ps1` carry that line and the README prints it. Its private half signs the list:
 
 ```
 ssh-keygen -Y sign -f KEY -n file dist/SHA256SUMS
@@ -58,8 +59,8 @@ Neither private half is ever in the repository. `settings.txt` holds what is pub
 
 `.github/workflows/release.yml` does the above with no step written by anyone else.
 
-- **A dry run** starts by hand, or by itself when this folder or the workflow changes. Started by hand it can be told to go `without` a key for apt, as a tag does while that key does not exist. It makes two keys inside the run (one, when told `without`), builds, signs, and on macOS, Linux and Windows builds again, holds the second build against the signed list, installs from those files (`install.sh`; `apt-get` on Linux; `brew` on macOS; by hand on Windows) and runs the program. Then it changes one byte of the program and sees it refused. It publishes nothing, and its keys end with it.
-- **A tag `v1.2.3`** must name a commit of `main`: the head of `main` or one before it. A tag on a commit that is not in the history of `main` is refused by the first job in one line, "The tag names a commit that is not in the history of main.", before anything is built and before a key is handed over, so a release of an older version cannot be made from a branch of its own. Such a tag is deleted and set again on a commit of `main`. The rule is a step of the workflow file, so it holds for the commits that carry it. A tag that is let through does the same as a dry run with the real keys, and then makes a draft release holding the five files, `install.sh`, `LICENSE`, `NOTICE`, the list and its signature, and `packages.tar.gz` (the `apt`, `brew` and `winget` folders with the signed index). A person publishes the draft. `packages.tar.gz` is not named in the signed list: before its files are published anywhere, hold its `brew` and `winget` files against a build of the tag (they are the same bytes), and its apt index against its own signature.
+- **A dry run** starts by hand, or by itself when this folder or the workflow changes. Started by hand it can be told to go `without` a key for apt, as a tag does while that key does not exist. It makes two keys inside the run (one, when told `without`), builds, signs, and on macOS, Linux and Windows builds again, holds the second build against the signed list, installs from those files (`install.sh`; `apt-get` on Linux; `brew` on macOS; `install.ps1` on Windows, in Windows PowerShell 5.1 and then PowerShell 7) and runs the program. Then it changes one byte of the program and sees it refused. It publishes nothing, and its keys end with it.
+- **A tag `v1.2.3`** must name a commit of `main`: the head of `main` or one before it. A tag on a commit that is not in the history of `main` is refused by the first job in one line, "The tag names a commit that is not in the history of main.", before anything is built and before a key is handed over, so a release of an older version cannot be made from a branch of its own. Such a tag is deleted and set again on a commit of `main`. The rule is a step of the workflow file, so it holds for the commits that carry it. A tag that is let through does the same as a dry run with the real keys, and then makes a draft release holding the five files, `install.sh`, `install.ps1`, `LICENSE`, `NOTICE`, the list and its signature, and `packages.tar.gz` (the `apt`, `brew` and `winget` folders with the signed index). A person publishes the draft. `packages.tar.gz` is not named in the signed list: before its files are published anywhere, hold its `brew` and `winget` files against a build of the tag (they are the same bytes), and its apt index against its own signature.
 
 The real keys are two secrets, `RELEASE_KEY` and `APT_KEY`, of an environment named `release`, which lets only tags `v*` through and asks a person each time. The job that reads them can write nothing to the repository, and is handed them in one step, its last, after everything it fetched and built has run; the job that writes the draft holds no key and is handed the right to write in one step, its last; no file passes between them, only the two signatures, and each job builds the files again and holds them against what was signed. Before approving a tag's run, look at which commit the tag names: the run uses the workflow file of that commit, which the rule above holds to the history of `main` and not to its head.
 

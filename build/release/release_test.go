@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -104,8 +105,8 @@ func TestTheFormulaAndWingetNameAddressAndChecksum(t *testing.T) {
 			t.Errorf("%s: its address or checksum is missing:\n%s", name, text)
 		}
 	}
-	if len(files) != 19 {
-		t.Errorf("%d files, want 19: six, the two licence texts, the list, two packages, three of the index, the key apt is given, one formula, three for winget", len(files))
+	if len(files) != 20 {
+		t.Errorf("%d files, want 20: seven, the two licence texts, the list, two packages, three of the index, the key apt is given, one formula, three for winget", len(files))
 	}
 }
 
@@ -122,22 +123,45 @@ func TestASecondPackingGivesTheSameBytes(t *testing.T) {
 func TestTheScriptsAreFilledIn(t *testing.T) {
 	r, _ := made(t)
 	r.set["connector"] = "2026.1.0"
-	installer, server, err := r.scripts()
+	scripts, err := r.scripts()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for text, lines := range map[string][]string{
-		installer: {"\nVERSION=1.2.3-rc.1\n", "\nSIGNER='" + testSigner + "'\n"},
-		server:    {"\nR=\n", "\nCONNECTOR='2026.1.0'\n", "\nCONNECTOR_KEY=''\n"},
+	for name, lines := range map[string][]string{
+		"install.sh":  {"\nVERSION=1.2.3-rc.1\n", "\nSIGNER='" + testSigner + "'\n"},
+		"install.ps1": {"\n$VERSION = '1.2.3-rc.1'\n", "\n$SIGNER = '" + testSigner + "'\n"},
+		"server.sh":   {"\nR=\n", "\nCONNECTOR='2026.1.0'\n", "\nCONNECTOR_KEY=''\n"},
 	} {
 		for _, line := range lines {
-			if !strings.Contains(text, line) {
-				t.Errorf("a script lacks the line %q", line)
+			if !strings.Contains(scripts[name], line) {
+				t.Errorf("%s lacks the line %q", name, line)
 			}
 		}
 	}
-	if strings.Contains(installer+server, "VERSION=dev") || strings.Contains(server, "WHALESHARK_TEST_ROOT") {
+	if len(scripts) != 3 || strings.Contains(scripts["install.sh"]+scripts["server.sh"], "VERSION=dev") ||
+		strings.Contains(scripts["install.ps1"], "$VERSION = 'dev'") || strings.Contains(scripts["server.sh"], "WHALESHARK_TEST_ROOT") {
 		t.Error("a script still holds what a release takes out")
+	}
+}
+
+// The Windows installer goes everywhere install.sh goes: a run writes
+// each of the installers filled in, and the signed list names each.
+func TestBothInstallersAreFilledAndListed(t *testing.T) {
+	r, files := made(t)
+	if !slices.Equal(installers, []string{"install.sh", "install.ps1"}) {
+		t.Errorf("the installers a run writes are %q", installers)
+	}
+	scripts, err := r.scripts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range installers {
+		if !strings.Contains(files["SHA256SUMS"], sum([]byte("the file "+name))+"  "+name+"\n") {
+			t.Errorf("the signed list has no line for %s", name)
+		}
+		if !strings.Contains(scripts[name], "'"+testSigner+"'") || !strings.Contains(scripts[name], "1.2.3-rc.1") {
+			t.Errorf("%s is not filled in with the release key and version", name)
+		}
 	}
 }
 

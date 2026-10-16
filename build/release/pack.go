@@ -50,9 +50,9 @@ func (r *release) pack() error {
 	return nil
 }
 
-// listed is every file the signed list names: the five programs, the
-// installer and the two texts of the licences.
-func listed() []string { return append(append(names(), "install.sh"), notices...) }
+// listed is every file the signed list names: the five programs, the two
+// installers and the two texts of the licences.
+func listed() []string { return append(append(names(), installers...), notices...) }
 
 func names() []string {
 	var all []string

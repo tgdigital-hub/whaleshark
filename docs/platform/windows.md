@@ -76,8 +76,8 @@ For one person at one Windows 10 or 11 PC, about an hour. Tick each box or write
 
 ### 1. Getting the program
 
-- [ ] Download `whaleshark-windows-amd64.exe` and the checksum list from the release; `Get-FileHash` gives the list's checksum for it.
-- [ ] Put it in a folder on your PATH as `whaleshark.exe`. Write down what SmartScreen and the antivirus said when it first ran, in their own words, and what you had to click.
+- [ ] In PowerShell: `irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex`. It checks the signed list and the file, puts it at `%LOCALAPPDATA%\Programs\whaleshark\whaleshark.exe` and that folder on your PATH, and prints the release key's fingerprint: compare it with the README's. Write down everything it said that was not that.
+- [ ] Open a new terminal. Write down what SmartScreen and the antivirus said when it first ran, in their own words, and what you had to click.
 - [ ] `whaleshark version` answers in well under a second.
 - [ ] `whaleshark doctor` prints one line per check and no line you do not understand. Write down every line that is not "ok".
 - [ ] If winget carries it by then: `winget install WhaleShark.WhaleShark` in place of the download, then the same three checks.

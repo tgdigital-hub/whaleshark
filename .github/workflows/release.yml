@@ -104,8 +104,10 @@ jobs:
             [ -z "$APT_KEY" ] || printf '%s\n' "$APT_KEY" | gpg --batch --import
           fi
           ssh-keygen -q -Y sign -f "$RUNNER_TEMP/key" -n file dist/SHA256SUMS
-          # The signature must answer to the line install.sh carries.
+          # The signature must answer to the line install.sh carries, and
+          # install.ps1 must carry the same line.
           sed -n "s/^SIGNER='\(.*\)'$/\1/p" dist/install.sh > "$RUNNER_TEMP/signers"
+          sed -n "s/^[$]SIGNER = '\(.*\)'$/\1/p" dist/install.ps1 | cmp - "$RUNNER_TEMP/signers"
           ssh-keygen -Y verify -f "$RUNNER_TEMP/signers" -I release -n file -s dist/SHA256SUMS.sig < dist/SHA256SUMS
           {
             echo "signer=$(cat "$RUNNER_TEMP/signers")"
@@ -178,13 +180,15 @@ jobs:
           mkdir "$HOME"
           sh dist/install.sh --from dist
           "$HOME/.local/bin/whaleshark" version | grep -F "whaleshark ${TAG#v} "
-      - name: On Windows the signature and the checksum are checked by hand, and it runs
+      - name: install.ps1 installs it for one login, in both PowerShells, and it runs
         if: runner.os == 'Windows'
         run: |
-          sed -n "s/^SIGNER='\(.*\)'$/\1/p" dist/install.sh > "$RUNNER_TEMP/signers"
-          ssh-keygen -Y verify -f "$RUNNER_TEMP/signers" -I release -n file -s dist/SHA256SUMS.sig < dist/SHA256SUMS
-          (cd dist && sha256sum -c SHA256SUMS)
-          dist/whaleshark-windows-amd64.exe version | grep -F "whaleshark ${TAG#v} "
+          # Windows PowerShell 5.1 first, then PowerShell 7 over it, as an
+          # upgrade is.
+          export LOCALAPPDATA=$(cygpath -w "$RUNNER_TEMP/local")
+          powershell -NoProfile -ExecutionPolicy Bypass -File dist/install.ps1 -From dist
+          pwsh -NoProfile -ExecutionPolicy Bypass -File dist/install.ps1 -From dist
+          "$RUNNER_TEMP/local/Programs/whaleshark/whaleshark.exe" version | grep -F "whaleshark ${TAG#v} "
           if command -v winget >/dev/null; then
             winget validate --manifest dist/winget --disable-interactivity
           else
@@ -222,7 +226,8 @@ jobs:
           export HOME="$RUNNER_TEMP/second-home"
           mkdir "$HOME"
           if [ "$RUNNER_OS" = Windows ]; then
-            (cd dist && sha256sum -c SHA256SUMS) || exit 0
+            LOCALAPPDATA=$(cygpath -w "$RUNNER_TEMP/second-local") powershell -NoProfile -ExecutionPolicy Bypass -File dist/install.ps1 -From dist ||
+              [ -e "$RUNNER_TEMP/second-local/Programs/whaleshark/whaleshark.exe" ] || exit 0
           else
             sh dist/install.sh --from dist || [ -e "$HOME/.local/bin/whaleshark" ] || exit 0
           fi
@@ -279,8 +284,8 @@ jobs:
           fi
           tar -czf packages.tar.gz -C dist $folders
           gh release create "$TAG" --draft --verify-tag --title "$TAG" --notes "" \
-            dist/whaleshark-* dist/install.sh dist/LICENSE dist/NOTICE dist/SHA256SUMS dist/SHA256SUMS.sig packages.tar.gz
-          gh release download "$TAG" -D back -p 'whaleshark-*' -p install.sh -p LICENSE -p NOTICE -p 'SHA256SUMS*'
+            dist/whaleshark-* dist/install.sh dist/install.ps1 dist/LICENSE dist/NOTICE dist/SHA256SUMS dist/SHA256SUMS.sig packages.tar.gz
+          gh release download "$TAG" -D back -p 'whaleshark-*' -p install.sh -p install.ps1 -p LICENSE -p NOTICE -p 'SHA256SUMS*'
           (cd back && sha256sum -c SHA256SUMS)
           cmp back/SHA256SUMS dist/SHA256SUMS
           cmp back/SHA256SUMS.sig dist/SHA256SUMS.sig

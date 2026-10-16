@@ -43,3 +43,10 @@ var Server string
 
 //go:embed install.sh
 var Installer string
+
+// WindowsInstaller is install.ps1, install.sh's twin for one Windows login,
+// run as `irm .../install.ps1 | iex` or with -From DIR. It is here, as
+// Installer is, for this package's tests.
+//
+//go:embed install.ps1
+var WindowsInstaller string

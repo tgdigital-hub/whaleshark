@@ -154,7 +154,15 @@ sudo apt-get update && sudo apt-get install whaleshark
 winget install whaleshark
 ```
 
-Until winget has the package, Windows has no install line: take `whaleshark-windows-amd64.exe` and the signed list from the release page, check them by hand (`ssh-keygen -Y verify` as `build/release/README.md` shows, then the file's checksum against the list), and put the file on your `PATH` as `whaleshark.exe`; or build it. Typed commands work in `cmd`, both PowerShells and git's bash.
+Until winget has the package, one line in PowerShell (Windows PowerShell 5.1 or PowerShell 7):
+
+```
+irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex
+```
+
+or, for one version: `irm https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.ps1 | iex`. From `cmd`: `powershell -c "irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex"`. With the release's files already in a folder: `powershell -ExecutionPolicy Bypass -File install.ps1 -From DIR`.
+
+`install.ps1` is the twin of `install.sh` below and makes the same checks with the same key, using the `ssh-keygen` of the OpenSSH client that Windows 10 and 11 ship (where it is missing, it says how to add it). It needs no administrator, puts the program at `%LOCALAPPDATA%\Programs\whaleshark\whaleshark.exe`, adds that folder to your login's `PATH` once, and takes off the mark Windows puts on a downloaded file. Then open a new terminal and type `whaleshark`. Typed commands work in `cmd`, both PowerShells and git's bash.
 
 `install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks that the list is the one of its own version (its first line says which), checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it says so. It prints the key's fingerprint; compare it with the one printed here (the script itself is the one file nothing checks before it runs; [docs/protection.md](docs/protection.md) shows how to check it by hand first):
 
