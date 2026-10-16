@@ -4,6 +4,20 @@ WhaleShark (`whaleshark`) is a small command-line tool for running a team of cod
 
 It is one program file with its own terminal engine. There is no desktop app, no service of ours on the internet, no telemetry and **no account**: WhaleShark never asks you to sign in. Your agent tool (Claude Code is the one it knows well) asks for its own sign-in.
 
+## Install in one line
+
+```
+# macOS, in Terminal
+curl -fsSL https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.sh | sh
+# Linux
+curl -fsSL https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.sh | sh
+# Windows, in PowerShell (the second line is the same from cmd)
+irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex
+powershell -c "irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex"
+```
+
+Then open a new terminal and type `whaleshark`. Homebrew, apt, winget, one fixed version and checking the files by hand are under [Install](#install). There is no release yet: see [Status](#status-not-released).
+
 ## How it works
 
 ### What you type first
@@ -136,7 +150,13 @@ Each system's package manager, or one line that needs none. All of them carry th
 brew install tgdigital-hub/whaleshark/whaleshark
 ```
 
-or: `curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh && sh install.sh`
+or, with nothing but `curl` (on any Linux too):
+
+```
+curl -fsSL https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.sh | sh
+```
+
+or, for one version: `curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh && sh install.sh`. With the release's files already in a folder: `sh install.sh --from DIR`.
 
 **Debian and Ubuntu**: the first install is three lines (the key, the source, the install), because the machine must first be told of our repository and its key.
 
@@ -146,7 +166,7 @@ echo "deb [signed-by=/etc/apt/keyrings/whaleshark.asc] https://APT-ADDRESS stabl
 sudo apt-get update && sudo apt-get install whaleshark
 ```
 
-`APT-ADDRESS` is not chosen yet: until the repository is served somewhere, these three lines stay as they will read, and a release carries the same folder, key and all, in its `packages.tar.gz`. The key's fingerprint is `F997 9264 BFC0 FF2F CD5D 803E 6472 B33B 2405 C475`; `gpg --show-keys whaleshark.asc` prints it. Or, on any Linux: the `curl ... && sh install.sh` line above.
+`APT-ADDRESS` is not chosen yet: until the repository is served somewhere, these three lines stay as they will read, and a release carries the same folder, key and all, in its `packages.tar.gz`. The key's fingerprint is `F997 9264 BFC0 FF2F CD5D 803E 6472 B33B 2405 C475`; `gpg --show-keys whaleshark.asc` prints it. Or, on any Linux: the `curl ... | sh` line above.
 
 **Windows**
 
@@ -164,7 +184,7 @@ or, for one version: `irm https://github.com/tgdigital-hub/whaleshark/releases/d
 
 `install.ps1` is the twin of `install.sh` below and makes the same checks with the same key, using the `ssh-keygen` of the OpenSSH client that Windows 10 and 11 ship (where it is missing, it says how to add it). It needs no administrator, puts the program at `%LOCALAPPDATA%\Programs\whaleshark\whaleshark.exe`, adds that folder to your login's `PATH` once, and takes off the mark Windows puts on a downloaded file. Then open a new terminal and type `whaleshark`. Typed commands work in `cmd`, both PowerShells and git's bash.
 
-`install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks that the list is the one of its own version (its first line says which), checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it says so. It prints the key's fingerprint; compare it with the one printed here (the script itself is the one file nothing checks before it runs; [docs/protection.md](docs/protection.md) shows how to check it by hand first):
+`install.sh` needs no root and runs nothing it fetched. It takes the file for your system and the release's signed list of checksums, checks the list's signature against the release key it carries, checks that the list is the one of its own version (its first line says which), checks the file against the list, and only then puts the program in `~/.local/bin`. Where that folder is not on your `PATH`, it adds one line for it, once, to the start files of your login's shell (zsh: `~/.zprofile` and `~/.zshrc`; bash: `~/.bash_profile`, or `~/.profile` where there is none, and `~/.bashrc`; fish: `fish_add_path`; any other: `~/.profile`), says which, and tells you to open a new terminal. Running it again upgrades the program in place and changes no start file. It prints the key's fingerprint; compare it with the one printed here (the script itself is the one file nothing checks before it runs; [docs/protection.md](docs/protection.md) shows how to check it by hand first):
 
 ```
 SHA256:P0bN9YsEy+jMZIIPiVGKVIsbVEOi7FQ/W0k7iwRTlRE
@@ -187,18 +207,19 @@ The first worker started in a project you have never opened in Claude Code stops
 
 ## A server for several people
 
-One Linux machine (Ubuntu 24.04 or Debian 12), one install, a login of the operating system for each person, and one administrator login that runs no agents. Five lines, and no shorter form: three on the server as the login your provider gave you, two **from your own computer**.
+One Linux machine (Ubuntu 24.04 or Debian 12), one install, a login of the operating system for each person, and one administrator login that runs no agents. Four lines, and no shorter form: two on the server as the login your provider gave you, two **from your own computer**.
 
 ```
 # on the server
-curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh
-sh install.sh
+curl -fsSL https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.sh | sh
 sudo ~/.local/bin/whaleshark server setup --admin ops
 
 # from your own computer
 ssh ops@SERVER sudo whaleshark server harden
 ssh ops@SERVER sudo whaleshark server add --user ana
 ```
+
+For one fixed version, the first line is `curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh && sh install.sh`.
 
 `server harden` closes the old doors (passwords, root login), and it runs only for someone who has just come in by the new one, so a wrong key locks nobody out. Then `sudo whaleshark doctor --server` proves the machine line by line. [docs/server.md](docs/server.md) says what each line does, how to connect from your computer, and what one person can see of another.
 

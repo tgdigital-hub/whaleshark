@@ -178,7 +178,14 @@ jobs:
         run: |
           export HOME="$RUNNER_TEMP/home"
           mkdir "$HOME"
+          export SHELL=/bin/sh
           sh dist/install.sh --from dist
+          # Then piped to sh, as the one line runs it, over the first as an
+          # upgrade is: a new terminal finds it, and no start file changes.
+          cp "$HOME/.profile" "$RUNNER_TEMP/profile"
+          cat dist/install.sh | sh -s -- --from dist
+          cmp "$HOME/.profile" "$RUNNER_TEMP/profile"
+          (. "$HOME/.profile" && whaleshark version) | grep -F "whaleshark ${TAG#v} "
           "$HOME/.local/bin/whaleshark" version | grep -F "whaleshark ${TAG#v} "
       - name: install.ps1 installs it for one login, in both PowerShells, and it runs
         if: runner.os == 'Windows'

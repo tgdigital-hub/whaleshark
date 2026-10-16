@@ -23,7 +23,7 @@ func TestTheScriptsAreCompiledIn(t *testing.T) {
 	for _, s := range []struct {
 		name, text string
 		most       int
-	}{{"server.sh", Server, 1030}, {"install.sh", Installer, 150}} {
+	}{{"server.sh", Server, 1030}, {"install.sh", Installer, 190}} {
 		if !strings.HasPrefix(s.text, "#!/bin/sh\n") {
 			t.Errorf("%s starts with %.20q", s.name, s.text)
 		}
@@ -614,7 +614,7 @@ func TestTheInstallerRefusesATamperedRelease(t *testing.T) {
 func TestTheInstallerInstallsNothingItCouldNotCheck(t *testing.T) {
 	tools := func(without ...string) string {
 		bin := t.TempDir()
-		for _, tool := range []string{"sh", "uname", "mkdir", "mktemp", "cp", "awk", "rm", "chmod", "mv", "cat", "ssh-keygen", "sha256sum", "shasum", "xattr"} {
+		for _, tool := range []string{"sh", "uname", "mkdir", "mktemp", "cp", "awk", "rm", "chmod", "mv", "cat", "grep", "ssh-keygen", "sha256sum", "shasum", "xattr"} {
 			for _, dir := range []string{"/usr/bin", "/bin"} {
 				if _, err := os.Stat(filepath.Join(dir, tool)); err == nil && !strings.Contains(strings.Join(without, " "), tool) {
 					os.Symlink(filepath.Join(dir, tool), filepath.Join(bin, tool))
