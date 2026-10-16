@@ -1,6 +1,9 @@
 package input
 
 import (
+	"context"
+	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -74,6 +77,7 @@ type Keys struct {
 	command string
 	after   map[string]Act
 	windows bool
+	mac     bool
 }
 
 func call(op, dir string, ratio float64) Act {
@@ -84,7 +88,7 @@ func call(op, dir string, ratio float64) Act {
 // sits at, as the window said it; it decides, where keys.style is auto,
 // whether Ctrl+C with a selection copies, which is Windows' rule alone.
 func New(s contract.Settings, system string) *Keys {
-	k := &Keys{command: canon(s.Keys.Command), windows: s.Keys.Style == "windows" || s.Keys.Style == "auto" && system == "windows"}
+	k := &Keys{command: canon(s.Keys.Command), windows: s.Keys.Style == "windows" || s.Keys.Style == "auto" && system == "windows", mac: system == "darwin"}
 	k.after = map[string]Act{
 		"t": call(contract.OpTabCreate, "", 0), "w": call(contract.OpPaneClose, "", 0),
 		"r": call(contract.OpSplit, contract.Right, 0.5), "d": call(contract.OpSplit, contract.Down, 0.5),
@@ -175,6 +179,11 @@ func (in *In) Take(ev term.Event, v View) []Act {
 		// Pasted text is never a key: after the command key it is no
 		// shortcut, and the key waits no longer.
 		in.Armed = false
+		if ev.Text == "" && in.Keys.mac && Picture() {
+			// Command-V of a picture: the terminal pastes nothing, and an
+			// agent reads the picture itself on its own key, Control-V.
+			return typed(keys, "\x16")
+		}
 		return typed(keys, Paste(ev.Text, modes(keys)))
 	case term.Focus:
 		return typed(keys, Focus(ev.Focused, modes(keys)))
@@ -182,6 +191,20 @@ func (in *In) Take(ev term.Event, v View) []Act {
 		return in.mouse(ev, v, keys, modes)
 	}
 	return nil
+}
+
+// Picture reports that the clipboard of a Mac holds a picture and no text,
+// by the names of what it holds, which is quick: the picture is not read. A
+// test replaces it, or it reads the clipboard of whoever runs it.
+var Picture = func() bool {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "osascript", "-l", "JavaScript", "-e",
+		`ObjC.import("AppKit"); ObjC.deepUnwrap($.NSPasteboard.generalPasteboard.types).join("\n")`).Output()
+	held := strings.Split(string(out), "\n")
+	return err == nil && !slices.Contains(held, "public.utf8-plain-text") && slices.ContainsFunc(held, func(t string) bool {
+		return slices.Contains([]string{"public.png", "public.tiff", "public.jpeg", "com.compuserve.gif", "public.heic"}, t)
+	})
 }
 
 // shortcut says what a key does when it is the engine's and not a program's.

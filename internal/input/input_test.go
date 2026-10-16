@@ -20,6 +20,9 @@ import (
 
 var update = flag.Bool("update", false, "write the files the table is compared with")
 
+// No test reads the clipboard of whoever runs it: it holds no picture.
+func init() { Picture = func() bool { return false } }
+
 // What the program in every pane asked for, in each file of the table.
 var tableModes = []struct {
 	name string
@@ -536,6 +539,37 @@ func TestCommandV(t *testing.T) {
 		v := View{Lay: fixture(), Modes: all(c.m)}
 		if got := shown(take(&in, v, c.bytes)); got != c.want || in.Armed {
 			t.Errorf("%s %.40q (marks %v): %.80s (armed %v)", c.system, c.bytes, c.m.Paste, got, in.Armed)
+		}
+	}
+}
+
+// Command-V with a picture alone on the clipboard: the terminal pastes
+// nothing, and the agent is sent Control-V, its key to read the picture,
+// with marks or without, also right after the command key. A paste of text
+// is the paste it was, and where the system is not a Mac, or the clipboard
+// holds no picture, an empty paste is passed on as before.
+func TestCommandVOfAPicture(t *testing.T) {
+	defer func() { Picture = func() bool { return false } }()
+	marked, plain := screen.Modes{Paste: true}, screen.Modes{}
+	for _, c := range []struct {
+		system, bytes string
+		picture       bool
+		m             screen.Modes
+		want          string
+	}{
+		{"darwin", "\x1b[200~\x1b[201~", true, marked, `p1 <- "\x16"`},
+		{"darwin", "\x1b[200~\x1b[201~", true, plain, `p1 <- "\x16"`},
+		{"darwin", "\x00\x1b[200~\x1b[201~", true, marked, `p1 <- "\x16"`},
+		{"darwin", "\x1b[200~hello\x1b[201~", true, marked, `p1 <- "\x1b[200~hello\x1b[201~"`},
+		{"darwin", "\x1b[200~\x1b[201~", false, marked, `p1 <- "\x1b[200~\x1b[201~"`},
+		{"linux", "\x1b[200~\x1b[201~", true, marked, `p1 <- "\x1b[200~\x1b[201~"`},
+		{"", "\x1b[200~\x1b[201~", true, plain, "nothing"},
+	} {
+		Picture = func() bool { return c.picture }
+		in := In{Keys: New(settings(), c.system)}
+		v := View{Lay: fixture(), Modes: all(c.m)}
+		if got := shown(take(&in, v, c.bytes)); got != c.want || in.Armed {
+			t.Errorf("%q %q, picture %v (marks %v): %.80s (armed %v)", c.system, c.bytes, c.picture, c.m.Paste, got, in.Armed)
 		}
 	}
 }
