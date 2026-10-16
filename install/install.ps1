@@ -32,6 +32,7 @@ $SIGNER = ''
 		die 'ssh-keygen is missing; it comes with the OpenSSH client of Windows. Add it in Settings > System > Optional features > OpenSSH Client, then open a new terminal and run this again'
 	}
 	$keygen = $keygen.Path
+	if (-not $env:ComSpec) { die 'ComSpec is not set, so there is no cmd to hand ssh-keygen the signed list' }
 	if ($env:PROCESSOR_ARCHITECTURE -eq 'x86' -and -not $env:PROCESSOR_ARCHITEW6432) { die 'no release for 32-bit Windows' }
 	if (-not $env:LOCALAPPDATA) { die 'LOCALAPPDATA is not set, so there is no place for the program' }
 	if ($From) {
@@ -62,22 +63,21 @@ $SIGNER = ''
 		}
 		$list = Join-Path $work 'SHA256SUMS'
 
-		# ssh-keygen reads the signed bytes on its standard input, which
-		# PowerShell cannot hand a program unchanged; .NET can.
+		# ssh-keygen reads the signed bytes on its standard input, which must
+		# be the file itself. No pipe of PowerShell's or of .NET's gives that:
+		# where the console's code page is UTF-8, Windows PowerShell's .NET
+		# puts a byte-order mark first. cmd's < hands over the file, as sh's.
 		$signers = Join-Path $work 'signers'
 		[IO.File]::WriteAllText($signers, $SIGNER + "`n")
+		$words = @($keygen, '-Y', 'verify', '-f', $signers, '-I', 'release', '-n', 'file', '-s', "$list.sig") | ForEach-Object { '"' + $_ + '"' }
 		$p = New-Object Diagnostics.Process
-		$p.StartInfo.FileName = $keygen
-		$p.StartInfo.Arguments = (@('-Y', 'verify', '-f', $signers, '-I', 'release', '-n', 'file', '-s', "$list.sig") | ForEach-Object { '"' + $_ + '"' }) -join ' '
+		$p.StartInfo.FileName = $env:ComSpec
+		$p.StartInfo.Arguments = '/d /c "' + ($words -join ' ') + ' <"' + $list + '""'
 		$p.StartInfo.UseShellExecute = $false
-		$p.StartInfo.RedirectStandardInput = $true
 		$p.StartInfo.RedirectStandardOutput = $true
 		$p.StartInfo.RedirectStandardError = $true
 		[void]$p.Start()
 		$said = $p.StandardOutput.ReadToEndAsync(), $p.StandardError.ReadToEndAsync()
-		$bytes = [IO.File]::ReadAllBytes($list)
-		$p.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
-		$p.StandardInput.Close()
 		$p.WaitForExit()
 		if ($p.ExitCode -ne 0) {
 			if (($said[0].Result + $said[1].Result) -match 'unknown option|illegal option|usage:') {

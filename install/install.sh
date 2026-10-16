@@ -1,22 +1,16 @@
 #!/bin/sh
 # WhaleShark's installer for one login. It needs no root and runs nothing it
-# fetched: it takes the program file for this system and the release's signed
-# list, checks the list's signature against the key below, checks the file
-# against the list, and only then renames the file into place.
+# fetched: it checks the release's signed list against the key below, the
+# program file against the list, and only then renames the file into place.
 #
 #   curl -fsSL https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.sh | sh
 #   sh install.sh                the release this script belongs to
 #   sh install.sh --from DIR     the same checks on the release files in DIR
 #
-# Piped to sh it reads nothing of itself and nothing from its input: all of
-# it is one function, called on the last line, so a download cut short runs
-# nothing. Where ~/.local/bin is not on PATH, one line for it goes into the
-# start files of the login's shell, once; running it again only upgrades.
-#
-# A release is: whaleshark-<system>-<processor> for each system, SHA256SUMS
-# with a line for each of them and "# whaleshark <version>", and
-# SHA256SUMS.sig, made with `ssh-keygen -Y sign -n file`. The release fills
-# in the two lines below.
+# Piped to sh it reads nothing from its input, and all of it is one function
+# called on the last line, so a download cut short runs nothing. Where
+# ~/.local/bin is not on PATH, the login's shell gets one line for it in its
+# start files, once. The release fills in the two lines below.
 set -eu
 
 VERSION=dev
@@ -27,13 +21,11 @@ SITE=https://github.com/tgdigital-hub/whaleshark/releases/download
 DEST=${HOME:?}/.local/bin
 # The line a start file gets, and the mark by which a second run knows it.
 MARK='# added by whaleshark install.sh'
+# shellcheck disable=SC2016 # the start file expands it, not this script
 LINE='case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) PATH="$HOME/.local/bin:$PATH"; export PATH ;; esac '$MARK
 
 say() { printf '%s\n' "$*"; }
-die() {
-	say "install: $*" >&2
-	exit 1
-}
+die() { say "install: $*" >&2; exit 1; }
 
 # addline puts LINE at the end of the start file $1, unless it is there.
 addline() {
@@ -49,8 +41,7 @@ addline() {
 # onpath makes a new terminal find the program, for the login's own shell.
 onpath() {
 	case :$PATH: in *:"$DEST":*) return 0 ;; esac
-	added=
-	shell=${SHELL:-sh}
+	added='' shell=${SHELL:-sh}
 	case ${shell##*/} in
 	zsh)
 		# A Mac's terminal starts a login shell, which reads both.
@@ -59,42 +50,24 @@ onpath() {
 		;;
 	bash)
 		# A login shell reads the first of these three that is there.
-		if [ -f "$HOME/.bash_profile" ]; then
-			addline "$HOME/.bash_profile"
-		elif [ -f "$HOME/.bash_login" ]; then
-			addline "$HOME/.bash_login"
-		else
-			addline "$HOME/.profile"
-		fi
+		f=.profile
+		[ ! -f "$HOME/.bash_login" ] || f=.bash_login
+		[ ! -f "$HOME/.bash_profile" ] || f=.bash_profile
+		addline "$HOME/$f"
 		addline "$HOME/.bashrc"
 		;;
-	fish)
-		if WS_DEST=$DEST fish -c 'contains -- $WS_DEST $fish_user_paths' </dev/null; then
-			:
-		elif WS_DEST=$DEST fish -c 'fish_add_path -U -- $WS_DEST' </dev/null; then
-			say "added $DEST to fish's PATH with fish_add_path"
-			added=1
-		else
-			say "could not run fish_add_path: add $DEST to PATH yourself"
-		fi
-		;;
+	fish | csh | tcsh) say "add $DEST to PATH yourself: $shell reads no line of sh" ;;
 	*) addline "$HOME/.profile" ;;
 	esac
 	[ -z "$added" ] || say "Open a new terminal, so that it finds whaleshark."
 }
 
 main() {
-	from=
-	while [ $# -gt 0 ]; do
-		case $1 in
-		--from)
-			[ $# -ge 2 ] || die "--from needs a folder"
-			from=$2
-			shift 2
-			;;
-		*) die "usage: sh install.sh [--from DIR]" ;;
-		esac
-	done
+	case $#:${1:-} in
+	0:) from= ;;
+	2:--from) from=$2 ;;
+	*) die "usage: sh install.sh [--from DIR]" ;;
+	esac
 
 	[ -n "$SIGNER" ] || die "this copy carries no release key: take install.sh from a release"
 	[ -n "$from" ] || [ "$VERSION" != dev ] || die "this copy names no release: take install.sh from a release, or give --from DIR"
@@ -112,8 +85,8 @@ main() {
 	esac
 	file=whaleshark-$os-$arch
 
-	# The work folder lies beside the program's place, private to this login, so
-	# that the last step is a rename and nothing is ever in a shared temp folder.
+	# The work folder lies beside the program's place, private to this login,
+	# so that the last step is a rename.
 	mkdir -p "$DEST"
 	# mv would put the file inside a folder of that name and say nothing.
 	[ ! -d "$DEST/whaleshark" ] || die "$DEST/whaleshark is a folder, where the program goes; nothing was installed"
@@ -139,11 +112,7 @@ main() {
 	[ "$VERSION" = dev ] || grep -qxF "# whaleshark $VERSION" "$work/SHA256SUMS" ||
 		die "the signed list is not version $VERSION's; nothing was installed"
 
-	if command -v sha256sum >/dev/null; then
-		sum=$(sha256sum "$work/$file")
-	else
-		sum=$(shasum -a 256 "$work/$file")
-	fi
+	sum=$(sha256sum "$work/$file" 2>/dev/null || shasum -a 256 "$work/$file")
 	want=$(awk -v f="$file" '$2 == f || $2 == "*" f { print $1 }' "$work/SHA256SUMS")
 	[ -n "$want" ] || die "the signed list has no line for $file"
 	[ "${sum%% *}" = "$want" ] || die "$file is not the file the release signed; nothing was installed"

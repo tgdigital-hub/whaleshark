@@ -72,15 +72,8 @@ TUNNEL=whaleshark-tunnel
 CF=$ETC/cloudflared
 
 say() { printf '%s\n' "$*"; }
-die() {
-	say "server: $*" >&2
-	exit 1
-}
-number() {
-	case $1 in
-	"" | *[!0-9]*) return 1 ;;
-	esac
-}
+die() { say "server: $*" >&2; exit 1; }
+number() { case $1 in "" | *[!0-9]*) return 1 ;; esac; }
 name() { # name WHAT VALUE: a login's name as every system here takes it
 	case $2 in
 	"" | [!a-z_]* | *[!a-z0-9_-]*) die "$1 must be a login's name: small letters, digits, - and _" ;;
@@ -90,9 +83,7 @@ name() { # name WHAT VALUE: a login's name as every system here takes it
 home_of() { getent passwd "$1" | cut -d: -f6; }
 installed() { dpkg -s "$1" 2>/dev/null | grep -q '^Status:.* ok installed'; }
 of() { # of LOGIN ...: systemctl for that login's own services
-	owner=$1
-	shift
-	systemctl --user -M "$owner@" "$@"
+	owner=$1; shift; systemctl --user -M "$owner@" "$@"
 }
 
 # put FILE MODE: standard input becomes FILE, by a rename. It fails when
@@ -586,10 +577,7 @@ untunnel() {
 # connection open to somebody else's network; it says so first.
 tunnel() {
 	team=${1:-} off=${2:-}
-	if [ -n "$off" ]; then
-		untunnel
-		return 0
-	fi
+	[ -z "$off" ] || { untunnel; return 0; }
 	case $team in
 	"" | *[!a-z0-9-]*) die "$team is not a team name at Cloudflare: the first part of <team>.cloudflareaccess.com" ;;
 	esac
@@ -754,10 +742,7 @@ BIN=$R/usr/local/bin/whaleshark
 [ -z "$packaged" ] || BIN=$self
 
 # status changes nothing and is anybody's to ask; without root it knows less.
-if [ "$verb" = status ]; then
-	status
-	exit 0
-fi
+[ "$verb" != status ] || { status; exit 0; }
 
 # Leftovers, a fetched file or a given key, lie in a private folder of
 # root's and go when the script ends.

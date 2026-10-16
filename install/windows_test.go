@@ -44,6 +44,7 @@ func powershells(t *testing.T, try func(t *testing.T, shell string)) {
 	if runtime.GOOS != "windows" || os.Getenv("GITHUB_ACTIONS") != "true" {
 		t.Skip("NOT PROVEN HERE: install.ps1 changes the login's PATH, so it runs on a hosted Windows machine only")
 	}
+	utf8Console(t)
 	for _, name := range []string{"powershell", "pwsh"} {
 		path, err := exec.LookPath(name)
 		if err != nil && name == "powershell" {
@@ -53,6 +54,23 @@ func powershells(t *testing.T, try func(t *testing.T, shell string)) {
 			t.Run(name, func(t *testing.T) { try(t, path) })
 		}
 	}
+}
+
+// utf8Console sets this console's code page to UTF-8, 65001, for the test,
+// as the hosted machines and many Windows terminals have it. There a pipe
+// of Windows PowerShell's .NET to a program starts with a byte-order mark,
+// so a list handed to ssh-keygen that way is not the list that was signed.
+func utf8Console(t *testing.T) {
+	t.Helper()
+	out, err := exec.Command("cmd", "/d", "/c", "chcp").Output()
+	was := regexp.MustCompile(`[0-9]+`).FindString(string(out))
+	if err != nil || was == "" {
+		t.Fatalf("chcp: %v: %s", err, out)
+	}
+	if out, err := exec.Command("cmd", "/d", "/c", "chcp 65001").CombinedOutput(); err != nil {
+		t.Fatalf("chcp 65001: %v: %s", err, out)
+	}
+	t.Cleanup(func() { exec.Command("cmd", "/d", "/c", "chcp "+was).Run() })
 }
 
 // winRelease makes a folder with a made-up Windows release of the version
