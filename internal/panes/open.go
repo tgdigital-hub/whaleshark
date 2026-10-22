@@ -218,8 +218,11 @@ func cannot(format string, a ...any) *contract.Refusal {
 // Panes is the kit's Panes: it opens, closes and moves our two panes as the
 // person's layout says, beside pane or, with none named, in the tab in
 // front. A keeper out of reach, or no tab to open them in, is no error.
-func Panes(k *contract.Kit, pane string) error {
-	_, err := place(&contract.Call{Kit: k, Caller: contract.Caller{Pane: pane}, Out: io.Discard}, nil)
+func Panes(k *contract.Kit, pane string) error { return quietly(k, pane, nil) }
+
+// quietly is place as Panes asks for it, with want as place takes it.
+func quietly(k *contract.Kit, pane string, want func(kind string, open bool) bool) error {
+	_, err := place(&contract.Call{Kit: k, Caller: contract.Caller{Pane: pane}, Out: io.Discard}, want)
 	if r := new(contract.Refusal); errors.As(err, &r) && r.Code == "no_panes" {
 		return nil
 	}

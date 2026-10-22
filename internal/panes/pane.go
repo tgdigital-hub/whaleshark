@@ -142,6 +142,7 @@ type pane struct {
 	undo    func()
 	burst   bool
 	// The left section: its input and model, the folded fleets, the row acted on.
+	boarded map[string]bool // the main agents' tabs it saw and opened the fleet beside
 	in      contract.SideInput
 	bar     *contract.Side
 	shut    []string
@@ -201,7 +202,7 @@ func (p *pane) sided() bool { return p.kind == side || p.kind == offer }
 func newPane(kind string, t *term.Term, k *contract.Kit, root, run string, now func() time.Time) *pane {
 	build := func(in contract.ViewInput) contract.View { return *k.View(in) }
 	me, _ := contract.PaneOf(os.Getenv)
-	return &pane{kind: kind, t: t, k: k, root: root, run: run, anyRun: run == "" && kind != side && kind != settings && kind != offer, seek: true, now: now, make: build, heard: make(chan news), me: me,
+	return &pane{kind: kind, t: t, k: k, root: root, run: run, anyRun: run == "" && kind != side && kind != settings && kind != offer, seek: true, now: now, make: build, heard: make(chan news), me: me, boarded: map[string]bool{},
 		scheme: theme.Schemes[0], plainMarks: contract.PlainMarks(os.Getenv), px: -1, py: -1, lit: -1, saw: -1, stale: true, dirty: true}
 }
 
@@ -403,6 +404,8 @@ func (p *pane) tick(n int) {
 		if p.refit--; p.refit == 0 {
 			p.keeper(func() error { return refit(p.k) })
 		}
+	} else if p.kind == side && p.picture != nil {
+		p.board()
 	}
 	if p.kind != offer && (p.watch == nil || p.run == "" && !p.sided()) {
 		p.load()
@@ -631,7 +634,7 @@ func (p *pane) build() {
 	case p.readErr != nil && !errors.Is(p.readErr, contract.ErrNoRun):
 		p.view = contract.View{Alerts: []string{"the record cannot be read: " + p.readErr.Error()}, Fresh: contract.Fresh{Notes: notes}}
 	default:
-		p.view = contract.View{Alerts: []string{"no run in this folder yet"}, Fresh: contract.Fresh{Checked: checked, Notes: notes}}
+		p.view = contract.View{Alerts: map[bool][]string{false: {"no run in this folder yet"}}[p.kind == fleet], Lines: map[bool][]string{true: {"no job yet", "tell your agent what you want done"}}[p.kind == fleet], Fresh: contract.Fresh{Checked: checked, Notes: notes}}
 	}
 	// The view of a run says it itself; with no run to view, the pane does.
 	if w := contract.Warned(p.ui.Changed); w != "" && !p.sided() && !slices.Contains(p.view.Alerts, w) {

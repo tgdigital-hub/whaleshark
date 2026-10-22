@@ -624,6 +624,23 @@ func (p *pane) keeper(ask func() error) {
 	})
 }
 
+// board opens the fleet alone beside a main agent's tab when it shows, job or no job, once a tab.
+func (p *pane) board() {
+	tab, talks, ours := "", "", false
+	for _, s := range p.picture.Spaces {
+		tab = map[bool]string{true: s.Tab, false: tab}[s.Front]
+	}
+	for _, q := range p.picture.Panes {
+		if q.Tab == tab && tab != "" && contract.IsMainTab(q.Label) {
+			talks, ours = beside(p.picture, q.ID), ours || q.Ours
+		}
+	}
+	if talks != "" && !ours && !p.boarded[tab] && p.cfg.Panes.Fleet != contract.Off {
+		p.helper(func() { _ = quietly(p.k, talks, func(k string, open bool) bool { return open || k == fleet }) })
+	}
+	p.boarded[tab] = p.boarded[tab] || talks != "" // so a fleet the person closed stays closed
+}
+
 // lay runs one of our screens over the tab that shows: the whole of a narrow window.
 func (p *pane) lay(what ...string) {
 	size := map[bool]float64{true: 1}[p.kind == side && p.t.W <= contract.SideCut]
