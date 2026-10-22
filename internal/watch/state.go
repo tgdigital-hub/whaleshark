@@ -115,12 +115,21 @@ func (w *Watcher) look(now time.Time) State {
 	w.st.Agent, w.words, w.away = w.own, w.tool.Screen, w.home != "" && err == nil && front != w.home
 	// A tool a person starts in a shell is known by its program's name. One
 	// system's builds of a program carry its ending in their name on another.
+	// A tool that is a script runs under its interpreter's name (node): it is
+	// known by its screen's words once they showed, while that program stays.
 	if name := strings.TrimSuffix(front, ".exe"); w.own == "" && w.away {
 		for _, t := range w.all {
-			if t.Screen.Working != "" && strings.TrimSuffix(filepath.Base(t.Run[0]), ".exe") == name {
-				w.st.Agent, w.words = t.Name, t.Screen
+			if by := strings.TrimSuffix(filepath.Base(t.Run[0]), ".exe") == name; t.Screen.Working != "" && (by || read && onScreen(t.Screen, text, false) != nothing) {
+				if w.under = [2]string{name, t.Name}; by {
+					break
+				}
 			}
 		}
+		if t, ok := contract.FindTool(w.all, w.under[1]); ok && w.under[0] == name {
+			w.st.Agent, w.words = t.Name, t.Screen
+		}
+	} else if !w.away {
+		w.under = [2]string{}
 	}
 	if read {
 		w.sees = onScreen(w.words, text, w.hook != "")

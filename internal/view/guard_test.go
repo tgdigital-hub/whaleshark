@@ -113,8 +113,8 @@ func TestTheGuardsItemsOnEveryPrinter(t *testing.T) {
 	if got, want := printed(t, v), append([]string{"▲ n4", "▲ n1", "▲ n2", "▲ n3", "▲ n5"}, marked(v)...); !slices.Equal(got, want) {
 		t.Errorf("status prints\n%v\nthe view holds\n%v", got, want)
 	}
-	side := Side(contract.SideInput{Now: g.Now, Person: g.Person, Checked: g.Now, UI: in.UI, Changed: []string{"tools.hermes.run"}, NewVersion: "version 1.3 is out\x1b[2J", Projects: []contract.SideProject{{Root: "shop", Runs: []*contract.State{g.Up, g.Low["billing"], g.Low["search"]}}}})
-	if side.Warn != "agent tool changed: hermes · setting changed by your agent: theme" || side.NewVersion != clean("version 1.3 is out\x1b[2J") || strings.Contains(side.NewVersion, "\x1b") {
+	side := Side(contract.SideInput{Now: g.Now, Person: g.Person, Checked: g.Now, UI: in.UI, Changed: []string{"tools.hermit.run"}, NewVersion: "version 1.3 is out\x1b[2J", Projects: []contract.SideProject{{Root: "shop", Runs: []*contract.State{g.Up, g.Low["billing"], g.Low["search"]}}}})
+	if side.Warn != "agent tool changed: hermit · setting changed by your agent: theme" || side.NewVersion != clean("version 1.3 is out\x1b[2J") || strings.Contains(side.NewVersion, "\x1b") {
 		t.Errorf("the left section warns %q and says of a version %q", side.Warn, side.NewVersion)
 	}
 	for _, r := range side.Rows {
@@ -208,7 +208,7 @@ func TestPlanText(t *testing.T) {
 	want := `Plan for "the October list" · 3 fleets · 4 things · up to 27 agents (your limit: 20)
   billing      codex    2 things   up to 8 agents   · codex is not held by Stop all
   search       claude   1 thing    up to 8 agents
-  help pages   hermes   1 thing    up to 8 agents   · hermes is not held by Stop all`
+  help pages   hermit   1 thing    up to 8 agents   · hermit is not held by Stop all`
 	if got := PlanText(up, f.View.Fleets, []string{"G1", "G2", "G3", "G4", "G9"}, person); got != want {
 		t.Errorf("three fleets:\n%s\nwant\n%s", got, want)
 	}

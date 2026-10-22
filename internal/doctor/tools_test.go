@@ -45,10 +45,10 @@ func TestTheAgentToolsHaveTheirRows(t *testing.T) {
 	}
 	d.program(bin, "claude")
 	tools := filepath.Join(d.dirs.Config, contract.ToolsDir)
-	d.write(filepath.Join(tools, "hermes.toml"), "run = ['"+d.program(bin, "hermes")+"', 'chat']\nhooks = 'none'\n")
+	d.write(filepath.Join(tools, "hermit.toml"), "run = ['"+d.program(bin, "hermit")+"', 'chat']\nhooks = 'none'\n")
 	d.write(filepath.Join(tools, "reader.toml"), "run = ['"+d.program(bin, "reader")+"']\nhooks = 'none'\n[screen]\nready = 'type here'\n")
 	d.write(filepath.Join(tools, "local.toml"), "run = ['"+filepath.ToSlash(filepath.Join(bin, "gone"))+"']\nhooks = 'claude'\n")
-	d.write(filepath.Join(tools, "loose.toml"), "run = ['agent']\nhooks = 'none'\n")
+	d.write(filepath.Join(tools, "loose.toml"), "run = ['wanderer']\nhooks = 'none'\n")
 
 	e, exit := d.doctor()
 	d.want(e, ok, "agent tool claude: proven · exact states · held by Stop all · context bar · picks up after a restart; suits: the default; anything; found: ")
@@ -56,7 +56,7 @@ func TestTheAgentToolsHaveTheirRows(t *testing.T) {
 	if l := e.line("agent tool codex: ready, not proven · exact states · not held by Stop all", "experimental"); l == nil || l.Mark == problem {
 		t.Errorf("Codex's row: %+v", l)
 	}
-	d.want(e, ok, "agent tool hermes: works as a terminal tool · busy or quiet only · not held by Stop all · experimental; found: ")
+	d.want(e, ok, "agent tool hermit: works as a terminal tool · busy or quiet only · not held by Stop all · experimental; found: ")
 	d.want(e, ok, "agent tool reader: works as a terminal tool · busy or quiet only", "reader")
 	d.want(e, problem, "program of the agent tool local is gone", "whaleshark set tools.local.run")
 	d.want(e, problem, "loose.toml is not used", "full path")
@@ -67,18 +67,18 @@ func TestTheAgentToolsHaveTheirRows(t *testing.T) {
 	if d.k.Platform.System() == "windows" { // which cannot tell whose a file is
 		return
 	}
-	d.want(e, ok, "what describes your agent tools is yours alone", "hermes.toml")
+	d.want(e, ok, "what describes your agent tools is yours alone", "hermit.toml")
 
 	// A description can hold a key: open to another login it is a problem,
 	// which --fix puts right.
-	if err := os.Chmod(filepath.Join(tools, "hermes.toml"), 0o644); err != nil {
+	if err := os.Chmod(filepath.Join(tools, "hermit.toml"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	e, _ = d.doctor()
-	d.want(e, problem, "what describes your agent tools", "hermes.toml", "open to another login", again)
+	d.want(e, problem, "what describes your agent tools", "hermit.toml", "open to another login", again)
 	e, _ = d.doctor("fix")
-	d.want(e, fixed, "hermes.toml", "yours alone now")
-	if info, err := os.Stat(filepath.Join(tools, "hermes.toml")); err != nil || info.Mode().Perm() != 0o600 {
+	d.want(e, fixed, "hermit.toml", "yours alone now")
+	if info, err := os.Stat(filepath.Join(tools, "hermit.toml")); err != nil || info.Mode().Perm() != 0o600 {
 		t.Errorf("after --fix: %v, %v", info.Mode(), err)
 	}
 }
@@ -158,14 +158,14 @@ func TestTryATool(t *testing.T) {
 		t.Fatal(err)
 	}
 	scratch := filepath.Dir(one)
-	tool := contract.Tool{Name: "hermes", Run: []string{"/opt/hermes/hermes"}, Hooks: contract.HooksNone}
+	tool := contract.Tool{Name: "hermit", Run: []string{"/opt/hermit/hermit"}, Hooks: contract.HooksNone}
 	for _, c := range []struct {
 		terms trial
 		want  Trial
 		err   string
 	}{
 		{trial{rests: true}, Trial{true, true, true, true, "type here"}, ""},
-		{trial{start: contract.ErrAgentNotReady}, Trial{}, "hermes did not start"},
+		{trial{start: contract.ErrAgentNotReady}, Trial{}, "hermit did not start"},
 		{trial{prompt: contract.ErrPromptStalled}, Trial{Started: true}, "cannot be wired in"},
 		{trial{}, Trial{Started: true, Pasted: true, Worked: true}, "did not come to rest: it is still at work"},
 	} {
@@ -174,7 +174,7 @@ func TestTryATool(t *testing.T) {
 		if got != c.want || (err == nil) != (c.err == "") || err != nil && !strings.Contains(err.Error(), c.err) {
 			t.Errorf("got %+v, %v; want %+v, %q", got, err, c.want, c.err)
 		}
-		if asked := c.terms.asked; len(asked) < 3 || asked[0] != "tab try hermes" || asked[1] != "start hermes in p4" || asked[len(asked)-1] != "close t2" ||
+		if asked := c.terms.asked; len(asked) < 3 || asked[0] != "tab try hermit" || asked[1] != "start hermit in p4" || asked[len(asked)-1] != "close t2" ||
 			slices.Contains(asked, "prompt say ready") != got.Started || !slices.Equal(c.terms.args, d.hooks.args) {
 			t.Errorf("asked of the keeper: %v with %v", asked, c.terms.args)
 		}
@@ -189,7 +189,7 @@ func TestTryATool(t *testing.T) {
 // failure that names it, and a name nobody wired in refused before any tab.
 func TestDoctorTryIsTheOneTestOfAWiredTool(t *testing.T) {
 	d := project(t)
-	d.write(filepath.Join(d.dirs.Config, contract.ToolsDir, "hermes.toml"), "run = ['"+d.program(t.TempDir(), "hermes")+"', 'chat']\nhooks = 'none'\n")
+	d.write(filepath.Join(d.dirs.Config, contract.ToolsDir, "hermit.toml"), "run = ['"+d.program(t.TempDir(), "hermit")+"', 'chat']\nhooks = 'none'\n")
 	try := func(name string, terms *trial) (string, *contract.Refusal) {
 		out := new(bytes.Buffer)
 		d.k.Terms = terms
@@ -198,24 +198,24 @@ func TestDoctorTryIsTheOneTestOfAWiredTool(t *testing.T) {
 		r, _ := err.(*contract.Refusal)
 		return out.String(), r
 	}
-	if out, r := try("hermes", &trial{rests: true}); r != nil || out != "hermes · started · took its task · worked · came to rest. At rest its screen shows: type here\n" {
+	if out, r := try("hermit", &trial{rests: true}); r != nil || out != "hermit · started · took its task · worked · came to rest. At rest its screen shows: type here\n" {
 		t.Errorf("a tool that passes: %q, %+v", out, r)
 	}
 	// What was seen is kept in the tool's own file with the day, the rest of
 	// the file as it stood, and doctor's row for the tool reads it back.
 	day := time.Now().Format(time.DateOnly)
 	e, _ := d.doctor()
-	d.want(e, ok, "agent tool hermes: works as a terminal tool", "tried here "+day+": started, took its task, worked, came to rest · experimental")
-	if tools, faults := contract.Tools(d.k.Platform, d.dirs); len(faults) != 0 || !slices.Equal(tools[2].Run[1:], []string{"chat"}) || tools[2].Tried.Day != day {
-		t.Errorf("hermes after its test: %+v, %v", tools, faults)
+	d.want(e, ok, "agent tool hermit: works as a terminal tool", "tried here "+day+": started, took its task, worked, came to rest · experimental")
+	if tools, faults := contract.Tools(d.k.Platform, d.dirs); len(faults) != 0 || !slices.Equal(tools[len(contract.BuiltIn())].Run[1:], []string{"chat"}) || tools[len(contract.BuiltIn())].Tried.Day != day {
+		t.Errorf("hermit after its test: %+v, %v", tools, faults)
 	}
-	if _, r := try("hermes", &trial{prompt: contract.ErrPromptStalled}); r == nil || r.Exit != contract.ExitFailed || r.Code != "trial" ||
-		!strings.HasPrefix(r.Message, "hermes · started, and then: ") || !strings.Contains(r.Message, "cannot be wired in") || r.Data != (Trial{Started: true}) {
+	if _, r := try("hermit", &trial{prompt: contract.ErrPromptStalled}); r == nil || r.Exit != contract.ExitFailed || r.Code != "trial" ||
+		!strings.HasPrefix(r.Message, "hermit · started, and then: ") || !strings.Contains(r.Message, "cannot be wired in") || r.Data != (Trial{Started: true}) {
 		t.Errorf("a tool that takes no paste: %+v", r)
 	}
 	// A test that did not pass is a truth of this computer too.
-	if tools, _ := contract.Tools(d.k.Platform, d.dirs); !slices.Equal(tools[2].Tried.Saw, contract.TriedSaw[:1]) {
-		t.Errorf("after a test that failed: %+v", tools[2].Tried)
+	if tools, _ := contract.Tools(d.k.Platform, d.dirs); !slices.Equal(tools[len(contract.BuiltIn())].Tried.Saw, contract.TriedSaw[:1]) {
+		t.Errorf("after a test that failed: %+v", tools[len(contract.BuiltIn())].Tried)
 	}
 	// A built-in's test makes a file that holds what was seen and none of
 	// what a later release may know better: its screen's words stay the program's.

@@ -103,8 +103,9 @@ func TestStatus(t *testing.T) {
 		}
 		want := *f.Views[caller]
 		want.Counts.Elsewhere = 0
-		// The wired tools go with every status: the two that are built in.
-		want.Tools = []contract.ToolLine{{Name: "claude", Exact: true, Held: true, Proven: true, Suits: "the default; anything"}, {Name: "codex", Exact: true}}
+		// The wired tools go with every status: the two that are built in,
+		// and those of the others that this machine has.
+		want.Tools = append([]contract.ToolLine{{Name: "claude", Exact: true, Held: true, Proven: true, Suits: "the default; anything"}, {Name: "codex", Exact: true}}, foundHere()...)
 		if got, want := indent(t, result), indent(t, &want); got != want {
 			t.Errorf("%s: the result is not the fixture's view\n%s", caller, diff(want, got))
 		}
@@ -210,4 +211,15 @@ func TestStatusWithout(t *testing.T) {
 			}
 		}
 	}
+}
+
+// foundHere is the lines of the built-in tools past the first two whose
+// program is on this machine's path, which a status lists as well.
+func foundHere() (lines []contract.ToolLine) {
+	for _, tool := range contract.BuiltIn()[2:] {
+		if tool.Found() {
+			lines = append(lines, contract.ToolLine{Name: tool.Name})
+		}
+	}
+	return lines
 }

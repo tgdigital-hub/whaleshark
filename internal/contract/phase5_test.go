@@ -88,7 +88,7 @@ func TestKeysAreWhole(t *testing.T) {
 			t.Errorf("%s: twice in the table, or a kind, a store, a label or a section is missing", k.Name)
 		}
 		seen[k.Name] = true
-		found, given := FindKey(strings.NewReplacer("<name>", "hermes", "<VAR>", "API_KEY", "<key>", "x").Replace(k.Name))
+		found, given := FindKey(strings.NewReplacer("<name>", "hermit", "<VAR>", "API_KEY", "<key>", "x").Replace(k.Name))
 		if found != k || len(given) != strings.Count(k.Name, "<") {
 			t.Errorf("%s is not found by its own name: %v %v", k.Name, found, given)
 		}
@@ -101,7 +101,7 @@ func TestKeysAreWhole(t *testing.T) {
 			}
 		}
 	}
-	if k, _ := FindKey("tools.hermes.nothing"); k != nil {
+	if k, _ := FindKey("tools.hermit.nothing"); k != nil {
 		t.Error("a key nobody has was found")
 	}
 }
@@ -115,7 +115,7 @@ func TestValuesAreHeldToTheirKey(t *testing.T) {
 		{"fleets.total", "400", "400", true}, {"side.width", "15", "", false}, {"side.width", "60", "60", true}, {"side.width", "unlimited", "", false},
 		{"panes.fleet", "bottom", "bottom", true}, {"panes.fleet", "top", "", false}, {"side.place", "off", "", false},
 		{"fleets.mode", "on", "on", true}, {"fleets.mode", "yes", "", false}, {"dnd", "until 9:00", "until 9:00", true}, {"dnd", "until ", "", false},
-		{"fleets.leader", "codex", "codex", true}, {"fleets.leader", "hermes", "", false}, {"fleets.leader", "", "", false},
+		{"fleets.leader", "codex", "codex", true}, {"fleets.leader", "hermit", "", false}, {"fleets.leader", "", "", false},
 		{"fleets.worker", "leader", "leader", true}, {"notify.link", "a\nb", "", false},
 	} {
 		k, _ := FindKey(tc.key)
@@ -183,7 +183,7 @@ func TestSetWritesEveryStore(t *testing.T) {
 	refused("limits.agents", "30", "human_only", ExitRefused)
 	delete(c.Flags, "project")
 	refused("shell", "/bin/sh", "human_only", ExitRefused)
-	refused("tools.hermes.run", "/opt/hermes/bin/hermes", "human_only", ExitRefused)
+	refused("tools.hermit.run", "/opt/hermit/bin/hermit", "human_only", ExitRefused)
 	must("theme", "kelp", "kelp") // a key that holds nobody and calls nobody is set, and kept as the agent's doing
 	refused("fleets.total", "30", RefusedPersonOnly, ExitRefused)
 }
@@ -202,14 +202,14 @@ func full(path string) string {
 
 func TestToolsFromDescriptions(t *testing.T) {
 	h, c := login(t)
-	program := full("/opt/hermes/bin/hermes")
+	program := full("/opt/hermit/bin/hermit")
 	if err := WriteProjects(h, h.dir, []string{full("/work/shop-site")}); err != nil {
 		t.Fatal(err)
 	}
 	tools, faults := Tools(h, Dirs{Config: h.config, State: h.dir})
 	claude, _ := FindTool(tools, "")
 	codex, _ := FindTool(tools, "codex")
-	if len(tools) != 2 || len(faults) != 0 || claude.Name != DefaultTool || !claude.Proven || !claude.Exact() || !claude.Held() || codex.Proven || !codex.Exact() || codex.Held() {
+	if len(tools) != len(BuiltIn()) || len(faults) != 0 || claude.Name != DefaultTool || !claude.Proven || !claude.Exact() || !claude.Held() || codex.Proven || !codex.Exact() || codex.Held() {
 		t.Fatalf("built in: %+v %v", tools, faults)
 	}
 	if got := slices.Concat(claude.Folders("/a", "/b"), Fill(claude.Resume, "session", "s1"), Fill(claude.Model, "model", "opus")); !slices.Equal(got,
@@ -220,25 +220,25 @@ func TestToolsFromDescriptions(t *testing.T) {
 		t.Errorf("codex's arguments: %v", got)
 	}
 
-	if _, err := Set(c, "tools.hermes.label", "Hermes"); err == nil {
+	if _, err := Set(c, "tools.hermit.label", "Hermit"); err == nil {
 		t.Fatal("a tool with no program was stored")
 	}
-	if _, err := Set(c, "tools.hermes.run", program+" chat"); err != nil {
+	if _, err := Set(c, "tools.hermit.run", program+" chat"); err != nil {
 		t.Fatal(err)
 	}
-	for key, value := range map[string]string{"label": "Hermes", "model": "--model {model}", "env.API_KEY": "s3cret", "screen.question": "Allow,Deny"} {
-		got, err := Set(c, "tools.hermes."+key, value)
+	for key, value := range map[string]string{"label": "Hermit", "model": "--model {model}", "env.API_KEY": "s3cret", "screen.question": "Allow,Deny"} {
+		got, err := Set(c, "tools.hermit."+key, value)
 		if err != nil || (got == value) == strings.HasPrefix(key, "env.") {
-			t.Fatalf("set tools.hermes.%s: %q, %v", key, got, err)
+			t.Fatalf("set tools.hermit.%s: %q, %v", key, got, err)
 		}
 	}
 	tools, faults = Tools(h, Dirs{Config: h.config, State: h.dir})
-	hermes, wired := FindTool(tools, "hermes")
-	if !wired || len(faults) != 0 || !hermes.Mine || hermes.Proven || hermes.Exact() || hermes.Held() || hermes.Label != "Hermes" || hermes.Env["API_KEY"] != "s3cret" ||
-		!slices.Equal(hermes.Run, []string{program, "chat"}) || !slices.Equal(hermes.Screen.Question, []string{"Allow", "Deny"}) {
-		t.Fatalf("hermes: %+v %v", hermes, faults)
+	hermit, wired := FindTool(tools, "hermit")
+	if !wired || len(faults) != 0 || !hermit.Mine || hermit.Proven || hermit.Exact() || hermit.Held() || hermit.Label != "Hermit" || hermit.Env["API_KEY"] != "s3cret" ||
+		!slices.Equal(hermit.Run, []string{program, "chat"}) || !slices.Equal(hermit.Screen.Question, []string{"Allow", "Deny"}) {
+		t.Fatalf("hermit: %+v %v", hermit, faults)
 	}
-	file := filepath.Join(h.config, ToolsDir, "hermes.toml")
+	file := filepath.Join(h.config, ToolsDir, "hermit.toml")
 	// Windows has no such bits to look at: a file there is as private as the
 	// profile folder it lies in, which is where the settings folder is.
 	if info, err := os.Stat(file); err != nil || runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
@@ -246,8 +246,8 @@ func TestToolsFromDescriptions(t *testing.T) {
 	}
 
 	// What is refused when it is stored, and not used when it lies there anyway.
-	for key, value := range map[string]string{"tools.hermes.run": "hermes chat", "tools.grok.run": full("/work/shop-site/bin/agent"), "tools.Bad_Name.run": full("/bin/x"),
-		"tools.hermes.hooks": "mine", "tools.-x.run": full("/bin/x")} {
+	for key, value := range map[string]string{"tools.hermit.run": "hermit chat", "tools.grok.run": full("/work/shop-site/bin/agent"), "tools.Bad_Name.run": full("/bin/x"),
+		"tools.hermit.hooks": "mine", "tools.-x.run": full("/bin/x")} {
 		if _, err := Set(c, key, value); err == nil {
 			t.Errorf("set %s %s was taken", key, value)
 		}
@@ -258,28 +258,28 @@ func TestToolsFromDescriptions(t *testing.T) {
 		}
 	}
 	plant("inside.toml", "run = ['"+full("/work/shop-site/tools/agent")+"']\nhooks = 'none'\n")
-	plant("relative.toml", "run = ['agent']\nhooks = 'none'\n")
+	plant("relative.toml", "run = ['wanderer']\nhooks = 'none'\n")
 	plant("claude.toml", "suits = 'everything but tests'\n")
 	plant("codex.toml", "run = ['"+full("/opt/codex/codex")+"']\n")
 	tools, faults = Tools(h, Dirs{Config: h.config, State: h.dir})
 	claude, _ = FindTool(tools, "claude")
 	codex, _ = FindTool(tools, "codex")
-	if len(tools) != 3 || len(faults) != 2 || claude.Suits != "everything but tests" || !claude.Proven || claude.Run[0] != "claude" || codex.Run[0] != full("/opt/codex/codex") || codex.Hooks != HooksCodex {
+	if len(tools) != len(BuiltIn())+1 || len(faults) != 2 || claude.Suits != "everything but tests" || !claude.Proven || claude.Run[0] != "claude" || codex.Run[0] != full("/opt/codex/codex") || codex.Hooks != HooksCodex {
 		t.Errorf("a built-in changed field by field, two files left out: %d tools, %v, %+v", len(tools), faults, claude)
 	}
 	*h.shared = []string{file}
-	if tools, faults = Tools(h, Dirs{Config: h.config, State: h.dir}); len(tools) != 2 || len(faults) != 3 {
+	if tools, faults = Tools(h, Dirs{Config: h.config, State: h.dir}); len(tools) != len(BuiltIn()) || len(faults) != 3 {
 		t.Errorf("a file another login can write was used: %d tools, %v", len(tools), faults)
 	}
 	*h.shared = []string{filepath.Join(h.config, ToolsDir)}
-	if tools, faults = Tools(h, Dirs{Config: h.config, State: h.dir}); len(tools) != 2 || len(faults) != 1 || tools[0].Suits == "everything but tests" {
+	if tools, faults = Tools(h, Dirs{Config: h.config, State: h.dir}); len(tools) != len(BuiltIn()) || len(faults) != 1 || tools[0].Suits == "everything but tests" {
 		t.Errorf("a folder another login can write was used: %d tools, %v", len(tools), faults)
 	}
 	*h.shared = nil
-	if _, err := Set(c, "tools.hermes", "remove"); err != nil {
+	if _, err := Set(c, "tools.hermit", "remove"); err != nil {
 		t.Error(err)
 	}
-	if _, wired := FindTool(firstOf(Tools(h, Dirs{Config: h.config, State: h.dir})), "hermes"); wired {
+	if _, wired := FindTool(firstOf(Tools(h, Dirs{Config: h.config, State: h.dir})), "hermit"); wired {
 		t.Error("a tool that was removed is still wired in")
 	}
 }
@@ -407,8 +407,8 @@ func TestThePhaseFiveStandIns(t *testing.T) {
 // spaces either. And a key says its fields under names of their own.
 func TestWhatPhaseFiveAskedOfTheContract(t *testing.T) {
 	for changed, want := range map[string]string{
-		"": "", "notify.url": "setting changed: notify.url", "tools.hermes.run": "agent tool changed: hermes",
-		"tools.hermes.run,shell,tools.hermes.env.KEY,tools.aider.run": "agent tool changed: hermes, aider · setting changed: shell",
+		"": "", "notify.url": "setting changed: notify.url", "tools.hermit.run": "agent tool changed: hermit",
+		"tools.hermit.run,shell,tools.hermit.env.KEY,tools.aider.run": "agent tool changed: hermit, aider · setting changed: shell",
 	} {
 		if got := Warned(strings.FieldsFunc(changed, func(r rune) bool { return r == ',' })); got != want {
 			t.Errorf("changed %q warns %q, want %q", changed, got, want)

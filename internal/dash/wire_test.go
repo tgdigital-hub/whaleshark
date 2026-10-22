@@ -18,7 +18,7 @@ func TestThePageWiresNoProgramIn(t *testing.T) {
 		return b.ask("POST", contract.RouteDo+"set", url.Values{contract.FieldToken: {b.token()}, "key": {key}, "value": {value}}, nil).Code
 	}
 	dirs, _ := b.s.k.Platform.Dirs()
-	for _, key := range []string{"shell", "shortcut.z", "notify.url", "tools.hermes.run", "tools.claude.rules", "tools.claude.env.V", "clipboard.programs", "seen", "draft.q9", "no.such.key"} {
+	for _, key := range []string{"shell", "shortcut.z", "notify.url", "tools.hermit.run", "tools.claude.rules", "tools.claude.env.V", "clipboard.programs", "seen", "draft.q9", "no.such.key"} {
 		if code := set(key, "/bin/echo"); code != http.StatusConflict {
 			t.Errorf("the page set %s: %d", key, code)
 		}

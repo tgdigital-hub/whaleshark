@@ -386,9 +386,9 @@ func TestAProfileSavedAndLoaded(t *testing.T) {
 		return out.String(), err
 	}
 	old, fresh := login(), login()
-	hermes := filepath.Join(t.TempDir(), "bin", "hermes") // a full path, on whatever system this is
+	hermit := filepath.Join(t.TempDir(), "bin", "hermit") // a full path, on whatever system this is
 	for _, args := range [][]string{{"theme", "paper"}, {"fleets.total", "unlimited"}, {"stuck.watch", "off"}, {"shell", "zsh", "-l"}, {"notify.url", "http://localhost/nudge"},
-		{"tools.hermes.run", hermes, "chat"}, {"tools.hermes.suits", "long reading"}, {"tools.hermes.env.KEY", "a-secret-of-mine"}} {
+		{"tools.hermit.run", hermit, "chat"}, {"tools.hermit.suits", "long reading"}, {"tools.hermit.env.KEY", "a-secret-of-mine"}} {
 		if _, err := run(old, "", "", "", args...); err != nil {
 			t.Fatalf("set %v: %v", args, err)
 		}
@@ -396,7 +396,7 @@ func TestAProfileSavedAndLoaded(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "mine.toml")
 	out, err := run(old, "", "save", file)
 	data, _ := os.ReadFile(file)
-	if err != nil || !strings.Contains(out, "saved: "+file) || !strings.Contains(out, "left out: the nudge address, 1 variables of hermes") ||
+	if err != nil || !strings.Contains(out, "saved: "+file) || !strings.Contains(out, "left out: the nudge address, 1 variables of hermit") ||
 		strings.Contains(string(data), "a-secret-of-mine") || strings.Contains(string(data), "localhost") || !strings.Contains(string(data), "KEY") {
 		t.Fatalf("set --save: %v\n%s\n%s", err, out, data)
 	}
@@ -409,8 +409,8 @@ func TestAProfileSavedAndLoaded(t *testing.T) {
 	// Loaded where nothing was set: shown whole, and with no yes nothing changes.
 	out, err = run(fresh, "no\nno\nno\n", "load", file)
 	for _, want := range []string{"Colour scheme (theme): reef → paper", "Agents in all (fleets.total): 20 → unlimited", "No limit on agents in all.", "The spending guard is off.",
-		"Stuck detector (stuck.watch): on → off", "This switches a guard off.", "What it suits (tools.hermes.suits): not set → long reading", "Make these 4 changes? Type yes: ",
-		"shell runs: zsh -l", "tools.hermes.run runs: " + hermes + " chat · that program is not on this computer · use exactly this? Type yes: ", "0 settings changed."} {
+		"Stuck detector (stuck.watch): on → off", "This switches a guard off.", "What it suits (tools.hermit.suits): not set → long reading", "Make these 4 changes? Type yes: ",
+		"shell runs: zsh -l", "tools.hermit.run runs: " + hermit + " chat · that program is not on this computer · use exactly this? Type yes: ", "0 settings changed."} {
 		if !strings.Contains(out, want) {
 			t.Errorf("set --load does not say %q:\n%s", want, out)
 		}
@@ -428,16 +428,16 @@ func TestAProfileSavedAndLoaded(t *testing.T) {
 	cfg, engine := person(fresh, dirs), contract.Settings{}
 	engine, _ = contract.ReadSettings(fresh.Platform.Read, dirs)
 	tools, _ := contract.Tools(fresh.Platform, dirs)
-	_, wired := contract.FindTool(tools, "hermes")
+	_, wired := contract.FindTool(tools, "hermit")
 	_, ui, _, _ := screen(fresh)
 	if err != nil || cfg.UI.Theme != "paper" || cfg.Fleets.Total != contract.Unlimited || cfg.Stuck.Watch || cfg.Notify.URL != "" || !slices.Equal(engine.Shell, []string{"zsh", "-l"}) ||
-		wired || !slices.Contains(ui.Changed, "shell") || !strings.Contains(out, "not set: tools.hermes.suits") || !strings.Contains(out, "4 settings changed.") {
+		wired || !slices.Contains(ui.Changed, "shell") || !strings.Contains(out, "not set: tools.hermit.suits") || !strings.Contains(out, "4 settings changed.") {
 		t.Errorf("set --load with yes, yes, no: %v\n%s\n%+v %+v wired %v, flagged %v", err, out, cfg, engine.Shell, wired, ui.Changed)
 	}
 	// Loaded again, only the tool is left, and yes to its program wires it in.
 	out, err = run(fresh, "yes\nyes\n", "load", file)
 	tools, _ = contract.Tools(fresh.Platform, dirs)
-	if tool, wired := contract.FindTool(tools, "hermes"); err != nil || !wired || tool.Suits != "long reading" || len(tool.Env) != 0 || strings.Contains(out, "theme") {
+	if tool, wired := contract.FindTool(tools, "hermit"); err != nil || !wired || tool.Suits != "long reading" || len(tool.Env) != 0 || strings.Contains(out, "theme") {
 		t.Errorf("the second load: %v\n%s\n%+v", err, out, tool)
 	}
 	if out, _ = run(fresh, "", "load", file); !strings.Contains(out, "Nothing here differs from that file.") {

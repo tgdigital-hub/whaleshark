@@ -400,16 +400,16 @@ func TestAnAgentIsStartedFromItsToolsDescription(t *testing.T) {
 	r := newRig(t)
 	c := r.dial()
 	c.call(contract.WireCall{Op: contract.OpTabCreate, Label: "work"})
-	tool := filepath.Join(t.TempDir(), "hermes")
-	file := filepath.Join(r.k.dirs.Config, contract.ToolsDir, "hermes.toml")
-	text := fmt.Sprintf("label = \"Hermes\"\nrun = [%q, \"chat\"]\nhooks = \"none\"\n[env]\nMODEL_AT = \"localhost\"\n", tool)
+	tool := filepath.Join(t.TempDir(), "hermit")
+	file := filepath.Join(r.k.dirs.Config, contract.ToolsDir, "hermit.toml")
+	text := fmt.Sprintf("label = \"Hermit\"\nrun = [%q, \"chat\"]\nhooks = \"none\"\n[env]\nMODEL_AT = \"localhost\"\n", tool)
 	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(file, []byte(text), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if reply := c.call(contract.WireCall{Op: contract.OpAgentStart, Pane: "p1", Kind: "hermes", Name: "quiet otter", Argv: []string{"--fast"}, Millis: 9000}); reply.Err != "" {
+	if reply := c.call(contract.WireCall{Op: contract.OpAgentStart, Pane: "p1", Kind: "hermit", Name: "quiet otter", Argv: []string{"--fast"}, Millis: 9000}); reply.Err != "" {
 		t.Fatalf("agent-start: %+v", reply)
 	}
 	spec := r.program("p1").spec

@@ -121,7 +121,7 @@ var pictures = []struct {
   ▾ search           claude 6/8
   ▌ ◐ search box      building ≡
     · 5 more
-  ▸ help pages       hermes 4/8
+  ▸ help pages       hermit 4/8
  [ Menu ]  [ Settings ]
  live · checked 2s ago
 `},
@@ -315,7 +315,7 @@ func TestTheFleetAsAStripAtTheBottomAndWithFleets(t *testing.T) {
 	shows("fleet-bottom-97-page-2", low, "page 2 of 2", "site map")
 	three := fleetOf(t, 46, 20, true, contract.Right)
 	shows("fleets-46", three, "FLEETS  3 · 18 agents · 1 needs…  [<] [>] [x]", "▲ billing · codex                   needs you", "6 agents", // five workers and their leader: the cards sum to the header's 18
-		"refund to the card, or to store credit?", "◐ search · claude                    building", "7 agents", "0 of 6 done", "◐ help pages · hermes                building",
+		"refund to the card, or to store credit?", "◐ search · claude                    building", "7 agents", "0 of 6 done", "◐ help pages · hermit                building",
 		"0 fleets finished today  [show]", "live · checked 2s ago")
 	shows("fleets-36", fleetOf(t, 36, 20, true, contract.Right), "FLEETS  3 · 18 agents…  [<] [>] [x]", "0 of 4 done")
 	shows("fleet-36", fleetOf(t, 36, 30, false, contract.Right), "FLEET  12 agents · 2 …  [<] [>] [x]")

@@ -129,8 +129,8 @@ func TestServerStatusSaysANewerReleaseToTheAdministrator(t *testing.T) {
 func TestDoctorEndsWithWhereToReportAndHoldsNoSecret(t *testing.T) {
 	d := project(t)
 	secrets := []string{"sk-tool-variable", "notices.example/private-topic", "phone-session-word", "phone-key-word", "phone-auth-word"}
-	d.write(filepath.Join(d.dirs.Config, contract.ToolsDir, "hermes.toml"),
-		"run = ['"+d.program(t.TempDir(), "hermes")+"']\nhooks = 'none'\n[env]\nMODEL_KEY = '"+secrets[0]+"'\n")
+	d.write(filepath.Join(d.dirs.Config, contract.ToolsDir, "hermit.toml"),
+		"run = ['"+d.program(t.TempDir(), "hermit")+"']\nhooks = 'none'\n[env]\nMODEL_KEY = '"+secrets[0]+"'\n")
 	d.write(filepath.Join(d.dirs.Config, contract.ConfigFile), "[notify]\nurl = \"https://"+secrets[1]+"\"\n")
 	d.write(filepath.Join(d.dirs.State, contract.PhonesFile), `{"version":1,"paired":[{"id":"ph1","name":"a phone","session":"`+secrets[2]+
 		`","paired_at":"2026-10-08T21:00:00Z","push":{"endpoint":"https://push.example/1","p256dh":"`+secrets[3]+`","auth":"`+secrets[4]+`"}}]}`)
@@ -142,7 +142,7 @@ func TestDoctorEndsWithWhereToReportAndHoldsNoSecret(t *testing.T) {
 			c.Flags[f] = []string{""}
 		}
 		run(c)
-		if !strings.HasSuffix(out.String(), "\n\n"+contract.ReportLine+"\nPaste this output with your report: it holds no secret.\n") || !strings.Contains(out.String(), "agent tool hermes") {
+		if !strings.HasSuffix(out.String(), "\n\n"+contract.ReportLine+"\nPaste this output with your report: it holds no secret.\n") || !strings.Contains(out.String(), "agent tool hermit") {
 			t.Errorf("doctor %v ends:\n%s", flags, out)
 		}
 		for _, s := range secrets {

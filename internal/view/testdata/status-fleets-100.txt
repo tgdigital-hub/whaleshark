@@ -13,7 +13,7 @@ NEEDS YOU
 BUILDING
  ◐ G2   search                 building      10m  claude · 6 of 8 agents · 1 group open · 0 to check
                                                   · 0 of 6 done
- ◐ G3   help pages             building      10m  hermes · 4 of 8 agents · 1 group open · 0 to check
+ ◐ G3   help pages             building      10m  hermit · 4 of 8 agents · 1 group open · 0 to check
                                                   · 0 of 4 done
 
 3 of 4 leaders · 18 of 20 agents

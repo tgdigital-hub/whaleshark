@@ -62,12 +62,12 @@ func TestTheSideWarnsOfAChangedTool(t *testing.T) {
 	if w := Side(f.In).Warn; w != "" {
 		t.Errorf("nothing changed, and the side warns %q", w)
 	}
-	f.In.Changed = []string{"tools.hermes.run", "tools.hermes.env.KEY"}
-	if w := Side(f.In).Warn; w != "agent tool changed: hermes" {
+	f.In.Changed = []string{"tools.hermit.run", "tools.hermit.env.KEY"}
+	if w := Side(f.In).Warn; w != "agent tool changed: hermit" {
 		t.Errorf("the side warns %q", w)
 	}
 	f.In.Terms, f.In.Projects = &contract.Snapshot{}, nil
-	if w := Side(f.In).Warn; w != "agent tool changed: hermes" {
+	if w := Side(f.In).Warn; w != "agent tool changed: hermit" {
 		t.Errorf("with no workspace at all the side warns %q", w)
 	}
 }

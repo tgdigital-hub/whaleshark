@@ -137,10 +137,11 @@ const (
 	DefaultTool = "claude"
 )
 
-// builtIn are the two descriptions compiled in. Claude Code's has run for
-// real since phase 1. Codex's options and hooks are its maker's pages', read
-// and not yet run, and of its screen no word is known. A built-in's program
-// is found on the path, as it always was; a person's file names a full path.
+// builtIn are the descriptions compiled in. Claude Code's has run for real
+// since phase 1. Every other is its maker's pages', read and not yet run, and
+// of its screen no word is known; docs/agents.md names each page. Codex alone
+// reads hooks of a form known here. A built-in's program is found on the
+// path, as it always was; a person's file names a full path.
 var builtIn = []Tool{
 	{Name: "claude", Label: "Claude Code", Run: []string{"claude"}, Model: []string{"--model", "{model}"},
 		Folder: []string{"--add-dir", "{dir}"}, Resume: []string{"--resume", "{session}"}, Hooks: HooksClaude, Rules: ".claude/CLAUDE.md", Proven: true,
@@ -148,6 +149,16 @@ var builtIn = []Tool{
 		Screen: ToolScreen{Title: "Claude Code", Ready: "? for shortcuts", Working: "esc to interrupt", Question: []string{"Do you want to", "Esc to cancel"}, Trust: "trust this folder"}},
 	{Name: "codex", Label: "Codex", Run: []string{"codex"}, Model: []string{"--model", "{model}"},
 		Folder: []string{"--add-dir", "{dir}"}, Each: true, Resume: []string{"resume", "{session}"}, Hooks: HooksCodex, Rules: ".codex/AGENTS.md"},
+	{Name: "gemini", Label: "Gemini CLI", Run: []string{"gemini"}, Model: []string{"--model", "{model}"},
+		Folder: []string{"--include-directories", "{dir}"}, Each: true, Hooks: HooksNone, Rules: ".gemini/GEMINI.md"},
+	{Name: "qwen", Label: "Qwen Code", Run: []string{"qwen"}, Model: []string{"--model", "{model}"},
+		Folder: []string{"--include-directories", "{dir}"}, Each: true, Hooks: HooksNone, Rules: ".qwen/QWEN.md"},
+	{Name: "opencode", Label: "OpenCode", Run: []string{"opencode"}, Model: []string{"--model", "{model}"}, Hooks: HooksNone, Rules: ".config/opencode/AGENTS.md"},
+	{Name: "cursor", Label: "Cursor CLI", Run: []string{"agent"}, Model: []string{"--model", "{model}"}, Folder: []string{"--add-dir", "{dir}"}, Each: true, Hooks: HooksNone},
+	{Name: "hermes", Label: "Hermes Agent", Run: []string{"hermes"}, Model: []string{"--model", "{model}"}, Hooks: HooksNone},
+	{Name: "goose", Label: "Goose", Run: []string{"goose", "session"}, Hooks: HooksNone, Rules: ".config/goose/.goosehints"},
+	{Name: "crush", Label: "Crush", Run: []string{"crush"}, Hooks: HooksNone, Rules: ".config/crush/CRUSH.md"},
+	{Name: "amp", Label: "Amp", Run: []string{"amp"}, Hooks: HooksNone, Rules: ".config/amp/AGENTS.md"},
 }
 
 // BuiltIn is the descriptions compiled in, for whoever lists them apart.

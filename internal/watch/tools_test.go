@@ -137,3 +137,29 @@ func TestAToolOfAFileInAShell(t *testing.T) {
 		}
 	}
 }
+
+// A tool that is a script runs under its interpreter's name: started by
+// hand in a shell, it is known by its screen's words, and is a shell's
+// again once it has ended.
+func TestAToolUnderAnInterpreterInAShell(t *testing.T) {
+	if _, err := os.Stat("/bin/sh"); err != nil {
+		t.Skip("no /bin/sh here")
+	}
+	s := listen(t)
+	tool, env := standIn(t, s, "screen", standInWords)
+	interpreter := filepath.Join(t.TempDir(), "node")
+	if self, err := os.ReadFile(tool.Run[0]); err != nil || os.WriteFile(interpreter, self, 0o700) != nil {
+		t.Fatal(err)
+	}
+	p := open(t, env, "/bin/sh")
+	s.watch(t, p, "")
+	s.reach(t, idle, wait)
+	p.press(interpreter + " screen\r")
+	for end := time.Now().Add(wait); ; time.Sleep(10 * time.Millisecond) {
+		if st := s.reach(t, idle, wait); st.Agent == "standin" {
+			break
+		} else if time.Now().After(end) {
+			t.Fatalf("the tool under another name was not seen: %+v\n%s", st, p.Text())
+		}
+	}
+}

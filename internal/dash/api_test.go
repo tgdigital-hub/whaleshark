@@ -254,7 +254,7 @@ func TestWhatAnAppNeverMay(t *testing.T) {
 		body, _ := json.Marshal(contract.AppSet{Key: key, Value: value})
 		return a.ask("POST", contract.APIv1+contract.APISet, string(body), nil)
 	}
-	for _, key := range []string{"shell", "notify.url", "tools.hermes.run", "tools.hermes.env.TOKEN", "server.road", "seen", "draft.q9", "no.such.key"} {
+	for _, key := range []string{"shell", "notify.url", "tools.hermit.run", "tools.hermit.env.TOKEN", "server.road", "seen", "draft.q9", "no.such.key"} {
 		a.no("setting "+key, set(key, "sh"), http.StatusConflict, "not_from_a_phone")
 		a.no("the button for "+key, do("set", "key", key, "value", "sh"), http.StatusConflict, "not_from_a_phone")
 	}

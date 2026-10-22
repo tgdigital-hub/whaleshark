@@ -101,6 +101,7 @@ type Watcher struct {
 	home    string              // the program in front once the start was over; empty until then and where the system cannot tell
 	first   string              // a shell's own name as its pane started it, before anything was typed there
 	away    bool                // another program is in front of the agent
+	under   [2]string           // a program in front and the tool its screen showed it to be
 	hook    string              // the state the hooks gave last; empty before the first and after the last
 	words   contract.ToolScreen // the screen's words of the agent in st
 	sees    int                 // what the screen showed at the last reading

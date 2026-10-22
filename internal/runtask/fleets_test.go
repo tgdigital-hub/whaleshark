@@ -324,13 +324,21 @@ func TestInitKnowsTheWiredToolsAndAnOlderBlock(t *testing.T) {
 	bin, _ := p.Kit.Platform.SelfPath()
 	wire := func() {
 		t.Helper()
-		if err := contract.WriteTool(p.Kit.Platform, dirs, contract.Tool{Name: "hermes", Label: "Hermes", Run: []string{bin}, Hooks: contract.HooksClaude}); err != nil {
+		if err := contract.WriteTool(p.Kit.Platform, dirs, contract.Tool{Name: "hermit", Label: "Hermit", Run: []string{bin}, Hooks: contract.HooksClaude}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	wire()
-	out := human("\n", 0, "init")("Which agent tools do you use here? (claude, codex, hermes;")
-	if strings.Contains(out, "gemini") {
+	// Of the tools described from their makers' pages, those on this
+	// machine's path are found too.
+	known := "claude, codex, "
+	for _, tool := range contract.BuiltIn()[2:] {
+		if tool.Found() {
+			known += tool.Name + ", "
+		}
+	}
+	out := human("\n", 0, "init")("Which agent tools do you use here? (" + known + "hermit;")
+	if strings.Contains(out, "wanderer") {
 		t.Fatalf("init offered a tool that is not wired in:\n%s", out)
 	}
 
@@ -369,22 +377,22 @@ func TestInitKnowsTheWiredToolsAndAnOlderBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	wire()
-	out = human("", 0, "init", "--agent", "hermes")("the status line and the gate for hermes are set in ")
-	_, settings, _ := strings.Cut(out, "the status line and the gate for hermes are set in ")
+	out = human("", 0, "init", "--agent", "hermit")("the status line and the gate for hermit are set in ")
+	_, settings, _ := strings.Cut(out, "the status line and the gate for hermit are set in ")
 	settings, _, _ = strings.Cut(settings, "\n")
 	hooked := read(t, settings)
 	if !strings.Contains(hooked, "whaleshark") {
 		t.Fatalf("the hooks were not written into %s:\n%s", settings, hooked)
 	}
-	if err := contract.RemoveTool(dirs, "hermes"); err != nil {
+	if err := contract.RemoveTool(dirs, "hermit"); err != nil {
 		t.Fatal(err)
 	}
-	human("", 0, "init", "--remove")("the hooks for hermes stay in", "no longer wired in")
+	human("", 0, "init", "--remove")("the hooks for hermit stay in", "no longer wired in")
 	if read(t, settings) != hooked {
 		t.Fatal("hooks whose form is not known were touched")
 	}
 	wire()
-	human("", 0, "init", "--remove")("the hooks for hermes are out of")
+	human("", 0, "init", "--remove")("the hooks for hermit are out of")
 	if strings.Contains(read(t, settings), "whaleshark") {
 		t.Fatalf("with the tool wired in again its hooks stayed:\n%s", read(t, settings))
 	}

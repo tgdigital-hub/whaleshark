@@ -49,7 +49,7 @@ func TestTheMorningWithThreeFleets(t *testing.T) {
 		t.Errorf("the limits read %+v with %d agents", l, v.Counts.Agents)
 	}
 	want := []contract.ToolLine{{Name: "claude", Exact: true, Held: true, Proven: true, Suits: "the default; anything"}, {Name: "codex", Exact: true},
-		{Name: "hermes", Suits: testkit.Hermes.Suits}}
+		{Name: "hermit", Suits: testkit.Hermit.Suits}}
 	if !slices.Equal(v.Tools, want) {
 		t.Errorf("the tools read %+v", v.Tools)
 	}
@@ -684,7 +684,7 @@ func TestFleetsInStatusShowAndCatchup(t *testing.T) {
 	c, out := morning(t, contract.On, "status")
 	result := run(t, c)
 	v, ok := result.(*contract.View)
-	if !ok || indent(t, worded(v)) != indent(t, testkit.Fleets().Cards) || len(v.Tools) != 2 || len(v.Alerts) != 0 {
+	if !ok || indent(t, worded(v)) != indent(t, testkit.Fleets().Cards) || len(v.Tools) != 2+len(foundHere()) || len(v.Alerts) != 0 {
 		t.Fatalf("status gives %s", indent(t, result))
 	}
 	if got := out.String(); got != text(v, Options{Width: 100}) || !strings.Contains(got, "3 of 4 leaders · 18 of 20 agents") {

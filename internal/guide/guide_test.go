@@ -447,8 +447,8 @@ func TestFiles(t *testing.T) {
 	if got, _ := File(tool("claude"), "/people/ana", env); got != filepath.FromSlash("/people/ana/.claude/CLAUDE.md") {
 		t.Errorf("File(claude) moved with another tool's variable: %q", got)
 	}
-	own := contract.Tool{Name: "hermes", Run: []string{"/opt/hermes"}, Hooks: contract.HooksNone, Rules: ".hermes/AGENTS.md"}
-	if got, ok := File(own, "/people/ana", none); !ok || got != filepath.FromSlash("/people/ana/.hermes/AGENTS.md") {
+	own := contract.Tool{Name: "hermit", Run: []string{"/opt/hermit"}, Hooks: contract.HooksNone, Rules: ".hermit/AGENTS.md"}
+	if got, ok := File(own, "/people/ana", none); !ok || got != filepath.FromSlash("/people/ana/.hermit/AGENTS.md") {
 		t.Errorf("a tool by description: %q, %v", got, ok)
 	}
 	own.Rules = ""

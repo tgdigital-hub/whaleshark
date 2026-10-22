@@ -12,7 +12,7 @@ import (
 // ThreeFleets is one prepared morning with Fleet Mode on, written by hand
 // from the design's pictures of the whole window (19.4): the project
 // shop-site with an orchestrator and three fleets (billing led by Codex with
-// five workers, search by Claude Code with six, help pages by Hermes with
+// five workers, search by Claude Code with six, help pages by Hermit with
 // four), a second project, blog, with a lead agent and two workers, and two
 // tabs in no project. Billing's worker "refund flow" asked a question that
 // climbed to the person; "invoice pdf" waits to be checked. The person has
@@ -46,9 +46,9 @@ const (
 	blog = "/work/blog"
 )
 
-// Hermes is the tool the fixture wires in beside the two built in: one of
+// Hermit is the tool the fixture wires in beside the two built in: one of
 // the person's own, with no hooks and no words of its screen.
-var Hermes = contract.Tool{Name: "hermes", Label: "Hermes", Run: []string{"/opt/hermes/bin/hermes", "chat"}, Hooks: contract.HooksNone,
+var Hermit = contract.Tool{Name: "hermit", Label: "Hermit", Run: []string{"/opt/hermit/bin/hermit", "chat"}, Hooks: contract.HooksNone,
 	Suits: "long refactors; slow; runs on this machine, costs nothing", Mine: true}
 
 type fleetSpec struct {
@@ -60,7 +60,7 @@ type fleetSpec struct {
 var fleetSpecs = []fleetSpec{
 	{"billing", "r2", "codex", "G1", []string{"refund flow?", "invoice pdf!", "tax rounding", "card retries", "receipt mail"}},
 	{"search", "r3", "claude", "G2", []string{"search box", "search results", "filters", "ranking", "typeahead", "synonyms"}},
-	{"help pages", "r4", "hermes", "G3", []string{"getting started", "billing help", "search help", "faq"}},
+	{"help pages", "r4", "hermit", "G3", []string{"getting started", "billing help", "search help", "faq"}},
 }
 
 // run makes a run with a lead agent in a pane, and adds that pane to snap.
@@ -108,7 +108,7 @@ func Fleets() *ThreeFleets {
 		t, _ := contract.FindTool(contract.BuiltIn(), name)
 		tools = append(tools, t)
 	}
-	tools = append(tools, Hermes)
+	tools = append(tools, Hermit)
 
 	up := run("r1", contract.ModeFleets, "p1", "t-p1", "Orchestrator", shop, now, snap)
 	up.Run.Fleets = map[string]*contract.Fleet{}

@@ -129,17 +129,17 @@ func TestAnAgentsSet(t *testing.T) {
 		t.Errorf("ui.json after an agent's set: %+v", ui)
 	}
 	// What names a program, a tool taken away and a value that is none.
-	for _, kv := range [][2]string{{"shell", "/bin/sh"}, {"notify.url", "https://example.org/n"}, {"tools.hermes.run", "/opt/h/hermes"}, {"tools.hermes.hooks", "claude"}} {
+	for _, kv := range [][2]string{{"shell", "/bin/sh"}, {"notify.url", "https://example.org/n"}, {"tools.hermit.run", "/opt/h/hermit"}, {"tools.hermit.hooks", "claude"}} {
 		var r *Refusal
 		if _, err := Set(c, kv[0], kv[1]); !errors.As(err, &r) || r.Code != "human_only" {
 			t.Errorf("an agent sets %s: %v", kv[0], err)
 		}
 	}
 	var r *Refusal
-	if _, err := Set(c, "tools.hermes", "remove"); !errors.As(err, &r) || r.Exit != ExitUsage {
+	if _, err := Set(c, "tools.hermit", "remove"); !errors.As(err, &r) || r.Exit != ExitUsage {
 		t.Errorf("an agent takes a tool away: %v", err)
 	}
-	if _, err := Set(c, "tools.hermes.tried", "started"); !errors.As(err, &r) || r.Exit != ExitUsage {
+	if _, err := Set(c, "tools.hermit.tried", "started"); !errors.As(err, &r) || r.Exit != ExitUsage {
 		t.Errorf("what a test saw is typed: %v", err)
 	}
 	// The person's own: set at once, with the warning for unlimited.
@@ -320,7 +320,7 @@ func TestTheVersionNotice(t *testing.T) {
 
 func TestTheRanksOfATool(t *testing.T) {
 	tools := BuiltIn()
-	mine := Tool{Name: "hermes", Run: []string{"/opt/h/hermes"}, Hooks: HooksNone, Mine: true, Tried: ToolTried{Day: "2026-10-12", Saw: TriedSaw[:2]}}
+	mine := Tool{Name: "hermit", Run: []string{"/opt/h/hermit"}, Hooks: HooksNone, Mine: true, Tried: ToolTried{Day: "2026-10-12", Saw: TriedSaw[:2]}}
 	if tools[0].Rank() != RankProven || tools[1].Rank() != RankReady || mine.Rank() != RankTerminal {
 		t.Errorf("ranks: %s, %s, %s", tools[0].Rank(), tools[1].Rank(), mine.Rank())
 	}
@@ -378,8 +378,8 @@ func TestTheInterfaceForAppsIsHeld(t *testing.T) {
 func TestAProfileHoldsNoSecret(t *testing.T) {
 	h, c := login(t)
 	for _, kv := range [][2]string{{"notify.url", "https://example.org/n?token=SECRET-ADDRESS"}, {"theme", "kelp"}, {"spend.guard", "on"},
-		{"fleets.total", "unlimited"}, {"shell", "/bin/zsh -l"}, {"shortcut.x", "/usr/bin/true"}, {"tools.hermes.run", full("/opt/h/hermes") + " chat"},
-		{"tools.hermes.env.API_KEY", "SECRET-KEY"}, {"tools.hermes.suits", "long reads"}} {
+		{"fleets.total", "unlimited"}, {"shell", "/bin/zsh -l"}, {"shortcut.x", "/usr/bin/true"}, {"tools.hermit.run", full("/opt/h/hermit") + " chat"},
+		{"tools.hermit.env.API_KEY", "SECRET-KEY"}, {"tools.hermit.suits", "long reads"}} {
 		if _, err := Set(c, kv[0], kv[1]); err != nil {
 			t.Fatalf("set %s: %v", kv[0], err)
 		}
@@ -396,7 +396,7 @@ func TestAProfileHoldsNoSecret(t *testing.T) {
 	if err == nil {
 		err = toml.NewEncoder(&file).Encode(pr)
 	}
-	if err != nil || !slices.Equal(left, []string{"the nudge address", "1 variables of hermes"}) {
+	if err != nil || !slices.Equal(left, []string{"the nudge address", "1 variables of hermit"}) {
 		t.Fatalf("saved: %v, left out %q", err, left)
 	}
 	for _, secret := range []string{"SECRET", "example.org"} {
@@ -411,7 +411,7 @@ func TestAProfileHoldsNoSecret(t *testing.T) {
 	// know is named and skipped, and an address somebody wrote in is dropped.
 	back, skipped, err := ReadProfile(append(file.Bytes(), "\n[config.notify]\nurl = \"https://example.org/x\"\n[config.later]\nword = 1\n"...))
 	if err != nil || !slices.Contains(skipped, "config.later.word") || back.Config.Notify.URL != "" || back.Config.UI.Theme != "kelp" ||
-		!back.Config.Spend.Guard || back.Config.Fleets.Total != Unlimited || back.Tools["hermes"].Suits != "long reads" || back.Tools["hermes"].Env["API_KEY"] != "" ||
+		!back.Config.Spend.Guard || back.Config.Fleets.Total != Unlimited || back.Tools["hermit"].Suits != "long reads" || back.Tools["hermit"].Env["API_KEY"] != "" ||
 		len(back.Engine.Shortcuts) != 1 || !slices.Equal(back.Engine.Shell, []string{"/bin/zsh", "-l"}) {
 		t.Fatalf("read back: %v, skipped %q, %+v", err, skipped, back)
 	}

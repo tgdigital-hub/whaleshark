@@ -16,16 +16,27 @@ import (
 	"github.com/tgdigital-hub/whaleshark/test/scenario"
 )
 
-// The table of kinds this folder held until phase 5, kept here alone: every
-// description that is compiled in says of its tool what the table said.
+// The table of kinds this folder held until phase 5, kept here alone, with
+// the tools described from their makers' pages since: every description that
+// is compiled in says of its tool what the table says.
 func TestTheBuiltInToolsAreTheKindsOfBefore(t *testing.T) {
 	kinds := map[string]struct {
+		run    []string
 		dir    string
 		each   bool
 		resume []string
+		model  bool
 	}{
-		"claude": {"--add-dir", false, []string{"--resume"}},
-		"codex":  {"--add-dir", true, []string{"resume"}},
+		"claude":   {nil, "--add-dir", false, []string{"--resume"}, true},
+		"codex":    {nil, "--add-dir", true, []string{"resume"}, true},
+		"gemini":   {nil, "--include-directories", true, nil, true},
+		"qwen":     {nil, "--include-directories", true, nil, true},
+		"opencode": {nil, "", false, nil, true},
+		"cursor":   {[]string{"agent"}, "--add-dir", true, nil, true},
+		"hermes":   {nil, "", false, nil, true},
+		"goose":    {[]string{"goose", "session"}, "", false, nil, false},
+		"crush":    {nil, "", false, nil, false},
+		"amp":      {nil, "", false, nil, false},
 	}
 	if built := contract.BuiltIn(); len(built) != len(kinds) || contract.DefaultTool != "claude" {
 		t.Fatalf("%d descriptions are built in for %d kinds; the default is %s", len(built), len(kinds), contract.DefaultTool)
@@ -35,18 +46,32 @@ func TestTheBuiltInToolsAreTheKindsOfBefore(t *testing.T) {
 		folders := []string{k.dir, "/a", "/b"}
 		if k.each {
 			folders = []string{k.dir, "/a", k.dir, "/b"}
+		} else if k.dir == "" {
+			folders = nil
+		}
+		run, model, resume := k.run, []string{"--model", "m"}, []string(nil)
+		if run == nil {
+			run = []string{tool.Name}
+		}
+		if !k.model {
+			model = nil
+		}
+		if k.resume != nil {
+			resume = append(slices.Clone(k.resume), "s7")
 		}
 		switch {
 		case !known:
 			t.Errorf("%s was no kind", tool.Name)
-		case !slices.Equal(tool.Run, []string{tool.Name}):
+		case !slices.Equal(tool.Run, run):
 			t.Errorf("%s runs %q", tool.Name, tool.Run)
 		case !slices.Equal(tool.Folders("/a", "/b"), folders):
 			t.Errorf("%s is given two folders as %q, not %q", tool.Name, tool.Folders("/a", "/b"), folders)
-		case !slices.Equal(contract.Fill(tool.Resume, "session", "s7"), append(slices.Clone(k.resume), "s7")):
+		case !slices.Equal(contract.Fill(tool.Resume, "session", "s7"), resume):
 			t.Errorf("%s continues a conversation with %q", tool.Name, contract.Fill(tool.Resume, "session", "s7"))
-		case !slices.Equal(contract.Fill(tool.Model, "model", "m"), []string{"--model", "m"}):
+		case !slices.Equal(contract.Fill(tool.Model, "model", "m"), model):
 			t.Errorf("%s names a model with %q", tool.Name, contract.Fill(tool.Model, "model", "m"))
+		case tool.Name != "claude" && tool.Proven:
+			t.Errorf("%s is called proven", tool.Name)
 		}
 	}
 }
@@ -392,7 +417,7 @@ func onBoth(t *testing.T, play func(*testing.T, scenario.Backend) []string) {
 // A tool nobody wired in is refused before anything exists, by its name.
 func TestAToolThatIsNotWiredInStartsNothing(t *testing.T) {
 	p := evening(t, 1, nil)
-	out := must(t, p.Command(scenario.Orch, "start", "R1", "--agent", "hermes", "--json"), 5, "no_tool")
+	out := must(t, p.Command(scenario.Orch, "start", "R1", "--agent", "hermit", "--json"), 5, "no_tool")
 	if s, _ := p.Record(); len(s.Tasks["R1"].Attempts) != 0 || len(calls(p, contract.OpTabCreate)) != 0 {
 		t.Fatalf("something was made for a tool that is not wired in:\n%s", out)
 	}

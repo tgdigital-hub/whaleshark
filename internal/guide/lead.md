@@ -69,9 +69,9 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   the task stays failed until `whaleshark task reset T3`. A `start_failed` is not counted, no agent
   read the brief: when a start fails twice the same way, stop and `whaleshark need todo "<why>"`.
   A failed or cancelled task's copy goes only with `whaleshark close T3 --discard`.
-- A start that ends "at a prompt" in a project nobody has opened in Claude Code: the agent asks
-  whether it trusts the folder. Only the person can say, and once is enough: they start an agent
-  in the project's own folder and say yes. Then `whaleshark start T3 --retry`.
+- A start that ends "at a prompt" in a project nobody has opened in that agent tool yet: the agent
+  asks whether it trusts the folder. Only the person can say, and once is enough: they start that
+  tool in the project's own folder and say yes. Then `whaleshark start T3 --retry`.
 - `overlap`, `scope`: see "When tasks touch the same files".
 - `stale`, `overtime`: a worker has sent no note for half an hour, or works past the task's time.
   Nothing was stopped. Look with `whaleshark show T3 --screen`, then `tell` it or `stop` it.
