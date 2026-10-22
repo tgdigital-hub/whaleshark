@@ -1,5 +1,5 @@
 == 150x44 keys=p1 zoom=
- Lead ≡ sign-up page │ photo upload │ email sender │ price list │ login page │ search box │ search results │ checkout form │ help pages │ +3
+ Lead │ sign-up page │ photo upload │ email sender │ price list │ login page │ search box │ search results │ checkout form │ help pages │ +3
 ────────────────────────────────────┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 p2 36x42                            ┃p1 113x30
                                     ┃
@@ -44,7 +44,7 @@ p2 36x42                            ┃p1 113x30
                                     │
                                     │
 == 100x29 keys=p1 zoom=
- Lead ≡ sign-up page │ photo upload │ email sender │ price list │ login page │ search box │ +6
+ Lead │ sign-up page │ photo upload │ email sender │ price list │ login page │ search box │ +6
 ────────────────────────────────────┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 p2 36x27                            ┃p1 63x19
                                     ┃
@@ -74,7 +74,7 @@ p2 36x27                            ┃p1 63x19
                                     │
                                     │
 == 80x24 keys=p1 zoom=
- Lead ≡ sign-up page │ photo upload │ email sender │ price list │ +8
+ Lead │ sign-up page │ photo upload │ email sender │ price list │ +8
 ────────────────────────────────────┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 p2 36x22                            ┃p1 43x15
                                     ┃
@@ -99,7 +99,7 @@ p2 36x22                            ┃p1 43x15
                                     │
                                     │
 == 50x15 keys=p1 zoom=
- Lead ≡ sign-up page │ photo upload │ +10
+ Lead │ sign-up page │ photo upload │ +10
 ────────────────────────────────────┳━━━━━━━━━━━━━
 p2 36x13                            ┃p1 13x9
                                     ┃
@@ -115,7 +115,7 @@ p2 36x13                            ┃p1 13x9
                                     │
                                     │
 == 24x8 keys=p1 zoom=
- Lead ≡ +12
+ Lead │ +12
 ───────────────┳━━━━━━━━
 p2 15x6        ┃p1 8x3
                ┃

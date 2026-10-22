@@ -54,7 +54,7 @@ var Actions = []Action{
 	{ID: "to-actions", Label: "Go to the action pane", Run: []string{"ui", "actions", "focus"}, How: HowChild, Key: "a", Prefix: "a"},
 	{ID: "narrower", Label: "Narrower", How: HowResize, Key: "["},
 	{ID: "wider", Label: "Wider", How: HowResize, Key: "]"},
-	{ID: "menu", Label: "Every action", Run: []string{"ui", "menu"}, How: HowScreen, Key: "/", Prefix: "space"},
+	{ID: "menu", Label: "Actions", Run: []string{"ui", "menu"}, How: HowScreen, Key: "/", Prefix: "space"},
 	{ID: "fold", Label: "Fold or unfold", How: HowScreen, Key: "x"},
 	{ID: "show", Label: "Show", How: HowScreen},
 	{ID: "keys", Label: "All keys", How: HowScreen, Key: "?"},

@@ -204,9 +204,12 @@ func (p *pane) drawOver() {
 		y++
 	}
 	p.pick = max(min(p.pick, len(list)-1), 0)
+	for p.pick < len(list)-1 && list[p.pick].head {
+		p.pick++ // a heading is never the chosen line
+	}
 	room := h - y - 1
 	for i := max(min(p.pick-room/2, len(list)-room), 0); i < len(list) && y < h-1; i, y = i+1, y+1 {
-		e, st := list[i], p.st("text")
+		e, st := list[i], map[bool]term.Style{false: p.st("text"), true: bold(p.st("dim"))}[list[i].head]
 		if e.do != nil && i == p.pick {
 			st = bold(st)
 			t.Put(0, y, 1, p.glyph("▌", "|"), p.st("accent"))

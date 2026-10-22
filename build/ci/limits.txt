@@ -758,7 +758,10 @@ skip _test.go testdata testkit
 # The trial with real agents cost 49: the menu's mark after the name that
 # shows and at the end of the chosen row, for a terminal that reports no
 # right button, and the words of two refusals. The tree stands at 47,145.
-total 47400
+# 47,500 by the owner's word that features may grow the tree a little: the
+# one-line installers, eight more agent tools, the grouped Actions list, the
+# lit rows of the left section and the fleet board with no job open.
+total 47500
 
 # The whole module list, not only the direct ones.
 modules 4

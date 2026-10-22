@@ -54,7 +54,7 @@ func TestTheHeldEdgeOfTheDock(t *testing.T) {
 	l.Lit, l.Held = l.At(31, 9), true
 	l.Lit.X, l.Lit.Y = 31, 9
 	pad, side := strings.Repeat(" ", 31), strings.Repeat(" ", 81)
-	want := []string{pad + "┃ Orchestrator ≡ sign-up page │ login page │ help pages",
+	want := []string{pad + "┃ Orchestrator │ sign-up page │ login page │ help pages",
 		pad + "┃" + strings.Repeat("─", 81) + "┬" + strings.Repeat("─", 46)}
 	for y := 2; y < 14; y++ {
 		if y == 9 {
@@ -83,7 +83,7 @@ func TestTheHeldEdgeOfTheActionPane(t *testing.T) {
 		t.Fatalf("no line at the action pane's top edge: %+v", l.Lit)
 	}
 	pad := strings.Repeat(" ", 22)
-	want := []string{pad + "│ Orchestrator ≡ sign-up page │ login page │ help pages",
+	want := []string{pad + "│ Orchestrator │ sign-up page │ login page │ help pages",
 		pad + "├" + strings.Repeat("─", 60) + "┬" + strings.Repeat("─", 36)}
 	for y := 2; y < 24; y++ {
 		if y == 14 {

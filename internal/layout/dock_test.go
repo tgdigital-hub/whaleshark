@@ -152,10 +152,10 @@ func newGrid(l *Layout) *term.Grid { return term.NewGrid(l.W, l.H) }
 func TestTheDocksEdgeIsDrawn(t *testing.T) {
 	l := docked(Dock{On: true, Width: 16}, 200, 5)
 	for name, want := range map[string]string{
-		"left":  "    │ Lead ≡\n    ├──────────────\n    │\n    │\n    │\n",
-		"right": " Lead ≡ │\n────────┤\n        │\n        │\n        │\n",
-		"keys":  "    ┃ Lead ≡\n    ┣──────────────\n    ┃\n    ┃\n    ┃\n",
-		"open":  "      Lead ≡    │\n                ├──\n                │\n                │\n                │\n",
+		"left":  "    │ Lead\n    ├──────────────\n    │\n    │\n    │\n",
+		"right": " Lead   │\n────────┤\n        │\n        │\n        │\n",
+		"keys":  "    ┃ Lead\n    ┣──────────────\n    ┃\n    ┃\n    ┃\n",
+		"open":  "      Lead      │\n                ├──\n                │\n                │\n                │\n",
 	} {
 		l.Dock.Right, l.Dock.Keys, l.Dock.Fold, l.Dock.Open = name == "right", name == "keys", name == "open", name == "open"
 		l.Fit(19, 5)

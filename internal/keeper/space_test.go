@@ -408,7 +408,7 @@ func TestAFleetsTabsAndTheSecondTabLine(t *testing.T) {
 		t.Fatalf("the tabs' fleets are\n%s\nwant\n%s", got, want)
 	}
 	c.call(contract.WireCall{Op: contract.OpMarks, Marks: map[string]int{one.Tab: 1}, From: layout.DockPane})
-	o.shows(" Orchestrator ≡ front desk · 2 ▲1 │ back office · 1 │ other · 1")
+	o.shows(" Orchestrator │ front desk · 2 ▲1 │ back office · 1 │ other · 1")
 	if _, y := o.shows(" └ leader │ sign-up page │ login page"); y != 1 {
 		t.Errorf("the second tab line is on row %d", y)
 	}

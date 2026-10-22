@@ -480,14 +480,16 @@ func TestLook(t *testing.T) {
 	play(t, l, &k, approved, 100, 29)
 	g := term.NewGrid(100, 29)
 	l.Draw(g, k)
-	bold := k.Accent
+	lit := k.Accent
+	lit.Reverse = true
+	bold := lit
 	bold.Bold = true
 	for _, c := range []struct {
 		text string
 		dx   int
 		want term.Style
 	}{
-		{"Lead", 0, bold}, {"sign-up", 0, k.Text}, {"≡", 0, k.Accent}, {"page │", 5, k.Frame}, {"+6", 0, k.Dim},
+		{"Lead", 0, bold}, {"Lead", -1, lit}, {"Lead", 4, lit}, {"sign-up", 0, k.Text}, {"page │", 5, k.Frame}, {"+6", 0, k.Dim},
 	} {
 		x, y, ok := g.Find(c.text)
 		if got := g.At(x+c.dx, y).Style; !ok || got != c.want {
@@ -526,15 +528,15 @@ func TestTabRow(t *testing.T) {
 		l.Draw(g, k)
 		return g.Row(0)
 	}
-	if got, want := row(), " Lead ≡ sign-up page │ photo upload │ email sender │ price list │ login page │ search box │ +6"; got != want {
+	if got, want := row(), " Lead │ sign-up page │ photo upload │ email sender │ price list │ login page │ search box │ +6"; got != want {
 		t.Fatalf("the row is\n%q, want\n%q", got, want)
 	}
 	if h := l.At(0, 0); h.Kind != OnRow {
 		t.Errorf("the row's first cell is %+v", h)
 	}
-	// The mark after the name that shows asks for its menu, and no name does.
-	if h, name := l.At(6, 0), l.At(2, 0); h.Kind != OnTab || h.Tab != "t1" || !h.Menu || name.Menu || name.Tab != "t1" {
-		t.Errorf("the mark after the name that shows is %+v, the name %+v", h, name)
+	// No cell asks for a menu: a right press on a name does, or the command key's ".".
+	if h, name := l.At(6, 0), l.At(2, 0); h.Kind != OnRow || h.Menu || name.Menu || name.Tab != "t1" {
+		t.Errorf("the line after the name that shows is %+v, the name %+v", h, name)
 	}
 	if h := l.At(9, 0); h.Kind != OnTab || h.Tab != "t2" || h.Menu {
 		t.Errorf("a click on the second name is %+v", h)
@@ -563,7 +565,7 @@ func TestTabRow(t *testing.T) {
 		}
 	}
 	l.Fit(14, 5)
-	if got := row(); got != " +9 │ hel ≡ +3" {
+	if got := row(); got != " +9 │ hel │ +3" {
 		t.Errorf("in fourteen columns the row is %q", got)
 	}
 }

@@ -262,17 +262,6 @@ func TestTheMenuOfATabIsAskedFor(t *testing.T) {
 	if e := next(); e.Pane.Tab != notes.Tab || e.X != x || e.Y != y {
 		t.Errorf("the command key then a full stop told %+v, the name is at %d, %d", e, x, y)
 	}
-	// A plain press on the mark after the name that shows asks the same, for
-	// a terminal that reports no right button: the mark stands where the
-	// line to the next name would, so the press is told at that cell.
-	mx, _ := w.shows("notes ≡")
-	w.click(mx+6, y)
-	if e := next(); e.Pane.Tab != notes.Tab || e.X != mx+6 || e.Y != y {
-		t.Errorf("a plain press on the mark after the name that shows told %+v", e)
-	}
-	if r.focused() != notes.ID {
-		t.Errorf("a plain press on the mark gave the keys to %s", r.focused())
-	}
 	// With a fleet: its name on the first line is its leader's tab, whichever
 	// of its tabs a click there would show; a name on the second line is its own.
 	lead := open("p1", "front desk", "front desk")

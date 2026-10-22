@@ -234,7 +234,7 @@ var outcomes = map[string]outcome{
 	"to-actions":     {child: "ui actions focus --human"},
 	"narrower":       {terms: " right 0.02", child: "set fleet.width 120 --human"},
 	"wider":          {terms: " left 0.02", child: "set fleet.width 120 --human"},
-	"menu":           {shows: "every action"},
+	"menu":           {shows: "actions · type to search"},
 	"fold":           {child: "set folded on --human"},
 	"show":           {shows: " answered: 0"},
 	"keys":           {shows: "all keys"},
@@ -277,23 +277,34 @@ func (wd *world) reached(a contract.Action, how string, again func()) {
 }
 
 // Every row of the action table is reached with keys alone and with clicks
-// alone, through the list of every action: by its name typed and Enter, and
-// by a click on the last line and a click on its line.
+// alone, through the list of actions: by its words typed and Enter, and by
+// a click on the last line and a click on its line, under its heading.
 func TestEveryRowIsReachedByKeysAndByClicks(t *testing.T) {
-	wd := startWith(t, actions, 110, 44, nil, ours)
+	wd := startWith(t, actions, 110, 56, nil, ours)
 	wd.s.Type("\x1b[I")
 	wd.shows("› ▲ sign-up page")
-	for i, a := range contract.Actions {
-		// Which of the lines that the typed name leaves is this row's.
-		nth := 0
-		for _, b := range contract.Actions[:i] {
-			if strings.Contains(strings.ToLower(b.Label), strings.ToLower(a.Label)) {
+	line, words, found, n := map[string]int{}, map[string]string{}, []string{}, 0
+	for _, sh := range shelves {
+		rows := strings.Split(sh, "|")
+		for _, r := range rows[1:] {
+			n++ // the heading, or the row before
+			id, said, _ := strings.Cut(r, " ")
+			line[id], words[id] = n, said
+			found = append(found, strings.ToLower(rows[0]+"\n"+said))
+		}
+		n++
+	}
+	for _, a := range contract.Actions {
+		// Which of the lines that the typed words leave is this row's.
+		nth, typed := 0, strings.ToLower(words[a.ID])
+		for _, f := range found[:slices.IndexFunc(found, func(f string) bool { return strings.HasSuffix(f, "\n"+typed) })] {
+			if strings.Contains(f, typed) {
 				nth++
 			}
 		}
 		wd.key("/")
 		wd.shows("type to search")
-		wd.s.Type(a.Label)
+		wd.s.Type(words[a.ID])
 		for range nth {
 			wd.s.Key("down")
 		}
@@ -302,7 +313,7 @@ func TestEveryRowIsReachedByKeysAndByClicks(t *testing.T) {
 
 		pick := func() {
 			wd.settle()
-			wd.s.Click(4, 2+i)
+			wd.s.Click(4, 2+line[a.ID])
 		}
 		wd.shows("ACTIONS ")
 		wd.settle()
@@ -734,11 +745,11 @@ func TestTheListOfEveryActionIsAProgramOfItsOwn(t *testing.T) {
 	p := newPane(menu, s.Term, k, t.TempDir(), "", func() time.Time { return fx.Now })
 	left := make(chan bool)
 	go func() { left <- p.loop() }()
-	if !s.Wait("every action") || !s.Wait("type to search · enter runs it · esc closes") {
+	if !s.Wait(" Actions") || !s.Wait("type to search · enter runs it · esc closes") {
 		t.Fatalf("ui menu shows %q", s.Row(0))
 	}
 	s.Type("sto")
-	if !s.Wait(" > sto") || !s.Wait("Stop all") || !s.Wait("2 actions") {
+	if !s.Wait(" > sto") || !s.Wait("Stop every agent") || !s.Wait("2 actions") {
 		t.Fatalf("typing did not narrow the list: %q, %q", s.Row(1), s.Row(19))
 	}
 	s.Key("esc")
@@ -749,6 +760,36 @@ func TestTheListOfEveryActionIsAProgramOfItsOwn(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("the list did not close on Escape")
+	}
+}
+
+// Every row the list of actions shows stands under one heading, once; a
+// search keeps the heading of what it found, and a heading is never chosen.
+func TestEveryActionIsUnderOneHeading(t *testing.T) {
+	var on []string
+	for _, sh := range shelves {
+		for _, r := range strings.Split(sh, "|")[1:] {
+			id, _, _ := strings.Cut(r, " ")
+			on = append(on, id)
+		}
+	}
+	for _, a := range slices.Concat(contract.Actions, contract.SideActions[2:]) {
+		if n := slices.Index(on, a.ID); n < 0 || slices.Index(on[n+1:], a.ID) >= 0 {
+			t.Errorf("the row %s is under no heading, or under more than one", a.ID)
+		}
+	}
+	if len(on) != len(contract.Actions)+len(contract.SideActions)-2 {
+		t.Errorf("the headings hold %d rows", len(on))
+	}
+	p := &pane{over: menu}
+	p.query.Set("fleet")
+	_, list, foot := p.entries()
+	var got []string
+	for _, e := range list {
+		got = append(got, map[bool]string{true: "# "}[e.head]+e.text+" "+e.right)
+	}
+	if want := []string{"# WINDOW ", "Show or hide the fleet f", "Make the fleet narrower [", "Make the fleet wider ]"}; !slices.Equal(got, want) || !strings.HasPrefix(foot, "3 actions") {
+		t.Errorf("searched for fleet, the list is %q, %q", got, foot)
 	}
 }
 

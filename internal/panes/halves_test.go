@@ -84,7 +84,7 @@ var frames = []struct {
 
 
 
- [ Menu ]  [ Settings ]
+ [ Actions ]  [ Settings ]
  live · checked 2s ago`},
 	{22, `
  WHALESHARK        ▲2
@@ -115,7 +115,7 @@ var frames = []struct {
 
 
 
- [Menu] [Settings]
+ [Actions] [Settings]
  live · 2s`},
 	{14, `
  WHALESHAR ▲2
@@ -146,7 +146,7 @@ var frames = []struct {
 
 
 
- [≡] [Set]
+ [Act] [Set]
  live · 2s`},
 }
 
@@ -287,6 +287,26 @@ func TestTheHalvesAndAMenuStandOnTheTerminalsGround(t *testing.T) {
 				if st := p.t.At(i%p.t.W, i/p.t.W).Style; st.Bg != 0 {
 					t.Fatalf("%s in %s: the cell at %d,%d has a ground: %+v", p.kind, s.Name, i%p.t.W, i/p.t.W, st)
 				}
+			}
+		}
+	}
+}
+
+// The workspace and the agent in front are lit as the tab row lights the tab
+// that shows: bold, the accent reversed, a blank either side; in every scheme.
+func TestTheRowsInFrontAreLitAsTheTabIs(t *testing.T) {
+	for _, s := range theme.Schemes {
+		p := afternoon(t, 28, 30, nil)
+		p.scheme, p.stale = s, true
+		p.draw()
+		for _, name := range []string{"tomsleeps", "login page", "sign-up page"} {
+			x, y := p.find(t, name)
+			st, pad, after := p.t.At(x, y).Style, p.t.At(x-1, y).Style, p.t.At(x+term.Width(name), y).Style
+			if lit := name != "sign-up page"; st.Reverse != lit || st.Bold != lit || after.Reverse != lit {
+				t.Errorf("in %s %q is drawn %+v, the cell after it %+v", s.Name, name, st, after)
+			}
+			if name == "login page" && !pad.Reverse {
+				t.Errorf("in %s the cell before %q is drawn %+v", s.Name, name, pad)
 			}
 		}
 	}

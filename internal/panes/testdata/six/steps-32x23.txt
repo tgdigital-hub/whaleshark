@@ -19,5 +19,5 @@
    3 your agents appear here;
  version 1.3 is out · upgrade …
  setting changed by your agent…
- [ Menu ]  [ Settings ]
+ [ Actions ]  [ Settings ]
  live · checked 2s ago

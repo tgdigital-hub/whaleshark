@@ -588,11 +588,26 @@ type saved struct {
 	Tasks             []struct{ Title, Brief string }
 }
 
-// entry is one line of a list drawn over the pane: what it says, what
-// stands at its right, and what Enter or a click on it does.
+// entry is one line of a list drawn over the pane: what it says, what stands
+// at its right, and what Enter or a click on it does; or a heading, unchosen.
 type entry struct {
 	text, right string
 	do          func()
+	head        bool
+}
+
+// shelves are the headings of the list of actions in their order, each with
+// its rows: an id and the words a newcomer reads there. A row's own label is
+// for a menu or a button, where what it is about is already in view.
+var shelves = []string{
+	"Agents|start Start the chosen agent|retry Start the chosen agent again|stop Stop the chosen agent|note Send the chosen agent a note|show-changes Show what the chosen agent changed|accept Accept the chosen agent's work|accept-by-hand Accept its work, saying what you checked|send-back Send its work back to be done again",
+	"Questions|answer Answer the chosen question|undo Take back the last answer|show Show the answers given",
+	"Tabs|go Go to the chosen agent's tab|close Close the chosen agent's tab|workspace Open a project in a workspace",
+	"Job|catchup What happened while I was away|open-plan Show the job's plan|team Run a saved team…|note-lead Send the lead agent a note|carry-on Tell the lead agent to carry on|ask-lead Tell the lead agent a question waits|export Save the job's log to a file|stop-all Stop every agent|resume Let every agent go on",
+	"Window|to-actions Go to the action pane|actions Show or hide the action pane|fold Fold or unfold the action pane|fleet Show or hide the fleet|narrower Make the fleet narrower|wider Make the fleet wider|side-keys Go to the workspaces and agents|side-fold Fold the workspaces and agents",
+	"Settings|settings Open the settings|set Change one setting by its name|theme Next colour scheme|dnd Do not disturb, on or off|mute Sound, on or off",
+	"Phones|phone-yes Let a phone in|phone-no Turn a phone away|forget-phone Forget a phone",
+	"Help|menu This list of actions|keys Every key",
 }
 
 // entries is the list that lies over the pane: every action, all keys, the
@@ -609,15 +624,18 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 	}
 	switch p.over {
 	case "menu", "keys":
-		for _, a := range slices.Concat(contract.Actions, contract.SideActions[2:]) {
-			right := a.Key
-			if run := strings.Join(a.Run, " "); right == "" && strings.Contains(run, "{task}") {
-				right = "(card)"
-			} else if right == "" && strings.Contains(run, "{id}") {
-				right = "(item)"
-			}
-			if p.over == "keys" && a.Key != "" || p.over == "menu" && strings.Contains(strings.ToLower(a.Label), strings.ToLower(p.query.String())) {
-				list = append(list, entry{a.Label, right, close(func() { p.act(a.ID, nil) })})
+		// A search finds a row by its words or by its heading's.
+		n, find := 0, strings.ToLower(p.query.String())
+		for _, sh := range shelves {
+			rows, at := strings.Split(sh, "|"), n
+			for _, r := range rows[1:] {
+				id, words, _ := strings.Cut(r, " ")
+				if a, _ := contract.FindAction(id); p.over == "keys" && a.Key != "" || p.over == "menu" && strings.Contains(strings.ToLower(rows[0]+"\n"+words), find) {
+					if p.over == "menu" && n == at { // the heading, over its first row found
+						list = append(list, entry{text: strings.ToUpper(rows[0]), head: true})
+					}
+					list, n = append(list, entry{text: words, right: a.Key, do: close(func() { p.act(a.ID, nil) })}), n+1
+				}
 			}
 		}
 		if p.over == "keys" {
@@ -628,10 +646,10 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 			}
 			return "all keys", list, "any key closes"
 		}
-		return "every action", list, fmt.Sprintf("%d actions · type to search · enter runs it · esc closes", len(list))
+		return "Actions", list, fmt.Sprintf("%d actions · type to search · enter runs it · esc closes", n)
 	case "projects":
 		for _, ws := range cmp.Or(p.bar, &contract.Side{}).Closed {
-			list = append(list, entry{strings.TrimSuffix(ws.Name+" · "+ws.Word, " · "), "", close(func() {
+			list = append(list, entry{text: strings.TrimSuffix(ws.Name+" · "+ws.Word, " · "), do: close(func() {
 				p.keeper(func() error {
 					_, err := p.k.Terms.SpaceOpen(ws.Root, ws.Root)
 					return err
@@ -642,7 +660,7 @@ func (p *pane) entries() (title string, list []entry, foot string) {
 	case "teams":
 		for _, t := range p.teams {
 			run := func(goal string) { p.act("team", map[string]string{"name": t.Name, "text": goal}) }
-			e := entry{strings.TrimSuffix(t.Name+" · "+t.About, " · "), fmt.Sprintf("%d tasks", len(t.Tasks)), close(func() { run("") })}
+			e := entry{text: strings.TrimSuffix(t.Name+" · "+t.About, " · "), right: fmt.Sprintf("%d tasks", len(t.Tasks)), do: close(func() { run("") })}
 			if t.Held {
 				e.right = "not approved"
 			}
@@ -706,9 +724,10 @@ func (p *pane) overKey(ev term.Event) {
 			list[p.pick].do()
 		}
 	case ev.Key == "up" || ev.Key == "k" && p.over != "menu":
-		p.pick--
+		for p.pick--; p.pick > 0 && list[p.pick].head; p.pick-- {
+		}
 	case ev.Key == "down" || ev.Key == "j" && p.over != "menu":
-		p.pick++
+		p.pick++ // past a heading as it is drawn
 	case p.over == "menu":
 		p.query.Key(ev)
 		p.pick = 0

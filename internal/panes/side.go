@@ -216,14 +216,14 @@ func (p *pane) drawSide(now time.Time) {
 
 	// The foot: the two buttons, or while the keys are here where they go and
 	// what was typed; under it the age.
-	labels, gap, x := [2]string{"[Menu]", "[Settings]"}, 1, 1
-	switch {
-	case wide:
-		labels, gap = [2]string{"[ Menu ]", "[ Settings ]"}, 2
+	labels, gap, x := [2]string{"[Act]", "[Set]"}, 1, 1
+	switch { // the widest form that fits whole
 	case rail:
 		labels, x = [2]string{p.glyph("[≡]", "[=]")}, 0
-	case tight:
-		labels = [2]string{p.glyph("[≡]", "[=]"), "[Set]"}
+	case w > 25:
+		labels, gap = [2]string{"[ Actions ]", "[ Settings ]"}, 2
+	case w > 20:
+		labels = [2]string{"[Actions]", "[Settings]"}
 	}
 	if y = h - 2; p.line != nil || p.hint != "" || p.focused {
 		p.hintLine(y, w-1, cmp.Or(p.query.String(), "type to find")+" · esc back", "")
@@ -263,10 +263,10 @@ func (p *pane) firstSteps(y, end int) int {
 	return y + 1
 }
 
-// spaceRow is a workspace's row of the upper panel: the bar for the one in
-// front, its name, its branch where the whole of both has room, and at its
-// right what waits for the person there and how many agents it has, or how
-// many tabs where it has no job. On the rail it is its mark and its count.
+// spaceRow is a workspace's row of the upper panel: the bar for the chosen
+// one, its name, lit for the one in front, its branch where the whole of both
+// has room, and at its right what waits for the person there and how many
+// agents it has, or how many tabs where it has no job. On the rail it is its mark and its count.
 func (p *pane) spaceRow(y int, ws contract.Workspace) {
 	t, w, id := p.t, p.t.W, "ws/"+ws.ID
 	name, count := p.st("text"), strconv.Itoa(cmp.Or(ws.Agents, ws.Tabs))
@@ -304,10 +304,26 @@ func (p *pane) spaceRow(y int, ws contract.Workspace) {
 		t.Put(x, y, w-x, need, p.st("needs"))
 	}
 	room := x - 3
-	at := 2 + t.Put(2, y, room, p.short(ws.Name, room), name)
+	at := 2 + p.inFront(2, y, room, p.short(ws.Name, room), name, ws.Front)
 	if t.W > contract.SideNames && ws.Branch != "" && at+2+term.Width(ws.Branch) <= 2+room {
 		t.Put(at+2, y, room, ws.Branch, p.st("dim"))
 	}
+}
+
+// inFront draws a name, and the one in front lit as the tab that shows is on
+// the tab row: bold, the accent reversed, a blank either side where it is free.
+func (p *pane) inFront(x, y, room int, name string, st term.Style, front bool) int {
+	pad := p.st("accent")
+	if pad.Reverse = true; !front || p.old {
+		return p.t.Put(x, y, room, name, st)
+	}
+	w := p.t.Put(x, y, room, name, bold(pad))
+	for _, at := range []int{x - 1, x + w} {
+		if p.t.At(at, y).Text == " " {
+			p.t.Put(at, y, 1, " ", pad)
+		}
+	}
+	return w
 }
 
 // asks puts the menu's mark in the last cell of the chosen row: a plain
@@ -414,9 +430,9 @@ func (p *pane) front(ws contract.Workspace) {
 }
 
 // sideRow is one row of the agents panel: the bar where the keys or the tab
-// in front are, the mark of its state, its name, and at its right what the
-// width has room for: a fleet's tool and how full it is, an agent's state
-// word beside its whole name.
+// in front are, the mark of its state, its name, lit in front, and at its
+// right what the width has room for: a fleet's tool and how full it is, an
+// agent's state word beside its whole name.
 func (p *pane) sideRow(y int, r contract.SideRow, do func()) {
 	t, w, id := p.t, p.t.W, rowID(r)
 	rail, tight, wide := w <= contract.SideRail, w <= contract.SideCut, w > contract.SideNames
@@ -509,11 +525,9 @@ func (p *pane) sideRow(y int, r contract.SideRow, do func()) {
 	if rw > 0 {
 		room -= rw + 1
 		t.Put(w-1-rw, y, rw, right, rst)
-	}
-	if rw > 0 {
 		p.hits = append(p.hits, hit{w - 1 - rw, y, rw, 1, false, offer})
 	}
-	t.Put(x+2, y, room, p.short(r.Name, room), name)
+	p.inFront(x+2, y, room, p.short(r.Name, room), name, r.Front && r.Kind != contract.RowMore)
 }
 
 // choose is a click on a row or Enter: the rows that were cut unfold, and

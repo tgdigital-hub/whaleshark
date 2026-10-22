@@ -136,7 +136,7 @@ func TestOurPanesCellForCell(t *testing.T) {
 				}()
 				first, typed := "live", []string{"\x1b[B", "\x1b[B", "?", "\x1b", "x", "x", "\x1b[A"}
 				if kind == "menu" { // Escape would end it; what is typed there is a search
-					first, typed = "every action", []string{"\x1b[B", "\x1b[B", "s", "t", "\x7f", "\x1b[A"}
+					first, typed = " Actions", []string{"\x1b[B", "\x1b[B", "s", "t", "\x7f", "\x1b[A"}
 				}
 				g.shows(first)
 				for _, key := range typed {

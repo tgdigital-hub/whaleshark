@@ -122,7 +122,7 @@ var pictures = []struct {
   ▌ ◐ search box      building ≡
     · 5 more
   ▸ help pages       hermit 4/8
- [ Menu ]  [ Settings ]
+ [ Actions ]  [ Settings ]
  live · checked 2s ago
 `},
 	{side, 22, 30, `
@@ -154,7 +154,7 @@ var pictures = []struct {
   ▌ ◐ search box     ≡
     · 5 more
   ▸ help pages    4/8
- [Menu] [Settings]
+ [Actions] [Settings]
  live · 2s
 `},
 	{side, 14, 30, `
@@ -186,7 +186,7 @@ var pictures = []struct {
  ▌ ◐ search …
    · 5 more
   ▸ help… 4/8
- [≡] [Set]
+ [Act] [Set]
  live · 2s
 `},
 	{side, 4, 14, `
@@ -466,13 +466,13 @@ func TestAClickOnARowOfTheBarThatMovedIsRefused(t *testing.T) {
 // gives the keys back.
 func TestTheBarsClicksAndKeys(t *testing.T) {
 	wd, change := sideWorld(t, 32, 40)
-	wd.shows(" WHALESHARK ", "▲2", "[ Menu ]  [ Settings ]", "[+]")
+	wd.shows(" WHALESHARK ", "▲2", "[ Actions ]  [ Settings ]", "[+]")
 	wd.click("photo upload")
 	wd.asked("tab-focus")
 	wd.click("[ Settings ]")
 	// On the job of the tab that shows: its log is what the screen exports.
 	wd.asked("ui run settings --root " + wd.p.root + " --run r3")
-	wd.click("[ Menu ]")
+	wd.click("[ Actions ]")
 	wd.asked("ui menu")
 	// [+] lists the projects of the login that no workspace shows.
 	wd.click("[+]")
@@ -516,7 +516,7 @@ func TestTheBarsClicksAndKeys(t *testing.T) {
 	wd.s.Key("x")
 	wd.s.Key("esc")
 	wd.asked("dock " + contract.DockBack)
-	wd.shows("[ Menu ]")
+	wd.shows("[ Actions ]")
 
 	// The menus those two ask for: a fleet is parked through its group, after
 	// its question, and an answer goes to the run its question climbed to.

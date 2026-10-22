@@ -26,9 +26,9 @@ func TestARightPressAsksForTheMenu(t *testing.T) {
 		{"\x1b[<2;11;2M", "nothing"},
 		{"\x1b[<2;41;11M\x1b[<34;31;11M\x1b[<2;31;11m", "nothing"},
 		{"\x1b[<1;9;1M\x1b[<1;9;1m", "nothing"},
-		// The mark after the name that shows: a plain press asks, where a
-		// terminal reports no right button; the middle button asks nothing.
-		{"\x1b[<0;6;1M\x1b[<0;6;1m", "menu of t1 at 5,0"},
+		// The line after the name that shows: no mark stands there, so a
+		// plain press asks nothing, and neither does the middle button.
+		{"\x1b[<0;6;1M\x1b[<0;6;1m", "nothing"},
 		{"\x1b[<1;6;1M\x1b[<1;6;1m", "nothing"},
 		{"\x1b[<2;6;6M\x1b[<2;6;6m", `p1 <- "\x1b[<2;6;4M" | p1 <- "\x1b[<2;6;4m"`},
 	} {
