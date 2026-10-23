@@ -417,7 +417,7 @@ func TestAKeeperThatIsAServiceIsStartedByIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	k, path := standIn(t, func(*keeper) {})
-	s := begin(t, path, "PATH="+bin, "SSH_CONNECTION=10.0.0.2 50000 10.0.0.1 22")
+	s := begin(t, path, "PATH="+bin, "SSH_CONNECTION=client 50000 server 22")
 	k.attach(t)
 	k.hangUp()
 	if code := s.end(); code != 0 || exists(calls) {
