@@ -69,6 +69,7 @@ func trustLines(root string, p ProjectFile) ([]string, error) {
 	add("check.timeout_seconds", p.Check.TimeoutSeconds, d.Check.TimeoutSeconds)
 	add("land.who", p.Land.Who, d.Land.Who)
 	add("land.check", p.Land.Check, "")
+	add("land.mode", p.Land.Mode, d.Land.Mode)
 	add("limits.agents", max(p.Limits.Agents, d.Limits.Agents), d.Limits.Agents)
 	teams, _ := filepath.Glob(filepath.Join(root, TeamsDir, "*.toml"))
 	slices.Sort(teams)

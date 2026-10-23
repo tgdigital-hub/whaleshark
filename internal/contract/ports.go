@@ -528,6 +528,18 @@ type Integrator interface {
 	// with -z, and their fingerprint, a hash over each path and the id git
 	// gives its contents at the tip. No match gives nothing.
 	Protected(root string, s *State, patterns []string) (print string, files []string, err error)
+	// Fetch brings the run's base branch from where it comes from, where
+	// worktrees.fetch_base is on, and names it there ("origin/main"); it is
+	// empty where it is off or nothing could be fetched.
+	Fetch(root string, s *State) string
+	// Request pushes the checked commit of a task as its branch and opens
+	// the task's own pull request, or finds the open one (pr-per-task).
+	Request(root string, s *State, task string, c Checked) (*PullRequest, error)
+	// Watch looks at the pull requests a run waits on, no more often than
+	// it is worth asking: it raises ci_failed, refreshes or asks where the
+	// base moved, and merges a green one under the project's merge lock,
+	// then marks its task done and raises merged. The sweep calls it.
+	Watch(root, run string, now time.Time) error
 }
 
 // Finding is one result of an overlap scan, kept on the run once announced.
@@ -735,6 +747,11 @@ func (NoIntegrator) Drop(string, *State) (string, error)                     { r
 func (NoIntegrator) Protected(string, *State, []string) (string, []string, error) {
 	return "", nil, nil
 }
+func (NoIntegrator) Fetch(string, *State) string { return "" }
+func (NoIntegrator) Request(string, *State, string, Checked) (*PullRequest, error) {
+	return nil, ErrNotBuilt
+}
+func (NoIntegrator) Watch(string, string, time.Time) error { return nil }
 
 func (NoOverlap) Scan(context.Context, string, *State, []string, bool) ([]Finding, error) {
 	return nil, nil

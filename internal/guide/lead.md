@@ -42,7 +42,7 @@ A task not yet started is changed with `whaleshark task edit`, dropped with `wha
 Run `start` and `wait` in the background. Do not open tabs yourself, and start agents no other way.
 `wait` returns a batch of events and its delivery id, such as d17. Deal with every event, then:
     whaleshark wait --ack d17 --timeout 540
-A batch you do not acknowledge is handed out again. Do what your own plan still asks, then wait again.
+A batch you do not acknowledge is handed out again. Do what your plan still asks, then wait again.
 
 ## What each event asks of you
 - `done`: run `whaleshark show T3` and read the result against the brief. Good: `whaleshark accept T3`.
@@ -73,10 +73,10 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   asks whether it trusts the folder. Only the person can say, and once is enough: they start that
   tool in the project's own folder and say yes. Then `whaleshark start T3 --retry`.
 - `overlap`, `scope`: see "When tasks touch the same files".
-- `stale`, `overtime`: a worker has sent no note for half an hour, or works past the task's time.
-  Nothing was stopped. Look with `whaleshark show T3 --screen`, then `tell` it or `stop` it.
-- `together`: most workers stopped in the same minute, which is usually the usage limit. The
-  person has been told. Start nothing new until the workers answer again.
+- `stale`, `overtime`: no note for half an hour, or past the task's time; nothing was stopped. Look
+  with `whaleshark show T3 --screen`, then `tell` it or `stop` it. `merged`, `ci_failed`: see the end.
+- `together`: most workers stopped in the same minute, usually the usage limit; the person was told.
+  Start nothing new until the workers answer again.
 - `untrusted`: a setting of `whaleshark.toml` is not used, because the person has not approved
   the file as it stands. If the work needs it, ask as for the run's check below. A `land` or an
   `accept` of several refused with this word ran and moved nothing: the project's `[land] check`
@@ -128,15 +128,12 @@ instead, record it with `whaleshark answer n4 "<their words>" --relayed`.
 
 ## Talking to a worker
     whaleshark tell T3 "The base branch is main."
-    whaleshark tell T3 --file notes.md
-Use `--file` for anything longer than a line or private: a command line can be seen by others on a
-shared machine. A worker that has reported is not shown a `tell`: `reject` it with the words.
-`whaleshark stop T3` ends a worker.
+`--file notes.md` for anything long or private: others on a shared machine see a command line.
+A worker that has reported is not shown a `tell`: `reject` it with the words. `stop T3` ends one.
 
 ## Looking
-`whaleshark status` is the team at work (`--all` adds what has not started and what is done),
-`whaleshark show T3` is one task, and `whaleshark catchup` is what happened while the person was
-away. Every row prints the command to run next.
+`whaleshark status` is the team at work (`--all` adds the rest), `whaleshark show T3` one task, and
+`whaleshark catchup` what happened while the person was away. Every row prints the next command.
 
 ## Never
 - Never add `--human` to any command: it is the person's alone.
@@ -147,3 +144,6 @@ away. Every row prints the command to run next.
 When every task is done: `whaleshark close --settled`. The person lands the collected work, unless
 the project says otherwise: put `whaleshark land --pr` or `--local` in a `whaleshark need signoff`.
 Then `whaleshark run close` once it is landed; `--abandon` gives the work up and withdraws its items.
+With `[land] mode = "pr-per-task"` nothing is landed: `accept T3` pushes T3 as its own pull request,
+merged once its checks pass (`merged`). `ci_failed`: `reject` with its checks, `accept` the fix.
+`base_moved`: the base moved under it; `accept T3` again. After `merged`, `whaleshark close T3`.

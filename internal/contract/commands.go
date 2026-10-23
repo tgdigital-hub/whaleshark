@@ -277,7 +277,7 @@ var Commands = []Command{
 		Example: "whaleshark tell T3 --file notes.md"},
 	{Name: "accept", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 1, 5},
 		Usage:   `accept <task>... [--by-hand "<what I ran or read>"]`,
-		Help:    "run the task's check and, when it passes, keep the work; several tasks are checked together",
+		Help:    "run the task's check and, when it passes, keep the work; several tasks are checked together. With land.mode pr-per-task: push it as its own pull request, merged when its checks pass",
 		Flags:   flags("by-hand=NOTE: there is no check to run: say what you ran or read"),
 		Example: "whaleshark accept T3"},
 	{Name: "reject", Section: "runs", Phase: 1, Who: O, Exits: []int{0, 5},
@@ -357,7 +357,7 @@ var Commands = []Command{
 		Usage: "sync <task>", Help: "send a worker the brief for bringing its copy up to date",
 		Example: "whaleshark sync T7"},
 	{Name: "land", Section: "code", Phase: 2, Who: H | O, Exits: []int{0, 1, 5},
-		Usage: "land [--pr | --local]", Help: "check the collected work, then open one pull request or merge it; the lead agent only if the project allows",
+		Usage: "land [--pr | --local]", Help: "check the collected work, then open one pull request or merge it; the lead agent only if the project allows. Not with land.mode pr-per-task, where each task lands by itself",
 		Flags:   flags("pr: open one pull request", "local: merge it here"),
 		Example: "whaleshark land --pr"},
 }

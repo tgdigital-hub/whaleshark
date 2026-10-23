@@ -213,6 +213,9 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		last.Gone = sw.leaders(root, s, l, last.Gone)
 		sw.pairs(root, s, l)
 		sw.hold(root, s, l)
+		// The pull requests of pr-per-task mode are watched here, in the
+		// background of every wait; what goes wrong is asked again next time.
+		k.Integrator.Watch(root, run, now)
 	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
 		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now, By: contract.Version, Gone: last.Gone})

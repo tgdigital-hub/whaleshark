@@ -585,7 +585,16 @@ func (l *launcher) bring(task string) outcome {
 	had := t.Worktree != nil && t.Worktree.RemovedAt.IsZero()
 	folder, tree := c.Root, (*contract.Worktree)(nil)
 	if !group {
-		if folder, tree, err = k.Placement.Place(c.Root, s, task); err != nil {
+		// With fetch_base the base is fetched before each start. In
+		// pr-per-task mode a task is cut from the base itself, as fetched,
+		// and never from the run's collected work.
+		view, far := s, k.Integrator.Fetch(c.Root, s)
+		if b := s.Run.Base; l.project.Land.Mode == contract.LandPR && b != nil && b.Ref != "" {
+			v := *s
+			v.Run.Integration, v.Run.Base = nil, &contract.GitRef{Ref: cmp.Or(far, b.Ref)}
+			view = &v
+		}
+		if folder, tree, err = k.Placement.Place(c.Root, view, task); err != nil {
 			return fail(err)
 		}
 	}
@@ -783,10 +792,14 @@ func (l *launcher) bring(task string) outcome {
 	if k.Platform.System() == "windows" {
 		browser = guide.OnWindows(browser, k.Platform.Quote, env, os.Getenv)
 	}
+	pr := ""
+	if l.project.Land.Mode == contract.LandPR && tree != nil {
+		pr = filepath.Join(dir, contract.PRBody)
+	}
 	text := guide.Prompt{Bin: k.Platform.Quote("", []string{l.self}), Run: c.Run, Task: task, Name: t.Name, Dir: folder,
 		Brief: filepath.Join(run, t.Brief), Result: filepath.Join(dir, "result.md"), Owns: t.Owns,
 		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync)), Browser: browser,
-		Fleet: t.Fleet, Person: l.person, Tools: l.tools}.Text() + earlier(prev)
+		Fleet: t.Fleet, Person: l.person, Tools: l.tools, PR: pr}.Text() + earlier(prev)
 	if err = os.WriteFile(prompt, []byte(text), 0o600); err == nil {
 		err = l.step("", placed) // nothing is typed once the attempt was stopped or the person pressed Stop all
 	}

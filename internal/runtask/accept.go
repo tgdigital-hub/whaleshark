@@ -22,6 +22,7 @@ type accepted struct {
 	Tail      string   `json:"tail,omitempty"`
 	Log       string   `json:"log,omitempty"`
 	Commit    string   `json:"commit,omitempty"`
+	URL       string   `json:"url,omitempty"`    // its pull request, in pr-per-task mode
 	Beside    int      `json:"beside,omitempty"` // other agents at work in the folder the check ran in
 	Ready     []string `json:"ready,omitempty"`
 	Protected []string `json:"protected,omitempty"` // the job's protected files, where the person is now asked
@@ -116,6 +117,9 @@ func acceptAll(c *contract.Call) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	if project.Land.Mode == contract.LandPR {
+		return oneByOne(c, c.Args) // each is its own pull request
+	}
 	var ids []string
 	var seen *contract.State
 	lines := []string{project.Land.Check}
@@ -183,19 +187,7 @@ func acceptAll(c *contract.Call) (any, error) {
 			return nil, err
 		}
 		fmt.Fprintf(c.Out, "Together they are not accepted: %s\nNothing was collected. One at a time now.\n", why)
-		for _, id := range ids {
-			one, failed := acceptOne(c, id, false)
-			if failed != nil {
-				fmt.Fprintf(c.Out, "%s: %s\n", id, cli.Plain(failed.Error()))
-				err = cmp.Or(err, failed)
-				continue
-			}
-			done = append(done, one)
-		}
-		if r := new(*contract.Refusal); errors.As(err, r) {
-			err = refuse((*r).Exit, (*r).Code, fmt.Sprintf("%d of %d tasks were accepted, one at a time.", len(done), len(ids)), "whaleshark status")
-		}
-		return map[string]any{"accepted": done}, err
+		return oneByOne(c, ids)
 	}
 	for i, id := range ids {
 		if i > 0 {
@@ -219,6 +211,25 @@ func acceptAll(c *contract.Call) (any, error) {
 		one.say(c)
 	}
 	return map[string]any{"accepted": done}, nil
+}
+
+// oneByOne accepts each task alone, and says how many were.
+func oneByOne(c *contract.Call, ids []string) (any, error) {
+	var done []accepted
+	var err error
+	for _, id := range ids {
+		one, failed := acceptOne(c, id, false)
+		if failed != nil {
+			fmt.Fprintf(c.Out, "%s: %s\n", id, cli.Plain(failed.Error()))
+			err = cmp.Or(err, failed)
+			continue
+		}
+		done = append(done, one)
+	}
+	if r := new(*contract.Refusal); errors.As(err, r) {
+		err = refuse((*r).Exit, (*r).Code, fmt.Sprintf("%d of %d tasks were accepted, one at a time.", len(done), len(ids)), "whaleshark status")
+	}
+	return map[string]any{"accepted": done}, err
 }
 
 // checking lets a task into its check. A browser check's pictures are read
@@ -303,6 +314,9 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 		}
 		out.Tail = result.Tail
 	}
+	if project, err := contract.ReadProjectFile(c.Root); err == nil && result.OK && project.Land.Mode == contract.LandPR {
+		return request(c, &t, seen, checked, out, back)
+	}
 	if result.OK {
 		if out.Commit, err = k.Integrator.Collect(c.Root, seen, t.ID, checked); err != nil {
 			return back(err)
@@ -330,6 +344,26 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 	}
 	out.say(c)
 	return out, nil
+}
+
+// request ends an accept in pr-per-task mode: the checked work is pushed as
+// the task's own pull request, and the task waits on it, its result reported,
+// until the sweep's watch merges it (merged) or its checks fail (ci_failed).
+func request(c *contract.Call, t *contract.Task, seen *contract.State, checked contract.Checked, out accepted, back func(error) (accepted, error)) (accepted, error) {
+	k := c.Kit
+	pr, err := k.Integrator.Request(c.Root, seen, t.ID, checked)
+	if err != nil {
+		return back(err)
+	}
+	err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
+		s.Tasks[t.ID].PR = pr
+		return k.Rules.Unchecked(s, t.ID, c.Now)
+	})
+	out.How, out.URL = "pr", pr.URL
+	if err == nil {
+		fmt.Fprintf(c.Out, "%s passed its check and is pushed: %s\nIt is merged by itself once its checks pass; merged or ci_failed tells.\n", t.ID, pr.URL)
+	}
+	return out, err
 }
 
 // check runs a task's check in its folder with all it prints written to the

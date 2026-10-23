@@ -28,6 +28,8 @@ Nothing depends on a program that stays running. Any command can sweep the recor
 
 In a git project each task gets a worktree on a branch of its own, made from the work collected so far. `accept` merges a task into one branch for the run and runs the check on the merged result; `land` brings that branch to yours, by a pull request or a local merge, and is yours to type. `overlap` tries merges without making them and says which tasks would conflict; the worker mends a conflict in its own copy, never the tool.
 
+With `[land] mode = "pr-per-task"` nothing is collected and nothing is landed together. A task's worktree is cut from the base itself; `accept` merges the latest base into it, runs the task's check, pushes the branch and opens the task's own pull request with the body its worker wrote (`pr.md` in its attempt's folder), as a draft first where `draft_first` says so. The sweep watches each pull request in the background: a red check raises `ci_failed` and waits for the task to be sent back and accepted again; a green one is merged by itself under one merge lock for the project, with `merge_method`, its branch deleted from the remote, and its task marked done with `merged`. Where the base moved under a green pull request in the task's own files, `refresh` says whether it is brought up to date and watched again (`auto`) or the lead agent is told with `base_moved` (`ask`). With `[worktrees] fetch_base = true` the base is fetched before `run new` and before each `start`, and `land` compares with what was fetched. The person's own checkout is never touched.
+
 ## The engine
 
 The terminal engine is WhaleShark's own, written from the published standards for terminals.

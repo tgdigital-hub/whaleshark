@@ -42,20 +42,28 @@ func Base(root, name string) (*contract.GitRef, error) {
 }
 
 func (g integrator) Begin(root string, s *contract.State) (*contract.GitRef, *contract.Integration, error) {
+	project, err := contract.ReadProjectFile(root)
+	if err != nil {
+		return nil, nil, err
+	}
 	base := s.Run.Base
 	if base == nil || base.OID == "" {
 		name := ""
 		if base != nil {
 			name = base.Ref
 		}
-		var err error
 		if base, err = Base(root, name); base == nil {
 			return nil, nil, err
 		}
-	}
-	project, err := contract.ReadProjectFile(root)
-	if err != nil {
-		return nil, nil, err
+		// With fetch_base the run begins where the remote's branch is; the
+		// name stays the plain one, for pull requests and the landing.
+		if project.Worktrees.FetchBase && base.Ref != "" && !strings.HasPrefix(base.Ref, project.Worktrees.BranchPrefix) {
+			if far, err := fetch(root, base.Ref); err == nil {
+				if oid, err := at(root, far); err == nil {
+					base.OID = oid
+				}
+			}
+		}
 	}
 	branch := project.Worktrees.BranchPrefix + s.Run.ID
 	// A name that begins with a dash would be read as an option, by git and by gh.
@@ -121,14 +129,32 @@ func collected(root string, s *contract.State, task, head, tip string) string {
 	return ""
 }
 
-func conflict(task string, files []string) *contract.Refusal {
-	r := refuse(contract.ExitRefused, "conflict", task+" does not merge with the collected work: "+cli.Line(strings.Join(files, ", ")), "whaleshark sync "+task)
+func conflict(task, with string, files []string) *contract.Refusal {
+	r := refuse(contract.ExitRefused, "conflict", task+" does not merge with "+with+": "+cli.Line(strings.Join(files, ", ")), "whaleshark sync "+task)
 	r.Data = map[string]any{"task": task, "files": files}
 	return r
 }
 
+// clean refuses a task's folder that holds what is not committed: what is
+// checked is what is kept, so nothing may wait beside it.
+func clean(dir, task string) error {
+	waiting, err := git(dir, "status", "--porcelain")
+	if err == nil && waiting != "" {
+		err = refuse(contract.ExitRefused, "uncommitted", fmt.Sprintf(
+			"%s has %d files that are not committed, or not known to git. Its worker commits or removes them first.", task, strings.Count(waiting, "\n")+1),
+			"whaleshark reject "+task+` "commit your work, or remove what does not belong to it"`)
+	}
+	return err
+}
+
 func (g integrator) Prepare(root string, s *contract.State, task string) (contract.Checked, error) {
 	dir, t := folder(root, s, task), s.Tasks[task]
+	if project, err := contract.ReadProjectFile(root); err != nil || project.Land.Mode == contract.LandPR {
+		if err != nil {
+			return contract.Checked{}, err
+		}
+		return g.fresh(root, s, task, "")
+	}
 	if s.Run.Integration == nil || dir == "" && (t == nil || s.Run.Fleets[t.Fleet] == nil) {
 		return contract.Checked{}, nil
 	}
@@ -139,15 +165,8 @@ func (g integrator) Prepare(root string, s *contract.State, task string) (contra
 	if dir == "" {
 		return g.group(root, s, t, tip)
 	}
-	// What is checked is what is collected, so nothing may wait beside it.
-	waiting, err := git(dir, "status", "--porcelain")
-	if err != nil {
+	if err := clean(dir, task); err != nil {
 		return contract.Checked{}, err
-	}
-	if waiting != "" {
-		return contract.Checked{}, refuse(contract.ExitRefused, "uncommitted", fmt.Sprintf(
-			"%s has %d files that are not committed, or not known to git. Its worker commits or removes them first.", task, strings.Count(waiting, "\n")+1),
-			"whaleshark reject "+task+` "commit your work, or remove what does not belong to it"`)
 	}
 	head, err := at(dir, "HEAD")
 	c := contract.Checked{Dir: dir, OID: head, Tip: tip}
@@ -159,7 +178,7 @@ func (g integrator) Prepare(root string, s *contract.State, task string) (contra
 		return contract.Checked{}, err
 	}
 	if len(clash) > 0 {
-		return contract.Checked{}, conflict(task, clash)
+		return contract.Checked{}, conflict(task, "the collected work", clash)
 	}
 	// The merge that was simulated is the merge the folder gets: git only
 	// moves the folder forward to it.
@@ -180,7 +199,7 @@ func (g integrator) group(root string, s *contract.State, t *contract.Task, tip 
 	if made == "" {
 		tree, clash, err := simulate(root, tip, head)
 		if err == nil && len(clash) > 0 {
-			err = conflict(t.ID, clash)
+			err = conflict(t.ID, "the collected work", clash)
 		}
 		if err == nil {
 			made, err = commit(root, tree, t.ID+": "+t.Title+"\n\n"+trailer+": "+s.Run.ID+"/"+t.ID, tip, head)
@@ -224,7 +243,7 @@ func (g integrator) PrepareAll(root string, s *contract.State, tasks []string) (
 				return nil, err
 			}
 			if len(clash) > 0 {
-				return nil, conflict(task, clash)
+				return nil, conflict(task, "the collected work", clash)
 			}
 			if last, err = commit(root, tree, "Merge "+task, last, head); err != nil {
 				return nil, err

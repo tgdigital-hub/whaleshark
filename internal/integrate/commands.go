@@ -14,6 +14,7 @@
 package integrate
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -86,6 +87,8 @@ func (g integrator) land(c *contract.Call) (any, error) {
 	switch {
 	case project.Land.Who == contract.ForHuman && c.Caller.Kind != contract.Human:
 		return nil, refuse(contract.ExitRefused, "not_yours", "Only the person lands this project's work. Tell them it is ready; they type the command in a tab of their own.")
+	case project.Land.Mode == contract.LandPR:
+		return nil, refuse(contract.ExitRefused, "pr_per_task", "This project lands each task as its own pull request (land.mode pr-per-task): accept merges it once its checks pass, and there is nothing to land together.")
 	case in == nil:
 		return nil, refuse(contract.ExitRefused, "needs_git", "Landing needs git: this run collected nothing.")
 	case len(open) > 0:
@@ -102,8 +105,9 @@ func (g integrator) land(c *contract.Call) (any, error) {
 	if s.Run.Base == nil || s.Run.Base.Ref == "" {
 		return nil, refuse(contract.ExitRefused, "no_base", "Run "+s.Run.ID+" began on no branch, so there is none to land on. The work is on "+in.Branch+".")
 	}
+	// With fetch_base the base is held to where the remote's branch is now.
 	onto := s.Run.Base.Ref
-	main, err := at(c.Root, onto)
+	main, err := at(c.Root, cmp.Or(g.Fetch(c.Root, s), onto))
 	if err != nil {
 		return nil, refuse(contract.ExitRefused, "no_base", "The base "+onto+" of run "+s.Run.ID+" is gone. The work is on "+in.Branch+".")
 	}
@@ -236,11 +240,7 @@ func (g integrator) land(c *contract.Call) (any, error) {
 // No text of a person's or an agent's rides on gh's command line: the title
 // is ours and the body goes in on its standard input.
 func (g integrator) request(root string, s *contract.State, out landed, done []string) (string, error) {
-	remote, _ := git(root, "config", "--get", "branch."+out.Onto+".remote")
-	if remote == "" {
-		remote = "origin"
-	}
-	if _, err := git(root, "push", "--quiet", remote, ref(out.Branch)+":"+ref(out.Branch)); err != nil {
+	if _, err := git(root, "push", "--quiet", upstream(root, out.Onto), ref(out.Branch)+":"+ref(out.Branch)); err != nil {
 		return "", err
 	}
 	if url, err := call(root, "", "gh", "pr", "view", out.Branch, "--json", "url", "--jq", ".url"); err == nil && url != "" {

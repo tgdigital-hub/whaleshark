@@ -367,7 +367,7 @@ lines 910 gitwt internal/gitwt
 # takes a yes just given up itself, and says so while it can be taken back.
 # 10 more for the same review: a protected path is held whatever the case of
 # its letters, and a link is looked at where a folder of the list would begin.
-lines 845 integrate internal/integrate
+lines 1170 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
 # project's object folder in git's list; it stood at its line. doctor pays.
 # 50 more after the real runs of phase 2: sync sends the result of a worker

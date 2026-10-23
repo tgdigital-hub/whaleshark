@@ -17,6 +17,10 @@ orchestrator" in everything below: you answer to it alone, and it answers upward
 Your prompt says so when it is: a copy on a branch of its own, in which nobody else works.
 - Stay on that branch. Never switch, rebase, delete or push a branch, and never touch the
   project's own folder or another task's copy.
+- Your prompt names a PR body? Then each task lands as its own pull request: push your own
+  branch (never with force) when you commit, and before you report write the pull request's
+  body to that file with your file tool. Sent back for its failed checks: mend, commit, push,
+  report again.
 - Commit at each real milestone: work that is not committed can be seen by nobody but you.
 - Commit, then report: `report done` is refused while anything in your folder is not committed.
 - The brief, the prompt and the result file lie outside your folder, at the paths your prompt

@@ -12,6 +12,16 @@ You may change only:  {{join .Owns}}
 {{- end}}
 {{- if .Shared}}
 Other workers are working in this folder at the same moment: change no file that is not yours.
+{{- else if .PR}}
+The folder is your own copy of the code, on a branch of its own. Stay on that branch: never switch,
+rebase or delete a branch, and never touch the project's own folder or another task's copy.
+This project lands each task as its own pull request. Push your own branch when you commit, never
+with force. Before you report, write the pull request's body (what changed, how it was tested, what
+must happen in order when it ships) to:
+PR body:      {{.PR}}
+The brief, this prompt, the result file and the PR body lie outside your folder, at the paths given.
+The result file and the PR body are the files you write outside your folder: write them with your
+file tool, never with a shell redirect.
 {{- else}}
 The folder is your own copy of the code, on a branch of its own. Stay on that branch: never switch,
 rebase, delete or push a branch, and never touch the project's own folder or another task's copy.

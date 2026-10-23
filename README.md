@@ -127,6 +127,10 @@ Gemini CLI, Qwen Code, OpenCode, Cursor CLI, Hermes Agent, Goose, Crush and Amp 
 
 So that an agent knows its part without being told, `whaleshark init` writes a short block into the file each tool reads when it starts (for Claude Code, `CLAUDE.md` in its own folder under your home folder). The block says how the team is built, how an agent finds out whether it is the orchestrator, a fleet leader or a worker, and which guide to read: `whaleshark guide lead`, `whaleshark guide leader` or `whaleshark guide worker`. A worker or a leader is also told by its first prompt. `whaleshark init --remove` takes the block out again.
 
+### How work lands
+
+Each task works in a copy of the code of its own. As it comes, `accept` collects each task's work on one branch for the job, and `whaleshark land` brings the whole of it to your branch, as one pull request or a local merge. With `[land] mode = "pr-per-task"` in `whaleshark.toml` each accepted task is pushed as a pull request of its own instead, watched in the background, and merged by itself once its checks pass, one at a time; a red check goes back to its worker. `[worktrees] fetch_base = true` fetches the base branch before a job begins and before each task starts, so that work starts from where the remote is, and leaves your own checkout as it is.
+
 ## Status: not released
 
 **There is no release yet, so none of the install lines below works today.** They are written as they will read. Until then the only way to run it is to build it (see Building).

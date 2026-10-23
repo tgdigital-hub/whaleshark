@@ -237,7 +237,7 @@ func TestLeadGuideUnder150Lines(t *testing.T) {
 	}
 	for _, kind := range []string{"done", "failed", "question", "exited", "start_failed", "blocked",
 		"quiet", "check_failed", "stuck", "human", "answered", "paused", "resumed", "overlap", "scope",
-		"stale", "overtime", "together", "untrusted", "still_running", "land_failed"} {
+		"stale", "overtime", "together", "untrusted", "still_running", "land_failed", "merged", "ci_failed", "base_moved"} {
 		if !slices.Contains(contract.EventKinds, kind) {
 			t.Errorf("%s is not an event kind", kind)
 		}

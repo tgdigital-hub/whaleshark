@@ -235,6 +235,7 @@ type ProjectFile struct {
 		BranchPrefix string   `toml:"branch_prefix"`
 		Share        []string `toml:"share"`
 		PortBlock    int      `toml:"port_block"`
+		FetchBase    bool     `toml:"fetch_base"`
 	} `toml:"worktrees"`
 	Setup struct {
 		Script         string `toml:"script"`
@@ -251,9 +252,16 @@ type ProjectFile struct {
 	Check struct {
 		TimeoutSeconds int `toml:"timeout_seconds"`
 	} `toml:"check"`
+	// Land.Mode is LandRun, where accepted work is collected on the run's
+	// branch and landed whole, or LandPR, where each task is its own pull
+	// request, merged by itself once its checks pass.
 	Land struct {
-		Who   string `toml:"who"`
-		Check string `toml:"check"`
+		Who         string `toml:"who"`
+		Check       string `toml:"check"`
+		Mode        string `toml:"mode"`
+		DraftFirst  bool   `toml:"draft_first"`
+		MergeMethod string `toml:"merge_method"`
+		Refresh     string `toml:"refresh"`
 	} `toml:"land"`
 	Limits struct {
 		Agents          int `toml:"agents"`
@@ -269,6 +277,14 @@ type ProjectFile struct {
 	} `toml:"protect,omitempty"`
 }
 
+// The two ways work lands, and the file in an attempt's folder that holds
+// the body of its task's pull request.
+const (
+	LandRun = "run"
+	LandPR  = "pr-per-task"
+	PRBody  = "pr.md"
+)
+
 // ProjectDefaults is a ProjectFile with every default filled in.
 func ProjectDefaults() ProjectFile {
 	var p ProjectFile
@@ -278,7 +294,7 @@ func ProjectDefaults() ProjectFile {
 	p.Setup.TimeoutSeconds = 600
 	p.Check.TimeoutSeconds = 900
 	p.Agent.Tool = DefaultTool
-	p.Land.Who = ForHuman
+	p.Land.Who, p.Land.Mode, p.Land.MergeMethod, p.Land.Refresh = ForHuman, LandRun, "squash", "auto"
 	p.Limits.Agents = 20
 	p.Limits.QuietSeconds = 120
 	p.Limits.ResumePerSecond = 2

@@ -189,6 +189,9 @@ type Task struct {
 	Synced    int       `json:"synced,omitempty"`
 	SyncBrief string    `json:"sync_brief,omitempty"`
 	Accepted  *Accepted `json:"accepted"`
+	// PR is the task's own pull request in pr-per-task mode, from the
+	// accept that opened it.
+	PR *PullRequest `json:"pr,omitempty"`
 	// CheckFails counts the checks of this task that failed running; a pass
 	// sets it to nought.
 	CheckFails int       `json:"check_fails,omitempty"`
@@ -206,6 +209,25 @@ const (
 	PlaceCwd      = "cwd:"
 	PlaceFleet    = "fleet"
 	CheckNone     = "none"
+)
+
+// PullRequest is a task's own pull request. State is PRWatching while its
+// checks are watched, PRFailed after ci_failed until the task is accepted
+// again, PRAsked after base_moved, and PRMerged at the end; Head is the
+// commit that was pushed.
+type PullRequest struct {
+	Number   int       `json:"number"`
+	URL      string    `json:"url"`
+	Head     string    `json:"head"`
+	State    string    `json:"state"`
+	OpenedAt time.Time `json:"opened_at"`
+}
+
+const (
+	PRWatching = "watching"
+	PRFailed   = "failed"
+	PRAsked    = "asked"
+	PRMerged   = "merged"
 )
 
 type Decision struct {
@@ -447,7 +469,7 @@ var EventKinds = []string{
 	"stale", "overtime", "check_failed", "stuck", "overlap", "scope",
 	"base_moved", "setup_failed", "land_failed", "rejected", "human",
 	"answered", "paused", "resumed", "still_running", "upgraded", "together",
-	"untrusted", "protected", "budget",
+	"untrusted", "protected", "budget", "merged", "ci_failed",
 }
 
 // Question kinds, forms, addressees and states.

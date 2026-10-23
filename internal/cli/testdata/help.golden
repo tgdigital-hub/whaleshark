@@ -21,7 +21,7 @@ $ whaleshark     # as a program
   escalate  hand a worker's question on: to the human, and from a fleet to the orchestrator  (not built yet)
   need      put an item in front of the person, or withdraw one  (not built yet)
   tell      send a worker a message; tell lead is the person's note to the lead agent  (not built yet)
-  accept    run the task's check and, when it passes, keep the work; several tasks are checked together  (not built yet)
+  accept    run the task's check and, when it passes, keep the work; several tasks are checked together. With land.mode pr-per-task: push it as its own pull request, merged when its checks pass  (not built yet)
   reject    send a result back to the same agent, or to ready if it is proven gone  (not built yet)
   stop      stop a task's attempt and close its tab; --all stops every agent of the job  (not built yet)
   close     close the tabs of ended attempts, and remove a done task's copy of the code  (not built yet)
@@ -40,7 +40,7 @@ $ whaleshark     # as a program
   catchup   what happened while you were away  (not built yet)
   overlap   files touched by more than one task, and pairs that would conflict  (not built yet)
   sync      send a worker the brief for bringing its copy up to date  (not built yet)
-  land      check the collected work, then open one pull request or merge it; the lead agent only if the project allows  (not built yet)
+  land      check the collected work, then open one pull request or merge it; the lead agent only if the project allows. Not with land.mode pr-per-task, where each task lands by itself  (not built yet)
 
 Problems and questions: the repository's Issues page (github.com/tgdigital-hub/whaleshark/issues). A security flaw, privately: the repository's Security tab, "Report a vulnerability".
 exit 0

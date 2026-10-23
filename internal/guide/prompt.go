@@ -33,8 +33,11 @@ type Prompt struct {
 	Shared               bool
 	Decisions            []contract.Decision
 	Sync, Browser, Fleet string
-	Person               contract.PersonConfig
-	Tools                []contract.Tool
+	// PR is the file for the body of the task's pull request, in
+	// pr-per-task mode; the worker then pushes its own branch.
+	PR     string
+	Person contract.PersonConfig
+	Tools  []contract.Tool
 }
 
 // Text renders the prompt file: the worker's whole protocol, or the leader's.
