@@ -25,6 +25,9 @@ var earlier string
 //go:embed block2.md
 var before string
 
+//go:embed block3.md
+var prior string
+
 // A block is found by its two marker lines.
 const (
 	beginMark = contract.RulesMark
@@ -52,7 +55,7 @@ const (
 // find returns where a block of ours starts a line of data and how long it
 // is, or -1.
 func find(data []byte) (at, n int) {
-	for _, block := range []string{Block, before, earlier} {
+	for _, block := range []string{Block, prior, before, earlier} {
 		if i := bytes.Index(append([]byte("\n"), data...), []byte("\n"+block)); i >= 0 {
 			return i, len(block)
 		}

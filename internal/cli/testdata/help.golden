@@ -180,11 +180,12 @@ $ whaleshark help need --json    # as the lead agent
 exit 0
 
 $ whaleshark help init    # as the lead agent
-whaleshark init [--agent KIND,...] [--keys] [--at-login] [--print-block] [--remove [--all]] [--allow-synced] [--adopt]
+whaleshark init [--agent KIND,...] [--rules global|project|none] [--keys] [--at-login] [--print-block] [--remove [--all]] [--allow-synced] [--adopt]
   set this project up, check what it needs, and offer the rules for the lead agent
 
 For:      the lead agent, the person, a tab not bound to a run
 Flags:    --agent KIND,...  write the rules and the hooks for these agent tools
+          --rules WHERE     where the rules go without the question: global, project or none  (the person only)
           --keys            show the shortcuts and, on your yes, write them into your terminals' settings
           --at-login        on Windows, start the engine when you log on
           --print-block     print the rules for the lead agent, and change nothing

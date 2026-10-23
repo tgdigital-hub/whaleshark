@@ -344,7 +344,14 @@ func TestInitInTwoProjects(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(p.Root, ".whaleshark")); err == nil {
 		t.Fatal("--print-block set the project up")
 	}
-	in(p.Root, scenario.Orch, "", 0, "init", "--agent", "claude,pi")("readable by you only", "the engine is running", "the lock works", "git version", rules, guide.FirstMessage)
+	// The block goes into a file of the person's only on their word, after
+	// they have seen it: an agent's init adds it nowhere.
+	in(p.Root, scenario.Orch, "", 0, "init", "--agent", "claude,pi")("readable by you only", "the engine is running", "the lock works", "git version", "added nowhere", "--rules project", guide.FirstMessage)
+	in(p.Root, scenario.Human, "no\n", 0, "init", "--agent", "claude")("init would add these 14 lines to "+rules, guide.Block, "added nowhere")
+	if read(t, rules) != mine {
+		t.Fatalf("the block was added without a yes: %q", read(t, rules))
+	}
+	in(p.Root, scenario.Human, "yes\n", 0, "init", "--agent", "claude")("the rules for the lead agent are in " + rules)
 	in(p.Root, scenario.Orch, "yes\n", 0, "init", "--keys")("shift+a", "Stop all", "says yes")
 	if len(keys()) != 0 {
 		t.Fatal("the shortcuts were written on an agent's word")
@@ -402,7 +409,7 @@ func TestInitInTwoProjects(t *testing.T) {
 	// list: only the person takes it on again, and says so.
 	in(p.Root, scenario.Human, "claude\nyes\n", 3, "init", "--keys")("this login did not make", "init --adopt")
 	in(p.Root, scenario.Orch, "", 5, "init", "--adopt")("the person's to give")
-	in(p.Root, scenario.Human, "claude\nyes\n", 0, "init", "--keys", "--adopt")()
+	in(p.Root, scenario.Human, "claude\nyes\nyes\n", 0, "init", "--keys", "--adopt")()
 	in(second, scenario.Human, "claude\nyes\n", 0, "init", "--keys", "--adopt")()
 	in(p.Root, scenario.Human, "", 0, "init", "--remove", "--all")("Every project is out")
 	if read(t, rules) != mine || !slices.Equal(keys(), []int{7, 7, 0, 7, 7, 0}) {

@@ -902,7 +902,7 @@ func TestStuckOnceForEachEpisode(t *testing.T) {
 		s.Attempts["W1.1"].State, s.Tasks["W1"].Status = contract.AttemptStopped, contract.TaskPending
 		return nil
 	})
-	if w.result(&d, scenario.Orch, "wait", "--timeout", "0"); !slices.Equal(kinds(d.Events, ""), []string{"stuck"}) {
+	if w.result(&d, scenario.Orch, "wait", "--timeout", "0"); !slices.Equal(kinds(d.Events, ""), []string{"blocked_on"}) {
 		t.Fatalf("nothing runs and nothing can: %+v", d)
 	}
 	// Once for the episode, however often the lead agent waits.
@@ -922,7 +922,7 @@ func TestStuckOnceForEachEpisode(t *testing.T) {
 		s.Tasks["W0"].Status = contract.TaskFailed
 		return nil
 	})
-	if w.result(&d, scenario.Orch, "wait", "--timeout", "0"); !slices.Equal(kinds(d.Events, ""), []string{"stuck"}) || d.ID != "d11" {
+	if w.result(&d, scenario.Orch, "wait", "--timeout", "0"); !slices.Equal(kinds(d.Events, ""), []string{"blocked_on"}) || d.ID != "d11" {
 		t.Fatalf("the second episode: %+v", d)
 	}
 	// An open item of the lead agent's for the person can still bring an event.

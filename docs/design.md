@@ -8,7 +8,7 @@ One lead agent talks to you. It plans the work as tasks, each with a brief and a
 
 The lead agent is called the orchestrator, and its tab is named so. With Fleet Mode on there is one level more: the orchestrator's tasks are groups of work, each placed in a fleet; a fleet is a job of its own inside the orchestrator's, led by a fleet leader that is the lead agent of that job and a worker of the orchestrator's. So a leader plans, starts and checks its workers with the same commands and the same record, one level down, and a question climbs one level at a time. A fleet ends with its work unless the person saved it by name with what it works on (`run fleet`); a saved fleet is a line in the project's own folder and nothing else until work is placed in it. Fleets are not walled apart: what keeps two of them from undoing each other is the scan for work on the same file, the sync that follows it, and the check on the merged work.
 
-Every agent tool is a description: the command that starts it, how it names a model, what its screen shows at rest and at work, whose hooks it reads, and the file it reads when it starts. Into that file `init` writes a short block that says how the team is built and which guide an agent reads for its part.
+Every agent tool is a description: the command that starts it, how it names a model, what its screen shows at rest and at work, whose hooks it reads, and the file it reads when it starts. Into that file, or on the person's word into the project's own file of that name, `init` writes a short block that says which guide an agent reads for its part; it shows the block and asks first, and adds it nowhere for an agent.
 
 ## One program, one table
 

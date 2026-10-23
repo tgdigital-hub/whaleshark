@@ -70,7 +70,7 @@ func TestTheFleetGuidesUnder150Lines(t *testing.T) {
 			t.Errorf("the %s guide has %d lines", what, n)
 		}
 		for _, kind := range []string{"done", "failed", "question", "exited", "start_failed", "blocked",
-			"quiet", "check_failed", "stuck", "human", "answered", "paused", "resumed", "overlap", "scope",
+			"quiet", "check_failed", "blocked_on", "human", "answered", "paused", "resumed", "overlap", "scope",
 			"stale", "overtime", "together", "untrusted", "still_running", "upgraded"} {
 			if !strings.Contains(text, "`"+kind+"`") {
 				t.Errorf("the %s guide does not say what to do on %s", what, kind)
@@ -240,7 +240,7 @@ func TestTheGuards(t *testing.T) {
 	off := contract.PersonDefaults()
 	off.Stuck.Watch = false
 	lines := map[string][]string{
-		"stuck":    {"A `stuck` event that names a task", " --screen`. Then send it a note"},
+		"stuck":    {"A `stuck` event names a task", " --screen`. Then send it a note"},
 		"plan":     {"`plan_first`", "Run `whaleshark wait`"},
 		"protect":  {"a `protected` event", "`land` waits for it"},
 		"spend":    {"a `budget` event at four fifths", "stop and wait; the person decides"},
@@ -279,9 +279,10 @@ func TestTheGuards(t *testing.T) {
 	}
 	// The section is printed after the guide's own text, so the three texts'
 	// own limit does not hold what is read at a start: the whole does, with
-	// every guard on, and no reader's is longer than 175 lines.
+	// every guard on, and no reader's is longer than 190 lines (the lead's
+	// grew by what it must do before it tells the person).
 	for who, text := range map[string]string{"lead": Lead, "orchestrator": Orchestrator, "leader": Leader} {
-		if n := strings.Count(text+Guards(who, guarded()), "\n"); n >= 175 {
+		if n := strings.Count(text+Guards(who, guarded()), "\n"); n >= 190 {
 			t.Errorf("the %s reads %d lines at its start with every guard on", who, n)
 		}
 	}
@@ -378,24 +379,15 @@ func TestTheLeadersPrompt(t *testing.T) {
 	}
 }
 
-// The block gained the lines that say how the team is built, and nothing
-// else; and each block an older program wrote is still ours: found, left
-// as it is, and taken out whole.
+// The block was cut to half its length, as a person reads it before init
+// adds it to a file of theirs, and still points at the guide; and each block
+// an older program wrote is still ours: found, left as it is, and taken out
+// whole.
 func TestTheBlockBeforeThisOne(t *testing.T) {
-	var added []string
-	old := strings.Split(before, "\n")
-	for _, line := range strings.Split(Block, "\n") {
-		if len(old) > 0 && line == old[0] {
-			old = old[1:]
-		} else {
-			added = append(added, line)
-		}
+	if n, was := strings.Count(Block, "\n"), strings.Count(prior, "\n"); n > 14 || n*3 > was*2 || !strings.Contains(prior, "fleet leaders") {
+		t.Errorf("the block has %d lines, the one before it %d", n, was)
 	}
-	if said := strings.Join(added, " "); len(old) != 0 || len(added) != 4 || !strings.Contains(said, "the orchestrator, in the tab `Orchestrator`") ||
-		!strings.Contains(said, "fleet leaders") || !strings.Contains(said, "A worker answers to whoever started it") {
-		t.Errorf("the block is not the one before it with the team in four lines more: %q, and %d lines gone", added, len(old))
-	}
-	for _, earlier := range []string{earlier, before} {
+	for _, earlier := range []string{earlier, before, prior} {
 		theBlockBefore(t, earlier)
 	}
 }

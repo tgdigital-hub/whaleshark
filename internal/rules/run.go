@@ -203,7 +203,7 @@ func (Rules) Integrated(s *contract.State, in contract.Integration) error {
 func (Rules) Stuck(s *contract.State, on bool, now time.Time) bool {
 	raised := on && !s.Run.StuckFlagged
 	if s.Run.StuckFlagged = on; raised {
-		raise(s, "stuck", nil, nil, "", nil, now)
+		raise(s, "blocked_on", nil, nil, "", nil, now)
 	}
 	return raised
 }

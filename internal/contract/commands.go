@@ -181,9 +181,9 @@ func (c *Command) LeaderMay(sub string, has func(flag string) bool) bool {
 // Commands is the command table, in the order help prints it.
 var Commands = []Command{
 	{Name: "init", Section: "setup", Phase: 1, Who: H | O | U, Exits: []int{0, 3},
-		Usage:   "init [--agent KIND,...] [--keys] [--at-login] [--print-block] [--remove [--all]] [--allow-synced] [--adopt]",
+		Usage:   "init [--agent KIND,...] [--rules global|project|none] [--keys] [--at-login] [--print-block] [--remove [--all]] [--allow-synced] [--adopt]",
 		Help:    "set this project up, check what it needs, and offer the rules for the lead agent",
-		Flags:   flags("agent=KIND,...: write the rules and the hooks for these agent tools", "keys: show the shortcuts and, on your yes, write them into your terminals' settings", "at-login: on Windows, start the engine when you log on", "print-block: print the rules for the lead agent, and change nothing", "remove: take out what init wrote for this project", "all: with --remove, for every project of this login", "allow-synced: set up a project in a folder synced to other machines", "adopt!: take on a record this login did not make, with its runs and checks"),
+		Flags:   flags("agent=KIND,...: write the rules and the hooks for these agent tools", "rules=WHERE!: where the rules go without the question: global, project or none", "keys: show the shortcuts and, on your yes, write them into your terminals' settings", "at-login: on Windows, start the engine when you log on", "print-block: print the rules for the lead agent, and change nothing", "remove: take out what init wrote for this project", "all: with --remove, for every project of this login", "allow-synced: set up a project in a folder synced to other machines", "adopt!: take on a record this login did not make, with its runs and checks"),
 		Example: "whaleshark init --agent claude"},
 	{Name: "doctor", Section: "setup", Phase: 2, Who: H | O | U, Exits: []int{0, 1},
 		Usage:   "doctor [--fix] [--server] [--notify] [--try NAME]",

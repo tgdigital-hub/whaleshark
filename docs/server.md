@@ -103,7 +103,7 @@ The administrator, and a flaw in the system's kernel, cross every one of these.
 
 ## Upgrading
 
-As the administrator, fetch the new version's `install.sh` and run it as yourself, then `sudo ~/.local/bin/whaleshark server upgrade`; where the program came from apt, `sudo whaleshark server upgrade` alone asks apt for the new one. It shows what `server status` shows, puts the verified new version in place for everyone, and restarts each login's page. Programs already running keep the file they started with, and a keeper is never restarted by it, because that would end every agent of its login. Each open run gets one `upgraded` event that tells its lead agent to start waiting again. There is no self-update, and the program never looks for new versions.
+As the administrator, fetch the new version's `install.sh` and run it as yourself, then `sudo ~/.local/bin/whaleshark server upgrade`; where the program came from apt, `sudo whaleshark server upgrade` alone asks apt for the new one. It shows what `server status` shows, puts the verified new version in place for everyone, and restarts each login's page. Programs already running keep the file they started with, and a keeper is never restarted by it, because that would end every agent of its login. Each open run gets one `upgraded` event that tells its lead agent to start waiting again. There is no self-update. On a server no login's window looks for new versions: only the administrator's own `sudo whaleshark server status` asks GitHub for the latest full release, as the README says.
 
 ## What it put on the machine
 

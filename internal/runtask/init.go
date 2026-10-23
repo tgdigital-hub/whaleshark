@@ -38,6 +38,7 @@ type setting struct {
 	in          *bufio.Reader
 	dirs        contract.Dirs // the login's own folders
 	mine, login contract.Installed
+	person      bool     // a person typed init, and may be asked
 	Did         []string `json:"did"`
 	Problems    []string `json:"problems,omitempty"`
 }
@@ -219,6 +220,7 @@ func (i *setting) project() error {
 	}
 
 	person := c.Caller.Kind == contract.Human && c.Caller.Where == contract.WhereTyped
+	i.person = person
 	kinds := contract.List(f["agent"]...)
 	if f["agent"] == nil && person {
 		var known []string
@@ -305,7 +307,7 @@ func (i *setting) agent(kind string) error {
 	tool, _ := contract.FindTool(tools, kind)
 	if path, ok := guide.File(tool, home, os.Getenv); !ok {
 		i.say("%s names no file it reads when it starts (Settings › Agent tools): a worker or a leader of it is told by its first prompt, and as your main agent give it this first message: %s", kind, guide.FirstMessage)
-	} else {
+	} else if path = i.where(kind, path); path != "" {
 		data, _ := k.Platform.Read(path)
 		before, created, err := guide.Write(k.Platform, path)
 		// A block init wrote in an earlier text is replaced by the current one.
@@ -331,6 +333,36 @@ func (i *setting) agent(kind string) error {
 		i.say("the status line and the gate for %s are set in %s", kind, setup.File)
 	}
 	return err
+}
+
+// where says which file the rules block goes into: the tool's own file at
+// the login, which every project shares, or the project's file of the same
+// name. One that holds a block already is kept, and brought up to date.
+// Otherwise the person sees the block and says, or said with --rules; with
+// nobody to say, nothing is added.
+func (i *setting) where(kind, path string) string {
+	project := filepath.Join(i.c.Root, filepath.Base(path))
+	for _, p := range []string{path, project} {
+		if s, _ := guide.Look(p); s != guide.Absent {
+			return p
+		}
+	}
+	answer := ""
+	if f := i.c.Flags["rules"]; f != nil {
+		answer = f[0]
+	} else if i.person {
+		i.say("init would add these %d lines to %s, which %s reads in every project:", strings.Count(guide.Block, "\n"), path, kind)
+		fmt.Fprint(i.c.Out, guide.Block)
+		answer, _ = i.ask("Add them there? yes, no, or project to add them to " + project + " instead: ")
+	}
+	switch strings.ToLower(answer) {
+	case "yes", "global":
+		return path
+	case "project":
+		return project
+	}
+	i.say("the rules for the lead agent were added nowhere: `whaleshark init --agent %s --rules project` adds them to %s, and `whaleshark init --print-block` prints them", kind, project)
+	return ""
 }
 
 // shortcuts is the action table's keys that work from anywhere. The action list and the catch-up open over

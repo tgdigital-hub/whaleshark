@@ -2,8 +2,7 @@
 {{- if or $lead .Person.Stuck.Watch .Person.Spend.Guard}}
 ## Guardrails{{if $lead}} and settings{{end}}
 {{- if .Person.Stuck.Watch}}
-- A `stuck` event that names a task is another thing than the `stuck` above: that agent shows
-  signs of going nowhere, and the event names the signs. Look at its screen:
+- A `stuck` event names a task whose agent shows signs of going nowhere, and the signs. Look:
   `whaleshark show {{if eq .Who "orchestrator"}}G7{{else}}T7{{end}} --screen`. Then send it a note, stop it, or start it again with a better
   brief. If you do nothing for {{.Person.Stuck.ClimbMinutes}} minutes the level above is told. If you cannot mend it, say so
 {{- if $lead}}

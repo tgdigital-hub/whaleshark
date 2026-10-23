@@ -345,7 +345,7 @@ func TestInitKnowsTheWiredToolsAndAnOlderBlock(t *testing.T) {
 	// The rules block: written, then as an earlier program left it.
 	rulesFile := filepath.Join(home, ".claude", "CLAUDE.md")
 	write(t, rulesFile, "# Mine\n")
-	human("", 0, "init", "--agent", "claude")("the rules for the lead agent are in")
+	human("", 0, "init", "--agent", "claude", "--rules", "global")("the rules for the lead agent are in")
 	earlier := read(t, filepath.Join("..", "guide", "block1.md"))
 	if earlier == guide.Block || !strings.Contains(read(t, rulesFile), guide.Block) {
 		t.Fatal("the test needs two texts of the block, and the current one written")
@@ -368,6 +368,16 @@ func TestInitKnowsTheWiredToolsAndAnOlderBlock(t *testing.T) {
 	play(t, q.Command(scenario.Human, "init", "--agent", "claude"), 0, "it is left alone")
 	if got := read(t, filepath.Join(home, ".claude", "CLAUDE.md")); got != earlier {
 		t.Fatal("a block init never wrote was changed")
+	}
+
+	// Asked, the person may have the block in the project's own file.
+	o := scenario.Prepare(t, nil, nil)
+	home, _ = os.UserHomeDir()
+	cmd := o.Command(scenario.Human, "init", "--agent", "claude")
+	cmd.Stdin = strings.NewReader("project\n")
+	play(t, cmd, 0, "Add them there? yes, no, or project", "the rules for the lead agent are in ")
+	if _, err := os.Stat(filepath.Join(home, ".claude", "CLAUDE.md")); err == nil || !strings.Contains(read(t, filepath.Join(o.Root, "CLAUDE.md")), guide.Block) {
+		t.Fatal("the block did not go into the project's own file alone")
 	}
 
 	// Hooks of a tool that is no longer wired in.

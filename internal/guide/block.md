@@ -1,22 +1,14 @@
 <!-- whaleshark:begin · written by `whaleshark init` · remove with `whaleshark init --remove` -->
 ## WhaleShark
-If this folder has a `.whaleshark` folder, the work here is run with WhaleShark.
-You are then one of a team. The person talks to one main agent, the orchestrator, in the tab
-`Orchestrator`. It hands tasks to workers, each in a tab of its own; in Fleet Mode it hands groups of
-tasks to fleet leaders, and each leader runs its own workers. A worker answers to whoever started it,
-a leader to the orchestrator, the orchestrator to the person. Find your own part:
-If `WHALESHARK_ATTEMPT` is set in your environment, or `whaleshark status` says this tab is a
-worker's, you are a worker: follow the prompt file you were given and ignore the rest of this block.
-If that prompt says you lead a fleet, you are a fleet leader: run `whaleshark guide leader` first.
-Otherwise run `whaleshark status` once. If it says this tab is the lead agent's, or that no job
-is open, you are the lead agent: run `whaleshark guide lead` and follow it. If it says another
-tab is the lead agent's, you are a visitor: you may read, and you change nothing with `whaleshark`.
-The rules that matter most for the lead agent:
-1. Give work to workers with `whaleshark task add` and `whaleshark start`. Do not open tabs yourself.
-2. Whatever you need from the human goes into the action pane with `whaleshark need`. Do not ask in this chat.
-3. A worker's name is three words at most, and you choose it.
-4. Nothing is finished until `whaleshark accept` has checked it.
-5. After every step, run `whaleshark wait` and act on what it returns.
-6. Never add `--human`, never start the window or the keeper (whaleshark's open and engine commands), never answer a prompt in another tab.
-7. In Fleet Mode you are the orchestrator, the guide is the orchestrator's, and every task is a group you place with `--fleet`.
+Only for a folder that has a `.whaleshark` folder; anywhere else this block says nothing.
+- `WHALESHARK_ATTEMPT` is set, or `whaleshark status` says this tab is a worker's: you are a
+  worker (or a fleet leader). Follow the prompt file you were given, not this block.
+- Otherwise run `whaleshark status` once. This tab is the lead agent's, or no job is open: you are
+  the lead agent; run `whaleshark guide lead` and follow it. Another tab is the lead agent's: you
+  are a visitor, and change nothing with `whaleshark`.
+- The lead agent gives work out with `whaleshark task add` and `whaleshark start`, puts what it
+  needs from the person in the action pane with `whaleshark need`, runs `whaleshark wait` after
+  every step, and calls nothing finished before `whaleshark accept` has checked it.
+- Never add `--human`, never start the window or the keeper (whaleshark's open and engine
+  commands), never answer a prompt in another tab.
 <!-- whaleshark:end -->

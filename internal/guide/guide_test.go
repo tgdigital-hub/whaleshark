@@ -230,14 +230,17 @@ func TestHumanOnlyForbidden(t *testing.T) {
 }
 
 // The guide is read whole at every start: it stays short. 90 lines held
-// phase 1; own copies, overlap and the events of phase 2 took it to 145.
-func TestLeadGuideUnder150Lines(t *testing.T) {
-	if n := strings.Count(Lead, "\n"); n >= 150 {
+// phase 1; own copies, overlap and the events of phase 2 took it to 145;
+// what a real lead must do before it tells the person, and every event
+// named, to 163.
+func TestLeadGuideUnder165Lines(t *testing.T) {
+	if n := strings.Count(Lead, "\n"); n >= 165 {
 		t.Errorf("the lead guide has %d lines", n)
 	}
 	for _, kind := range []string{"done", "failed", "question", "exited", "start_failed", "blocked",
-		"quiet", "check_failed", "stuck", "human", "answered", "paused", "resumed", "overlap", "scope",
-		"stale", "overtime", "together", "untrusted", "still_running", "land_failed", "merged", "ci_failed", "base_moved"} {
+		"quiet", "check_failed", "blocked_on", "human", "answered", "paused", "resumed", "overlap", "scope",
+		"stale", "overtime", "together", "untrusted", "still_running", "land_failed", "rejected", "upgraded",
+		"protected", "budget", "base_moved", "setup_failed", "stuck", "merged", "ci_failed"} {
 		if !slices.Contains(contract.EventKinds, kind) {
 			t.Errorf("%s is not an event kind", kind)
 		}
@@ -248,6 +251,12 @@ func TestLeadGuideUnder150Lines(t *testing.T) {
 	for _, heading := range []string{"Target", "Change", "Constraints", "Ownership", "Acceptance"} {
 		if !strings.Contains(Lead, heading) {
 			t.Errorf("the lead guide does not name the brief's heading %s", heading)
+		}
+	}
+	for _, habit := range []string{"in the background, never in the", "Verify a worker's output yourself",
+		"One merge and one deploy at a time", "what was verified and what was not", "never you", "Nothing is fetched"} {
+		if !strings.Contains(Lead, habit) {
+			t.Errorf("the lead guide does not say %q", habit)
 		}
 	}
 }
@@ -559,7 +568,7 @@ func TestBlockInAFileOfItsOwn(t *testing.T) {
 
 func TestEditedBlockIsLeftAloneAndReported(t *testing.T) {
 	for name, edit := range map[string]func(string) string{
-		"a rule changed":      func(b string) string { return strings.Replace(b, "three words", "five words", 1) },
+		"a rule changed":      func(b string) string { return strings.Replace(b, "once", "twice", 1) },
 		"a line added":        func(b string) string { return strings.Replace(b, endMark, "7. Be kind.\n"+endMark, 1) },
 		"end marker gone":     func(b string) string { return b[:strings.Index(b, endMark)] },
 		"begin marker gone":   func(b string) string { return b[strings.Index(b, "\n")+1:] },

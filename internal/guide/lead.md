@@ -9,7 +9,8 @@ only through these commands, and a worker sees you only through them.
     whaleshark status
 It says whose tab this is and what is open, in the project of the folder you type it in. Then:
 - No job is open: `whaleshark run new "<what the person wants, in one line>"`. The work begins
-  from the branch the project is on; add `--base REF` to begin from another.
+  from the branch the project is on; add `--base REF` to begin from another. Nothing is fetched
+  unless the project sets `fetch_base`: a branch behind its remote is used as it stands.
 - A job is open and this tab is its lead agent's: carry on with `whaleshark wait`.
 - You are the lead agent in another tab than before, and a command is refused as `not_bound`:
   `whaleshark run takeover`. Not in another project's folder: that job has its own lead agent.
@@ -39,7 +40,8 @@ A task not yet started is changed with `whaleshark task edit`, dropped with `wha
     whaleshark start T3
     whaleshark start --ready
     whaleshark wait --timeout 540
-Run `start` and `wait` in the background. Do not open tabs yourself, and start agents no other way.
+Run `start`, `wait` and anything long (a check, a CI run) in the background, never in the
+foreground: the person must reach you. Do not open tabs yourself, nor start agents another way.
 `wait` returns a batch of events and its delivery id, such as d17. Deal with every event, then:
     whaleshark wait --ack d17 --timeout 540
 A batch you do not acknowledge is handed out again. Do what your plan still asks, then wait again.
@@ -63,6 +65,7 @@ A batch you do not acknowledge is handed out again. Do what your plan still asks
   `whaleshark.toml`, which counts once the person has approved the file (it raises `untrusted`):
       [agent]
       args = ["--permission-mode", "acceptEdits", "--allowedTools", "Bash({whaleshark}:*)", "Bash(git:*)"]
+  These reach workers and fleet leaders, never you: the person starts your tab with its own flags.
 - `failed`, `exited`, `start_failed`: read `whaleshark show T3`, mend the brief if the brief was
   the cause (`task edit`), then `whaleshark close T3`, which closes the old tab (a retry is refused
   while an agent sits in it), and `whaleshark start T3 --retry`. After three `failed` or `exited`
@@ -81,12 +84,24 @@ A batch you do not acknowledge is handed out again. Do what your plan still asks
   the file as it stands. If the work needs it, ask as for the run's check below. A `land` or an
   `accept` of several refused with this word ran and moved nothing: the project's `[land] check`
   waits for the person's approval. Ask for it as below; do not land round it.
-- `stuck`: nothing can run: a task waits on one that failed or was cancelled. Edit, reset or cancel.
+- `blocked_on`: nothing can run: a task waits on one that failed or was cancelled. Edit, reset or
+  cancel. A record from before this name calls it `stuck` and names no task.
 - `upgraded`: the program was upgraded under the job. Nothing is lost: start `wait` again.
 - `paused`: the person pressed Stop all. Start nothing and change nothing until `resumed`. You
   may still read, and talk with the person. `still_running` names a worker that works on through
   the pause; it stops at its next whaleshark command, and `whaleshark stop T3` ends it now.
 - `land_failed`: the collected work's check failed at the landing. Read its log and plan the mend.
+- `rejected`: a worker's report was refused, and the worker was told why. Act only if it repeats.
+- `protected` and `budget` come with their guardrails, below. `setup_failed` is a refusal of
+  `start` (the setup script's log is named); `base_moved` is an event in the pull-request mode
+  (see the end), elsewhere a refusal of `land`: add the task it names to bring the work up to date.
+
+## Before you tell the person
+- Verify a worker's output yourself before you report it: read the result and the diff, and run
+  what proves it. A worker's word that it is done is not yours.
+- One merge and one deploy at a time: see each through, and confirmed, before the next begins.
+- Say plainly what was verified and what was not: "the tests pass; nobody has tried it in a
+  browser" is a whole answer, "done" is not.
 
 ## Several results at once
     whaleshark accept T1 T2 T3

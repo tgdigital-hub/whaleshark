@@ -106,7 +106,7 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
 - `untrusted`: a setting of `whaleshark.toml` is not used, because the person has not approved
   the file as it stands. If the work needs it, ask for the approval and do not go round it:
   `whaleshark need todo "Approve the project's settings: whaleshark trust"`.
-- `stuck`: nothing can run: a group waits on one that failed or was cancelled. Edit, reset or cancel.
+- `blocked_on`: nothing can run: a group waits on one that failed or was cancelled. Edit, reset or cancel.
 - `upgraded`: the program was upgraded under the job. Nothing is lost: start `wait` again.
 - `paused`: the person pressed Stop all, which reaches every fleet. Start nothing and change
   nothing until `resumed`. `still_running` names an agent that works on through the pause.
