@@ -612,13 +612,17 @@ type AgentSetup struct {
 	Gated bool
 }
 
+// ScratchSettings is the name of the settings file Ensure writes into scratch.
+const ScratchSettings = "claude-settings.json"
+
 // AgentSettings sets up the status-line hook and the gate for one agent.
 type AgentSettings interface {
 	// Ensure looks for the two hooks in the settings file of folder. With
 	// write it adds them there, which init does on a yes and start does in a
 	// folder that is the worker's alone. Without write, when the file lacks
 	// them, it never changes the file: it writes a settings file into
-	// scratch and returns the arguments that pass it to the agent.
+	// scratch and returns the arguments that pass it to the agent. What
+	// already lies there as ScratchSettings is kept, and the hooks added.
 	Ensure(kind, folder, scratch string, write bool) (AgentSetup, error)
 	// Remove takes our entries out of the folder's settings file.
 	Remove(kind, folder string) error

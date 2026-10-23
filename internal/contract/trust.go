@@ -66,6 +66,7 @@ func trustLines(root string, p ProjectFile) ([]string, error) {
 	add("setup.script_windows", p.Setup.ScriptWindows, "")
 	add("agent.args", p.Agent.Args, d.Agent.Args)
 	add("agent.tool", p.Agent.Tool, d.Agent.Tool)
+	add("agent.settings", p.Agent.Settings, "")
 	add("check.timeout_seconds", p.Check.TimeoutSeconds, d.Check.TimeoutSeconds)
 	add("land.who", p.Land.Who, d.Land.Who)
 	add("land.check", p.Land.Check, "")
@@ -141,7 +142,9 @@ func held(root string, p *ProjectFile) error {
 	}
 	d := ProjectDefaults()
 	p.Worktrees.Dir, p.Worktrees.Share, p.Setup.Script, p.Setup.ScriptWindows = d.Worktrees.Dir, nil, "", ""
+	effort := p.Agent.Effort // runs nothing, so it needs no approval
 	p.Agent, p.Check.TimeoutSeconds, p.Land = d.Agent, d.Check.TimeoutSeconds, d.Land
+	p.Agent.Effort = effort
 	p.Limits.Agents = min(p.Limits.Agents, d.Limits.Agents)
 	for _, line := range lines {
 		name, _, _ := strings.Cut(line, " ")

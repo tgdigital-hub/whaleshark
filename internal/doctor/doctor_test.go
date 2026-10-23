@@ -405,6 +405,34 @@ func TestProject(t *testing.T) {
 	}
 }
 
+// The deny rules a worker gets, and from which file: the login's own, the
+// project's and the one agent.settings gives every worker, once approved.
+func TestDenyRulesAWorkerGets(t *testing.T) {
+	d := project(t)
+	e, _ := d.doctor()
+	d.want(e, note, "a worker gets no deny rules", "agent.settings")
+	home, _ := os.UserHomeDir()
+	d.write(filepath.Join(home, ".claude", "settings.json"), `{"permissions": {"deny": ["Bash(pkill -f:*)"]}}`)
+	d.write(filepath.Join(d.root, ".claude", "settings.json"), `{"permissions": {"allow": ["Read"]}}`)
+	file := filepath.Join(t.TempDir(), "settings.json")
+	d.write(file, `{"permissions": {"deny": ["Bash(git push --force:*)", "Read(./.env)"]}}`)
+	d.write(filepath.Join(d.root, "whaleshark.toml"), "[agent]\nsettings = \""+filepath.ToSlash(file)+"\"\n")
+	e, _ = d.doctor()
+	d.want(e, ok, "a worker gets 1 deny rule (1 in your own settings): Bash(pkill -f:*)")
+	lines, err := contract.TrustLines(d.root)
+	if err == nil {
+		err = contract.WriteTrust(d.k.Platform, d.root, lines, time.Now())
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, _ = d.doctor()
+	d.want(e, ok, "a worker gets 3 deny rules (1 in your own settings, 2 in agent.settings): Bash(pkill -f:*), Bash(git push --force:*), Read(./.env)")
+	d.write(file, "{not json")
+	e, _ = d.doctor()
+	d.want(e, problem, "agent.settings, "+file+", does not read as settings")
+}
+
 // A git older than the least the tool works with is a problem, with what
 // puts it right: the git here says of itself that it is Ubuntu 22.04's.
 func TestAnOldGitIsAProblemWithItsFix(t *testing.T) {

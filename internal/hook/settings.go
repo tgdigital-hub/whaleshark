@@ -188,10 +188,13 @@ func (s settings) Ensure(kind, folder, scratch string, write bool) (contract.Age
 	case write:
 		err = s.replace(setup.File, out)
 	case t.Hooks == contract.HooksClaude:
-		out, _, _, _ = h.rewrite(nil, line)
-		file := filepath.Join(scratch, "claude-settings.json")
-		setup.File, setup.Args = "", []string{"--settings", file}
-		err = os.WriteFile(file, out, 0o600)
+		// The person's settings the start put there first are kept: one file.
+		file := filepath.Join(scratch, contract.ScratchSettings)
+		base, _ := s.k.Platform.Read(file)
+		if out, _, _, err = h.rewrite(base, line); err == nil {
+			setup.File, setup.Args = "", []string{"--settings", file}
+			err = os.WriteFile(file, out, 0o600)
+		}
 	default:
 		// Codex's page names no way to hand it hooks beside a folder: in
 		// one that is not its alone a tool of its form runs without, and is

@@ -36,7 +36,7 @@ func task(c *contract.Call) (any, error) {
 			return nil, err
 		}
 	}
-	for flag, what := range map[string]string{"check": "A check", "model": "A model"} {
+	for flag, what := range map[string]string{"check": "A check", "model": "A model", "args": "Its arguments"} {
 		if v := last(c, flag); f[flag] != nil && (strings.TrimSpace(v) == "" || cli.Plain(v) != v || strings.ContainsAny(v, "\n\t")) {
 			return nil, usage(c, "%s must be one line of plain text.", what)
 		}
@@ -258,14 +258,56 @@ func ids(c *contract.Call, s *contract.State) ([]string, error) {
 	return out, nil
 }
 
+// ungranted are the options a task's own arguments may not hold, each with
+// what gives it instead: the lead agent writes those arguments, and what
+// widens a worker's permissions or replaces its settings is the person's to
+// approve. --add-dir is refused for a folder outside the project.
+var ungranted = map[string]string{
+	"--dangerously-skip-permissions": "agent.args", "--allow-dangerously-skip-permissions": "agent.args",
+	"--permission-mode": "agent.args", "--permission-prompt-tool": "agent.args",
+	"--allowedTools": "agent.args", "--allowed-tools": "agent.args", "--disallowedTools": "agent.args", "--disallowed-tools": "agent.args",
+	"--dangerously-bypass-approvals-and-sandbox": "agent.args", "--yolo": "agent.args", "--full-auto": "agent.args",
+	"--sandbox": "agent.args", "--ask-for-approval": "agent.args", "--approval-mode": "agent.args",
+	"--settings": "agent.settings", "--setting-sources": "agent.settings", "--model": "--model", "--effort": "--effort",
+}
+
+// granted says whether a task's own arguments hold none of the ungranted.
+func granted(root string, args []string) error {
+	for i, arg := range args {
+		name, value, joined := strings.Cut(arg, "=")
+		if by := ungranted[name]; by == "agent.args" || by == "agent.settings" {
+			return fmt.Errorf("%s is not for a task's arguments: it is set in whaleshark.toml as %s, which the person approves", name, by)
+		} else if by != "" {
+			return fmt.Errorf("%s is not for a task's arguments: give the task %s", name, by)
+		}
+		if name != "--add-dir" {
+			continue
+		}
+		if !joined && i+1 < len(args) {
+			value = args[i+1]
+		}
+		rel, err := filepath.Rel(root, filepath.Join(root, value))
+		if filepath.IsAbs(value) {
+			rel, err = filepath.Rel(root, value)
+		}
+		if value == "" || err != nil || !filepath.IsLocal(rel) && rel != "." {
+			return fmt.Errorf("--add-dir is for a folder inside the project; one outside it is set in whaleshark.toml as agent.args, which the person approves")
+		}
+	}
+	return nil
+}
+
 func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 	k, f := c.Kit, c.Flags
 	t := contract.Task{ID: id, Title: title, Name: last(c, "name"), Check: last(c, "check"), Placement: contract.PlaceWorktree, Fleet: last(c, "fleet"),
 		Agent: last(c, "agent"), Model: last(c, "model"), BrowserCheck: f["browser-check"] != nil, Owns: contract.List(f["owns"]...)}
-	err := cmp.Or(cli.Valid("id", id, ""), cli.Valid("title", title, ""))
+	t.Effort, t.Args = last(c, "effort"), strings.Fields(last(c, "args"))
+	err := cmp.Or(cli.Valid("id", id, ""), cli.Valid("title", title, ""), granted(c.Root, t.Args))
 	switch {
 	case err != nil:
 		return nil, usage(c, "%v.", err)
+	case t.Effort != "" && !slices.Contains(strings.Split(contract.EffortValues, "|"), t.Effort):
+		return nil, usage(c, "--effort is one of low, medium, high and max.")
 	case data == nil:
 		return nil, usage(c, "A task needs its brief: --brief FILE.")
 	case f["check"] == nil:

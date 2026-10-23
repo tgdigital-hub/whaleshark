@@ -146,6 +146,8 @@ var Keys = []Key{
 	{"tools.<name>.folder", SecTools, "How one more folder is given", KindWords, "", "", StoreTools, "folder", "", "With {dir} where the folder goes."},
 	{"tools.<name>.each", SecTools, "That option before every folder", KindSwitch, "", "off", StoreTools, "each", "", ""},
 	{"tools.<name>.resume", SecTools, "How a conversation is continued", KindWords, "", "", StoreTools, "resume", "", "With {session}; empty and it starts afresh."},
+	{"tools.<name>.effort", SecTools, "How its effort is set", KindWords, "", "", StoreTools, "effort", "", "With {effort} where low, medium, high or max goes; empty when the tool has no such option."},
+	{"tools.<name>.settings", SecTools, "How a settings file is given", KindWords, "", "", StoreTools, "settings", "", "With {file} where the file goes; empty when the tool has no such option."},
 	{"tools.<name>.hooks", SecTools, "Whose hooks it reads", KindChoice, "claude|codex|none", "none", StoreTools, "hooks", "", "With hooks its states are exact and Stop all can hold it; without, it is busy or quiet."},
 	{"tools.<name>.rules", SecTools, "The file it reads when it starts", KindText, "", "", StoreTools, "rules", "", "From your home folder, as .claude/CLAUDE.md or .codex/AGENTS.md: init writes the short rules there, so its agents know their part."},
 	{"tools.<name>.suits", SecTools, "What it suits", KindText, "", "", StoreTools, "suits", "", "Your sentence; the orchestrator reads it when it chooses a tool."},
@@ -167,6 +169,8 @@ var Keys = []Key{
 	{"setup.timeout_seconds", SecProject, "Seconds the setup may take", KindNumber, "1..86400", "600", StoreProject, "", "", ""},
 	{"agent.args", SecProject, "Arguments its agents are started with", KindList, "", "", StoreProject, "", AsksApproval, "Added to the command of every agent of the tool below that is started in this project."},
 	{"agent.tool", SecProject, "The tool those arguments are for", KindTool, "", DefaultTool, StoreProject, "", AsksApproval, "An agent of any other tool is started without them: what one tool takes, another refuses."},
+	{"agent.effort", SecProject, "A worker's effort", KindChoice, EffortValues, "", StoreProject, "", "", "Where its task names none; empty is the tool's own. Your lead agent's is set where you start it."},
+	{"agent.settings", SecProject, "A settings file for every worker", KindText, "", "", StoreProject, "", AsksApproval, "A full path, given to every worker of a tool that takes one (Claude Code: --settings): its deny rules hold for them all."},
 	{"check.timeout_seconds", SecProject, "Seconds a check may take", KindNumber, "1..86400", "900", StoreProject, "", AsksApproval, "A check that runs longer is ended and counts as failed."},
 	{"land.who", SecProject, "Who may land the work", KindChoice, "human|orchestrator", "human", StoreProject, "", AsksApproval, "human: only you land. orchestrator: your lead agent may land too, when the check passes."},
 	{"land.check", SecProject, "The check before landing", KindText, "", "", StoreProject, "", AsksApproval, "A command run on the collected work; nothing lands unless it passes."},
@@ -285,7 +289,8 @@ func (k *Key) Check(value string, tools []Tool) (string, error) {
 	}
 	switch k.Kind {
 	case KindChoice:
-		if until, ok := strings.CutPrefix(value, "until "); !slices.Contains(choices, value) && !(ok && until != "" && slices.Contains(choices, "until TIME")) {
+		if value == "" && k.Default == "" { // a choice that is empty as it comes
+		} else if until, ok := strings.CutPrefix(value, "until "); !slices.Contains(choices, value) && !(ok && until != "" && slices.Contains(choices, "until TIME")) {
 			return bad("one of %s", strings.Join(choices, ", "))
 		}
 	case KindSwitch:

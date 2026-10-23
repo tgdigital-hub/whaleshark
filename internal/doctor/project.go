@@ -1,7 +1,9 @@
 package doctor
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -150,6 +152,9 @@ func (e *exam) agents(ours string) {
 // reach outside it and are not used, because nobody approved them as they stand.
 func (e *exam) approved() {
 	p, err := contract.ReadProjectFile(e.c.Root)
+	if err == nil {
+		e.denied(p)
+	}
 	if err != nil {
 		e.say(problem, "", "whaleshark.toml cannot be read: %v", err)
 	} else if len(p.Held) > 0 {
@@ -158,6 +163,31 @@ func (e *exam) approved() {
 			since = "they changed since the approval of " + t.At.Local().Format(time.DateOnly)
 		}
 		e.say(note, "whaleshark trust", "%s of this project are not used, because %s: %s", count(len(p.Held), "setting"), since, list(p.Held))
+	}
+}
+
+// denied is the deny rules a Claude Code worker in a copy of the code gets,
+// from each file it reads as its manual gives them: the login's own, the
+// project's in git, and the file agent.settings gives every worker. A folder
+// above the project is not read, and the project's local file is not in a
+// copy: rules there reach a worker in the project's own folder only.
+func (e *exam) denied(p contract.ProjectFile) {
+	home, _ := os.UserHomeDir()
+	from := [][2]string{{"your own settings", filepath.Join(home, ".claude", "settings.json")},
+		{"the project's", filepath.Join(e.c.Root, ".claude", "settings.json")}, {"agent.settings", p.Agent.Settings}}
+	var all, by []string
+	for _, f := range from {
+		var s struct{ Permissions struct{ Deny []string } }
+		if data, err := e.k.Platform.Peek(f[1]); f[1] != "" && err == nil && json.Unmarshal(data, &s) != nil {
+			e.say(problem, "", "%s, %s, does not read as settings", f[0], f[1])
+		} else if n := len(s.Permissions.Deny); n > 0 {
+			all, by = append(all, s.Permissions.Deny...), append(by, fmt.Sprintf("%d in %s", n, f[0]))
+		}
+	}
+	if len(all) == 0 {
+		e.say(note, "", "a worker gets no deny rules; agent.settings in whaleshark.toml can give every worker a file of them")
+	} else {
+		e.say(ok, "", "a worker gets %s (%s): %s", count(len(all), "deny rule"), strings.Join(by, ", "), strings.Join(all, ", "))
 	}
 }
 

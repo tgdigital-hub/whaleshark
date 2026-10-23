@@ -481,6 +481,36 @@ func TestEnsureWithoutWriting(t *testing.T) {
 	}
 }
 
+// The gate is added beside the person's deny rules and never replaces them:
+// in the folder's own file, and in the file of ours that starts from the
+// person's settings file where the hooks ride on the command line.
+func TestGateKeepsThePersonsDenyRules(t *testing.T) {
+	l := newLogin(t)
+	deny := []any{"Bash(git push --force:*)", "Bash(pkill -f:*)", "Read(./.env)"}
+	rules := `{"permissions": {"deny": ["Bash(git push --force:*)", "Bash(pkill -f:*)", "Read(./.env)"], "defaultMode": "bypassPermissions"}}`
+	denied := func(file string) any { return settingsOf(t, file)["permissions"].(map[string]any)["deny"] }
+	file, scratch := localFile(l.root), t.TempDir()
+	write(t, file, rules)
+	if _, err := l.k.AgentSettings.Ensure(claude, l.root, "", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, gates := has(t, file); gates != 1 || !reflect.DeepEqual(denied(file), deny) {
+		t.Errorf("with the gate, the folder's file holds %d gates and deny %v", gates, denied(file))
+	}
+	if err := l.k.AgentSettings.Remove(claude, l.root); err != nil || !reflect.DeepEqual(denied(file), deny) {
+		t.Errorf("after the removal the folder's file holds deny %v (%v)", denied(file), err)
+	}
+	os.Remove(file)
+	write(t, filepath.Join(scratch, contract.ScratchSettings), rules)
+	setup, err := l.k.AgentSettings.Ensure(claude, l.root, scratch, false)
+	if err != nil || len(setup.Args) != 2 {
+		t.Fatalf("%+v, %v", setup, err)
+	}
+	if _, gates := has(t, setup.Args[1]); gates != 1 || !reflect.DeepEqual(denied(setup.Args[1]), deny) {
+		t.Errorf("the file of ours holds %d gates and deny %v", gates, denied(setup.Args[1]))
+	}
+}
+
 func TestEnsureRefusesWhatItCannotRead(t *testing.T) {
 	l := newLogin(t)
 	file := localFile(l.root)

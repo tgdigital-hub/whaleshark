@@ -81,6 +81,82 @@ type launcher struct {
 	tools                  []contract.Tool
 }
 
+// command is what a tool is given after its hooks and folders: the
+// project's own arguments, which are empty until a person approved them and
+// are for the one tool they were approved for, then the task's, then the
+// model, the effort and the person's settings file by the tool's own
+// options. An option given twice keeps its last value, so the task's wins
+// over the project's; only the folder option may come again. A project
+// cannot know where this program lies on each machine, and a worker is told
+// to call it by its path: {whaleshark} stands for it. carried says the
+// settings file rides with the hooks already.
+func (l *launcher) command(tool contract.Tool, t *contract.Task, model string, carried bool) []string {
+	var args []string
+	if tool.Name == l.project.Agent.Tool {
+		for _, arg := range l.project.Agent.Args {
+			args = append(args, strings.ReplaceAll(arg, "{whaleshark}", l.self))
+		}
+	}
+	args = append(args, t.Args...)
+	if model != "" {
+		args = append(args, contract.Fill(tool.Model, "model", model)...)
+	}
+	if effort := cmp.Or(t.Effort, l.project.Agent.Effort); effort != "" {
+		args = append(args, contract.Fill(tool.Effort, "effort", effort)...)
+	}
+	if file := l.project.Agent.Settings; file != "" && !carried {
+		args = append(args, contract.Fill(tool.Settings, "file", file)...)
+	}
+	return lastOf(args, tool.Folder)
+}
+
+// lastOf keeps each option of args once, at its last place, with the words
+// after it that are no option: --model a --verbose --model b is --verbose
+// --model b. An option named in again may stand more than once.
+func lastOf(args, again []string) []string {
+	var units [][]string
+	for _, arg := range args {
+		if n := len(units); n > 0 && !strings.HasPrefix(arg, "-") {
+			units[n-1] = append(units[n-1], arg)
+		} else {
+			units = append(units, []string{arg})
+		}
+	}
+	var out []string
+	for i, u := range units {
+		name, _, _ := strings.Cut(u[0], "=")
+		later := slices.ContainsFunc(units[i+1:], func(v []string) bool {
+			other, _, _ := strings.Cut(v[0], "=")
+			return other == name
+		})
+		if !later || !strings.HasPrefix(name, "-") || slices.Contains(again, name) {
+			out = append(out, u...)
+		}
+	}
+	return out
+}
+
+// settings checks the person's settings file for every worker and, for a
+// tool that takes one, puts a copy where the hooks are added to it when
+// they ride on the command line.
+func (l *launcher) settings(tool contract.Tool, dir string) error {
+	file := l.project.Agent.Settings
+	if file == "" || len(tool.Settings) == 0 {
+		return nil
+	}
+	if !filepath.IsAbs(file) {
+		return refuse(contract.ExitRefused, "settings", "agent.settings in whaleshark.toml must be a full path, not %.60q.", file)
+	}
+	data, err := l.c.Kit.Platform.Read(file)
+	if err != nil {
+		return refuse(contract.ExitRefused, "settings", "The settings file every worker is given cannot be read: %v.", err)
+	}
+	if tool.Hooks != contract.HooksClaude {
+		return nil
+	}
+	return os.WriteFile(filepath.Join(dir, contract.ScratchSettings), data, 0o600)
+}
+
 func live(s *contract.State) (n int) {
 	seen := map[string]bool{} // a leader with two groups is two attempts in one pane, and one agent
 	for _, a := range s.Attempts {
@@ -641,7 +717,13 @@ func (l *launcher) bring(task string) outcome {
 	// The hooks go into the folder's own settings only where the folder is
 	// this worker's alone, and git is told not to see that file there; else
 	// they ride on the agent's command line.
-	setup, err := k.AgentSettings.Ensure(agent.Kind, folder, dir, tree != nil)
+	// The person's settings file is the one the hooks are added to where
+	// they ride on the command line.
+	err = l.settings(tool, dir)
+	var setup contract.AgentSetup
+	if err == nil {
+		setup, err = k.AgentSettings.Ensure(agent.Kind, folder, dir, tree != nil)
+	}
 	if err == nil && tree != nil && setup.File != "" {
 		err = k.Placement.Hide(c.Root, folder, setup.File)
 	}
@@ -760,18 +842,7 @@ func (l *launcher) bring(task string) outcome {
 	if tree != nil {
 		args = append(args, tool.Folders(dir, filepath.Dir(filepath.Join(run, t.Brief)))...)
 	}
-	// The project's own arguments, which are empty until a person approved
-	// them, and are for the one tool they were approved for. A project cannot
-	// know where this program lies on each machine, and a worker is told to
-	// call it by its path: {whaleshark} stands for it.
-	for _, arg := range l.project.Agent.Args {
-		if tool.Name == l.project.Agent.Tool {
-			args = append(args, strings.ReplaceAll(arg, "{whaleshark}", l.self))
-		}
-	}
-	if agent.Model != "" {
-		args = append(args, contract.Fill(tool.Model, "model", agent.Model)...)
-	}
+	args = append(args, l.command(tool, t, agent.Model, len(setup.Args) > 0)...)
 	if err := k.Terms.AgentStart(agent.Name, agent.Kind, pane.ID, args, startTimeout); err != nil {
 		return l.failed(r, err, "the agent did not start", errors.Is(err, contract.ErrAgentNotReady))
 	}

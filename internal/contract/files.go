@@ -245,9 +245,13 @@ type ProjectFile struct {
 	// Agent.Args are more arguments for the agent tool Agent.Tool names,
 	// which is DefaultTool where the file names none, and for no other tool:
 	// what one tool takes another refuses or reads as something else.
+	// Effort is a worker's effort where its task names none, and Settings a
+	// settings file every worker is given, by the tool's own options.
 	Agent struct {
-		Args []string `toml:"args"`
-		Tool string   `toml:"tool"`
+		Args     []string `toml:"args"`
+		Tool     string   `toml:"tool"`
+		Effort   string   `toml:"effort,omitempty"`
+		Settings string   `toml:"settings,omitempty"`
 	} `toml:"agent"`
 	Check struct {
 		TimeoutSeconds int `toml:"timeout_seconds"`

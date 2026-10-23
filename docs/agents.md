@@ -13,8 +13,10 @@ whether it is busy. How much more it can do depends on the tool:
   apart even without hooks. Only Claude Code's words are known. No maker documents theirs, so for
   every other tool they are left empty until someone has watched the real tool.
 - **Options.** WhaleShark uses a tool's option for a model (`--model`), for one more folder (a
-  worker's prompt and brief lie outside its copy of the code), and for continuing a conversation
-  after a restart. A tool without one of these simply goes without.
+  worker's prompt and brief lie outside its copy of the code), for continuing a conversation
+  after a restart, for a worker's effort (`task add --effort`, `[agent] effort`) and for a
+  settings file every worker is given (`[agent] settings`). Only Claude Code has the last two
+  (`--effort`, `--settings`). A tool without one of these simply goes without.
 - **A rules file.** `whaleshark init` writes a short block into the file a tool reads at its start,
   so that your main agent knows its part. A tool with no such file in your home folder gets
   nothing written. Then begin your first message to it with:
@@ -191,6 +193,8 @@ model = ["--model", "{model}"]        # how a model is named; leave out if it ha
 folder = ["--add-dir", "{dir}"]       # how one more folder is given; leave out if none
 each = true                           # that option stands before every folder
 resume = ["--resume", "{session}"]    # only for a tool with hooks: the session comes from them
+effort = ["--effort", "{effort}"]     # how its effort is set: low, medium, high or max
+settings = ["--settings", "{file}"]   # how a settings file is given; leave out if none
 hooks = "none"                        # "claude", "codex" or "none"
 rules = ".aider/RULES.md"             # the file it reads at its start, under your home folder
 suits = "small fixes"                 # a sentence for your orchestrator

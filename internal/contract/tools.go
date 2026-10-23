@@ -40,7 +40,10 @@ type Tool struct {
 	Folder []string `toml:"folder,omitempty"`
 	Each   bool     `toml:"each,omitempty"`
 	Resume []string `toml:"resume,omitempty"`
-	Hooks  string   `toml:"hooks"`
+	// Its effort and a settings file, with {effort} and {file} for the value.
+	Effort   []string `toml:"effort,omitempty"`
+	Settings []string `toml:"settings,omitempty"`
+	Hooks    string   `toml:"hooks"`
 	// Rules is the file the tool reads when it starts, named from the home
 	// folder: where init writes the short block that tells an agent its part.
 	Rules  string            `toml:"rules,omitempty"`
@@ -144,7 +147,8 @@ const (
 // path, as it always was; a person's file names a full path.
 var builtIn = []Tool{
 	{Name: "claude", Label: "Claude Code", Run: []string{"claude"}, Model: []string{"--model", "{model}"},
-		Folder: []string{"--add-dir", "{dir}"}, Resume: []string{"--resume", "{session}"}, Hooks: HooksClaude, Rules: ".claude/CLAUDE.md", Proven: true,
+		Folder: []string{"--add-dir", "{dir}"}, Resume: []string{"--resume", "{session}"},
+		Effort: []string{"--effort", "{effort}"}, Settings: []string{"--settings", "{file}"}, Hooks: HooksClaude, Rules: ".claude/CLAUDE.md", Proven: true,
 		Suits:  "the default; anything",
 		Screen: ToolScreen{Title: "Claude Code", Ready: "? for shortcuts", Working: "esc to interrupt", Question: []string{"Do you want to", "Esc to cancel"}, Trust: "trust this folder"}},
 	{Name: "codex", Label: "Codex", Run: []string{"codex"}, Model: []string{"--model", "{model}"},
@@ -160,6 +164,9 @@ var builtIn = []Tool{
 	{Name: "crush", Label: "Crush", Run: []string{"crush"}, Hooks: HooksNone, Rules: ".config/crush/CRUSH.md"},
 	{Name: "amp", Label: "Amp", Run: []string{"amp"}, Hooks: HooksNone, Rules: ".config/amp/AGENTS.md"},
 }
+
+// EffortValues are the efforts task add and agent.effort take.
+const EffortValues = "low|medium|high|max"
 
 // BuiltIn is the descriptions compiled in, for whoever lists them apart.
 func BuiltIn() []Tool { return slices.Clone(builtIn) }
@@ -255,7 +262,7 @@ func (t Tool) Check(p Platform, roots []string) error {
 			}
 		}
 	}
-	for _, word := range slices.Concat(t.Run, t.Model, t.Folder, t.Resume, t.Tried.Saw, []string{t.Label, t.Suits, t.Rules, t.Tried.Day}) {
+	for _, word := range slices.Concat(t.Run, t.Model, t.Folder, t.Resume, t.Effort, t.Settings, t.Tried.Saw, []string{t.Label, t.Suits, t.Rules, t.Tried.Day}) {
 		if strings.ContainsFunc(word, steers) {
 			return errors.New("a word of it holds a line break or a control character")
 		}

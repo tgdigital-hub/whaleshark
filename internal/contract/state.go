@@ -178,6 +178,8 @@ type Task struct {
 	Fleet        string     `json:"fleet,omitempty"` // a group's fleet: Placement is then PlaceFleet
 	Agent        string     `json:"agent,omitempty"`
 	Model        string     `json:"model,omitempty"`
+	Effort       string     `json:"effort,omitempty"`
+	Args         []string   `json:"args,omitempty"` // after the project's
 	Status       TaskStatus `json:"status"`
 	Failures     int        `json:"failures"`
 	Attempts     []string   `json:"attempts,omitempty"`
