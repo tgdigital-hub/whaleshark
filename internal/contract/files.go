@@ -527,6 +527,12 @@ type PersonConfig struct {
 		Link     string `toml:"link,omitempty"`
 		FullText bool   `toml:"full_text,omitempty"`
 	} `toml:"notify,omitempty"`
+	// Phone is the page's door for a phone where no server is: the port of
+	// the machine itself it listens on, and a name a program in front gives it.
+	Phone struct {
+		Port int    `toml:"port,omitempty"`
+		Name string `toml:"name,omitempty"`
+	} `toml:"phone,omitempty"`
 	// The guardrails (guard.go), each the person's own and read when it is
 	// used: no project's file holds one or can switch one off. Spend's two
 	// limits are agent-hours, Unlimited for none.

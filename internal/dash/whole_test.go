@@ -249,9 +249,9 @@ func TestThePageFromEndToEnd(t *testing.T) {
 		t.Errorf("the idle server holds %d bytes", st.Memory)
 	}
 
-	// The phone's words: this machine is no server, so there is no door to
-	// open; the list is the file's.
-	if out, err := p.Command(scenario.Unbound, "dash", "phone", "on").CombinedOutput(); err == nil || !strings.Contains(string(out), "no door for a phone") {
+	// The phone's words: this machine is no server and no port was picked,
+	// so there is no door to open; the list is the file's.
+	if out, err := p.Command(scenario.Unbound, "dash", "phone", "on").CombinedOutput(); err == nil || !strings.Contains(string(out), "set phone.port") {
 		t.Errorf("dash phone on where there is no server: %v %s", err, out)
 	}
 	if err := contract.ChangePhones(p.Kit.Platform, func(list *contract.Phones) error {

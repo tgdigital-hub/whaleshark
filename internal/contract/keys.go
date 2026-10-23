@@ -115,6 +115,9 @@ var Keys = []Key{
 	{"ui.settle_seconds", SecNudges, "Seconds an answer can be taken back", KindNumber, "0..60", "4", StoreConfig, "", "", "An answer is used only after this long; u undoes it until then."},
 	{"update.notice", SecNudges, "Tell me when a new version is out", KindSwitch, "", "on", StoreConfig, "", "", "On: once a day, when you open the window, WhaleShark asks GitHub for the number of the latest release and shows one line if yours is older. Nothing about you or this computer is sent, and nothing is installed. Off: it never asks."},
 
+	{"phone.port", SecPage, "Port for a phone, with no server", KindNumber, "1024..65535|0", "0", StoreConfig, "", AsksRuns, "Where no server is: while phone access is on, the page listens for a phone on this port of the machine itself and on nothing another machine can reach. Carry it to the phone with ssh -L or tailscale serve. 0 is none; dash phone on uses a new value."},
+	{"phone.name", SecPage, "Name the phone opens, with no server", KindText, "", "", StoreConfig, "", AsksRuns, "The name a program in front gives the page over HTTPS, as tailscale serve does; localhost, over ssh -L, is always answered."},
+
 	{"keys.command", SecKeys, "The command key", KindText, "", "ctrl+space", StoreEngine, "", "", "The key that starts every shortcut of the window."},
 	{"keys.style", SecKeys, "Copy and paste keys", KindChoice, "auto|mac|windows|linux", "auto", StoreEngine, "", "", "Whose keys copy and paste; auto is the system you sit at."},
 	{"shortcut.<key>", SecKeys, "A shortcut's command", KindWords, "", "", StoreEngine, "shortcut", AsksRuns, "What the key runs after the command key; nothing takes the shortcut away."},

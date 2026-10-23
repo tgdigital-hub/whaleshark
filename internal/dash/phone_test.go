@@ -74,14 +74,15 @@ func house(t *testing.T) *browser {
 }
 
 // phone is one phone's browser before the door. It asks under host, the
-// person's public name unless a test says another, and carries pass; where
-// a test gives none, a pass as Cloudflare makes one for the subject who.
+// person's public name unless a test says another, over scheme, HTTPS
+// unless a test says another, and carries pass; where a test gives none, a
+// pass as Cloudflare makes one for the subject who.
 type phone struct {
-	b          *browser
-	who        string
-	agent      string
-	cookie     []*http.Cookie
-	host, pass string
+	b                  *browser
+	who                string
+	agent              string
+	cookie             []*http.Cookie
+	host, pass, scheme string
 }
 
 // ask hands the door one request as Cloudflare's connector would.
@@ -91,7 +92,7 @@ func (p *phone) ask(method, path string, form url.Values, change func(*http.Requ
 	if form != nil {
 		body = strings.NewReader(form.Encode())
 	}
-	at, pass := "https://"+cmp.Or(p.host, public), p.pass
+	at, pass := cmp.Or(p.scheme, "https://")+cmp.Or(p.host, public), p.pass
 	if pass == "" && p.who != "" {
 		pass = signed(cloud(), heading, set("sub", p.who))
 	}

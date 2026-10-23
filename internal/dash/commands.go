@@ -13,7 +13,9 @@
 // whose administrator set it up, it also listens on one loopback port of the
 // login's own block, the door: Cloudflare's connector hands a phone's
 // connection to it with a signed pass, which the door checks itself on
-// every request. A phone is paired once, by a number the person approves
+// every request. Where no server is, the door is the loopback port the
+// person picked, reached over their own ssh or a program in front of it,
+// and nothing names the caller. A phone is paired once, by a number the person approves
 // where they are signed in already (on the page, in a pane, or with `dash
 // phone approve`), and is then shown the same page in one column.
 //

@@ -1,6 +1,7 @@
 package dash
 
 import (
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/binary"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -45,12 +47,47 @@ func from(ctx context.Context) string {
 	return id
 }
 
+// plainRoad marks a request that came to the door over ssh's forward, as
+// plain HTTP under a name of the machine itself.
+type plainRoad struct{}
+
+// jar is the name a door's cookie begins with and whether it is Secure: over
+// HTTPS bound to the one name, over ssh's forward one of its own that a
+// browser sends over plain HTTP to the machine's own name.
+func jar(ctx context.Context) (prefix string, secure bool) {
+	if ctx.Value(plainRoad{}) != nil {
+		return "p", false
+	}
+	return bound, true
+}
+
+// door is the login's port for phones: on a server the last of its block,
+// where no server is the one the person picked (phone.port); 0 for none.
+func door(k *contract.Kit, dirs contract.Dirs, srv *contract.Server, login string) int {
+	if cfg, _ := contract.ReadPerson(k.Platform.Peek, dirs.Config); srv == nil {
+		return cfg.Phone.Port
+	}
+	return srv.Door(login)
+}
+
+// local says whether a request on the road where no server is asks under a
+// name of the machine itself, as over ssh's forward (plain), or under the
+// one the person gave the program in front of it, which ends HTTPS.
+func (s *server) local(host string) (ok, plain bool) {
+	if name, _, err := net.SplitHostPort(host); err == nil {
+		host = name
+	}
+	cfg, _ := contract.ReadPerson(s.k.Platform.Peek, s.dirs.Config)
+	plain = host == "localhost" || host == contract.Loopback
+	return plain || cfg.Phone.Name != "" && strings.EqualFold(host, cfg.Phone.Name), plain
+}
+
 // doors opens the door for phones or closes it, as phones.json says now.
 func (s *server) doors() {
 	peek, port := s.k.Platform.Peek, 0
 	srv, err := contract.ReadServer(peek)
 	if phones, perr := contract.ReadPhones(peek, s.dirs.State); err == nil && perr == nil && phones.On {
-		port = srv.Door(s.login)
+		port = door(s.k, s.dirs, srv, s.login)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -74,21 +111,28 @@ func (s *server) doors() {
 }
 
 // phone answers at the door. What comes in there was handed over by the
-// road's own program on this machine, over HTTPS from the phone. The one
-// place below asks who is calling, by this server's road, and a road it
-// does not know names nobody: on Cloudflare's it is the pass, which the door
-// checks itself, and what fails that check is answered with nothing. A
-// phone that is not paired is shown a number; a paired one gets the page,
-// in one column.
+// road's own program on this machine, over HTTPS from the phone, or by the
+// person's own ssh. The one place below asks who is calling, by this
+// server's road, and a road it does not know names nobody: on Cloudflare's
+// it is the pass, which the door checks itself, and what fails that check
+// is answered with nothing; where no server is, nobody is named and only
+// the host name is checked. A phone that is not paired is shown a number; a
+// paired one gets the page, in one column.
 func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 	head(w, r)
 	now, peek, path := contract.Now(), s.k.Platform.Peek, r.URL.Path
 	srv, err := contract.ReadServer(peek)
 	phones, perr := contract.ReadPhones(peek, s.dirs.State)
 	post := r.Method == http.MethodPost
-	open := err == nil && perr == nil && srv != nil && phones.On
+	open, scheme := err == nil && perr == nil && phones.On, "https://"
 	var who string
-	switch {
+	switch plain := false; {
+	case open && srv == nil:
+		// Every login of the machine can reach its own port: whoever does,
+		// and is not paired, is shown a number as on every road.
+		if open, plain = s.local(r.Host); open && plain {
+			scheme, r = "http://", r.WithContext(context.WithValue(r.Context(), plainRoad{}, true))
+		}
 	case open && srv.Road == contract.RoadCloudflare:
 		var until time.Time
 		if who, until, open = s.pass(r, srv, now); open {
@@ -107,10 +151,10 @@ func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 	// An app names no origin: a request that names one is a browser's, and
 	// only the page's own is let through to the interface.
 	api := path == contract.RouteAPI || strings.HasPrefix(path, contract.APIv1+"/")
-	if origin := r.Header.Get("Origin"); api && origin != "" && origin != "https://"+r.Host {
+	if origin := r.Header.Get("Origin"); api && origin != "" && origin != scheme+r.Host {
 		reply(w, http.StatusForbidden, said("wrong_origin", "That request did not come from an app."))
 		return
-	} else if !api && !s.asked(w, r, "https://", strings.HasPrefix(path, contract.RouteDo) || post && path == contract.RoutePush) {
+	} else if !api && !s.asked(w, r, scheme, strings.HasPrefix(path, contract.RouteDo) || post && path == contract.RoutePush) {
 		return
 	}
 	if name, asset := strings.CutPrefix(path, contract.RouteAsset); asset {
@@ -120,7 +164,8 @@ func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 	// An app's session is its header and a browser's its cookie, and neither
 	// is taken in the other's place.
 	secret := ""
-	if c, err := r.Cookie(bound + s.cookie); api {
+	prefix, _ := jar(r.Context())
+	if c, err := r.Cookie(prefix + s.cookie); api {
 		secret = r.Header.Get(contract.HeaderApp)
 	} else if err == nil {
 		secret = c.Value
@@ -147,7 +192,7 @@ func (s *server) phone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if now.Sub(ph.SeenAt) >= seenEvery && s.record(ph.ID, func(p *contract.Phone) { p.SeenAt = now }) == nil && !api {
-		s.bake(w, secret)
+		s.bake(w, r, secret)
 	}
 	r = r.WithContext(context.WithValue(r.Context(), viaPhone{}, ph.ID))
 	if api {
@@ -176,12 +221,13 @@ func (s *server) record(id string, set func(*contract.Phone)) error {
 	})
 }
 
-// bake sets a phone's cookie: the secret its session is found by. The door
-// is HTTPS, so the cookie is one a browser sends over nothing else; scripts
-// cannot read it and no other site's request carries it.
-func (s *server) bake(w http.ResponseWriter, secret string) {
-	http.SetCookie(w, &http.Cookie{Name: bound + s.cookie, Value: secret, Path: "/", MaxAge: int(sessionLife / time.Second),
-		HttpOnly: true, Secure: true, SameSite: http.SameSiteStrictMode})
+// bake sets a phone's cookie: the secret its session is found by. Over
+// HTTPS it is one a browser sends over nothing else; scripts cannot read it
+// and no other site's request carries it.
+func (s *server) bake(w http.ResponseWriter, r *http.Request, secret string) {
+	prefix, secure := jar(r.Context())
+	http.SetCookie(w, &http.Cookie{Name: prefix + s.cookie, Value: secret, Path: "/", MaxAge: int(sessionLife / time.Second),
+		HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode})
 }
 
 // knock answers a phone that is not paired: its number and nothing else,
@@ -220,7 +266,7 @@ func (s *server) knock(w http.ResponseWriter, r *http.Request, who, hash string,
 			}
 		}
 		s.pair, fresh = p, true
-		s.bake(w, secret)
+		s.bake(w, r, secret)
 	}
 	s.mu.Unlock()
 	if fresh {
@@ -354,9 +400,9 @@ type paired struct {
 }
 
 // phones is `dash phone on|off|list|forget <phone>|approve <number>|refuse
-// <number>`. The door needs a server whose administrator has set this
-// login's public name; who may come through it is decided at each pairing,
-// never here.
+// <number>`. On a server the door needs the administrator to have set this
+// login's public name; where no server is, the port the person picked. Who
+// may come through it is decided at each pairing, never here.
 func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 	k, login := c.Kit, contract.Me()
 	word, id, words := "", "", 2
@@ -370,6 +416,11 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 	}
 	srv, err := contract.ReadServer(k.Platform.Peek)
 	a, public := srv.Access(login)
+	cfg, _ := contract.ReadPerson(k.Platform.Peek, dirs.Config)
+	local := err == nil && srv == nil
+	if local {
+		a.Name = cmp.Or(cfg.Phone.Name, "localhost:"+strconv.Itoa(cfg.Phone.Port))
+	}
 	out := listed{Phones: []paired{}}
 	var line string
 	switch {
@@ -384,7 +435,9 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 		}
 		fmt.Fprintln(c.Out, map[string]string{"approve": "The phone is paired: it shows the page now.", "refuse": "The phone was refused."}[word])
 		return map[string]string{"number": number, "answer": word}, nil
-	case word == "on" && (err != nil || !public):
+	case word == "on" && local && cfg.Phone.Port == 0:
+		return nil, refuse("no_port", "Where no server is, the page listens for a phone on a port of this machine that you pick, and none is set.", "whaleshark set phone.port 8822")
+	case word == "on" && !local && (err != nil || !public):
 		return nil, refuse("no_door", "This login has no door for a phone: the administrator of a server sets one.", "sudo whaleshark server phone --user "+login)
 	}
 	found, code := word != "forget", rand.Text()
@@ -429,13 +482,18 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 	if out.On {
 		out.Name = a.Name
 	}
-	switch word {
-	case "on":
+	switch {
+	case word == "on" && local:
+		host, _ := os.Hostname()
+		out.Code = contract.PairText(a.Name, code)
+		line = fmt.Sprintf("The door for your phone is open on port %d of this machine itself, and on nothing another machine can reach.\nFrom the phone (Termius, Blink), carry a port of its own here over ssh:\n  ssh -L 8822:localhost:%[1]d %s@%s\nthen open http://localhost:8822/ in its browser, and approve the number it shows: whaleshark dash phone list\nAn app pairs with this code, good once and for one minute, and then asks for the same approval:\n  %s",
+			cfg.Phone.Port, login, host, out.Code)
+	case word == "on":
 		out.Code = contract.PairText(a.Name, code)
 		line = "The door for your phone is open. In any browser, open\n  https://" + a.Name + "/\nlog in at Cloudflare, and approve its number on the page here: whaleshark dash url\nAn app pairs with this code, good once and for one minute, and then asks for the same approval:\n  " + out.Code
-	case "off":
+	case word == "off":
 		line = "The door for phones is closed. Paired phones stay paired."
-	case "forget":
+	case word == "forget":
 		line = "Phone " + id + " is forgotten: its session has ended."
 	default:
 		line = "The door for phones is " + map[bool]string{true: "open", false: "closed"}[out.On] + "."

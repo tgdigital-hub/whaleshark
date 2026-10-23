@@ -330,9 +330,11 @@ func (s *server) open() (all []job) {
 // own list of projects can be chosen, whatever the browser sends.
 func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job) {
 	choice, chosen := r.URL.Query(), r.URL.Query().Has(contract.FieldRoot)
-	name := s.cookie + "j"
+	name, secure := s.cookie+"j", false
 	if from(r.Context()) != "" {
-		name = bound + name
+		var prefix string
+		prefix, secure = jar(r.Context())
+		name = prefix + name
 	}
 	if c, err := r.Cookie(name); !chosen && err == nil {
 		choice, _ = url.ParseQuery(c.Value)
@@ -351,9 +353,9 @@ func (s *server) pick(w http.ResponseWriter, r *http.Request) (j job, all []job)
 		}
 	}
 	if chosen && fit > 1 {
-		// #nosec G124 -- as the session's cookie in grant: no Secure on the loopback road, and Secure at the door
+		// #nosec G124 -- as the session's cookie in grant: no Secure on the loopback road or ssh's forward, and Secure at the door over HTTPS
 		http.SetCookie(w, &http.Cookie{Name: name, Value: url.Values{contract.FieldRoot: {j.root}, contract.FieldRun: {j.run}}.Encode(),
-			Path: "/", MaxAge: int(sessionLife / time.Second), HttpOnly: true, Secure: from(r.Context()) != "", SameSite: http.SameSiteStrictMode})
+			Path: "/", MaxAge: int(sessionLife / time.Second), HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode})
 	}
 	return j, all
 }
