@@ -3,6 +3,7 @@ package keeper
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -23,9 +24,15 @@ type outer struct {
 	sent  bytes.Buffer // every byte, as the terminal got it
 }
 
+// short starts the keeper's window in a short folder: its first tab is in
+// the folder the keeper was started in, and a long checkout would wrap the
+// line a test looks for.
+func (r *rig) short() { r.t.Chdir(os.TempDir()) }
+
 // attach makes the connection a window of that size; nothing is read yet.
 func (r *rig) attach(w, h int) *outer {
 	r.t.Helper()
+	r.short()
 	o := &outer{client: r.dial(), r: r, scr: screen.New(w, h)}
 	o.send(contract.WireCall{Op: contract.OpAttach, W: float64(w), H: float64(h), System: "darwin",
 		Env: []string{"TERM=xterm-256color", "COLORTERM=truecolor"}})

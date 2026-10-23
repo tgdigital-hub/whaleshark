@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -264,7 +265,8 @@ func refit(k *contract.Kit) error {
 // writes its own marks: one after the other, or one writes back what it read
 // before the other wrote, and the file names panes that are gone.
 func placing(k *contract.Kit) (unlock func()) {
-	if dirs, err := k.Platform.Dirs(); err == nil {
+	// A login's first placing finds no folder yet, and without one no lock.
+	if dirs, err := k.Platform.Dirs(); err == nil && os.MkdirAll(dirs.State, 0o700) == nil {
 		if unlock, err := k.Platform.Lock(filepath.Join(dirs.State, "ui.lock"), true); err == nil {
 			return unlock
 		}

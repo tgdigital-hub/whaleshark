@@ -18,6 +18,7 @@ import (
 // reached is a window that says how it got to the keeper.
 func (r *rig) reached(w, h int, reach string) *outer {
 	r.t.Helper()
+	r.short()
 	o := &outer{client: r.dial(), r: r, scr: screen.New(w, h)}
 	o.send(contract.WireCall{Op: contract.OpAttach, W: float64(w), H: float64(h), System: "darwin", Reach: reach,
 		Env: []string{"TERM=xterm-256color", "COLORTERM=truecolor"}})
