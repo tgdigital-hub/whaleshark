@@ -146,7 +146,7 @@ const noSweep = "no sweep yet"
 
 // seat gives a task its card from what the record says and what the terminals show.
 func (b *builder) seat(t *contract.Task) *seat {
-	c := &contract.Card{Task: t.ID, Name: cli.Plain(t.Name), Look: contract.LookQueued, Since: t.CreatedAt}
+	c := &contract.Card{Task: t.ID, Name: cli.Plain(strings.TrimSpace(t.Ref + " " + t.Name)), Look: contract.LookQueued, Since: t.CreatedAt}
 	st := &seat{card: c, task: t}
 	if n := len(t.Attempts); n > 0 {
 		st.try = b.s.Attempts[t.Attempts[n-1]]
@@ -317,8 +317,7 @@ func (b *builder) items(v *contract.View) {
 	slices.SortFunc(qs, func(x, y *contract.Question) int {
 		return cmp.Or(x.CreatedAt.Compare(y.CreatedAt), natural(x.ID, y.ID))
 	})
-	ui := b.in.UI
-	quiet := ui.DND && (ui.DNDUntil.IsZero() || b.in.Now.Before(ui.DNDUntil))
+	quiet := b.in.UI.Quiet(b.in.Now)
 	var first, rest, last []contract.Item
 	for _, q := range qs {
 		st := b.seats[q.Task]
@@ -689,7 +688,7 @@ func (b *builder) around(v *contract.View) {
 	}
 	v.Fresh.Notes = append(v.Fresh.Notes, in.Notes...)
 	ui := in.UI
-	if ui.DND && (ui.DNDUntil.IsZero() || in.Now.Before(ui.DNDUntil)) {
+	if ui.Quiet(in.Now) {
 		v.Strip.DND, v.Strip.DNDUntil = true, ui.DNDUntil
 	}
 	v.Strip.Mute = ui.Mute

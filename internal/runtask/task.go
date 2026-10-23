@@ -111,8 +111,9 @@ func task(c *contract.Call) (any, error) {
 				err = keep(c, found, data)
 			}
 			// The tabs follow under the lock: one that will not take the
-			// name leaves the record as it was.
-			for i := 0; err == nil && i < len(tabs) && found.Name != was; i++ {
+			// name leaves the record as it was. A tab with a card shows
+			// the title, not the name, and stays as it is.
+			for i := 0; err == nil && i < len(tabs) && found.Name != was && found.Ref == ""; i++ {
 				if err = k.Terms.TabRename(tabs[i], found.Name); errors.Is(err, contract.ErrNoPane) {
 					err = nil // closed since it was seen
 				}
@@ -332,13 +333,15 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 	k, f := c.Kit, c.Flags
 	t := contract.Task{ID: id, Title: title, Name: last(c, "name"), Check: last(c, "check"), Placement: contract.PlaceWorktree, Fleet: last(c, "fleet"),
 		Agent: last(c, "agent"), Model: last(c, "model"), BrowserCheck: f["browser-check"] != nil, Owns: contract.List(f["owns"]...)}
-	t.Effort, t.Args = last(c, "effort"), strings.Fields(last(c, "args"))
+	t.Effort, t.Args, t.Ref = last(c, "effort"), strings.Fields(last(c, "args")), last(c, "ref")
 	t.MaxMinutes, t.Return, _ = extras(data)
 	err := cmp.Or(cli.Valid("id", id, ""), cli.Valid("title", title, ""), granted(c.Root, t.Args))
 	kind := kinded(c, &t)
 	switch {
 	case err != nil:
 		return nil, usage(c, "%v.", err)
+	case t.Ref != "" && cli.Valid("id", t.Ref, "") != nil:
+		return nil, usage(c, "--ref is a card's id: letters, digits, dashes, 16 at most.")
 	case t.Effort != "" && !slices.Contains(strings.Split(contract.EffortValues, "|"), t.Effort):
 		return nil, usage(c, "--effort is one of low, medium, high and max.")
 	case data == nil:

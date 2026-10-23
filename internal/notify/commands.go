@@ -130,7 +130,7 @@ func (n Nudger) send(set settings, c contract.Nudge) {
 func (n Nudger) Nudge(c contract.Nudge) error {
 	now := contract.Now()
 	set, err := n.settings()
-	if err != nil || set.ui.DND && !over(set.ui, now) && !c.Urgent {
+	if err != nil || set.ui.Quiet(now) && !c.Urgent {
 		return err
 	}
 	if c.Task != "" {
@@ -206,7 +206,7 @@ func (n Nudger) Items(root, run string, snap *contract.Snapshot, now time.Time) 
 		for _, c := range news(s) {
 			switch c.Root, c.Run = root, run; {
 			case slices.Contains(sent.Said[key], c.Title):
-			case set.ui.DND && !c.Urgent:
+			case set.ui.Quiet(now) && !c.Urgent:
 				continue
 			case !looking(s, snap, c.Task):
 				fresh = append(fresh, c)

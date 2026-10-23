@@ -84,11 +84,13 @@ type Space struct {
 	Front bool   `json:"front,omitempty"`
 }
 
-// OtherTabs is the name of the workspace without a folder, and LabelMost
-// the longest label.
+// OtherTabs is the name of the workspace without a folder, LabelMost the
+// longest label, and TabMost that of a tab the program opens, which carries
+// a task's card and title (ui.tab_title_chars).
 const (
 	OtherTabs = "other tabs"
 	LabelMost = 24
+	TabMost   = 60
 )
 
 // SpaceName is the name a workspace has until a person gives it one, and
@@ -105,7 +107,12 @@ func SpaceName(root string) string {
 // blanks round it gone, never the form of an option, LabelMost characters
 // at most. A label is a label only: no call takes one as an argument, a
 // path or a pane's name.
-func Label(text string) string {
+func Label(text string) string { return cut(text, LabelMost) }
+
+// TabLabel is Label for a tab the program opens, TabMost characters at most.
+func TabLabel(text string) string { return cut(text, TabMost) }
+
+func cut(text string, most int) string {
 	text = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
 		if steers(r) {
 			return ' '
@@ -113,7 +120,7 @@ func Label(text string) string {
 		return r
 	}, text)), " ")
 	r := []rune(strings.TrimSpace(strings.TrimLeft(text, "- ")))
-	return strings.TrimSpace(string(r[:min(len(r), LabelMost)]))
+	return strings.TrimSpace(string(r[:min(len(r), most)]))
 }
 
 // IsMainTab says a label reads as the main agent's tab's, in any letter case

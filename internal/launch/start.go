@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -173,6 +175,31 @@ func (l *launcher) over(s *contract.State, room int) error {
 		return refuse(contract.ExitRefused, "limit", "This login has as many agents live as this server lets it run.")
 	}
 	return nil
+}
+
+// loadNow is the machine's load over the last minute, and whether it could
+// be told: Linux keeps it in a file, a Mac says it through sysctl.
+var loadNow = func() (float64, bool) {
+	data, err := os.ReadFile("/proc/loadavg")
+	if err != nil {
+		data, err = exec.Command("sysctl", "-n", "vm.loadavg").Output()
+	}
+	f := strings.Fields(strings.Trim(strings.TrimSpace(string(data)), "{ }"))
+	if err != nil || len(f) == 0 {
+		return 0, false
+	}
+	n, err := strconv.ParseFloat(f[0], 64)
+	return n, err == nil
+}
+
+// loaded says why nothing new starts while the load is over [limits]
+// load_max times the cores, and is empty while it is not or cannot be told.
+func (l *launcher) loaded() string {
+	most, cores := l.project.Limits.LoadMax, runtime.NumCPU()
+	if load, ok := loadNow(); ok && most > 0 && load > float64(most*cores) {
+		return fmt.Sprintf("the load is %.1f, over %d times the %d cores", load, most, cores)
+	}
+	return ""
 }
 
 // others counts the agents live in every other run of the login.
@@ -390,6 +417,15 @@ func start(c *contract.Call) (any, error) {
 		if l.retry {
 			l.snap = snap
 		}
+	}
+	// Over its load the machine takes nothing new: the start is held and
+	// the lead agent told, and a later start tries again.
+	if over := l.loaded(); over != "" && len(ids) > 0 {
+		change(c, func(s *contract.State) error {
+			k.Rules.Raise(s, contract.Event{Kind: "load", Text: over + "; nothing new starts until it falls"}, c.Now)
+			return nil
+		})
+		return nil, refuse(contract.ExitRefused, "load", "Nothing new starts: %s.", over)
 	}
 	if moved, err := OwnTab(c, strings.Join(names, ", "), argv...); moved != nil || err != nil {
 		return moved, err
@@ -803,12 +839,15 @@ func (l *launcher) bring(task string) outcome {
 	var found []string
 	// The tab is of the project's workspace and, a leader's, the first of
 	// its fleet's; opened from a pane it is that pane's, whatever is said.
-	pane, err := k.Terms.TabCreate(l.c.Root, t.Fleet, folder, tabName(t), env)
+	pane, err := k.Terms.TabCreate(l.c.Root, t.Fleet, folder, title(t, l.person.UI.TabTitleChars), env)
 	if err != nil {
 		return l.failed(r, err, "the tab could not be opened", false)
 	}
 	r.Tab = pane.Tab
 	place := contract.Place{Tab: pane.Tab, Pane: pane.ID, Terminal: pane.Terminal, Workspace: pane.Workspace, Cwd: folder, OpenedByUs: true}
+	if t.Ref != "" && t.Fleet == "" {
+		place.Label = pane.Label // a card's tab is known by it, and not by the task's name
+	}
 	placed := func(s, _ *contract.State) error { return k.Rules.Placed(s, id, place, contract.Now()) }
 	err = l.step("", placed)
 	// The new leader's tab is its fleet's run's: the run the fleet has
@@ -884,7 +923,7 @@ func (l *launcher) bring(task string) outcome {
 		Brief: filepath.Join(run, t.Brief), Result: filepath.Join(dir, "result.md"), Owns: t.Owns,
 		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync)), Browser: browser,
 		Fleet: t.Fleet, Person: l.person, Tools: l.tools, PR: pr, Return: t.Return, Mirror: mirror,
-		Kind: t.Kind, Copy: tree != nil, Limit: t.LimitMinutes, Review: reviewed(s, t)}.Text() + earlier(prev)
+		Kind: t.Kind, Copy: tree != nil, Limit: t.LimitMinutes, Review: reviewed(s, t)}.Text() + cardOf(t) + earlier(prev)
 	if err = os.WriteFile(prompt, []byte(text), 0o600); err == nil {
 		err = l.step("", placed) // nothing is typed once the attempt was stopped or the person pressed Stop all
 	}
@@ -1002,6 +1041,15 @@ func (l *launcher) lacks() {
 	fmt.Fprintf(l.c.Out, "%d ignored files or folders of the project are not in a task's own copy of the code (%s%s). "+
 		"To copy one there, name it on a line of .worktreeinclude; to link one, name it in whaleshark.toml, [worktrees] share = [\"%s\"], and have the person run whaleshark trust.\n",
 		n, cli.Line(strings.Join(some, ", ")), more, cli.Line(some[0]))
+}
+
+// cardOf is what a worker is told of its task's card, which the person
+// tracks the work by: like earlier, it follows the prompt's own text.
+func cardOf(t *contract.Task) string {
+	if t.Ref == "" {
+		return ""
+	}
+	return fmt.Sprintf("\n## Your card\nThis task is card %s: name it first in your commits and in the result file.\n", t.Ref)
 }
 
 // earlier is what a retry is told of the attempt before it: the prompt's own

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"path/filepath"
 	"slices"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/hook"
+	"github.com/tgdigital-hub/whaleshark/internal/launch"
 	"github.com/tgdigital-hub/whaleshark/internal/lock"
 )
 
@@ -216,10 +218,12 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		}
 		last.Gone = sw.leaders(root, s, l, last.Gone)
 		sw.pairs(root, s, l)
+		sw.limit(root, run, now)
 		sw.hold(root, s, l)
 		// The pull requests of pr-per-task mode are watched here, in the
 		// background of every wait; what goes wrong is asked again next time.
 		k.Integrator.Watch(root, run, now)
+		sw.merged(root, run, l, now)
 		sw.locks(root, run, now)
 	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
@@ -355,6 +359,26 @@ func (sw sweeper) hold(root string, s *contract.State, l *look) {
 			})
 		}
 		sw.k.Hold(sw.k, root, low.Run.ID)
+	}
+}
+
+// merged is [tasks] close_on_accept in pr-per-task mode: a task whose pull
+// request is merged gives up its tab and its copy of the code, as close
+// does; until then its worker is kept for a red check.
+func (sw sweeper) merged(root, run string, l *look, now time.Time) {
+	s, err := sw.k.Store.Read(root, run)
+	if err != nil || !l.limits.Tasks.CloseOnAccept {
+		return
+	}
+	var ids []string
+	for id, t := range s.Tasks {
+		if t.PR != nil && t.PR.State == contract.PRMerged && t.Worktree != nil && t.Worktree.RemovedAt.IsZero() {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) > 0 {
+		launch.Close(&contract.Call{Kit: sw.k, Root: root, Run: run, Caller: contract.Caller{Kind: contract.Orchestrator},
+			Command: contract.Find("close"), Out: io.Discard, Err: io.Discard, Now: now}, ids...)
 	}
 }
 

@@ -208,6 +208,9 @@ func resume(c *contract.Call) (any, error) {
 	w := waker{k: k, typed: map[string]bool{}}
 	w.snap, w.err = k.Terms.Snapshot(context.Background())
 	for _, t := range todo {
+		if holding(states[t]) {
+			os.Remove(contract.HoldPath(t.root, t.run)) // a usage limit's: resume wakes them, not the sweep again
+		}
 		wake, lead, err := wakeUp(k, t, states[t], c.Now, func(s *contract.State) (since time.Time, err error) {
 			if err = k.Rules.Allowed(s, c.Caller, c.Command.Name, ""); err == nil && s.Run.Paused != nil {
 				since = s.Run.Paused.At
@@ -290,6 +293,12 @@ func (w *waker) tell(t target, wake []woken, lead string) error {
 	})
 }
 
+// holding reports whether a run's hold file is to be there: the spending guard
+// holds it, or the sweep paused it at a usage limit.
+func holding(s *contract.State) bool {
+	return guarded(s) || s != nil && s.Run.Paused != nil && s.Run.Paused.By == contract.LimitBy
+}
+
 // guarded reports whether the spending guard holds a run.
 func guarded(s *contract.State) bool {
 	return s != nil && s.Run.Paused != nil && s.Run.Paused.By == contract.HeldBy
@@ -326,7 +335,7 @@ func Hold(k *contract.Kit, root, run string) error {
 	file := contract.HoldPath(root, run)
 	at, none := k.Platform.Peek(file)
 	switch t := (target{root, run}); {
-	case guarded(s) && none != nil:
+	case holding(s) && none != nil:
 		if err := os.WriteFile(file, []byte(s.Run.Paused.At.Format(time.RFC3339)), 0o600); err != nil {
 			return err
 		}
@@ -337,7 +346,7 @@ func Hold(k *contract.Kit, root, run string) error {
 			}
 		}
 		return err
-	case !guarded(s) && none == nil && os.Remove(file) == nil && s.Run.Paused == nil:
+	case !holding(s) && none == nil && os.Remove(file) == nil && s.Run.Paused == nil:
 		now := contract.Now()
 		since, _ := time.Parse(time.RFC3339, string(at))
 		w := waker{k: k, typed: map[string]bool{}}

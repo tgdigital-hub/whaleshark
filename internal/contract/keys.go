@@ -92,6 +92,7 @@ var Keys = []Key{
 	{"ui.marks", SecLook, "Marks", KindChoice, "auto|plain", "auto", StoreConfig, "", "", "Plain marks for a terminal that cannot show the drawn ones; the variable WHALESHARK_MARKS still wins."},
 	{"ui.first_steps", SecLook, "First steps", KindSwitch, "", "on", StoreUI, "first_steps", "", "Five lines in the left section that show a newcomer what to type and where. They tick themselves off and go away. Switch on to see them again."},
 
+	{"ui.tab_title_chars", SecLayout, "Characters of a tab's name", KindNumber, "16..60", "40", StoreConfig, "", "", "A worker's tab carries its task's card and title cut to this many."},
 	{"side.place", SecLayout, "The left section", KindChoice, "left|right", "left", StoreEngine, "", "", "At which edge of the window it stands. It cannot be switched off."},
 	{"side.width", SecLayout, "Width of the left section", KindNumber, "16..60", "28", StoreEngine, "", "", "In columns. A narrow window shows less of it. " + dragIt},
 	{"panes.fleet", SecLayout, "The fleet pane", KindChoice, "right|left|bottom|off", "right", StoreConfig, "", "", "Where it opens when a job starts. Off closes it; its key and whaleshark status remain."},
@@ -103,7 +104,8 @@ var Keys = []Key{
 	{"actions.height", SecLayout, "Height of the action pane", KindNumber, "3..40|0", "0", StoreUI, "actions_height", "", "In rows. 0 is a quarter of the tab, as it comes. " + dragIt},
 	{"folded", SecLayout, "The action pane folded", KindSwitch, "", "off", StoreUI, "", "", "Folded it is one line, and opens when an item holds work up."},
 
-	{"dnd", SecNudges, "Do not disturb", KindChoice, "off|on|until TIME", "off", StoreUI, "", "", "Holds back every nudge that is not urgent, until you switch it off or until a time of day."},
+	{"dnd", SecNudges, "Do not disturb", KindChoice, "off|on|until TIME|FROM-TO", "off", StoreUI, "", "", "Holds back every nudge that is not urgent, until you switch it off or until a time of day; 22:00-06:00 holds them back every night."},
+	{"timezone", SecNudges, "Your time zone", KindText, "", "", StoreUI, "", "", "Where nightly quiet hours are counted, as America/Los_Angeles; empty is this computer's."},
 	{"mute", SecNudges, "Mute", KindSwitch, "", "off", StoreUI, "", "", "No sound; everything else still shows."},
 	{"nudge.sound", SecNudges, "A sound when you are needed", KindSwitch, "", "on", StoreConfig, "", "", "Off: an item for you makes no sound; it still shows everywhere."},
 	{"nudge.popup", SecNudges, "A pop-up when you are needed", KindSwitch, "", "on", StoreConfig, "", "", "Off: no notice from your system; the panes and the page still show the item."},
@@ -174,6 +176,7 @@ var Keys = []Key{
 	{"agent.tool", SecProject, "The tool those arguments are for", KindTool, "", DefaultTool, StoreProject, "", AsksApproval, "An agent of any other tool is started without them: what one tool takes, another refuses."},
 	{"agent.effort", SecProject, "A worker's effort", KindChoice, EffortValues, "", StoreProject, "", "", "Where its task names none; empty is the tool's own. Your lead agent's is set where you start it."},
 	{"agent.settings", SecProject, "A settings file for every worker", KindText, "", "", StoreProject, "", AsksApproval, "A full path, given to every worker of a tool that takes one (Claude Code: --settings): its deny rules hold for them all."},
+	{"check.parallel", SecProject, "Checks run at once", KindNumber, "0..100", "0", StoreProject, "", "", "Over all of your projects; one more waits for a free place. 0 holds no line."},
 	{"check.timeout_seconds", SecProject, "Seconds a check may take", KindNumber, "1..86400", "900", StoreProject, "", AsksApproval, "A check that runs longer is ended and counts as failed."},
 	{"land.who", SecProject, "Who may land the work", KindChoice, "human|orchestrator", "human", StoreProject, "", AsksApproval, "human: only you land. orchestrator: your lead agent may land too, when the check passes."},
 	{"land.check", SecProject, "The check before landing", KindText, "", "", StoreProject, "", AsksApproval, "A command run on the collected work; nothing lands unless it passes."},
@@ -186,6 +189,8 @@ var Keys = []Key{
 	{"limits.resume_per_second", SecProject, "Agents woken a second", KindNumber, "1..100", "2", StoreProject, "", "", ""},
 	{"limits.stale_minutes", SecProject, "Minutes before progress is stale", KindNumber, "1..10000", "30", StoreProject, "", "", ""},
 	{"limits.max_minutes", SecProject, "Minutes a task may take", KindNumber, "0..100000", "0", StoreProject, "", "", "0 holds no line."},
+	{"limits.load_max", SecProject, "Load before starts are held", KindNumber, "0..64", "0", StoreProject, "", "", "Times the cores: over it nothing new starts and the lead agent is told. 0 holds no line."},
+	{"tasks.close_on_accept", SecProject, "Close a task's tab once it is done", KindSwitch, "", "off", StoreProject, "", "", "On: accept closes the worker's tab and removes its copy of the code; with pull requests the copy goes once it is merged. The branch stays."},
 	{"results.mirror_dir", SecProject, "Where a task's notes are copied", KindText, "", "", StoreProject, "", AsksApproval, "A full path outside the project, as /srv/notes/{date}-{task}: the brief, the result and the pull request body, with READY and DONE."},
 	{"protect.also", SecProject, "This project's additions", KindList, "", "", StoreProject, "", "", "More protected paths for everyone who works in this project. A project can add to your list and never take from it."},
 	{"hooks.on_event", SecProject, "A command run at every event", KindText, "", "", StoreProject, "", AsksApproval, "Run once for each event of a run, with the event as JSON on its standard input: a script can mirror progress to a card or a dashboard. Ten seconds each at most; it never holds the record."},
@@ -296,7 +301,8 @@ func (k *Key) Check(value string, tools []Tool) (string, error) {
 	switch k.Kind {
 	case KindChoice:
 		if value == "" && k.Default == "" { // a choice that is empty as it comes
-		} else if until, ok := strings.CutPrefix(value, "until "); !slices.Contains(choices, value) && !(ok && until != "" && slices.Contains(choices, "until TIME")) {
+		} else if until, ok := strings.CutPrefix(value, "until "); !slices.Contains(choices, value) && !(ok && until != "" && slices.Contains(choices, "until TIME")) &&
+			!(slices.Contains(choices, "FROM-TO") && Window(value) != nil) {
 			return bad("one of %s", strings.Join(choices, ", "))
 		}
 	case KindSwitch:

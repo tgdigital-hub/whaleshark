@@ -220,7 +220,7 @@ func (k *Keeper) do(c contract.WireCall) (r contract.WireReply, gone []contract.
 		}
 		// The label is cleaned as every label is, and one tab of a workspace
 		// at most reads as the main agent's.
-		if c.Label = contract.Label(c.Label); contract.IsMainTab(c.Label) && slices.ContainsFunc(k.lay.Tabs, func(t *layout.Tab) bool {
+		if c.Label = contract.TabLabel(c.Label); contract.IsMainTab(c.Label) && slices.ContainsFunc(k.lay.Tabs, func(t *layout.Tab) bool {
 			return t.Space == sp.ID && contract.IsMainTab(t.Label)
 		}) {
 			err = contract.ErrMainTab

@@ -43,10 +43,13 @@ func set(c *contract.Call) (any, error) {
 	}
 	key, value := c.Args[0], strings.Join(c.Args[1:], " ")
 	own := key
-	if !human && key == "dnd" && strings.HasPrefix(value, "until") {
+	if _, err := time.LoadLocation(value); key == "timezone" && err != nil {
+		return bad("A time zone is a name as America/Los_Angeles, or empty for this computer's own.")
+	}
+	if !human && key == "dnd" && (strings.HasPrefix(value, "until") || contract.Window(value) != nil) {
 		// The table's writer knows do not disturb as on or off: asked for
 		// with a time, the person's yes would switch it off.
-		return nil, &contract.Refusal{Exit: contract.ExitRefused, Code: "human_only", Message: "Do not disturb until a time is the person's to set. You can ask for it without one: whaleshark set dnd on"}
+		return nil, &contract.Refusal{Exit: contract.ExitRefused, Code: "human_only", Message: "Do not disturb with a time is the person's to set. You can ask for it without one: whaleshark set dnd on"}
 	} else if !human {
 		own = ""
 	}
@@ -67,12 +70,15 @@ func set(c *contract.Call) (any, error) {
 			return bad("Do not disturb takes a time of day: whaleshark set dnd until 9:00")
 		}
 		y, m, d := c.Now.Date()
-		ui.DND, ui.DNDUntil = true, time.Date(y, m, d, at.Hour(), at.Minute(), 0, 0, c.Now.Location())
+		ui.DND, ui.DNDDaily, ui.DNDUntil = true, "", time.Date(y, m, d, at.Hour(), at.Minute(), 0, 0, c.Now.Location())
 		if !ui.DNDUntil.After(c.Now) {
 			ui.DNDUntil = ui.DNDUntil.AddDate(0, 0, 1)
 		}
+	case own == "dnd" && contract.Window(value) != nil:
+		// Quiet hours come back every day, counted where timezone says.
+		ui.DND, ui.DNDDaily, ui.DNDUntil = true, strings.TrimSpace(value), time.Time{}
 	case own == "dnd":
-		onOff, ui.DNDUntil = &ui.DND, time.Time{}
+		onOff, ui.DNDDaily, ui.DNDUntil = &ui.DND, "", time.Time{}
 	case own == "fleet.width":
 		n, err := strconv.Atoi(value)
 		if err != nil || n < 10 || n > 500 {

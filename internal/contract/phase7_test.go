@@ -43,6 +43,9 @@ func TestALabelIsALabelOnly(t *testing.T) {
 			t.Errorf("IsMainTab(%q) is not %v", label, want)
 		}
 	}
+	if TabLabel("C-42 an exceedingly long name for one tab that goes on and on and on") != "C-42 an exceedingly long name for one tab that goes on and o" {
+		t.Errorf("a tab the program opens is cut at %d", TabMost)
+	}
 	if SpaceName("") != OtherTabs || SpaceName("/work/shop-site") != "shop-site" || SpaceName("/work/-x\x07y") != "x y" {
 		t.Errorf("a workspace's own name: %q, %q, %q", SpaceName(""), SpaceName("/work/shop-site"), SpaceName("/work/-x\x07y"))
 	}

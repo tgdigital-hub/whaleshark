@@ -253,8 +253,13 @@ type ProjectFile struct {
 		Effort   string   `toml:"effort,omitempty"`
 		Settings string   `toml:"settings,omitempty"`
 	} `toml:"agent"`
+	// Check.Parallel caps the checks running at once over the login, 0 for
+	// none; Limits.LoadMax holds new starts while the load is over that many
+	// times the cores, 0 for never; Tasks.CloseOnAccept closes a done task's
+	// tab and its copy of the code.
 	Check struct {
 		TimeoutSeconds int `toml:"timeout_seconds"`
+		Parallel       int `toml:"parallel,omitempty"`
 	} `toml:"check"`
 	// Land.Mode is LandRun, where accepted work is collected on the run's
 	// branch and landed whole, or LandPR, where each task is its own pull
@@ -273,7 +278,11 @@ type ProjectFile struct {
 		ResumePerSecond int `toml:"resume_per_second"`
 		StaleMinutes    int `toml:"stale_minutes"`
 		MaxMinutes      int `toml:"max_minutes"`
+		LoadMax         int `toml:"load_max,omitempty"`
 	} `toml:"limits"`
+	Tasks struct {
+		CloseOnAccept bool `toml:"close_on_accept,omitempty"`
+	} `toml:"tasks,omitempty"`
 	// Protect.Also adds paths to the person's protected list for everyone
 	// who works here. It can only add, so it needs no approval.
 	Protect struct {
@@ -341,6 +350,37 @@ func readProject(root string) (ProjectFile, error) {
 	return p, err
 }
 
+// Window is quiet hours as "22:00-06:00": the minutes of the day they
+// begin and end at, nil for anything else.
+func Window(text string) []int {
+	from, to, ok := strings.Cut(strings.TrimSpace(text), "-")
+	a, err := time.Parse("15:04", from)
+	b, err2 := time.Parse("15:04", to)
+	if !ok || err != nil || err2 != nil || from == to {
+		return nil
+	}
+	return []int{a.Hour()*60 + a.Minute(), b.Hour()*60 + b.Minute()}
+}
+
+// Quiet says whether Do not disturb holds a nudge that is not urgent back
+// at now: on with no end, before its end, or inside its daily hours.
+func (u UIFile) Quiet(now time.Time) bool {
+	w := Window(u.DNDDaily)
+	switch {
+	case !u.DND:
+		return false
+	case !u.DNDUntil.IsZero():
+		return now.Before(u.DNDUntil)
+	case w == nil:
+		return true
+	}
+	if zone, err := time.LoadLocation(u.Timezone); err == nil && u.Timezone != "" {
+		now = now.In(zone)
+	}
+	m := now.Hour()*60 + now.Minute()
+	return w[0] < w[1] && m >= w[0] && m < w[1] || w[0] > w[1] && (m >= w[0] || m < w[1])
+}
+
 // UIFile is ui.json in the login's state folder: what the panes remember
 // about the screen, and nothing about the work.
 type UIFile struct {
@@ -371,6 +411,10 @@ type UIFile struct {
 	// and Steps the ones ticked so far, a bit each from the first.
 	FirstSteps string `json:"first_steps,omitempty"`
 	Steps      int    `json:"steps,omitempty"`
+	// DNDDaily is quiet hours that come back every day, as "22:00-06:00",
+	// counted in Timezone, or where that is empty in the computer's own.
+	DNDDaily string `json:"dnd_daily,omitempty"`
+	Timezone string `json:"timezone,omitempty"`
 	// SideSplit is where the agents begin in the left section, in hundredths
 	// of its height, 0 for SideSplit; ActionsHeight the action pane's rows,
 	// 0 for a quarter of the tab. Panes are the two panes of ours of each
@@ -500,6 +544,8 @@ type PersonConfig struct {
 		SettleSeconds int    `toml:"settle_seconds"`
 		// Marks is "auto" or "plain"; the variable of PlainMarks still wins.
 		Marks string `toml:"marks"`
+		// TabTitleChars is how much of a task's card and title its tab shows.
+		TabTitleChars int `toml:"tab_title_chars"`
 	} `toml:"ui"`
 	// Panes is where the two panes of ours open by themselves: the fleet
 	// "right", "left", "bottom" or "off", the action pane "bottom", "top" or
@@ -604,7 +650,7 @@ const (
 func PersonDefaults() PersonConfig {
 	var c PersonConfig
 	c.UI.Theme, c.UI.Marks = "reef", "auto"
-	c.UI.SettleSeconds = 4
+	c.UI.SettleSeconds, c.UI.TabTitleChars = 4, 40
 	c.Panes.Fleet, c.Panes.Actions = Right, Bottom
 	c.Fleets.Mode, c.Fleets.Leaders, c.Fleets.Agents, c.Fleets.Total = Off, 4, 8, 20
 	c.Fleets.Leader, c.Fleets.Worker = DefaultTool, FleetWorkerLeader

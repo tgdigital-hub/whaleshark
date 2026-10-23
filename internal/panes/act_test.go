@@ -909,6 +909,19 @@ func TestSet(t *testing.T) {
 	if out, err := run("dnd", "until 21:30"); err != nil || !strings.Contains(out, "dnd: until 21:30") {
 		t.Errorf("set dnd with its time as one word: %q, %v", out, err)
 	}
+	// Quiet hours every night, counted in a time zone that is one.
+	if out, err := run("dnd", "22:00-06:00"); err != nil || !strings.Contains(out, "dnd: 22:00-06:00") {
+		t.Errorf("set dnd every night: %q, %v", out, err)
+	}
+	if _, err := run("timezone", "Nowhere/Atlantis"); exit(err) != contract.ExitUsage {
+		t.Errorf("set timezone to none: %v", err)
+	}
+	var nightly contract.UIFile
+	if _, err := run("timezone", "UTC"); err != nil {
+		t.Errorf("set timezone: %v", err)
+	} else if contract.ReadVersioned(d.k.Platform.Read, filepath.Join(dirs.State, "ui.json"), contract.FileVersion, &nightly); !nightly.DND || nightly.DNDDaily != "22:00-06:00" || nightly.Timezone != "UTC" {
+		t.Errorf("after nightly hours ui.json holds %+v", nightly)
+	}
 	// Every other key of the contract's table is set in its own file: the
 	// engine's in settings.toml, and a value outside its key is a usage error.
 	if out, err := run("keys.style", "mac"); err != nil || !strings.Contains(out, "keys.style: mac") {

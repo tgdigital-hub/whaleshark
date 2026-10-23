@@ -128,6 +128,18 @@ func both(c *contract.Call, low string, fn func(up, low *contract.State) error) 
 // fleet's, whose leader sits there.
 func tabName(t *contract.Task) string { return cmp.Or(t.Fleet, t.Name) }
 
+// title is the label a worker's tab is opened with: its task's name, or
+// with a card the card and the task's title, cut where the person's
+// ui.tab_title_chars says.
+func title(t *contract.Task, most int) string {
+	name := tabName(t)
+	if t.Ref != "" && t.Fleet == "" {
+		name = t.Ref + " " + t.Title
+	}
+	r := []rune(contract.TabLabel(name))
+	return strings.TrimSpace(string(r[:min(len(r), max(most, 1))]))
+}
+
 // byID orders ids as a person counts them: T2 before T10.
 func byID(a, b string) int {
 	return cmp.Or(cmp.Compare(len(a), len(b)), strings.Compare(a, b))
@@ -150,7 +162,7 @@ func paneOf(snap *contract.Snapshot, id string) *contract.Pane {
 // can be somebody else's tab once the terminals were started afresh.
 func shut(k *contract.Kit, snap *contract.Snapshot, name string, p contract.Place) (bool, error) {
 	pane := paneOf(snap, p.Pane)
-	if !p.OpenedByUs || pane == nil || pane.Tab != p.Tab || pane.Label != name {
+	if !p.OpenedByUs || pane == nil || pane.Tab != p.Tab || pane.Label != name && (p.Label == "" || pane.Label != p.Label) {
 		return false, nil
 	}
 	err := k.Terms.TabClose(p.Tab)
@@ -474,6 +486,15 @@ func closeTabs(c *contract.Call) (any, error) {
 		return nil, refusal(kept)
 	}
 	return map[string]any{"closed": closed, "removed": slices.Sorted(maps.Keys(removed)), "ended": over}, err
+}
+
+// Close is close for tasks a command has just settled, as accept and the
+// sweep do with [tasks] close_on_accept; it prints where the command does.
+func Close(c *contract.Call, tasks ...string) error {
+	sub := *c
+	sub.Args, sub.Flags = tasks, map[string][]string{}
+	_, err := closeTabs(&sub)
+	return err
 }
 
 // OwnTab moves a button's long command into a tab of its own (decision 57):

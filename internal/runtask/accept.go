@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -98,6 +99,13 @@ func accept(c *contract.Call) (any, error) {
 		out, err = acceptAll(c)
 	} else {
 		out, err = acceptOne(c, c.Args[0], byHand)
+	}
+	// With close_on_accept a task that is done gives up its tab and its copy
+	// of the code at once; a pull request's waits for its merge, the sweep's.
+	if p, perr := contract.ReadProjectFile(c.Root); err == nil && perr == nil && p.Tasks.CloseOnAccept && p.Land.Mode != contract.LandPR {
+		if cerr := launch.Close(c, c.Args...); cerr != nil {
+			fmt.Fprintf(c.Out, "The tabs stay open: %s\n", cli.Line(cerr.Error()))
+		}
 	}
 	if err == nil {
 		for _, task := range c.Args {
@@ -461,6 +469,11 @@ func check(c *contract.Call, line, dir, log string) (contract.CheckResult, error
 	if err != nil {
 		return contract.CheckResult{}, err
 	}
+	free, err := slot(c, project.Check.Parallel)
+	if err != nil {
+		return contract.CheckResult{}, err
+	}
+	defer free()
 	file, err := os.OpenFile(log, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return contract.CheckResult{}, err
@@ -479,6 +492,30 @@ func check(c *contract.Call, line, dir, log string) (contract.CheckResult, error
 		fmt.Fprintf(file, "\nwhaleshark: the check was stopped after %v\n", limit)
 	}
 	return contract.CheckResult{OK: err == nil, At: c.Now, Tail: tail(log), Took: time.Since(began).Round(time.Second)}, nil
+}
+
+// slot waits for one of the login's [check] parallel places, over all its
+// projects, and holds it until free is called; with no line it holds none.
+func slot(c *contract.Call, most int) (free func(), err error) {
+	dirs, err := c.Kit.Platform.Dirs()
+	if most <= 0 || err != nil {
+		return func() {}, err
+	}
+	dir := filepath.Join(dirs.State, "checks")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, err
+	}
+	for told := false; ; time.Sleep(time.Second) {
+		for i := range most {
+			if unlock, ok, err := c.Kit.Platform.TryLock(filepath.Join(dir, strconv.Itoa(i)+".lock")); err != nil || ok {
+				return unlock, err
+			}
+		}
+		if !told {
+			told = true
+			fmt.Fprintf(c.Out, "The check waits for a free place: %d run at once.\n", most)
+		}
+	}
 }
 
 // maxTail is the most of a log's end that is read and kept, in bytes.

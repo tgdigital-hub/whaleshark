@@ -290,7 +290,7 @@ lines 190 worker internal/worker
 # 5 more: the sweep types the person's notes that waited for the lead agent
 # to rest, and wait words such a note.
 # 5 more with the guard's one sum, which the sweep now asks for by name.
-lines 820 inbox internal/inbox
+lines 970 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the other
 # runs of a login are three screens that 186 lines could not hold; status
 # --brief, which nobody asked for, left the command table instead of being

@@ -71,7 +71,11 @@ func logOf(c *contract.Call, id string, jobs bool) *jobLog {
 				name, role = clean(t.Fleet), "fleet leader"
 			}
 			// A leader is one agent in one tab, however many groups it holds.
-			if who := (entry{Who: name, What: fmt.Sprintf("%s · %s · tab %q", role, clean(a.Agent.Kind), clean(a.Place.Tab))}); !slices.Contains(l.Who, who) {
+			what := fmt.Sprintf("%s · %s · tab %q", role, clean(a.Agent.Kind), clean(a.Place.Tab))
+			if t := low.Tasks[a.Task]; t != nil && t.Ref != "" {
+				what += " · card " + clean(t.Ref)
+			}
+			if who := (entry{Who: name, What: what}); !slices.Contains(l.Who, who) {
 				l.Who, l.Agents = append(l.Who, who), l.Agents+1
 			}
 			one := contract.Spent(c.Now, &contract.State{Run: low.Run, Attempts: map[string]*contract.Attempt{id: a}})

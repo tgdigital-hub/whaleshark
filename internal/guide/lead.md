@@ -22,7 +22,7 @@ One task is one piece of work for one worker. Write its brief as a file with fiv
 Change, Constraints, Ownership, Acceptance; optional `Time box` (minutes) and `Return` (what it writes). Then:
     whaleshark task add T3 "url parser" --brief b/T3.md --owns 'src/url/**' --check 'make test-url'
 - The name is the tab's label and the card the person sees: three words at most, 24 characters,
-  and you choose it. A longer title needs `--name "<up to three words>"`.
+  and you choose it. A longer title needs `--name "<up to three words>"`; `--ref C-42` puts a card first.
 - `--check` is required for code: the command that proves the work; `--check none` only when no
   command can prove it, never to save effort. `--kind readonly`, `--kind review --reviews T3` or
   `--kind watch --limit 2h` changes no code: no check, copy or ports; `accept` it once it reports.
@@ -141,8 +141,8 @@ All of it goes into the action pane, and none of it into this chat:
 It prints the item's id, such as n4, and the answer comes back as an `answered` event.
 Add `--holds` with `--task` for a decision a task must not start or be accepted without, and
 `--wait` when you want the answer in this same turn (if it ends "still open", go back to `wait`).
-`whaleshark need close n4` withdraws an item. When the person tells you the answer in this chat
-instead, record it with `whaleshark answer n4 "<their words>" --relayed`.
+`whaleshark need close n4` withdraws an item, and `need --notify-only "my-app is live"` only nudges.
+When the person tells you an answer here instead: `whaleshark answer n4 "<their words>" --relayed`.
 
 ## Talking to a worker
     whaleshark tell T3 "The base branch is main."

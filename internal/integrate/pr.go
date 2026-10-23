@@ -108,6 +108,7 @@ func (g integrator) Request(root string, s *contract.State, task string, c contr
 		return pr, nil
 	}
 	// The worker's own words, from its attempt's folder; else ours.
+	heading := strings.TrimSpace(t.Ref + " " + t.ID + ": " + t.Title) // the person's card first
 	body := "The work of task " + t.ID + ": " + t.Title + "\n"
 	if n := len(t.Attempts); n > 0 {
 		// #nosec G304 -- a file in the run's own attempt folder
@@ -115,7 +116,7 @@ func (g integrator) Request(root string, s *contract.State, task string, c contr
 			body = string(data)
 		}
 	}
-	args := []string{"pr", "create", "--base", onto, "--head", branch, "--title", t.ID + ": " + t.Title, "--body-file", "-"}
+	args := []string{"pr", "create", "--base", onto, "--head", branch, "--title", heading, "--body-file", "-"}
 	if project.Land.DraftFirst {
 		args = append(args, "--draft")
 	}

@@ -393,12 +393,32 @@ func escalate(c *contract.Call) (any, error) {
 
 var forms = []string{contract.FormQuestion, contract.FormChoice, contract.FormSignoff, contract.FormTodo}
 
+// notifyOnly is the lead agent's own nudge, as "done and live": it goes
+// out by the person's channels as any nudge does, held back by Do not
+// disturb unless urgent, and leaves no item behind.
+func notifyOnly(c *contract.Call) (any, error) {
+	if len(c.Args) != 1 || c.Flags["task"] != nil || c.Flags["options"] != nil || c.Flags["wait"] != nil || c.Flags["holds"] != nil {
+		return nil, usage(c, "need --notify-only takes one text and no more but --urgent.")
+	}
+	text, err := said(c, "The text", c.Args[0])
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Kit.Notifier.Nudge(contract.Nudge{Root: c.Root, Run: c.Run, Title: text, Urgent: c.Flags["urgent"] != nil}); err != nil {
+		return nil, err
+	}
+	fmt.Fprintln(c.Out, "The person is nudged.")
+	return map[string]string{"nudged": text}, nil
+}
+
 func need(c *contract.Call) (any, error) {
 	form, blocks := "", c.Flags["wait"] != nil
 	if len(c.Args) > 0 {
 		form = c.Args[0]
 	}
 	switch {
+	case c.Flags["notify-only"] != nil:
+		return notifyOnly(c)
 	case form == "close":
 		if len(c.Args) != 2 || cli.Valid("id", c.Args[1], "") != nil {
 			return nil, usage(c, "need close takes the id of one item.")

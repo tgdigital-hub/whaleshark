@@ -46,6 +46,7 @@ type Run struct {
 	Gen          int          `json:"gen"`
 	Limit        int          `json:"limit"`
 	Paused       *Pause       `json:"paused"`
+	Limited      time.Time    `json:"limited,omitzero"` // the together item the sweep paused for
 	Base         *GitRef      `json:"base"`
 	Integration  *Integration `json:"integration"`
 	Terms        TermsSeen    `json:"terminals"`
@@ -131,7 +132,13 @@ type Binding struct {
 type Pause struct {
 	At time.Time `json:"at"`
 	By string    `json:"by"`
+	// Until is when a pause of LimitBy ends by itself: the reset of the
+	// usage limit its agent tool printed, zero where none could be read.
+	Until time.Time `json:"until,omitzero"`
 }
+
+// LimitBy is who the sweep's pause at a usage limit is by.
+const LimitBy = "the usage limit"
 
 type GitRef struct {
 	Ref string `json:"ref"`
@@ -184,6 +191,7 @@ type Task struct {
 	Model        string     `json:"model,omitempty"`
 	Effort       string     `json:"effort,omitempty"`
 	Args         []string   `json:"args,omitempty"`          // after the project's
+	Ref          string     `json:"ref,omitempty"`           // the person's card, shown before its name
 	Kind         string     `json:"kind,omitempty"`          // WorkCode where empty
 	Reviews      string     `json:"reviews,omitempty"`       // a review\'s task
 	LimitMinutes int        `json:"limit_minutes,omitempty"` // a watch\'s time box
@@ -391,6 +399,7 @@ type Place struct {
 	Workspace  string `json:"workspace"`
 	Cwd        string `json:"cwd"`
 	OpenedByUs bool   `json:"opened_by_us"`
+	Label      string `json:"label,omitempty"` // a card's tab's, as the keeper kept it when it was opened
 }
 
 type Liveness string
@@ -534,7 +543,7 @@ var EventKinds = []string{
 	"base_moved", "setup_failed", "land_failed", "rejected", "human",
 	"answered", "paused", "resumed", "still_running", "upgraded", "together",
 	"untrusted", "protected", "budget", "merged", "ci_failed", "lock_stale",
-	"fix_first",
+	"fix_first", "load",
 }
 
 // Question kinds, forms, addressees and states.

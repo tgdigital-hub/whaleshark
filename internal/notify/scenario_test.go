@@ -696,3 +696,52 @@ func TestNeedReachesThePhone(t *testing.T) {
 		t.Fatalf("the service was sent %q, want %q", sent, want)
 	}
 }
+
+// Nightly quiet hours come back every day, in the person's time zone: what
+// is not urgent waits inside them and is said once they are over.
+func TestQuietHours(t *testing.T) {
+	var from int
+	e := prepare(t, func(f *testkit.Fixture) {
+		from = f.Now.UTC().Hour()
+		f.UI.DND, f.UI.DNDDaily, f.UI.Timezone = true, fmt.Sprintf("%02d:00-%02d:00", from, (from+2)%24), "UTC"
+		f.State.Questions["n4"].Urgent = true
+	}, "q7", "q9", "n4")
+	e.pass(0)
+	e.want("price list — needs you")
+	e.pass(3 * time.Hour)
+	if ui := e.ui(); !ui.DND || ui.DNDDaily == "" {
+		t.Fatalf("the nightly hours did not stay: %+v", ui)
+	}
+	if got := e.popups(); len(got) != 2 || !strings.HasSuffix(got[1][0], "wait for you") {
+		t.Fatalf("pop-ups after the quiet hours: %q", got)
+	}
+	ui := contract.UIFile{DND: true, DNDDaily: "22:00-06:00", Timezone: "UTC"}
+	for at, quiet := range map[string]bool{"23:30": true, "05:59": true, "06:00": false, "12:00": false, "22:00": true} {
+		now, _ := time.Parse("15:04", at)
+		if ui.Quiet(now) != quiet {
+			t.Errorf("at %s quiet is %v", at, !quiet)
+		}
+	}
+	if contract.Window("22:00-06:00") == nil || contract.Window("22-6") != nil || contract.Window("06:00-06:00") != nil {
+		t.Error("a window of quiet hours is read wrongly")
+	}
+}
+
+// The lead agent's own ping reaches the phone and leaves no item behind.
+func TestNotifyOnly(t *testing.T) {
+	e := prepare(t, nil)
+	got := e.service("/topic", "")
+	before, _ := e.Record()
+	if out, err := e.Command(scenario.Orch, "need", "--notify-only", "my-app is live on staging").CombinedOutput(); err != nil {
+		t.Fatalf("need --notify-only: %v\n%s", err, out)
+	}
+	if sent, want := requests(got), []string{"POST /topic my-app is live on staging"}; !slices.Equal(sent, want) {
+		t.Fatalf("the service was sent %q, want %q", sent, want)
+	}
+	if after, _ := e.Record(); len(after.Questions) != len(before.Questions) {
+		t.Fatal("a ping left an item")
+	}
+	if out, err := e.Command(scenario.Orch, "need", "--notify-only", "a", "--task", "T3").CombinedOutput(); err == nil {
+		t.Fatalf("a ping about a task was taken: %s", out)
+	}
+}
