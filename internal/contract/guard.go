@@ -239,6 +239,15 @@ func (p ProjectFile) Watched() ProjectFile {
 	return p
 }
 
+// For is a project's limits for one task: its brief's Time box, where it
+// has one, in place of the project's max_minutes.
+func (p ProjectFile) For(t *Task) ProjectFile {
+	if t != nil && t.MaxMinutes > 0 {
+		p.Limits.MaxMinutes = t.MaxMinutes
+	}
+	return p
+}
+
 // StuckWhy words an attempt's signs (AgentSeen.StuckWhy) as every screen, event and item does:
 // "no progress note · the same check failed 3 times".
 func StuckWhy(why string) string {

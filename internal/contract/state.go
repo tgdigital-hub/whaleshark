@@ -185,6 +185,10 @@ type Task struct {
 	Attempts     []string   `json:"attempts,omitempty"`
 	Decisions    []Decision `json:"decisions,omitempty"`
 	Worktree     *Worktree  `json:"worktree"`
+	// MaxMinutes is the brief's Time box, over the project's limits.max_minutes,
+	// and Return what its Return heading says the worker writes.
+	MaxMinutes int    `json:"max_minutes,omitempty"`
+	Return     string `json:"return,omitempty"`
 	// Synced counts the times the task was sent to bring its copy up to
 	// date; SyncBrief is the last brief it was sent, a file under the run's
 	// msg folder, kept for the prompt of a later attempt until it is done.

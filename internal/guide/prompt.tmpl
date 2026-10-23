@@ -29,6 +29,16 @@ The brief, this prompt and the result file lie outside your folder, at the paths
 there. The result file is the one file you write outside your folder: write it with your file
 tool, never with a shell redirect.
 {{- end}}
+{{- if .Mirror}}
+Notes folder: {{.Mirror}}
+Your brief, result file{{if .PR}} and PR body{{end}} are copied there when you report; you may write there too.
+{{- end}}
+{{- if .Return}}
+
+## Return
+Write exactly this, as your brief's Return heading says:
+{{.Return}}
+{{- end}}
 {{- if .Decisions}}
 
 ## Decisions

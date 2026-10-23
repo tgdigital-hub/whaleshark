@@ -140,6 +140,12 @@ So that an agent knows its part without being told, `whaleshark init` offers a s
 
 Each task works in a copy of the code of its own. As it comes, `accept` collects each task's work on one branch for the job, and `whaleshark land` brings the whole of it to your branch, as one pull request or a local merge. With `[land] mode = "pr-per-task"` in `whaleshark.toml` each accepted task is pushed as a pull request of its own instead, watched in the background, and merged by itself once its checks pass, one at a time; a red check goes back to its worker. `[worktrees] fetch_base = true` fetches the base branch before a job begins and before each task starts, so that work starts from where the remote is, and leaves your own checkout as it is.
 
+### Notes outside the code
+
+A task's brief and result file live in the run's folder under `.whaleshark`, which `whaleshark run rm` removes. To keep them where your notes are, set `[results] mirror_dir = "/srv/notes/{date}-{task}"` in `whaleshark.toml` and approve it with `whaleshark trust`: it is a full path outside the project, with `{date}` the day the task was added, `{task}` its id and `{run}` the run's. On each report the task's brief, its result file and, where it has one, its pull request body are copied there, and `READY` is written when the worker reports it done; `DONE` follows when the task is accepted, or merged where each task is its own pull request. Scripts can watch for the two files. The folder is yours: neither `close` nor `run rm` touches it, and while the key is set each worker is given its folder as well (Claude Code: `--add-dir`), so its brief may ask it to write there.
+
+A brief may hold two more headings after its five. `Time box` is a number of minutes, up to 240: that task's own time limit, in place of `[limits] max_minutes`. `Return` says exactly which files the worker writes and in what form, and is put into the worker's prompt.
+
 ## Status: test releases only
 
 **There are test releases, and no full release yet.** The test releases are the pre-releases on the [Releases page](https://github.com/tgdigital-hub/whaleshark/releases), named `v0.1.0-rc.N`; the newest is the one at the top. GitHub's `releases/latest` never points at a pre-release, so the install lines below that say `releases/latest` work only from the first full release. Until then, name a test release in the address, for example with `curl`:

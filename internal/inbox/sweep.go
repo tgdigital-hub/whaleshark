@@ -266,12 +266,12 @@ func (l *look) apply(s *contract.State) (changed bool, todo []pointer) {
 			pane, changed = moved, true
 			a.Place.Pane, a.Place.Tab = moved.ID, moved.Tab
 		}
-		if l.rules.Seen(s, id, pane, !l.dead[id], l.limits, l.now) {
+		if l.rules.Seen(s, id, pane, !l.dead[id], l.limits.For(s.Tasks[a.Task]), l.now) {
 			changed = true
 		}
 		if l.person.Stuck.Watch && (a.State.Live() || !a.Seen.StuckSince.IsZero()) {
 			tool, _ := contract.FindTool(l.tools, a.Agent.Kind)
-			moved, up := l.rules.Going(s, id, tool.Exact(), l.ctx[a.Place.Pane], l.limits, time.Duration(l.person.Stuck.ClimbMinutes)*time.Minute, l.now)
+			moved, up := l.rules.Going(s, id, tool.Exact(), l.ctx[a.Place.Pane], l.limits.For(s.Tasks[a.Task]), time.Duration(l.person.Stuck.ClimbMinutes)*time.Minute, l.now)
 			if changed = changed || moved; up {
 				l.up = append(l.up, id)
 			}

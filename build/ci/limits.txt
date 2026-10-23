@@ -97,7 +97,7 @@
 # which of them on what, and the words of its questions 75; two settings, the
 # panes of each workspace in the file, a name in a task's edit, two flags 60.
 # 47 are for what the first part of the phase finds missing.
-lines 6900 contract internal/contract cmd/whaleshark
+lines 7350 contract internal/contract cmd/whaleshark
 # platform: 35 more than planned, for a Windows watcher that asks for a
 # folder's changes before Watch returns; the shorter one lost the changes of
 # its first instants. 35 more when phase 1 was put together: the system's
@@ -180,7 +180,7 @@ lines 565 store internal/store
 # and of settings through the agent, in four guides.
 # 25 fewer when the first part of phase 6 was put together: the guards' lines
 # are a template, which is no shipped line; it stands at 425.
-lines 430 guide internal/guide
+lines 460 guide internal/guide
 # runtask: 100 more when phase 1 was put together. init with its five forms,
 # its two records and exact removal was built at 1,036 with nothing left to
 # cut that the command set does not promise; inbox, built at a third of its
@@ -224,7 +224,7 @@ lines 430 guide internal/guide
 # 40 more when the first part of phase 7 was put together: the new name was
 # built at 61 lines where 30 were counted, and the folder stood at its line
 # exactly (1,840) with the phase's second part still to come.
-lines 1910 runtask internal/runtask
+lines 2200 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -262,9 +262,9 @@ lines 1910 runtask internal/runtask
 # fleet; every agent of a job stopped and every fleet parked in one step, by
 # the person alone. Counted at twice its plan, as every part of this kind has
 # come out.
-lines 1920 launch internal/launch
+lines 2080 launch internal/launch
 # worker: 5 more for phase 5, a leader's --task.
-lines 170 worker internal/worker
+lines 190 worker internal/worker
 # inbox, question and notify give 150, 80 and 60: each was built at about half
 # its line in phase 1 and keeps twice what its phase 2 package is sized at.
 # inbox gives 80 more at the start of phase 3 and question 70: both are built
@@ -290,7 +290,7 @@ lines 170 worker internal/worker
 # 5 more: the sweep types the person's notes that waited for the lead agent
 # to rest, and wait words such a note.
 # 5 more with the guard's one sum, which the sweep now asks for by name.
-lines 745 inbox internal/inbox
+lines 820 inbox internal/inbox
 # view: 300 more at the start of phase 2. The plan, the messages and the other
 # runs of a login are three screens that 186 lines could not hold; status
 # --brief, which nobody asked for, left the command table instead of being
@@ -367,7 +367,7 @@ lines 910 gitwt internal/gitwt
 # takes a yes just given up itself, and says so while it can be taken back.
 # 10 more for the same review: a protected path is held whatever the case of
 # its letters, and a link is looked at where a folder of the list would begin.
-lines 1170 integrate internal/integrate
+lines 1260 integrate internal/integrate
 # overlap: 10 more after the second security review, for the quoting of the
 # project's object folder in git's list; it stood at its line. doctor pays.
 # 50 more after the real runs of phase 2: sync sends the result of a worker
@@ -764,7 +764,10 @@ skip _test.go testdata testkit
 # 48,300 for the server round, by the same word: a keeper that runs as the
 # login's own service, one pull request per task, per-task launch settings,
 # and the guides and docs that go with them.
-total 48300
+# 50,000 for the server round's second part, by the same word: tasks that
+# change no code, a notes folder, named locks, the page on localhost alone,
+# and the smaller wishes (load guard, card refs, quiet hours, gc, hooks).
+total 50000
 
 # The whole module list, not only the direct ones.
 modules 4
@@ -789,7 +792,7 @@ target windows/amd64
 page 100000 internal/dashweb
 
 # Top-level commands.
-commands 42
+commands 44
 
 # time <limit> <command line>: the middle one of 21 runs.
 time 30ms version

@@ -28,8 +28,8 @@ It shows your fleet at work. Then:
   it with `--task`. Never ask whether you should, and never wait to be told again.
 
 ## Plan
-One task is one piece of work for one worker. Write its brief as a file with these five headings:
-Target, Change, Constraints, Ownership, Acceptance. Then:
+One task is one piece of work for one worker. Write its brief as a file with five headings: Target,
+Change, Constraints, Ownership, Acceptance; optional `Time box` (minutes) and `Return` (what it writes). Then:
     whaleshark task add T3 "url parser" --brief b/T3.md --owns 'src/url/**' --check 'make test-url'
 - The name is the tab's label and the card the person sees: three words at most, 24 characters,
   and you choose it. A longer title needs `--name "<up to three words>"`.

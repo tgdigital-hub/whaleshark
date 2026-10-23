@@ -120,9 +120,11 @@ func report(c *contract.Call) (any, error) {
 	_, missing := os.Stat(result)
 	var kept *contract.Refusal
 	var already bool
+	var t contract.Task
 	out, err := change(c, func(s *contract.State, a *contract.Attempt) error {
 		var err error
 		already, kept, err = c.Kit.Rules.Report(s, a.ID, hash, c.Args[0], c.Args[1], evidence, c.Now)
+		t = *s.Tasks[a.Task]
 		// Each returned as an error, so nothing of the report is saved: the
 		// worker can mend this and report again.
 		switch {
@@ -144,6 +146,14 @@ func report(c *contract.Call) (any, error) {
 	case already:
 		out.Already = true
 		return out.print(c, "already recorded")
+	}
+	// The notes folder outside the project is a copy: one that cannot be
+	// written is said, and the report stands.
+	if project, err := contract.ReadProjectFile(c.Root); err == nil {
+		marker := map[bool]string{true: contract.MirrorReady}[done]
+		if err := contract.Mirror(project, c.Kit.Store.Dir(c.Root, c.Run), c.Run, &t, c.Caller.Attempt, marker, c.Now); err != nil {
+			fmt.Fprintf(c.Err, "The notes folder was not written: %s.\n", cli.Line(err.Error()))
+		}
 	}
 	return out.print(c, "recorded")
 }

@@ -38,6 +38,9 @@ type Prompt struct {
 	PR     string
 	Person contract.PersonConfig
 	Tools  []contract.Tool
+	// Return is what the brief's Return heading says the worker writes, and
+	// Mirror the notes folder its files are copied to when it reports.
+	Return, Mirror string
 }
 
 // Text renders the prompt file: the worker's whole protocol, or the leader's.

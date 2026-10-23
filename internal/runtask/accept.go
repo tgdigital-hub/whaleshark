@@ -207,6 +207,7 @@ func acceptAll(c *contract.Call) (any, error) {
 			return nil, back(err)
 		}
 		done = append(done, one)
+		mirror(c, seen.Tasks[id])
 		fmt.Fprintf(c.Out, "%s is done, checked.\n", id)
 		one.say(c)
 	}
@@ -338,12 +339,25 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 		r.Data = out
 		return out, r
 	}
+	mirror(c, &t)
 	fmt.Fprintf(c.Out, "%s is done%s.\n", t.ID, map[bool]string{true: " (by hand)", false: ", checked"}[byHand])
 	if out.Beside > 0 {
 		fmt.Fprintf(c.Out, "Checked in a folder where %d other agents are working.\n", out.Beside)
 	}
 	out.say(c)
 	return out, nil
+}
+
+// mirror copies a task's files into its notes folder again and marks it
+// DONE. A folder that cannot be written is said, and the accept stands.
+func mirror(c *contract.Call, t *contract.Task) {
+	project, err := contract.ReadProjectFile(c.Root)
+	if err == nil && len(t.Attempts) > 0 {
+		err = contract.Mirror(project, c.Kit.Store.Dir(c.Root, c.Run), c.Run, t, t.Attempts[len(t.Attempts)-1], contract.MirrorDone, c.Now)
+	}
+	if err != nil {
+		fmt.Fprintf(c.Err, "The notes folder was not written: %s.\n", cli.Line(err.Error()))
+	}
 }
 
 // request ends an accept in pr-per-task mode: the checked work is pushed as

@@ -18,8 +18,8 @@ It says whose tab this is and what is open, in the project of the folder you typ
 `whaleshark ui` opens the two panes the person watches, or brings them to this tab; a restart keeps them.
 
 ## Plan
-One task is one piece of work for one worker. Write its brief as a file with these five headings:
-Target, Change, Constraints, Ownership, Acceptance. Then:
+One task is one piece of work for one worker. Write its brief as a file with five headings: Target,
+Change, Constraints, Ownership, Acceptance; optional `Time box` (minutes) and `Return` (what it writes). Then:
     whaleshark task add T3 "url parser" --brief b/T3.md --owns 'src/url/**' --check 'make test-url'
 - The name is the tab's label and the card the person sees: three words at most, 24 characters,
   and you choose it. A longer title needs `--name "<up to three words>"`.

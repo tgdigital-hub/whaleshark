@@ -839,9 +839,19 @@ func (l *launcher) bring(task string) outcome {
 	// In a copy of the code of its own, the attempt's files and the brief
 	// lie outside the agent's folder: it is given the two folders, or it
 	// stops to ask before it reads its own prompt.
+	var more []string
 	if tree != nil {
-		args = append(args, tool.Folders(dir, filepath.Dir(filepath.Join(run, t.Brief)))...)
+		more = append(more, dir, filepath.Dir(filepath.Join(run, t.Brief)))
 	}
+	// The notes folder lies outside the project too: it is given only while
+	// the person's approved results.mirror_dir names one.
+	mirror := l.project.MirrorDir(c.Run, t)
+	if mirror != "" && filepath.IsAbs(mirror) && os.MkdirAll(mirror, 0o700) == nil {
+		more = append(more, mirror)
+	} else {
+		mirror = ""
+	}
+	args = append(args, tool.Folders(more...)...)
 	args = append(args, l.command(tool, t, agent.Model, len(setup.Args) > 0)...)
 	if err := k.Terms.AgentStart(agent.Name, agent.Kind, pane.ID, args, startTimeout); err != nil {
 		return l.failed(r, err, "the agent did not start", errors.Is(err, contract.ErrAgentNotReady))
@@ -870,7 +880,7 @@ func (l *launcher) bring(task string) outcome {
 	text := guide.Prompt{Bin: k.Platform.Quote("", []string{l.self}), Run: c.Run, Task: task, Name: t.Name, Dir: folder,
 		Brief: filepath.Join(run, t.Brief), Result: filepath.Join(dir, "result.md"), Owns: t.Owns,
 		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync)), Browser: browser,
-		Fleet: t.Fleet, Person: l.person, Tools: l.tools, PR: pr}.Text() + earlier(prev)
+		Fleet: t.Fleet, Person: l.person, Tools: l.tools, PR: pr, Return: t.Return, Mirror: mirror}.Text() + earlier(prev)
 	if err = os.WriteFile(prompt, []byte(text), 0o600); err == nil {
 		err = l.step("", placed) // nothing is typed once the attempt was stopped or the person pressed Stop all
 	}

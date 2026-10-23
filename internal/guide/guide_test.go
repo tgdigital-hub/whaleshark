@@ -27,6 +27,18 @@ func fullPrompt() Prompt {
 		Decisions: []contract.Decision{{Question: "Which base branch?", Answer: "main", At: time.Unix(0, 0)}},
 		Sync:      "You are four commits behind.",
 		Browser:   "Save screenshots as .png files.",
+		Return:    "result.md: what changed, then how it was checked.",
+		Mirror:    "/srv/notes/T3",
+	}
+}
+
+// A brief's Return and the notes folder reach the worker's prompt.
+func TestPromptReturnAndNotes(t *testing.T) {
+	text := fullPrompt().Text()
+	for _, want := range []string{"## Return\n", "result.md: what changed, then how it was checked.", "Notes folder: /srv/notes/T3"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the prompt lacks %q", want)
+		}
 	}
 }
 

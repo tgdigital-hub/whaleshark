@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
@@ -105,6 +106,7 @@ func task(c *contract.Call) (any, error) {
 				edit.Name, edit.Taken = &name, labels(picture, tabs)
 			}
 			if ready, err = k.Rules.EditTask(s, found.ID, edit, c.Now); err == nil && data != nil {
+				found.MaxMinutes, found.Return, _ = extras(data)
 				err = keep(c, found, data)
 			}
 			// The tabs follow under the lock: one that will not take the
@@ -223,7 +225,35 @@ func brief(c *contract.Call) ([]byte, error) {
 	if len(missing) > 0 {
 		return nil, usage(c, "The brief lacks the heading %s. A brief has five: %s.", strings.Join(missing, ", "), strings.Join(headings, ", "))
 	}
+	if _, _, err := extras(data); err != nil {
+		return nil, usage(c, "%v.", err)
+	}
 	return data, nil
+}
+
+// optional are the headings a brief may hold besides the five: its Time box,
+// in minutes, and Return, the files and the form the worker writes.
+var optional = []string{"Time box", "Return"}
+
+// extras reads a brief's Time box and Return. A heading is a line of its
+// own, as a title or with a colon and the text after it.
+func extras(data []byte) (minutes int, ret string, err error) {
+	at, found := "", map[string][]string{}
+	for line := range strings.Lines(string(data)) {
+		name, rest, _ := strings.Cut(strings.TrimLeft(line, "#* \t"), ":")
+		name = strings.ToLower(strings.TrimRight(name, "*# \t\r\n"))
+		if slices.ContainsFunc(append(slices.Clone(headings), optional...), func(h string) bool { return strings.ToLower(h) == name }) {
+			at, line = name, strings.TrimLeft(rest, "* \t")
+		}
+		found[at] = append(found[at], line)
+	}
+	box, held := found["time box"]
+	if word := strings.Fields(strings.Join(box, " ") + " none"); held {
+		if minutes, err = strconv.Atoi(word[0]); err != nil || minutes < 1 || minutes > contract.WatchMinutesMost {
+			return 0, "", fmt.Errorf("the brief's Time box is a number of minutes from 1 to %d, as 45", contract.WatchMinutesMost)
+		}
+	}
+	return minutes, strings.TrimSpace(strings.Join(found["return"], "")), nil
 }
 
 // keep writes a brief into the run's folder, private to the login, under the
@@ -302,6 +332,7 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 	t := contract.Task{ID: id, Title: title, Name: last(c, "name"), Check: last(c, "check"), Placement: contract.PlaceWorktree, Fleet: last(c, "fleet"),
 		Agent: last(c, "agent"), Model: last(c, "model"), BrowserCheck: f["browser-check"] != nil, Owns: contract.List(f["owns"]...)}
 	t.Effort, t.Args = last(c, "effort"), strings.Fields(last(c, "args"))
+	t.MaxMinutes, t.Return, _ = extras(data)
 	err := cmp.Or(cli.Valid("id", id, ""), cli.Valid("title", title, ""), granted(c.Root, t.Args))
 	switch {
 	case err != nil:

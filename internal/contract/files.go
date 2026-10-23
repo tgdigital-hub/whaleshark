@@ -279,6 +279,12 @@ type ProjectFile struct {
 	Protect struct {
 		Also []string `toml:"also,omitempty"`
 	} `toml:"protect,omitempty"`
+	// Results.MirrorDir is a full path outside the project, with {date},
+	// {run} and {task}, that a task's brief, result and pull request body
+	// are copied into: it reaches outside, so it needs approval.
+	Results struct {
+		MirrorDir string `toml:"mirror_dir,omitempty"`
+	} `toml:"results,omitempty"`
 }
 
 // The two ways work lands, and the file in an attempt's folder that holds

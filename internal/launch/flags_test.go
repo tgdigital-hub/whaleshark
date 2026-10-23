@@ -88,3 +88,26 @@ func TestWorkerGetsTheSettingsFile(t *testing.T) {
 	approve(t, p, "[agent]\nsettings = \"settings.json\"\n")
 	must(t, p.Command(scenario.Orch, "start", "R2"), 5, "full path")
 }
+
+// With results.mirror_dir approved, a worker is given its task's notes
+// folder as one more folder, and its prompt names it with the brief's Return.
+func TestWorkerGetsTheNotesFolder(t *testing.T) {
+	p := evening(t, 2, func(f *testkit.Fixture) { f.State.Tasks["R1"].Return = "result.md: what changed." })
+	notes := t.TempDir()
+	approve(t, p, "[results]\nmirror_dir = \""+filepath.ToSlash(notes)+"/{run}-{task}\"\n")
+	must(t, p.Command(scenario.Orch, "start", "R1"), 0, "working (R1.1)")
+	s, dir := p.Record()
+	folder := filepath.Join(notes, s.Run.ID+"-R1")
+	if got := started(t, p, "R1.1").Argv; len(got) != 4 || got[0] != "--settings" || !slices.Equal(got[2:], []string{"--add-dir", folder}) {
+		t.Fatalf("the worker was started with %q", got)
+	}
+	prompt, err := os.ReadFile(filepath.Join(contract.AttemptDir(dir, "R1.1"), "prompt.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Notes folder: " + folder, "## Return\nWrite exactly this, as your brief's Return heading says:\nresult.md: what changed."} {
+		if !strings.Contains(string(prompt), want) {
+			t.Errorf("the prompt lacks %q:\n%s", want, prompt)
+		}
+	}
+}

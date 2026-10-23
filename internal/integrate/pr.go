@@ -271,7 +271,7 @@ func (g integrator) merge(root string, s *contract.State, t *contract.Task, proj
 	// The branch goes from the remote alone: gh's own --delete-branch would
 	// delete and switch branches in a checkout here too.
 	git(root, "push", "--quiet", "--delete", "--", upstream(root, s.Run.Base.Ref), ref(t.Worktree.Branch))
-	return k.Store.Change(root, run, func(s *contract.State) error {
+	err = k.Store.Change(root, run, func(s *contract.State) error {
 		how, tip := contract.AcceptCheck, ""
 		if t.Check == contract.CheckNone {
 			how = contract.AcceptByHand
@@ -289,6 +289,10 @@ func (g integrator) merge(root string, s *contract.State, t *contract.Task, proj
 		}
 		return err
 	})
+	if err == nil && len(t.Attempts) > 0 { // a notes folder that cannot be written stops no merge
+		contract.Mirror(project, k.Store.Dir(root, run), run, t, t.Attempts[len(t.Attempts)-1], contract.MirrorDone, now)
+	}
+	return err
 }
 
 // mark writes a pull request's new state with the event that says so.

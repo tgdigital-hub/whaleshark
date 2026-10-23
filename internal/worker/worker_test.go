@@ -224,3 +224,36 @@ func TestRestoredTab(t *testing.T) {
 		t.Fatalf("the progress recorded is %+v", s.Attempts["T1.1"].Progress)
 	}
 }
+
+// With results.mirror_dir approved, a report copies the brief and the result
+// into the task's notes folder; done also leaves READY there, failed does not.
+func TestReportFillsTheNotesFolder(t *testing.T) {
+	p := scenario.Prepare(t, evening(t), nil)
+	notes := t.TempDir()
+	if err := os.WriteFile(filepath.Join(p.Root, "whaleshark.toml"), []byte("[results]\nmirror_dir = \""+filepath.ToSlash(notes)+"/{run}-{task}\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	trust := p.Command(scenario.Human, "trust")
+	trust.Stdin = strings.NewReader("yes\n")
+	if out, err := trust.CombinedOutput(); err != nil {
+		t.Fatalf("trust: %v\n%s", err, out)
+	}
+	s, dir := p.Record()
+	for _, id := range []string{"T1", "T9"} {
+		brief := filepath.Join(dir, filepath.FromSlash(s.Tasks[id].Brief))
+		if err := errors.Join(os.MkdirAll(filepath.Dir(brief), 0o700), os.WriteFile(brief, []byte("# Target\n"), 0o600)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	attemptFile(t, p, "T1.1", "result.md", "The login page works.")
+	as(t, p, "T1.1", 0, "recorded", "report", "done", "login works")
+	as(t, p, "T9.1", 0, "recorded", "report", "failed", "the site map cannot be built")
+	for file, want := range map[string]bool{
+		"r3-T1/brief.md": true, "r3-T1/result.md": true, "r3-T1/" + contract.MirrorReady: true, "r3-T1/" + contract.MirrorDone: false,
+		"r3-T9/brief.md": true, "r3-T9/" + contract.MirrorReady: false,
+	} {
+		if _, err := os.Stat(filepath.Join(notes, filepath.FromSlash(file))); (err == nil) != want {
+			t.Errorf("%s is there: %v, want %v", file, err == nil, want)
+		}
+	}
+}
