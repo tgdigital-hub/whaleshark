@@ -408,8 +408,8 @@ func (p *pane) drawFleet(now time.Time) {
 			y++
 		}
 	}
-	// The view's plain sentences: how long checking will take, and that
-	// most workers stopped together.
+	// The view's plain sentences: how long checking will take, that most
+	// workers stopped together, and the project's locks.
 	for _, line := range v.Lines {
 		if y < h-foot {
 			t.Put(1, y, w-1, p.cut(line, w-1), p.st("text"))

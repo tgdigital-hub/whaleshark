@@ -41,6 +41,7 @@ $ whaleshark     # as a program
   overlap   files touched by more than one task, and pairs that would conflict  (not built yet)
   sync      send a worker the brief for bringing its copy up to date  (not built yet)
   land      check the collected work, then open one pull request or merge it; the lead agent only if the project allows. Not with land.mode pr-per-task, where each task lands by itself  (not built yet)
+  lock      named locks that every agent and the person see: a taker of a held one waits in line, and one past its stale time is told the lead agent  (not built yet)
 
 Problems and questions: the repository's Issues page (github.com/tgdigital-hub/whaleshark/issues). A security flaw, privately: the repository's Security tab, "Report a vulnerability".
 exit 0

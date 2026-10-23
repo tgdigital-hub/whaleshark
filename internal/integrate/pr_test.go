@@ -217,6 +217,31 @@ func TestTheBaseMovesUnderAGreenPullRequest(t *testing.T) {
 	}
 }
 
+// The merge of a green pull request is done under the merge lock that
+// `whaleshark lock` shows: while the person holds it nothing is merged and
+// the task waits in its line; once it is let go the next look merges, and
+// the lock is free again.
+func TestTheMergeLockIsTheSameLock(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.task("A", map[string]string{"page-A.txt": "A\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0)
+	play(t, f.p.Command(scenario.Human, "lock", "take", "merge"), 0, "You hold the lock merge")
+	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
+	f.watch()
+	if f.said("order") != "" || f.state().Tasks["A"].Status == contract.TaskDone {
+		t.Fatalf("merged under the person's lock: %s", f.said("order"))
+	}
+	play(t, f.p.Command(scenario.Orch, "lock", "list"), 0, "lock merge: the person since", "waiting: r1/A")
+	play(t, f.p.Command(scenario.Human, "lock", "release", "merge"), 0)
+	f.watch()
+	if f.said("order") != "1" || f.state().Tasks["A"].Status != contract.TaskDone {
+		t.Fatalf("after the lock was let go the merges are %q", f.said("order"))
+	}
+	if l := contract.ReadLocks(f.k.Platform.Peek, f.root); len(l) != 0 {
+		t.Fatalf("the merge left the locks %+v", l)
+	}
+}
+
 // A review holds the merge of the task it is of, not its pull request: green
 // checks merge nothing until the review is done and says safe.
 func TestAReviewHoldsTheMerge(t *testing.T) {

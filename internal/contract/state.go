@@ -526,13 +526,14 @@ type Event struct {
 
 // EventKinds is every kind an inbox event can have. stuck is the stuck
 // detector's, and names a task; blocked_on, that nothing can run, was stuck
-// with no task before, and a record may still hold it so.
+// with no task before, and a record may still hold it so. lock_stale is a
+// named lock held past its stale time.
 var EventKinds = []string{
 	"done", "failed", "question", "exited", "start_failed", "blocked", "quiet",
 	"stale", "overtime", "check_failed", "stuck", "blocked_on", "overlap", "scope",
 	"base_moved", "setup_failed", "land_failed", "rejected", "human",
 	"answered", "paused", "resumed", "still_running", "upgraded", "together",
-	"untrusted", "protected", "budget", "merged", "ci_failed",
+	"untrusted", "protected", "budget", "merged", "ci_failed", "lock_stale",
 	"fix_first",
 }
 

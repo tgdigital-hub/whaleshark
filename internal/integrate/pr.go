@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/lock"
 )
 
 // pr-per-task (land.mode): each accepted task is pushed as its own branch
@@ -247,17 +248,22 @@ func touched(root, head, base string) []string {
 	return both
 }
 
-// merge merges a green pull request under the project's merge lock, one at a
-// time, and marks its task done once gh says it is merged. The task is
-// marked as being checked first, as accept does, so that nothing is merged
-// that the record would then refuse.
+// merge merges a green pull request under the built-in merge lock, the one
+// `whaleshark lock` shows, one at a time, and marks its task done once gh
+// says it is merged. A pull request whose turn it is not yet is in the
+// lock's line and is looked at again at the next watch. The task is marked
+// as being checked first, as accept does, so that nothing is merged that
+// the record would then refuse.
 func (g integrator) merge(root string, s *contract.State, t *contract.Task, project contract.ProjectFile, now time.Time) error {
 	k, run, n := g.k, s.Run.ID, strconv.Itoa(t.PR.Number)
-	unlock, free, err := k.Platform.TryLock(filepath.Join(filepath.Dir(k.Store.Dir(root, run)), "merge.lock"))
-	if err != nil || !free {
+	holder := contract.HolderOf(contract.Orchestrator, run, t.ID)
+	if _, err := lock.Take(k.Platform, root, lock.Want{Name: "merge", Holder: holder, Task: t.ID, Run: run, Note: t.PR.URL}, now); err != nil {
+		if r := new(*contract.Refusal); errors.As(err, r) && (*r).Code == lock.RefusedHeld {
+			return nil
+		}
 		return err
 	}
-	defer unlock()
+	defer lock.Release(k.Platform, root, "merge", holder, run, false, now)
 	if err := k.Store.Change(root, run, func(s *contract.State) error { return k.Rules.Checking(s, t.ID, contract.Checked{}, now) }); err != nil {
 		return err
 	}

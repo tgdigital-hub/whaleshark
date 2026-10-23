@@ -67,16 +67,16 @@ func TestCounts(t *testing.T) {
 			}
 		}
 	}
-	if len(Commands) != 42 {
-		t.Errorf("%d commands, want 42", len(Commands))
+	if len(Commands) != 43 {
+		t.Errorf("%d commands, want 43", len(Commands))
 	}
-	for name, want := range map[string]int{"setup": 14, "runs": 15, "worker": 4, "views": 6, "code": 3} {
+	for name, want := range map[string]int{"setup": 14, "runs": 15, "worker": 4, "views": 6, "code": 4} {
 		if section[name] != want {
 			t.Errorf("section %s has %d commands, want %d", name, section[name], want)
 		}
 	}
-	if phase[1] != 29 || phase[PhaseE] != 2 || phase[2] != 8 || phase[3] != 3 {
-		t.Errorf("by phase: %v, want 29, 2 for the engine, 8 and 3", phase)
+	if phase[1] != 29 || phase[PhaseE] != 2 || phase[2] != 9 || phase[3] != 3 {
+		t.Errorf("by phase: %v, want 29, 2 for the engine, 9 and 3", phase)
 	}
 }
 
@@ -91,7 +91,7 @@ func TestCallers(t *testing.T) {
 			t.Errorf("%s: the human may run everything the orchestrator may", c.Name)
 		}
 	}
-	if want := []string{"guide", "help", "version", "hook", "report", "progress", "ask", "mail"}; !slices.Equal(worker, want) {
+	if want := []string{"guide", "help", "version", "hook", "report", "progress", "ask", "mail", "lock"}; !slices.Equal(worker, want) {
 		t.Errorf("a worker may run %v, want %v", worker, want)
 	}
 	for _, tc := range []struct {
@@ -104,6 +104,7 @@ func TestCallers(t *testing.T) {
 		{"pause", "", Orchestrator, false}, {"pause", "", Unbound, false}, {"pause", "", Human, true},
 		{"status", "", Unbound, true}, {"start", "", Unbound, false}, {"start", "", Human, true},
 		{"trust", "", Unbound, false}, {"set", "", Unbound, true}, {"accept", "", Worker, false},
+		{"lock", "take", Worker, true}, {"lock", "steal", Worker, false}, {"lock", "steal", Orchestrator, true}, {"lock", "steal", Unbound, false},
 	} {
 		if got := Find(tc.command).May(tc.kind, tc.sub); got != tc.want {
 			t.Errorf("%s %s by %s: %v, want %v", tc.command, tc.sub, tc.kind, got, tc.want)
@@ -168,8 +169,8 @@ func TestListOnly(t *testing.T) {
 	if code := k.Main(k, []string{"help"}, nil, &out, &errw); code != ExitOK {
 		t.Fatalf("help: exit %d", code)
 	}
-	if n := strings.Count(out.String(), "(not built yet)"); n != 42 || strings.Count(out.String(), "\n") != 42 {
-		t.Errorf("help marks %d commands as not built, want 42", n)
+	if n := strings.Count(out.String(), "(not built yet)"); n != 43 || strings.Count(out.String(), "\n") != 43 {
+		t.Errorf("help marks %d commands as not built, want 43", n)
 	}
 	if code := k.Main(k, []string{"start"}, nil, &out, &errw); code != ExitFailed || !strings.Contains(errw.String(), "not built yet") {
 		t.Errorf("start: exit %d, %q", code, errw.String())

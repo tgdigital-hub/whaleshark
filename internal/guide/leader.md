@@ -120,6 +120,8 @@ other work collected so far. Then stay, and wait again:
 - A sync brief arrives in `mail`: another fleet's work was collected first. Add one task with that
   brief as its brief, whose worker merges the named branch into your fleet's and settles the
   clashes; accept it like any task, then report the group again.
+- A deploy goes one at a time under `whaleshark lock take deploy --task T3`; `lock_stale`: ask
+  its holder, then `lock steal` it.
 - Nothing is open: do not poll and do not end anything. Your tab is closed for you when your last
   group is collected.
 

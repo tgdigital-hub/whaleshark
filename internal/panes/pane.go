@@ -63,6 +63,7 @@ type pane struct {
 	phones  contract.Phones // what the login's phones ask of the person
 	figures map[string]contract.CtxFile
 	limits  contract.ProjectFile
+	locks   []contract.Lock
 	cfg     contract.PersonConfig
 	engine  contract.Settings
 	tools   []contract.Tool
@@ -495,6 +496,7 @@ func (p *pane) load() {
 		p.figures = contract.ReadCtx(p.k.Platform.Peek, dirs.State, p.state)
 	}
 	p.limits, _ = contract.ReadProjectFile(p.root)
+	p.locks = contract.ReadLocks(p.k.Platform.Peek, p.root)
 	// The engine's command key, for the hint that names it.
 	p.engine, _ = contract.ReadSettings(p.k.Platform.Peek, dirs)
 	tools, _ := contract.Tools(p.k.Platform, dirs)
@@ -626,7 +628,7 @@ func (p *pane) build() {
 	case p.state != nil:
 		p.view = p.make(contract.ViewInput{Now: now, Caller: contract.Human, State: p.state, Terms: p.picture,
 			Fleets: p.fleets, Person: p.cfg, Tools: found,
-			Ctx: p.figures, UI: p.ui, Phones: p.phones, Limits: p.limits, Checked: checked, Notes: notes,
+			Ctx: p.figures, UI: p.ui, Phones: p.phones, Limits: p.limits, Locks: p.locks, Checked: checked, Notes: notes,
 			Swept: p.swept, Watched: !p.sweptAt.IsZero() && now.Sub(p.sweptAt) < 3*compareEvery*second, All: p.all})
 		if a := p.view.Strip.Away; !a.IsZero() {
 			p.away = a

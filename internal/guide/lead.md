@@ -102,9 +102,9 @@ A batch you do not acknowledge is handed out again. Do what your plan still asks
 ## Before you tell the person
 - Verify a worker's output yourself before you report it: read the result and the diff, and run
   what proves it. A worker's word that it is done is not yours.
-- One merge and one deploy at a time: see each through, and confirmed, before the next begins.
-- Say plainly what was verified and what was not: "the tests pass; nobody has tried it in a
-  browser" is a whole answer, "done" is not.
+- One merge and one deploy at a time, each seen through and confirmed, a deploy under
+  `whaleshark lock take deploy --task T3`. `lock_stale`: ask its holder, then `lock steal` it.
+- Say plainly what was verified and what was not: "tests pass, not tried in a browser", not "done".
 
 ## Several results at once
     whaleshark accept T1 T2 T3

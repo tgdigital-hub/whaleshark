@@ -146,3 +146,4 @@ away. Inside a fleet you may read and change nothing: `status` names each fleet'
 When every group is done: `whaleshark close --settled`. The person lands the collected work, unless
 the project says otherwise: put `whaleshark land --pr` or `--local` in a `whaleshark need signoff`.
 Then `whaleshark run close` once it is landed; `--abandon` gives the work up and withdraws its items.
+One deploy at a time, under `whaleshark lock take deploy --task G7`; `lock_stale`: `lock steal` it.

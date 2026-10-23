@@ -42,3 +42,4 @@ catchup   views   1  OH  0
 overlap   code    2  OH  0,1,4,6,7
 sync      code    2  O   0,5
 land      code    2  OH  0,1,5
+lock      code    2  *   0,2,4,5

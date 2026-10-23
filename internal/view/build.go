@@ -671,6 +671,9 @@ func (b *builder) around(v *contract.View) {
 		v.Lines = append(v.Lines, fmt.Sprintf("to check: %d, about %d min one by one, about %d min together",
 			waiting, minutes(time.Duration(waiting)*longest), minutes(longest)))
 	}
+	for _, l := range in.Locks {
+		v.Lines = append(v.Lines, clean(l.Line(in.Now)))
+	}
 	if in.Terms == nil {
 		v.Fresh.Notes = append(v.Fresh.Notes, "the engine is not running")
 		if in.Now.Sub(run.Terms.SeenAt) >= time.Minute {

@@ -4,13 +4,16 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/lock"
 )
 
 const (
@@ -216,6 +219,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 		// The pull requests of pr-per-task mode are watched here, in the
 		// background of every wait; what goes wrong is asked again next time.
 		k.Integrator.Watch(root, run, now)
+		sw.locks(root, run, now)
 	}
 	contract.WriteVersioned(k.Platform, filepath.Join(dir, stampFile), contract.FileVersion,
 		stamp{Versioned: contract.Versioned{Version: contract.FileVersion}, At: now, By: contract.Version, Gone: last.Gone})
@@ -422,5 +426,66 @@ func (sw sweeper) pairs(root string, s *contract.State, l *look) {
 	}
 	for _, f := range s.Run.Fleets {
 		pair(s.Run.ID, f.Run)
+	}
+}
+
+// locks raises lock_stale in this run for a named lock of it, or of no run,
+// held past its stale time: never is a stale lock taken by itself. Held one
+// stale time longer, it is the person's to-do of CauseLock, which closes
+// once the holding ends, by a release or a steal.
+func (sw sweeper) locks(root, run string, now time.Time) {
+	k := sw.k
+	say := func(l contract.Lock) string {
+		stale := strings.TrimSuffix((time.Duration(l.Stale) * time.Second).String(), "0s")
+		if strings.HasSuffix(stale, "h0m") {
+			stale = strings.TrimSuffix(stale, "0m")
+		}
+		return fmt.Sprintf("The lock %s is held by %s since %s, past its %s.", l.Name, l.Holder, l.Since.Local().Format("15:04"), stale)
+	}
+	tell := func(l contract.Lock) bool {
+		return k.Store.Change(root, run, func(s *contract.State) error {
+			e := contract.Event{Kind: "lock_stale", Text: say(l) + " Ask its holder, or take it with `whaleshark lock steal " + l.Name + "`.",
+				Data: map[string]any{"lock": l.Name, "holder": l.Holder, "since": l.Since}}
+			if l.Run == run && s.Tasks[l.Task] != nil {
+				e.Task = l.Task
+			}
+			k.Rules.Raise(s, e, now)
+			return nil
+		}) == nil
+	}
+	climb := func(l contract.Lock) (id string) {
+		k.Store.Change(root, run, func(s *contract.State) (err error) {
+			q := contract.Question{Form: contract.FormTodo, From: contract.FromTool, Cause: contract.CauseLock,
+				Text: say(l) + " The lead agent was told at " + l.Told.Local().Format("15:04") + ". Let it go with `whaleshark lock steal " + l.Name + "`, then `whaleshark lock release " + l.Name + "`."}
+			if l.Run == run && s.Tasks[l.Task] != nil {
+				q.Task = l.Task
+			}
+			id, err = k.Rules.Need(s, q, now)
+			return err
+		})
+		return id
+	}
+	lock.Due(k.Platform, root, run, now, tell, climb)
+	items := map[string]bool{}
+	for _, l := range contract.ReadLocks(k.Platform.Peek, root) {
+		if l.ToldIn == run {
+			items[l.Item] = true
+		}
+	}
+	gone := func(s *contract.State) (ids []string) {
+		for id, q := range s.Questions {
+			if q.Cause == contract.CauseLock && q.State == contract.QuestionOpen && !items[id] {
+				ids = append(ids, id)
+			}
+		}
+		return ids
+	}
+	if s, err := k.Store.Read(root, run); err == nil && len(gone(s)) > 0 {
+		k.Store.Change(root, run, func(s *contract.State) error {
+			for _, id := range gone(s) {
+				k.Rules.CloseQuestion(s, id, now)
+			}
+			return nil
+		})
 	}
 }

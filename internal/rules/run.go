@@ -117,7 +117,7 @@ func (Rules) Resume(s *contract.State, now time.Time) error {
 
 // waits lists what is refused while the run is paused. A worker's own
 // commands are not among them: what it was saying is still recorded.
-var waits = []string{"task", "start", "escalate", "need", "tell", "accept", "reject", "close", "sync", "land", "run close", "run rm", "team run"}
+var waits = []string{"task", "start", "escalate", "need", "tell", "accept", "reject", "close", "sync", "land", "run close", "run rm", "team run", "lock steal"}
 
 func (Rules) Allowed(s *contract.State, c contract.Caller, command, sub string) error {
 	cmd := contract.Find(command)

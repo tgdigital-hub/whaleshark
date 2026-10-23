@@ -140,6 +140,9 @@ type ViewInput struct {
 	Tools  []Tool
 	// Saved is the project's saved fleets, for an orchestrator's run.
 	Saved []SavedFleet
+	// Locks is the project's named locks, held or waited for, as ReadLocks
+	// has them: a line each under the team list.
+	Locks []Lock
 }
 
 // View is the one description of the screen. The panes, the plain text, the
@@ -163,8 +166,8 @@ type View struct {
 	Answered []Item    `json:"answered,omitempty"`
 	Sections []Section `json:"sections"`
 	// Lines are the plain sentences under the team list: how long the
-	// results to check would take one by one and together, and most
-	// workers having stopped together.
+	// results to check would take one by one and together, most workers
+	// having stopped together, and a line a named lock.
 	Lines []string `json:"lines,omitempty"`
 	// Spent and Limit are the spending guard's figures in agent-hours, set
 	// in a job's own view while the guard is on; Limit is Unlimited for none.

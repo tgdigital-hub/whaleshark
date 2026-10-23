@@ -220,6 +220,7 @@ func input(c *contract.Call, s *contract.State, swept contract.Swept, snap *cont
 	if p, err := contract.ReadProjectFile(c.Root); err == nil {
 		in.Limits = p
 	}
+	in.Locks = contract.ReadLocks(c.Kit.Platform.Peek, c.Root)
 	if snap == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), snapshotWait)
 		defer cancel()

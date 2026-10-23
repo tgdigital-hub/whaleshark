@@ -360,6 +360,12 @@ var Commands = []Command{
 		Usage: "land [--pr | --local]", Help: "check the collected work, then open one pull request or merge it; the lead agent only if the project allows. Not with land.mode pr-per-task, where each task lands by itself",
 		Flags:   flags("pr: open one pull request", "local: merge it here"),
 		Example: "whaleshark land --pr"},
+	{Name: "lock", Section: "code", Phase: 2, Who: all, Exits: []int{0, 2, 4, 5},
+		Usage:   `lock take <name> [--task T] [--stale DURATION] [--note "<text>"] / lock release <name> / lock list / lock steal <name>`,
+		Help:    "named locks that every agent and the person see: a taker of a held one waits in line, and one past its stale time is told the lead agent",
+		Flags:   flags("task=T: take: the task it is held for", "stale=DURATION: take: stale after this long, such as 45m", "note=TEXT: take: what it is held for"),
+		Subs:    []Sub{{Name: "steal", Who: O | H}},
+		Example: `whaleshark lock take deploy --task T3 --stale 45m --note "prod deploy"`},
 }
 
 // Find returns the row for a command name.
@@ -392,7 +398,7 @@ var (
 		"escalate", "need", "tell", "accept", "reject", "stop", "close", "pause", "resume", "team run", "sync", "land"}
 	Unrecorded = []string{"init", "doctor", "guide", "help", "version", "dash", "connect", "server", "ui", "open",
 		"engine", "set", "hook", "run", "answer", "tell lead", "team", "report", "progress", "ask", "mail", "status",
-		"graph", "log", "show", "jump", "catchup", "overlap"}
+		"graph", "log", "show", "jump", "catchup", "overlap", "lock"}
 )
 
 // Deed names what a command line does to a run's record, as its human event

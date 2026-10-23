@@ -1,7 +1,9 @@
 // Package integrate is the run's integration branch: where accepted work is collected,
 // one commit a task and one merge a fleet's group, and how it reaches the main branch.
 //
-// It puts a contract.Integrator into the kit and binds one command, land. It
+// It puts a contract.Integrator into the kit and binds two commands: land,
+// and lock, whose code is the lock package's, since a merge of pr-per-task
+// mode is done under its merge lock. It
 // writes nothing into a run's record but through the rules: the caller hands
 // Begin's answer to Rules.Integrated and the commit of Collect to
 // Rules.Checked, and land records the landed tip with Rules.Integrated.
@@ -25,6 +27,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/lock"
 )
 
 // Plug binds this package's handlers and puts its implementations into the kit.
@@ -32,6 +35,7 @@ func Plug(k *contract.Kit) {
 	g := integrator{k}
 	k.Integrator = g
 	k.Handle("land", g.land)
+	k.Handle("lock", lock.Command)
 }
 
 // landed is what land answers with.
