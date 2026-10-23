@@ -15,6 +15,7 @@ import (
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/hook"
 )
 
 // keepalive is how often a blocked wait says on standard error that it is
@@ -136,6 +137,7 @@ func wait(c *contract.Call) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+		hook.Mirror(k, c.Root, c.Run) // before the events are handed out, and so before they can be acknowledged
 		ack = ""
 		for again := out.ID != ""; !again; {
 			select {

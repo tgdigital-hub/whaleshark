@@ -279,6 +279,15 @@ type ProjectFile struct {
 	Protect struct {
 		Also []string `toml:"also,omitempty"`
 	} `toml:"protect,omitempty"`
+	// Hooks.OnEvent is a command run once for each event of a run, with the
+	// event as JSON on its standard input, and Overlap.RemotePRs checks a
+	// task's --owns against the open pull requests: both reach outside.
+	Hooks struct {
+		OnEvent string `toml:"on_event,omitempty"`
+	} `toml:"hooks,omitempty"`
+	Overlap struct {
+		RemotePRs bool `toml:"remote_prs,omitempty"`
+	} `toml:"overlap,omitempty"`
 	// Results.MirrorDir is a full path outside the project, with {date},
 	// {run} and {task}, that a task's brief, result and pull request body
 	// are copied into: it reaches outside, so it needs approval.

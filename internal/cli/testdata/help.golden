@@ -1,6 +1,7 @@
 $ whaleshark     # as a program
   init      set this project up, check what it needs, and offer the rules for the lead agent  (not built yet)
   doctor    one line per check, each with its fix; --try runs the one test of an agent tool  (not built yet)
+  gc        remove the copies of the code of tasks that ended, in every run, and their branches once proven landed; never a running task's or work not landed  (not built yet)
   guide     the guide that matches this version  (not built yet)
   trust     show what the project's settings would run or reach, and approve it  (not built yet)
   help      this list, or one command in full

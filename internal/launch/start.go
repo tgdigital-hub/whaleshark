@@ -420,7 +420,9 @@ func start(c *contract.Call) (any, error) {
 	var groups []func()
 	for i, id := range ids {
 		bring := func() {
-			out[i] = l.bring(id)
+			if out[i] = l.bring(id); out[i].Error == nil {
+				k.Overlap.Remote(c.Root, c.Run, id) // the open pull requests, with overlap.remote_prs on
+			}
 			l.say(out[i])
 		}
 		// A group holds the login's lock for the whole of its start, so

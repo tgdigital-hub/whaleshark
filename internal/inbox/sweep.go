@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/hook"
 	"github.com/tgdigital-hub/whaleshark/internal/lock"
 )
 
@@ -226,6 +227,7 @@ func (sw sweeper) sweep(root, run string, now time.Time, always bool) (contract.
 	// The nudge pass, after every sweep: it also says what is no item, a
 	// task failed for good and the whole job finished.
 	k.Notifier.Items(root, run, snap, now)
+	hook.Mirror(k, root, run) // the project's on_event, outside the lock
 	return contract.Swept{Ran: true, At: now, Changed: changed}, snap, nil
 }
 

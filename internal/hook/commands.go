@@ -6,6 +6,7 @@ package hook
 import (
 	"bytes"
 	"cmp"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -126,26 +127,31 @@ func statusline(c *contract.Call, ours bool, file string) {
 		if json.Unmarshal(data, &s); s.Line.Command == "" || isOurs(s.Line.Command, formStatus) {
 			continue
 		}
-		// The shell is handed the line in a variable. As an argument it
-		// would not arrive whole on Windows, where the POSIX shell's start-up
-		// code splits the command line by rules of its own and takes the
-		// single quotes off a path, whose backslashes the shell then eats.
-		// #nosec G204 G702 -- the person's own status line, from their own settings, run as their harness runs it
-		cmd := exec.Command("sh", "-c", `eval "$`+lineEnv+`"`)
-		cmd.Env = append(os.Environ(), lineEnv+"="+s.Line.Command)
-		if _, err := exec.LookPath("sh"); err != nil {
-			// #nosec G204 G702 -- as above, where there is no POSIX shell
-			cmd = exec.Command("cmd", "/c", s.Line.Command)
-		}
+		cmd := shell(context.Background(), s.Line.Command)
 		cmd.Stdin, cmd.Stdout = bytes.NewReader(msg), c.Out
 		cmd.Run()
 		return
 	}
 }
 
-// lineEnv names the variable the person's own status line is handed to the
-// shell in.
+// lineEnv names the variable a command line is handed to the shell in: the
+// person's own status line, or the project's on_event.
 const lineEnv = "WHALESHARK_OWN_STATUSLINE"
+
+// shell runs a line as a shell runs it. The shell is handed the line in a
+// variable. As an argument it would not arrive whole on Windows, where the
+// POSIX shell's start-up code splits the command line by rules of its own
+// and takes the single quotes off a path, whose backslashes the shell then eats.
+func shell(ctx context.Context, line string) *exec.Cmd {
+	// #nosec G204 G702 -- a line the person set or approved, run as their harness runs it
+	cmd := exec.CommandContext(ctx, "sh", "-c", `eval "$`+lineEnv+`"`)
+	if _, err := exec.LookPath("sh"); err != nil {
+		// #nosec G204 G702 -- as above, where there is no POSIX shell
+		cmd = exec.CommandContext(ctx, "cmd", "/c", line)
+	}
+	cmd.Env = append(os.Environ(), lineEnv+"="+line)
+	return cmd
+}
 
 // refusal is the deny decision alone: the step is refused and the turn goes on.
 const refusal = `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":%q}}` + "\n"

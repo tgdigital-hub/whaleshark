@@ -2,6 +2,7 @@
 # who it is marked for (W worker, O orchestrator, H human, * everyone), exits.
 init      setup   1  OH  0,3
 doctor    setup   2  OH  0,1
+gc        setup   2  OH  0,1
 guide     setup   1  *   0
 trust     setup   2  H   0,1
 help      setup   1  *   0,2

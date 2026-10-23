@@ -521,6 +521,8 @@ func (c clash) Scan(context.Context, string, *contract.State, []string, bool) ([
 	return c, nil
 }
 
+func (clash) Remote(string, string, string) {}
+
 // A new clash across fleets is one event in each of the two fleets' runs,
 // beside the orchestrator's own, and never a second one.
 func TestBothLeadersAreToldOfAClashAcrossFleets(t *testing.T) {

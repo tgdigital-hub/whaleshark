@@ -12,7 +12,7 @@ Every agent tool is a description: the command that starts it, how it names a mo
 
 ## One program, one table
 
-Everything is one program file, `whaleshark`. Its 42 commands are rows of one table in `internal/contract/`: the name, who may call it, its flags, its exit codes, an example. Help, validation and the caller rules are all read from that table, so they cannot drift apart. An error names the command to run next.
+Everything is one program file, `whaleshark`. Its 44 commands are rows of one table in `internal/contract/`: the name, who may call it, its flags, its exit codes, an example. Help, validation and the caller rules are all read from that table, so they cannot drift apart. An error names the command to run next.
 
 `cmd/whaleshark` builds one kit (the system, the store, the rules, the terminals) and hands it to every package under `internal/`; each package plugs its commands into the table. Packages share only what is in `contract`, and the gate checks which package may import which.
 
@@ -30,6 +30,8 @@ In a git project each task gets a worktree on a branch of its own, made from the
 
 With `[land] mode = "pr-per-task"` nothing is collected and nothing is landed together. A task's worktree is cut from the base itself; `accept` merges the latest base into it, runs the task's check, pushes the branch and opens the task's own pull request with the body its worker wrote (`pr.md` in its attempt's folder), as a draft first where `draft_first` says so. The sweep watches each pull request in the background: a red check raises `ci_failed` and waits for the task to be sent back and accepted again; a green one is merged by itself under one merge lock for the project, with `merge_method`, its branch deleted from the remote, and its task marked done with `merged`. Where the base moved under a green pull request in the task's own files, `refresh` says whether it is brought up to date and watched again (`auto`) or the lead agent is told with `base_moved` (`ask`). With `[worktrees] fetch_base = true` the base is fetched before `run new` and before each `start`, and `land` compares with what was fetched. The person's own checkout is never touched.
 
+`whaleshark gc` sweeps the copies of every run: it removes the worktree of a task that ended, records that in its run, and deletes a branch only by the proofs a run's removal uses, where the run's collected work counts only once it was landed. Two settings of the project reach outside and wait for `trust`: `[overlap] remote_prs` asks gh for the open pull requests at a start and an accept, and `[hooks] on_event` is handed each event once, by a mark beside the run's record that moves on whatever the command does, outside the record's lock.
+
 ## The engine
 
 The terminal engine is WhaleShark's own, written from the published standards for terminals.
@@ -45,7 +47,7 @@ The fleet pane and the action pane are ordinary programs in panes of the keeper.
 
 ## Staying small
 
-The gate (`go run ./build/ci`) fails the build when a limit in `build/ci/limits.txt` is passed: a line budget for every folder and 41,500 lines for all of them, four modules, 15 MB a program file, 42 commands, and 30 ms for the commands an agent's harness runs at every step. A figure changes only in that file, with its reason beside it.
+The gate (`go run ./build/ci`) fails the build when a limit in `build/ci/limits.txt` is passed: a line budget for every folder and 41,500 lines for all of them, four modules, 15 MB a program file, 44 commands, and 30 ms for the commands an agent's harness runs at every step. A figure changes only in that file, with its reason beside it.
 
 Other rules of the same kind: no C compiler; no code loaded at run time; no shell string for a child program except the ones a person approved or the lead agent gave as a check; what is typed into an agent's tab is a fixed pointer to a file, never the text itself, with one exception: your own note to the agent you talk to (`tell lead` at a terminal, the page's note, a paired phone or app), which is typed into that agent's tab and no other as one line that says first where it came from, without control characters or line breaks and cut at 2,000 characters; every file carries a version, and a program refuses to write a record newer than itself.
 

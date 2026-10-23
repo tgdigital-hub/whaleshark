@@ -188,6 +188,8 @@ var Keys = []Key{
 	{"limits.max_minutes", SecProject, "Minutes a task may take", KindNumber, "0..100000", "0", StoreProject, "", "", "0 holds no line."},
 	{"results.mirror_dir", SecProject, "Where a task's notes are copied", KindText, "", "", StoreProject, "", AsksApproval, "A full path outside the project, as /srv/notes/{date}-{task}: the brief, the result and the pull request body, with READY and DONE."},
 	{"protect.also", SecProject, "This project's additions", KindList, "", "", StoreProject, "", "", "More protected paths for everyone who works in this project. A project can add to your list and never take from it."},
+	{"hooks.on_event", SecProject, "A command run at every event", KindText, "", "", StoreProject, "", AsksApproval, "Run once for each event of a run, with the event as JSON on its standard input: a script can mirror progress to a card or a dashboard. Ten seconds each at most; it never holds the record."},
+	{"overlap.remote_prs", SecProject, "Check against open pull requests", KindSwitch, "", "off", StoreProject, "", AsksApproval, "On: at a start and an accept, a task's --owns is checked against the files of the open pull requests on the remote, by gh, and each that meets is an overlap event. Off: only this run's tasks are compared."},
 
 	{"server.agents", SecServer, "Agents a login may run", KindNumber, "", "", StoreServer, "agents", AsksAdmin, ""},
 	{"server.road", SecServer, "How phones reach the page", KindText, "", "", StoreServer, "road", AsksAdmin, "At a public name behind Cloudflare's login: the one road offered for now."},

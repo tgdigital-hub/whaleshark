@@ -562,8 +562,13 @@ type Finding struct {
 // is now, to be handed to Rules.Found, which knows the new ones. deep also
 // looks at work not committed, as the five-minute scan does. A scan cut off
 // by ctx returns what it has and ctx's error.
+//
+// Remote, with overlap.remote_prs on, checks a task's --owns against the
+// files of the open pull requests on the remote and raises an overlap event
+// in the run for each one that meets; a hint, so a failure is passed by.
 type Overlap interface {
 	Scan(ctx context.Context, root string, s *State, tasks []string, deep bool) ([]Finding, error)
+	Remote(root, run, task string)
 }
 
 // Nudge is one call for the person's attention. Root and Run say whose it
@@ -760,6 +765,7 @@ func (NoIntegrator) Watch(string, string, time.Time) error { return nil }
 func (NoOverlap) Scan(context.Context, string, *State, []string, bool) ([]Finding, error) {
 	return nil, nil
 }
+func (NoOverlap) Remote(string, string, string) {}
 
 func (NoNotifier) Nudge(Nudge) error                                { return nil }
 func (NoNotifier) Items(string, string, *Snapshot, time.Time) error { return nil }

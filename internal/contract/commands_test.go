@@ -67,16 +67,16 @@ func TestCounts(t *testing.T) {
 			}
 		}
 	}
-	if len(Commands) != 43 {
-		t.Errorf("%d commands, want 43", len(Commands))
+	if len(Commands) != 44 {
+		t.Errorf("%d commands, want 44", len(Commands))
 	}
-	for name, want := range map[string]int{"setup": 14, "runs": 15, "worker": 4, "views": 6, "code": 4} {
+	for name, want := range map[string]int{"setup": 15, "runs": 15, "worker": 4, "views": 6, "code": 4} {
 		if section[name] != want {
 			t.Errorf("section %s has %d commands, want %d", name, section[name], want)
 		}
 	}
-	if phase[1] != 29 || phase[PhaseE] != 2 || phase[2] != 9 || phase[3] != 3 {
-		t.Errorf("by phase: %v, want 29, 2 for the engine, 9 and 3", phase)
+	if phase[1] != 29 || phase[PhaseE] != 2 || phase[2] != 10 || phase[3] != 3 {
+		t.Errorf("by phase: %v, want 29, 2 for the engine, 10 and 3", phase)
 	}
 }
 
@@ -169,8 +169,8 @@ func TestListOnly(t *testing.T) {
 	if code := k.Main(k, []string{"help"}, nil, &out, &errw); code != ExitOK {
 		t.Fatalf("help: exit %d", code)
 	}
-	if n := strings.Count(out.String(), "(not built yet)"); n != 43 || strings.Count(out.String(), "\n") != 43 {
-		t.Errorf("help marks %d commands as not built, want 43", n)
+	if n := strings.Count(out.String(), "(not built yet)"); n != 44 || strings.Count(out.String(), "\n") != 44 {
+		t.Errorf("help marks %d commands as not built, want 44", n)
 	}
 	if code := k.Main(k, []string{"start"}, nil, &out, &errw); code != ExitFailed || !strings.Contains(errw.String(), "not built yet") {
 		t.Errorf("start: exit %d, %q", code, errw.String())

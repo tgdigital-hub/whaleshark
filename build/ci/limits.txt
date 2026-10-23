@@ -350,7 +350,7 @@ lines 440 notify internal/notify
 # gitwt gives 60 at the start of phase 3: built whole at 886; and 100 when its
 # first part was put together, to doctor: it stands at 889 with the fixes for
 # Windows in.
-lines 910 gitwt internal/gitwt
+lines 1060 gitwt internal/gitwt
 # integrate gives 100 of its 900: 75 to runtask, 25 to team; and 70 when the
 # first part of phase 3 was put together, to doctor: built whole at 688.
 # 15 more for phase 5: a fleet's work collected as a merge.
@@ -383,7 +383,7 @@ lines 300 lock internal/lock
 # 65, less the matcher of patterns, which is the contract's now.
 # 5 fewer when the first part of phase 6 was put together, at what was built
 # (917): the scan across fleets, with each fleet's own task in the finding.
-lines 920 overlap internal/overlap
+lines 1010 overlap internal/overlap
 # doctor: its 30 of the engine's share (the keeper's rows, the paste line),
 # planned since the engine decision and kept out of this file until phase 2.
 # 180 more at the start of phase 3: fifteen rows of proof for a server, seven
@@ -504,7 +504,7 @@ lines 100 theme internal/theme
 # at a guard's hold; it stands at 426.
 # 10 fewer when the second part of phase 6 was put together, at what was built
 # (440).
-lines 445 hook internal/hook
+lines 530 hook internal/hook
 # team: 25 more. It was built at 273 after three rewrites, with nothing left
 # to cut that the row or the design does not ask for; integrate pays.
 lines 275 team internal/team

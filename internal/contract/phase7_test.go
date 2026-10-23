@@ -209,7 +209,7 @@ func TestTheFlagsOfPhaseSeven(t *testing.T) {
 	if !strings.Contains(task.Usage, `task edit <id> [--name "<up to three words>"]`) || !slices.Contains(task.Exits, 2) || !slices.Contains(task.Exits, 5) {
 		t.Errorf("task edit --name: %s %v", task.Usage, task.Exits)
 	}
-	if !strings.HasSuffix(ui.Usage, "ui run offer <kind> <id>") || len(Commands) != 43 {
+	if !strings.HasSuffix(ui.Usage, "ui run offer <kind> <id>") || len(Commands) != 44 {
 		t.Errorf("ui run offer: %s; %d commands", ui.Usage, len(Commands))
 	}
 	name := "login form"

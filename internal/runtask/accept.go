@@ -100,6 +100,9 @@ func accept(c *contract.Call) (any, error) {
 		out, err = acceptOne(c, c.Args[0], byHand)
 	}
 	if err == nil {
+		for _, task := range c.Args {
+			k.Overlap.Remote(c.Root, c.Run, task) // the open pull requests, with overlap.remote_prs on
+		}
 		launch.CloseOwnTab(c)
 	}
 	return out, err

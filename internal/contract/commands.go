@@ -190,6 +190,10 @@ var Commands = []Command{
 		Help:    "one line per check, each with its fix; --try runs the one test of an agent tool",
 		Flags:   flags("fix: put right what can be put right without asking", "server@3: check this login's part of a shared server too", "notify: send one test nudge to your phones", "try=NAME!: run the one test of this agent tool"),
 		Example: "whaleshark doctor --server"},
+	{Name: "gc", Section: "setup", Phase: 2, Who: H | O | U, Exits: []int{0, 1},
+		Usage: "gc [--older-than AGE] [--dry-run]", Help: "remove the copies of the code of tasks that ended, in every run, and their branches once proven landed; never a running task's or work not landed",
+		Flags:   flags("older-than=AGE: only what ended longer ago, as 7d or 12h; 7d when not given", "dry-run: list what would go, and remove nothing"),
+		Example: "whaleshark gc --dry-run"},
 	{Name: "guide", Section: "setup", Phase: 1, Who: all, Exits: []int{0},
 		Usage: "guide [worker|lead|leader]", Help: "the guide that matches this version",
 		Example: "whaleshark guide lead"},
@@ -398,7 +402,7 @@ var (
 		"escalate", "need", "tell", "accept", "reject", "stop", "close", "pause", "resume", "team run", "sync", "land"}
 	Unrecorded = []string{"init", "doctor", "guide", "help", "version", "dash", "connect", "server", "ui", "open",
 		"engine", "set", "hook", "run", "answer", "tell lead", "team", "report", "progress", "ask", "mail", "status",
-		"graph", "log", "show", "jump", "catchup", "overlap", "lock"}
+		"graph", "log", "show", "jump", "catchup", "overlap", "gc", "lock"}
 )
 
 // Deed names what a command line does to a run's record, as its human event

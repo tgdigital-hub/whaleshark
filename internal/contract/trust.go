@@ -71,6 +71,8 @@ func trustLines(root string, p ProjectFile) ([]string, error) {
 	add("land.who", p.Land.Who, d.Land.Who)
 	add("land.check", p.Land.Check, "")
 	add("land.mode", p.Land.Mode, d.Land.Mode)
+	add("hooks.on_event", p.Hooks.OnEvent, "")
+	add("overlap.remote_prs", p.Overlap.RemotePRs, false)
 	add("results.mirror_dir", p.Results.MirrorDir, "")
 	add("limits.agents", max(p.Limits.Agents, d.Limits.Agents), d.Limits.Agents)
 	teams, _ := filepath.Glob(filepath.Join(root, TeamsDir, "*.toml"))
@@ -145,7 +147,7 @@ func held(root string, p *ProjectFile) error {
 	p.Worktrees.Dir, p.Worktrees.Share, p.Setup.Script, p.Setup.ScriptWindows = d.Worktrees.Dir, nil, "", ""
 	effort := p.Agent.Effort // runs nothing, so it needs no approval
 	p.Agent, p.Check.TimeoutSeconds, p.Land, p.Results = d.Agent, d.Check.TimeoutSeconds, d.Land, d.Results
-	p.Agent.Effort = effort
+	p.Agent.Effort, p.Hooks, p.Overlap = effort, d.Hooks, d.Overlap
 	p.Limits.Agents = min(p.Limits.Agents, d.Limits.Agents)
 	for _, line := range lines {
 		name, _, _ := strings.Cut(line, " ")

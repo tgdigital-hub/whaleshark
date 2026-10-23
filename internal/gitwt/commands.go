@@ -1,11 +1,12 @@
 // Package gitwt is each task's own copy of the code: a git worktree on a
 // branch of its own, what it is given besides what git carries, its setup
-// and its removal.
+// and its removal, and gc, which removes what tasks that ended left.
 //
 // It puts one thing into the kit, a contract.Placement. It reads the
 // project's settings with contract.ReadProjectFile only, takes no port slot
-// and writes nothing into a run's record: what it returns is recorded by its
-// caller. A task with no worktree is placed as contract.NoPlacement does.
+// and, but for gc, writes nothing into a run's record: what it returns is
+// recorded by its caller. A task with no worktree is placed as
+// contract.NoPlacement does.
 //
 // Every worktree it makes carries a mark in git's own folder for that
 // worktree, which no repository can bring along: nothing is ever deleted
@@ -25,7 +26,11 @@ import (
 )
 
 // Plug binds this package's handlers and puts its implementations into the kit.
-func Plug(k *contract.Kit) { k.Placement = &trees{k: k, warn: os.Stderr} }
+func Plug(k *contract.Kit) {
+	t := &trees{k: k, warn: os.Stderr}
+	k.Placement = t
+	k.Handle("gc", t.gc)
+}
 
 // trees is the placement. warn is where a person reads what a call has no
 // other way to say: the trust prompt ahead, a path that was not carried.
