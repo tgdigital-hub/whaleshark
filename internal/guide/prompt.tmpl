@@ -10,7 +10,36 @@ Result file:  {{.Result}}
 {{- if .Owns}}
 You may change only:  {{join .Owns}}
 {{- end}}
-{{- if .Shared}}
+{{- if .Kind}}
+This task changes no code: read, and run only what reads. Change, add and commit no file, in this
+folder or anywhere else; the result file is the one file you write, with your file tool, never
+with a shell redirect.
+{{- if .Copy}} The folder is a copy of the base of your own, with no branch: it too stays as it is.
+{{- else}} Other workers are working in this folder at the same moment.
+{{- end}}
+{{- if .Review}}
+
+## Review
+You review task {{.Review.Task}} "{{.Review.Name}}".
+{{- if .Review.Branch}} Its work is on branch {{.Review.Branch}}
+{{- if .Review.Base}}, against {{.Review.Base}}: `git diff {{.Review.Base}}...{{.Review.Branch}}`{{end}}.
+{{- else}} It has no branch of its own: `git status` and `git diff` in its folder show its work.
+{{- end}}
+{{- if .Review.PR}}
+Its pull request: {{.Review.PR}}
+{{- end}}
+{{.Review.Task}} is not accepted, nor merged, until you say it is safe. Begin the result file with
+your verdict on a line of its own, `verdict: {{.Safe}}` or `verdict: {{.FixFirst}}`. Under fix-first,
+list what must be fixed, one line each beginning with "- ". The lead agent is told the list.
+{{- end}}
+{{- if eq .Kind "watch"}}
+
+## Watch
+This is a watch, long and mostly quiet: for {{.Limit}} minutes nobody takes you for stuck. Note
+progress when something changes. When what you watch ends, or the time is up, write the result
+and report.
+{{- end}}
+{{- else if .Shared}}
 Other workers are working in this folder at the same moment: change no file that is not yours.
 {{- else if .PR}}
 The folder is your own copy of the code, on a branch of its own. Stay on that branch: never switch,
@@ -62,7 +91,7 @@ An earlier attempt at this task was sent the brief below and did not finish it. 
 
 # At each real milestone (this also shows you are alive), with your own number and words:
 {{.Bin}} progress 40 "<what is done so far>"
-{{- if not .Shared}}
+{{- if not (or .Shared .Kind)}}
 # Commit your work at each milestone too: work that is not committed can be seen by nobody but you.
 {{- end}}
 
@@ -76,7 +105,7 @@ An earlier attempt at this task was sent the brief below and did not finish it. 
 # Before each new file, and once before you report, read messages from the orchestrator:
 {{.Bin}} mail
 
-{{if .Shared -}}
+{{if or .Shared .Kind -}}
 # Finished and checked by you? Write the result file, then exactly once:
 {{- else -}}
 # Finished and checked by you? Write the result file, commit everything in your folder, then

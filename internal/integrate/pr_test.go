@@ -216,3 +216,27 @@ func TestTheBaseMovesUnderAGreenPullRequest(t *testing.T) {
 		})
 	}
 }
+
+// A review holds the merge of the task it is of, not its pull request: green
+// checks merge nothing until the review is done and says safe.
+func TestAReviewHoldsTheMerge(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.task("A", map[string]string{"a.txt": "two\n"})
+	f.change(func(s *contract.State) {
+		s.Tasks["R"] = &contract.Task{ID: "R", Name: "review", Kind: contract.WorkReview, Reviews: "A", Check: contract.CheckNone, Status: contract.TaskRunning}
+	})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "https://example.test/pull/1")
+	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
+	f.watch()
+	if f.said("order") != "" || f.state().Tasks["A"].PR.State != contract.PRWatching {
+		t.Fatal("merged while its review was at work")
+	}
+	f.change(func(s *contract.State) {
+		s.Tasks["R"].Status, s.Tasks["R"].SettledAt = contract.TaskDone, f.now
+		s.Tasks["R"].Accepted = &contract.Accepted{How: contract.AcceptResult, Verdict: contract.VerdictSafe, At: f.now}
+	})
+	f.watch()
+	if f.said("order") != "1" || f.state().Tasks["A"].Status != contract.TaskDone {
+		t.Fatal("not merged once its review said safe")
+	}
+}

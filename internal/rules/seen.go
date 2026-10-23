@@ -39,7 +39,11 @@ func (r Rules) Seen(s *contract.State, id string, pane *contract.Pane, startLock
 
 	if pause == nil {
 		h.StillFlagged = false
-		if max := time.Duration(limits.Limits.MaxMinutes) * time.Minute; max > 0 && !h.OvertimeFlagged && now.Sub(a.StartedAt) >= max {
+		max := time.Duration(limits.Limits.MaxMinutes) * time.Minute
+		if t.Kind == contract.WorkWatch {
+			max = time.Duration(t.LimitMinutes) * time.Minute
+		}
+		if max > 0 && !h.OvertimeFlagged && now.Sub(a.StartedAt) >= max {
 			h.OvertimeFlagged = true
 			raise(s, "overtime", t, a, "", nil, now)
 		}
@@ -88,7 +92,7 @@ func (r Rules) Seen(s *contract.State, id string, pane *contract.Pane, startLock
 					h.StillFlagged = true
 					raise(s, "still_running", t, a, "", nil, now)
 				}
-			case a.State == contract.AttemptWorking && stale > 0 && !h.StaleFlagged && now.Sub(lastNote(a)) >= stale:
+			case a.State == contract.AttemptWorking && stale > 0 && !h.StaleFlagged && now.Sub(lastNote(a)) >= stale && !boxed(t, a, now):
 				h.StaleFlagged = true
 				raise(s, "stale", t, a, "", nil, now)
 			}
@@ -106,7 +110,7 @@ func (r Rules) Seen(s *contract.State, id string, pane *contract.Pane, startLock
 				break
 			}
 			quiet := time.Duration(limits.Limits.QuietSeconds) * time.Second
-			if pause == nil && quiet > 0 && !h.QuietFlagged && now.Sub(h.LastWorking) >= quiet {
+			if pause == nil && quiet > 0 && !h.QuietFlagged && now.Sub(h.LastWorking) >= quiet && !boxed(t, a, now) {
 				h.QuietFlagged = true
 				raise(s, "quiet", t, a, "", nil, now)
 			}

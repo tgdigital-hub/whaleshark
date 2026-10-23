@@ -91,6 +91,9 @@ const (
 	WordDoneByHand   = "done (by hand)"
 )
 
+// WorkWords are the words of a task that changes no code, at work.
+var WorkWords = map[string]string{WorkReadonly: "investigating", WorkReview: "reviewing", WorkWatch: "watching"}
+
 // Colours is the sixteen names a colour scheme gives a colour to. A scheme
 // is nothing else. The warning colour is "blocked".
 var Colours = []string{

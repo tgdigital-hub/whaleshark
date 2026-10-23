@@ -37,6 +37,8 @@ Change, Constraints, Ownership, Acceptance; optional `Time box` (minutes) and `R
   command can prove it, never to save effort.
 - `--after T1,T2` makes a task wait for others. `--owns` says which files it may change.
 - `--agent` names the agent tool of a task's worker, where your guide or prompt lists several.
+- `--kind readonly`, `--kind review --reviews T3` or `--kind watch --limit 2h` changes no code: no
+  check, copy or ports; `accept` it once it reports. T3 waits for its review's `safe`.
 - Every task gets a copy of the code of its own, on its own branch, made at `start` from what your
   fleet has collected so far. Give tasks that run side by side different files with `--owns`;
   where two tasks' patterns meet, `task add` says so and `--after` is the cure.
@@ -62,6 +64,7 @@ A batch you do not acknowledge is handed out again. Do what your own plan still 
   checked it. Where the check is `none`: `whaleshark accept T3 --by-hand "<what I ran or read>"`.
   Then `whaleshark close T3`: the tab goes, and a done task's copy of the code with it.
 - `check_failed`: read the log in `whaleshark show T3`, then `reject` with the reason.
+- `fix_first`: T3's review lists what to fix first: `reject T3` with it, then review it again.
 - `question`: a worker is blocked on you. If you know: `whaleshark answer q7 "<the answer>"`.
   If you do not: `whaleshark escalate q7` hands it to the orchestrator. Never guess. That one
   command is the whole of it: do not also write a `need` for the same question, or the person

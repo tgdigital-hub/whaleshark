@@ -219,6 +219,10 @@ func (g integrator) watch(root string, s *contract.State, t *contract.Task, proj
 				Text: onto + ": " + why + ". Accept the task again to bring it up to date, or send it back to sync.", Data: map[string]any{"files": files, "url": pr.URL}}, now)
 		}
 	}
+	// A review that has not said safe holds the merge; the next watch looks again.
+	if contract.ReviewHold(s, t.ID) != "" {
+		return nil
+	}
 	return g.merge(root, s, t, project, now)
 }
 

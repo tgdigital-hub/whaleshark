@@ -38,17 +38,28 @@ type Prompt struct {
 	PR     string
 	Person contract.PersonConfig
 	Tools  []contract.Tool
+	// Kind is the task's where it changes no code: the worker then only
+	// reads, in a Copy of its own or in Dir. A watch has its Limit in
+	// minutes, and a review the task it is of.
+	Kind   string
+	Copy   bool
+	Limit  int
+	Review *Reviewed
 	// Return is what the brief's Return heading says the worker writes, and
 	// Mirror the notes folder its files are copied to when it reports.
 	Return, Mirror string
 }
 
+// Reviewed is the task a review is of: its branch and base, and its pull
+// request where it has one yet.
+type Reviewed struct{ Task, Name, Branch, Base, PR string }
+
 // Text renders the prompt file: the worker's whole protocol, or the leader's.
 func (p Prompt) Text() string {
 	return render(map[bool]string{false: promptText, true: leaderText}[p.Fleet != ""], struct {
 		Prompt
-		Paused string
-	}{p, contract.PausedReason})
+		Paused, Safe, FixFirst string
+	}{p, contract.PausedReason, contract.VerdictSafe, contract.VerdictFixFirst})
 }
 
 // shots is the one command that takes a screenshot with no browser tool at

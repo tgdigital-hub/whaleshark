@@ -131,6 +131,10 @@ func acceptAll(c *contract.Call) (any, error) {
 				return err
 			case slices.Contains(ids, t.ID):
 				continue
+			case !t.Code():
+				return refuse(contract.ExitRefused, "by_result", t.ID+" changes no code, so it is not accepted together with others: accept it alone.", "whaleshark accept "+t.ID)
+			case contract.ReviewHold(s, t.ID) != "":
+				return refuse(contract.ExitRefused, "held_by_review", t.ID+" waits for the verdict of its review "+contract.ReviewHold(s, t.ID)+".", "whaleshark show "+contract.ReviewHold(s, t.ID))
 			case t.Check == contract.CheckNone:
 				return refuse(contract.ExitRefused, "by_hand", t.ID+" has no check, so it is not accepted together with others: accept it alone, by hand.",
 					"whaleshark accept "+t.ID+` --by-hand "<what I ran or read>"`)
@@ -251,6 +255,8 @@ func checking(c *contract.Call, s *contract.State, t *contract.Task) error {
 // checked.
 func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err error) {
 	k, dir := c.Kit, c.Kit.Store.Dir(c.Root, c.Run)
+	project, _ := contract.ReadProjectFile(c.Root)
+	pr := project.Land.Mode == contract.LandPR // a review then holds the merge, not the accept
 	var t contract.Task
 	var seen *contract.State
 	err = change(c, c.Run, "", func(s *contract.State) error {
@@ -261,7 +267,13 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 		if err != nil {
 			return err
 		}
-		if none := found.Check == contract.CheckNone; none != byHand {
+		if by := contract.ReviewHold(s, found.ID); by != "" && found.Code() && !pr {
+			return refuse(contract.ExitRefused, "held_by_review", found.ID+" waits for the verdict of its review "+by+": accept "+by+" first, once it says safe.", "whaleshark show "+by)
+		}
+		if !found.Code() && byHand {
+			return refuse(contract.ExitRefused, "by_result", found.ID+" changes no code, so it is accepted by its result file and not by hand.", "whaleshark accept "+found.ID)
+		}
+		if none := found.Check == contract.CheckNone; none != byHand && found.Code() {
 			r := refuse(contract.ExitRefused, "by_hand", found.ID+" has a check, so it is accepted by that check and not by hand.", "whaleshark accept "+found.ID)
 			if none {
 				r.Message = found.ID + " has no check, so it is accepted by hand: say what you ran or read."
@@ -280,6 +292,9 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 	back := func(why error) (accepted, error) {
 		err := step(func(s *contract.State) error { return k.Rules.Unchecked(s, t.ID, c.Now) })
 		return out, errors.Join(why, err)
+	}
+	if !t.Code() {
+		return byResult(c, &t, step, back)
 	}
 
 	checked, err := k.Integrator.Prepare(c.Root, seen, t.ID)
@@ -315,7 +330,7 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 		}
 		out.Tail = result.Tail
 	}
-	if project, err := contract.ReadProjectFile(c.Root); err == nil && result.OK && project.Land.Mode == contract.LandPR {
+	if result.OK && pr {
 		return request(c, &t, seen, checked, out, back)
 	}
 	if result.OK {
@@ -346,6 +361,59 @@ func acceptOne(c *contract.Call, task string, byHand bool) (out accepted, err er
 	}
 	out.say(c)
 	return out, nil
+}
+
+// byResult accepts a task that changes no code: there is nothing to check
+// or collect, and its result file is the work. A review's file begins with
+// its verdict; one without is not accepted, and can be sent back.
+func byResult(c *contract.Call, t *contract.Task, step func(func(*contract.State) error) error, back func(error) (accepted, error)) (accepted, error) {
+	out := accepted{Task: t.ID, How: contract.AcceptResult}
+	file := filepath.Join(contract.AttemptDir(c.Kit.Store.Dir(c.Root, c.Run), t.Attempts[len(t.Attempts)-1]), "result.md")
+	data, err := os.ReadFile(file)
+	how := contract.Accepted{How: out.How}
+	switch {
+	case err != nil || strings.TrimSpace(string(data)) == "":
+		return back(refuse(contract.ExitRefused, "no_result", t.ID+" has written no result file: "+file, "whaleshark reject "+t.ID+` "<why>"`))
+	case t.Kind == contract.WorkReview:
+		if how.Verdict, how.Fix = verdict(string(data)); how.Verdict == "" {
+			return back(refuse(contract.ExitRefused, "no_verdict", t.ID+"'s result file gives no verdict: a line verdict: safe, or verdict: fix-first with a list.", "whaleshark reject "+t.ID+` "<why>"`))
+		}
+	}
+	err = step(func(s *contract.State) (err error) {
+		out.Ready, err = c.Kit.Rules.Checked(s, t.ID, contract.CheckResult{OK: true, At: c.Now}, how, c.Now)
+		return err
+	})
+	if err != nil {
+		return out, err
+	}
+	mirror(c, t)
+	fmt.Fprintf(c.Out, "%s is done, by its result file.\n", t.ID)
+	if said := map[string]string{contract.VerdictSafe: " is safe.", contract.VerdictFixFirst: " is to be fixed first:\n- " + strings.ReplaceAll(how.Fix, "\n", "\n- ")}[how.Verdict]; said != "" {
+		fmt.Fprintf(c.Out, "Its verdict: %s%s\n", t.Reviews, said)
+	}
+	out.say(c)
+	return out, nil
+}
+
+// verdict reads a review's verdict: the first line "verdict: safe" or
+// "verdict: fix-first", and under fix-first each "- " line after it, one
+// line each.
+func verdict(text string) (word, list string) {
+	var fix []string
+	for line := range strings.Lines(text) {
+		line = strings.TrimSpace(cli.Plain(line))
+		if v, ok := strings.CutPrefix(strings.ToLower(line), "verdict:"); ok && word == "" {
+			if word = strings.Trim(strings.TrimSpace(v), "`*."); word != contract.VerdictSafe && word != contract.VerdictFixFirst {
+				return "", ""
+			}
+		} else if item, ok := strings.CutPrefix(line, "- "); ok && word == contract.VerdictFixFirst && strings.TrimSpace(item) != "" {
+			fix = append(fix, strings.TrimSpace(item))
+		}
+	}
+	if word == contract.VerdictFixFirst && len(fix) == 0 {
+		return "", "" // fix-first says what to fix
+	}
+	return word, strings.Join(fix, "\n")
 }
 
 // mirror copies a task's files into its notes folder again and marks it

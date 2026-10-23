@@ -23,8 +23,10 @@ Change, Constraints, Ownership, Acceptance; optional `Time box` (minutes) and `R
     whaleshark task add T3 "url parser" --brief b/T3.md --owns 'src/url/**' --check 'make test-url'
 - The name is the tab's label and the card the person sees: three words at most, 24 characters,
   and you choose it. A longer title needs `--name "<up to three words>"`.
-- `--check` is required: the command that proves the work. Write `--check none` only when no
-  command can prove it, never to save effort.
+- `--check` is required for code: the command that proves the work; `--check none` only when no
+  command can prove it, never to save effort. `--kind readonly`, `--kind review --reviews T3` or
+  `--kind watch --limit 2h` changes no code: no check, copy or ports; `accept` it once it reports.
+  T3 waits for its review's `safe`. A watch is not stuck inside its limit.
 - `--after T1,T2` makes a task wait for others. `--owns` says which files it may change.
 - `--browser-check` marks work that must be seen in a browser. Its worker saves screenshots, and
   `show` lists them: read each against the brief before `accept`, which is refused without one.
@@ -53,6 +55,7 @@ A batch you do not acknowledge is handed out again. Do what your plan still asks
   Then `whaleshark close T3`: the tab goes, and a done task's copy of the code with it (its
   branch stays). Only now tell the person that it is done.
 - `check_failed`: read the log in `whaleshark show T3`, then `reject` with the reason.
+- `fix_first`: T3's review lists what to fix first: `reject T3` with it, then review it again.
 - `question`: a worker is blocked on you. If you know: `whaleshark answer q7 "<the answer>"`.
   If only the person can say: `whaleshark escalate q7`, and do not ask it again in this chat.
 - `answered`: the person has answered an item. Act on it.

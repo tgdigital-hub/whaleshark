@@ -663,9 +663,9 @@ func (l *launcher) bring(task string) outcome {
 	if !group {
 		// With fetch_base the base is fetched before each start. In
 		// pr-per-task mode a task is cut from the base itself, as fetched,
-		// and never from the run's collected work.
+		// and never from the run's collected work; so is a detached copy.
 		view, far := s, k.Integrator.Fetch(c.Root, s)
-		if b := s.Run.Base; l.project.Land.Mode == contract.LandPR && b != nil && b.Ref != "" {
+		if b := s.Run.Base; (l.project.Land.Mode == contract.LandPR || t.Placement == contract.PlaceDetached) && b != nil && b.Ref != "" {
 			v := *s
 			v.Run.Integration, v.Run.Base = nil, &contract.GitRef{Ref: cmp.Or(far, b.Ref)}
 			view = &v
@@ -696,11 +696,12 @@ func (l *launcher) bring(task string) outcome {
 	if tree != nil && tree.Setup == contract.SetupFailed {
 		return undo(refuse(contract.ExitFailed, "setup_failed", "The setup of the copy of the code for %s failed. Its log: %s", task, tree.Path+".setup.log"))
 	}
-	if tree != nil && !had && l.first {
+	if tree != nil && !had && l.first && t.Code() {
 		l.left.Do(l.lacks)
 	}
 	// The task's ports are its own whether or not it has a copy of the code.
-	if !group {
+	// A task that changes no code runs nothing that listens, and has none.
+	if !group && t.Code() {
 		slot, err = contract.TakeSlot(k.Platform, l.block, c.Root, c.Run, task, l.project.Worktrees.PortBlock)
 	}
 	if errors.Is(err, contract.ErrNoSlot) {
@@ -874,13 +875,14 @@ func (l *launcher) bring(task string) outcome {
 		browser = guide.OnWindows(browser, k.Platform.Quote, env, os.Getenv)
 	}
 	pr := ""
-	if l.project.Land.Mode == contract.LandPR && tree != nil {
+	if l.project.Land.Mode == contract.LandPR && tree != nil && t.Code() {
 		pr = filepath.Join(dir, contract.PRBody)
 	}
 	text := guide.Prompt{Bin: k.Platform.Quote("", []string{l.self}), Run: c.Run, Task: task, Name: t.Name, Dir: folder,
 		Brief: filepath.Join(run, t.Brief), Result: filepath.Join(dir, "result.md"), Owns: t.Owns,
 		Shared: tree == nil, Decisions: t.Decisions, Sync: strings.TrimSpace(string(sync)), Browser: browser,
-		Fleet: t.Fleet, Person: l.person, Tools: l.tools, PR: pr, Return: t.Return, Mirror: mirror}.Text() + earlier(prev)
+		Fleet: t.Fleet, Person: l.person, Tools: l.tools, PR: pr, Return: t.Return, Mirror: mirror,
+		Kind: t.Kind, Copy: tree != nil, Limit: t.LimitMinutes, Review: reviewed(s, t)}.Text() + earlier(prev)
 	if err = os.WriteFile(prompt, []byte(text), 0o600); err == nil {
 		err = l.step("", placed) // nothing is typed once the attempt was stopped or the person pressed Stop all
 	}
@@ -895,6 +897,23 @@ func (l *launcher) bring(task string) outcome {
 	}
 	r.State = working
 	return r
+}
+
+// reviewed is what a review is of: the task, its branch against its base,
+// and its pull request once it has one.
+func reviewed(s *contract.State, t *contract.Task) *guide.Reviewed {
+	r := s.Tasks[t.Reviews]
+	if r == nil {
+		return nil
+	}
+	out := &guide.Reviewed{Task: r.ID, Name: r.Name}
+	if w := r.Worktree; w != nil {
+		out.Branch, out.Base = w.Branch, w.BaseRef
+	}
+	if r.PR != nil {
+		out.PR = r.PR.URL
+	}
+	return out
 }
 
 // newWork is the message a leader that sits is handed a group with. The

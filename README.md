@@ -287,6 +287,10 @@ Once a day, when you open the window, WhaleShark asks GitHub for the number of t
 
 `whaleshark task add ... --browser-check` marks work that must be seen in a browser. WhaleShark starts no browser: the worker uses its own, saves screenshots, and neither its report nor `accept` passes without one. [docs/browser-check.md](docs/browser-check.md).
 
+## Tasks that change no code
+
+`whaleshark task add R1 "…" --kind readonly` is an investigation: it needs no `--check`, gets no copy of the code, no setup and no ports, and its worker starts in the project's folder (or `--cwd DIR`), told to change nothing. `--worktree detached` gives it a copy of the base of its own instead, with no branch and no setup script. `--kind review --reviews T3` reads T3's branch, or its pull request, and begins its result with `verdict: safe` or `verdict: fix-first` and a list; T3 is not accepted, nor merged in pr-per-task mode, until a review says safe, and a fix-first is told to the lead agent. `--kind watch --limit 2h` is long and mostly idle, a deploy or a wait on another team: inside its limit it is never taken for stuck. Each is done when its result file is there and its worker reported: `whaleshark accept R1`. The fleet pane, `status` and the left section show them as investigating, reviewing and watching.
+
 ## What an agent can do, and what is protected
 
 Read [docs/protection.md](docs/protection.md) before you give agents anything that matters. In one sentence: **an agent runs as you, and inside one login there is no wall**; the tool's rules stop mistakes, not intent, and the walls that hold are what you give the login and what your git host refuses.

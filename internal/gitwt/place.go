@@ -30,7 +30,10 @@ func (t *trees) Place(root string, s *contract.State, task string) (dir string, 
 	if dir, ok := strings.CutPrefix(tk.Placement, contract.PlaceCwd); ok {
 		return dir, nil, nil
 	}
-	if tk.Placement != contract.PlaceWorktree {
+	// A detached copy is of the base as it stands, with no branch, nothing
+	// carried and no setup: a task that changes no code only reads it.
+	detached := tk.Placement == contract.PlaceDetached
+	if tk.Placement != contract.PlaceWorktree && !detached {
 		return root, nil, nil
 	}
 	// A project without git has one folder. within is where the project
@@ -51,6 +54,8 @@ func (t *trees) Place(root string, s *contract.State, task string) (dir string, 
 	copies, links, err := t.carried(root, p)
 	if err != nil {
 		return "", nil, err
+	} else if detached {
+		copies, links = nil, nil
 	}
 	holder, err := t.holder(root, p)
 	if err != nil {
@@ -62,10 +67,10 @@ func (t *trees) Place(root string, s *contract.State, task string) (dir string, 
 	}
 	w = &fresh
 	w.Path, w.CreatedAt, w.RemovedAt = filepath.Join(holder, s.Run.ID+"-"+tk.ID), contract.Now(), time.Time{}
-	if w.Branch == "" {
+	if w.Branch == "" && !detached {
 		w.Branch = p.Worktrees.BranchPrefix + strings.Trim(s.Run.ID+"-"+tk.ID+"-"+slug(tk.Name), "-")
 	}
-	if _, err := git(root, "check-ref-format", "--branch", w.Branch); err != nil {
+	if _, err := git(root, "check-ref-format", "--branch", w.Branch); err != nil && !detached {
 		return "", nil, refuse("bad_branch", "%q cannot be a branch's name: see branch_prefix in whaleshark.toml.", w.Branch)
 	}
 	if open, _ := t.open(root); slices.Contains(open, w.Path) { // an interrupted removal of an earlier one
@@ -95,7 +100,15 @@ func (t *trees) Place(root string, s *contract.State, task string) (dir string, 
 		}
 	}(w.Path, w.Branch)
 	err = t.alone(root, func() (err error) {
-		if _, gone := os.Stat(filepath.Join(w.Path, ".git")); gone != nil {
+		if _, gone := os.Stat(filepath.Join(w.Path, ".git")); gone != nil && detached {
+			git(root, "worktree", "prune")
+			if w.BaseRef, w.BaseOID, err = base(root, s); err == nil {
+				_, err = git(root, "worktree", "add", "--detach", "--", w.Path, w.BaseOID)
+			}
+			if made = err == nil; err != nil {
+				return err
+			}
+		} else if gone != nil {
 			if cut, err = add(root, s, w); err != nil {
 				return err
 			}
@@ -110,7 +123,10 @@ func (t *trees) Place(root string, s *contract.State, task string) (dir string, 
 	if err != nil {
 		return "", nil, err
 	}
-	dir = filepath.Join(w.Path, within)
+	if dir = filepath.Join(w.Path, within); detached {
+		w.Setup = setupNone
+		return dir, w, nil
+	}
 	if err = t.carry(root, dir, copies, links); err != nil {
 		return "", nil, err
 	}

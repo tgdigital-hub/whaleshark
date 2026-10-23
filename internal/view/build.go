@@ -248,6 +248,9 @@ func (b *builder) seat(t *contract.Task) *seat {
 			}
 		}
 	}
+	if w := contract.WorkWords[t.Kind]; w != "" && c.Word == "" && (c.Look == contract.LookBuilding || c.Look == contract.LookIdle) {
+		c.Word = w
+	}
 	// Going nowhere: the signs are the card's news, counted from when it last
 	// had something to show. Its look, its mark and its place stay.
 	if since := a.Seen.StuckSince; b.in.Person.Stuck.Watch && !since.IsZero() && (c.Look == contract.LookBuilding || c.Look == contract.LookIdle) {
@@ -701,13 +704,17 @@ func unasked(arg string) bool {
 	return strings.Contains(arg, "skip-permissions") || strings.Contains(arg, "bypass") || strings.Contains(arg, "yolo")
 }
 
-// unmet lists the tasks a task still waits for.
+// unmet lists the tasks a task still waits for: a review waits for its
+// task's report.
 func unmet(s *contract.State, t *contract.Task) []string {
 	var out []string
 	for _, id := range t.After {
 		if d := s.Tasks[id]; d != nil && d.Status != contract.TaskDone {
 			out = append(out, id)
 		}
+	}
+	if d := s.Tasks[t.Reviews]; d != nil && d.Status != contract.TaskReview && d.Status != contract.TaskDone {
+		out = append(out, d.ID)
 	}
 	return out
 }

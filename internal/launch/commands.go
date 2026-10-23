@@ -444,7 +444,11 @@ func closeTabs(c *contract.Call) (any, error) {
 			continue
 		}
 		removed[t.ID] = w
-		fmt.Fprintf(c.Out, "removed: the copy of the code of %s; its branch %s stays\n", t.ID, w.Branch)
+		if w.Branch == "" { // a detached copy has none
+			fmt.Fprintf(c.Out, "removed: the copy of the code of %s\n", t.ID)
+		} else {
+			fmt.Fprintf(c.Out, "removed: the copy of the code of %s; its branch %s stays\n", t.ID, w.Branch)
+		}
 	}
 	if len(items)+len(removed) > 0 {
 		err = change(c, func(s *contract.State) error {

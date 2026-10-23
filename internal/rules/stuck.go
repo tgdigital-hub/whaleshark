@@ -35,6 +35,11 @@ func signs(t *contract.Task, a *contract.Attempt, exact bool, limits contract.Pr
 	return strings.Join(names, ","), stuck || len(names) >= contract.StuckSoft
 }
 
+// boxed says whether t is a watch inside its time box.
+func boxed(t *contract.Task, a *contract.Attempt, now time.Time) bool {
+	return t.Kind == contract.WorkWatch && now.Sub(a.StartedAt) < time.Duration(t.LimitMinutes)*time.Minute
+}
+
 func stuckText(who string, a *contract.Attempt, now time.Time) string {
 	return fmt.Sprintf("%s looks stuck for %dm: %s.", who, int(now.Sub(a.Seen.StuckSince).Minutes()), contract.StuckWhy(a.Seen.StuckWhy))
 }
@@ -58,6 +63,7 @@ func (r Rules) Going(s *contract.State, id string, exact bool, ctx contract.CtxF
 	case a.State != contract.AttemptWorking:
 	case h.Status == contract.StatusBlocked || !h.GoneSince.IsZero():
 		return changed, false
+	case boxed(t, a, now): // a watch is long and mostly idle by its nature
 	default:
 		why, stuck = signs(t, a, exact, limits, now)
 	}

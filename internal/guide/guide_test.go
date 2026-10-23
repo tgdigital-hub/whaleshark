@@ -244,15 +244,15 @@ func TestHumanOnlyForbidden(t *testing.T) {
 // The guide is read whole at every start: it stays short. 90 lines held
 // phase 1; own copies, overlap and the events of phase 2 took it to 145;
 // what a real lead must do before it tells the person, and every event
-// named, to 163.
-func TestLeadGuideUnder165Lines(t *testing.T) {
-	if n := strings.Count(Lead, "\n"); n >= 165 {
+// named, to 163; the tasks that change no code, to 167.
+func TestLeadGuideUnder170Lines(t *testing.T) {
+	if n := strings.Count(Lead, "\n"); n >= 170 {
 		t.Errorf("the lead guide has %d lines", n)
 	}
 	for _, kind := range []string{"done", "failed", "question", "exited", "start_failed", "blocked",
 		"quiet", "check_failed", "blocked_on", "human", "answered", "paused", "resumed", "overlap", "scope",
 		"stale", "overtime", "together", "untrusted", "still_running", "land_failed", "rejected", "upgraded",
-		"protected", "budget", "base_moved", "setup_failed", "stuck", "merged", "ci_failed"} {
+		"protected", "budget", "base_moved", "setup_failed", "stuck", "merged", "ci_failed", "fix_first"} {
 		if !slices.Contains(contract.EventKinds, kind) {
 			t.Errorf("%s is not an event kind", kind)
 		}

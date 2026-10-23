@@ -3,7 +3,11 @@
 // action tables. Only a contract package edits it.
 package contract
 
-import "time"
+import (
+	"maps"
+	"slices"
+	"time"
+)
 
 // StateVersion is raised by every change to the shape of state.json. 2 is
 // phase 5: a run's mode, parent and fleets, a task's fleet, an attempt's
@@ -179,7 +183,10 @@ type Task struct {
 	Agent        string     `json:"agent,omitempty"`
 	Model        string     `json:"model,omitempty"`
 	Effort       string     `json:"effort,omitempty"`
-	Args         []string   `json:"args,omitempty"` // after the project's
+	Args         []string   `json:"args,omitempty"`          // after the project's
+	Kind         string     `json:"kind,omitempty"`          // WorkCode where empty
+	Reviews      string     `json:"reviews,omitempty"`       // a review\'s task
+	LimitMinutes int        `json:"limit_minutes,omitempty"` // a watch\'s time box
 	Status       TaskStatus `json:"status"`
 	Failures     int        `json:"failures"`
 	Attempts     []string   `json:"attempts,omitempty"`
@@ -214,8 +221,52 @@ const (
 	PlaceShared   = "shared"
 	PlaceCwd      = "cwd:"
 	PlaceFleet    = "fleet"
+	PlaceDetached = "detached" // a copy of the base with no branch and no setup
 	CheckNone     = "none"
 )
+
+// The kinds of task. Only code changes files; the others are done when the
+// result file is there and the worker reported done.
+const (
+	WorkCode     = "code"
+	WorkReadonly = "readonly"
+	WorkReview   = "review"
+	WorkWatch    = "watch"
+)
+
+// WorkKinds are the kinds task add takes.
+const WorkKinds = "code|readonly|review|watch"
+
+// Code says whether the task changes code: it has a check, a branch and ports.
+func (t *Task) Code() bool { return t.Kind == "" || t.Kind == WorkCode }
+
+// The verdicts a review gives, in its result file as "verdict: safe" or
+// "verdict: fix-first" with a list of "- " lines below.
+const (
+	VerdictSafe     = "safe"
+	VerdictFixFirst = "fix-first"
+)
+
+// ReviewHold names the review that holds task id back from being accepted or
+// merged: one not yet done, or the last one done, when it said fix-first. A
+// cancelled review holds nothing.
+func ReviewHold(s *State, id string) string {
+	held, last := "", time.Time{}
+	for _, rid := range slices.Sorted(maps.Keys(s.Tasks)) {
+		r := s.Tasks[rid]
+		switch {
+		case r.Kind != WorkReview || r.Reviews != id || r.Status == TaskCancelled:
+		case r.Status != TaskDone:
+			return r.ID
+		case !r.SettledAt.Before(last): // the last done, the later id where two are at one time
+			held, last = "", r.SettledAt
+			if r.Accepted == nil || r.Accepted.Verdict != VerdictSafe {
+				held = r.ID
+			}
+		}
+	}
+	return held
+}
 
 // PullRequest is a task's own pull request. State is PRWatching while its
 // checks are watched, PRFailed after ci_failed until the task is accepted
@@ -246,6 +297,7 @@ type Decision struct {
 const (
 	AcceptCheck  = "check"
 	AcceptByHand = "by-hand"
+	AcceptResult = "result" // a task that changes no code: its result file
 	ReportDone   = "done"
 	ReportFailed = "failed"
 )
@@ -254,12 +306,15 @@ const (
 // task may have it as its id or its name.
 const Lead = "lead"
 
-// Accepted says how a task became done: How is AcceptCheck or AcceptByHand.
+// Accepted says how a task became done: How is AcceptCheck, AcceptByHand
+// or AcceptResult. A review's verdict and its list come with it.
 type Accepted struct {
-	How    string    `json:"how"`
-	Note   string    `json:"note,omitempty"`
-	Commit string    `json:"commit,omitempty"`
-	At     time.Time `json:"at"`
+	How     string    `json:"how"`
+	Note    string    `json:"note,omitempty"`
+	Commit  string    `json:"commit,omitempty"`
+	Verdict string    `json:"verdict,omitempty"`
+	Fix     string    `json:"fix,omitempty"` // one line a fix
+	At      time.Time `json:"at"`
 }
 
 type AttemptState string
@@ -478,6 +533,7 @@ var EventKinds = []string{
 	"base_moved", "setup_failed", "land_failed", "rejected", "human",
 	"answered", "paused", "resumed", "still_running", "upgraded", "together",
 	"untrusted", "protected", "budget", "merged", "ci_failed",
+	"fix_first",
 }
 
 // Question kinds, forms, addressees and states.

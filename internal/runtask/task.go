@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -334,6 +335,7 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 	t.Effort, t.Args = last(c, "effort"), strings.Fields(last(c, "args"))
 	t.MaxMinutes, t.Return, _ = extras(data)
 	err := cmp.Or(cli.Valid("id", id, ""), cli.Valid("title", title, ""), granted(c.Root, t.Args))
+	kind := kinded(c, &t)
 	switch {
 	case err != nil:
 		return nil, usage(c, "%v.", err)
@@ -341,11 +343,17 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		return nil, usage(c, "--effort is one of low, medium, high and max.")
 	case data == nil:
 		return nil, usage(c, "A task needs its brief: --brief FILE.")
-	case f["check"] == nil:
+	case kind != nil:
+		return nil, kind
+	case f["check"] == nil && t.Code():
 		return nil, usage(c, "A task needs a check: --check with a command, or the word none.")
 	case joinSaved(c, &t):
-	case len(f["shared"])+len(f["cwd"])+len(f["fleet"]) > 1:
-		return nil, usage(c, "Only one of --shared, --cwd and --fleet can be given.")
+	case len(f["shared"])+len(f["cwd"])+len(f["fleet"])+len(f["worktree"]) > 1:
+		return nil, usage(c, "Only one of --shared, --cwd, --fleet and --worktree can be given.")
+	case f["worktree"] != nil:
+		t.Placement = contract.PlaceDetached
+	case !t.Code() && f["cwd"] == nil:
+		t.Placement = contract.PlaceShared // the project's own folder, read only
 	case f["cwd"] != nil:
 		t.Placement = contract.PlaceCwd + last(c, "cwd")
 	case f["shared"] != nil:
@@ -408,6 +416,37 @@ func taskAdd(c *contract.Call, id, title string, data []byte) (any, error) {
 		fmt.Fprintf(c.Out, "%s may change files that other fleets of this job may change too: %s. No fleet owns folders: expect an overlap, and a sync from the orchestrator.\n", t.ID, strings.Join(across, ", "))
 	}
 	return out, nil
+}
+
+// kinded checks a task's kind and what comes with it, and fills them in. A
+// task that changes no code has no check, owns no files and is no group.
+func kinded(c *contract.Call, t *contract.Task) error {
+	f := c.Flags
+	t.Kind, t.Reviews = last(c, "kind"), last(c, "reviews")
+	if t.Kind == contract.WorkCode {
+		t.Kind = ""
+	}
+	limit, err := time.ParseDuration(last(c, "limit"))
+	switch {
+	case t.Kind != "" && !slices.Contains(strings.Split(contract.WorkKinds, "|"), t.Kind):
+		return usage(c, "--kind is one of code, readonly, review and watch.")
+	case (t.Kind == contract.WorkReview) != (t.Reviews != ""):
+		return usage(c, "A review names the task it is of, and only a review does: --kind review --reviews T3.")
+	case (t.Kind == contract.WorkWatch) != (f["limit"] != nil):
+		return usage(c, "A watch has a time box, and only a watch: --kind watch --limit 2h.")
+	case f["limit"] != nil && (err != nil || limit < time.Minute):
+		return usage(c, "--limit is a time of a minute or more, as 2h or 90m.")
+	case f["worktree"] != nil && last(c, "worktree") != contract.PlaceDetached:
+		return usage(c, "--worktree takes the word detached.")
+	case t.Code() && f["worktree"] != nil:
+		return usage(c, "A task that changes code has its own copy already: --worktree detached is for readonly, review and watch.")
+	case t.Code():
+		return nil
+	case f["check"] != nil && last(c, "check") != contract.CheckNone, len(t.Owns) > 0, t.Fleet != "":
+		return usage(c, "A %s task changes no code: it has no check, owns no files and is no fleet's group.", t.Kind)
+	}
+	t.Check, t.LimitMinutes = contract.CheckNone, int(limit/time.Minute)
+	return nil
 }
 
 // abroad is meeting across fleets (20.10), for a task a leader adds: each as

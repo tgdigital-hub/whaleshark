@@ -210,6 +210,7 @@ func (Rules) Report(s *contract.State, id, tokenHash, outcome, summary string, e
 		closeAsks(s, a, now)
 		t.Status = contract.TaskReview
 		s.Run.Scan.Due = s.Run.Scan.Due || t.Worktree != nil || t.Fleet != ""
+		promote(s) // a review of it is ready now
 	}
 	raise(s, outcome, t, a, summary, nil, now)
 	return false, nil, nil
@@ -248,16 +249,18 @@ func (r Rules) Checked(s *contract.State, task string, result contract.CheckResu
 	if err != nil {
 		return nil, err
 	}
-	byHand := how.How == howByHand
+	byHand, byResult := how.How == howByHand, how.How == contract.AcceptResult
 	switch {
 	case a == nil || a.State != contract.AttemptChecking:
 		return nil, next(refused("not_checking", "%s is not being checked.", t.ID), "whaleshark accept "+t.ID)
-	case how.How != howCheck && !byHand:
-		return nil, refuse(contract.ExitUsage, "bad_how", "Work is accepted by its check or by hand.")
-	case byHand != (t.Check == contract.CheckNone):
+	case how.How != howCheck && !byHand && !byResult:
+		return nil, refuse(contract.ExitUsage, "bad_how", "Work is accepted by its check, by hand or by its result file.")
+	case byResult == t.Code():
+		return nil, refused("by_result", "Only a task that changes no code is accepted by its result file, and such a task only so.")
+	case !byResult && byHand != (t.Check == contract.CheckNone):
 		return nil, refused("by_hand", "Only a task whose check is none is accepted by hand, and such a task only so.")
 	}
-	if !byHand {
+	if !byHand && !byResult {
 		if result.At.IsZero() {
 			result.At = now
 		}
@@ -273,6 +276,11 @@ func (r Rules) Checked(s *contract.State, task string, result contract.CheckResu
 	end(s, a, contract.AttemptAccepted, contract.ExitReported, now)
 	how.At = now
 	t.Status, t.Accepted, t.SettledAt, t.SyncBrief, t.CheckFails = contract.TaskDone, &how, now, "", 0
+	if how.Verdict == contract.VerdictFixFirst {
+		fix := strings.Split(how.Fix, "\n")
+		raise(s, "fix_first", t, a, fmt.Sprintf("%s says %s must be fixed first: %s", t.ID, t.Reviews, strings.Join(fix, "; ")),
+			map[string]any{"reviews": t.Reviews, "fix": fix}, now)
+	}
 	if in := s.Run.Integration; in != nil && how.Commit != "" {
 		in.Tip, s.Run.Scan.Due = how.Commit, true
 	}

@@ -39,6 +39,9 @@ func (r Rules) AddTask(s *contract.State, t contract.Task, taken []string, now t
 	if err := known(s, t.After); err != nil {
 		return err
 	}
+	if r := s.Tasks[t.Reviews]; t.Kind == contract.WorkReview && (r == nil || !r.Code() || !r.SettledAt.IsZero()) {
+		return refuse(contract.ExitMissing, "no_such_task", "A review is of a task of this run that changes code and is not settled: %q is none.", t.Reviews)
+	}
 	t.Status, t.Failures, t.Attempts, t.Accepted = contract.TaskPending, 0, nil, nil
 	t.CreatedAt, t.SettledAt = now, time.Time{}
 	s.Tasks[t.ID] = &t
@@ -84,11 +87,16 @@ func known(s *contract.State, ids []string) error {
 	return nil
 }
 
+// unmet names what t still waits for: the tasks it comes after, and the
+// task a review is of until that one has reported.
 func unmet(s *contract.State, t *contract.Task) (ids []string) {
 	for _, id := range t.After {
 		if s.Tasks[id].Status != contract.TaskDone {
 			ids = append(ids, id)
 		}
+	}
+	if r := s.Tasks[t.Reviews]; r != nil && r.Status != contract.TaskReview && r.Status != contract.TaskDone {
+		ids = append(ids, r.ID)
 	}
 	return ids
 }
