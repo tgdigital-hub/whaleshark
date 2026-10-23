@@ -139,7 +139,7 @@ that reaches no agent until the engine is started again (`whaleshark engine stop
 - **Crush**: its README adds a provider in its settings file (`~/.config/crush/crushrc`) with
   `provider add ollama --type ollama --base-url "http://localhost:11434/v1/"`. Types `lmstudio`,
   `llamacpp` and `openai-compat` (with `--base-url` and `--api-key`) exist too.
-- **Aider**: `OLLAMA_API_BASE=http://127.0.0.1:11434` and `--model ollama_chat/<model>`. For any
+- **Aider**: `OLLAMA_API_BASE=http://localhost:11434` and `--model ollama_chat/<model>`. For any
   OpenAI-compatible server: `OPENAI_API_BASE` and `OPENAI_API_KEY` with `--model openai/<model>`.
 - **Grok Build**: a `[model.<id>]` table in `~/.grok/config.toml` with `model` and
   `base_url = "http://localhost:11434/v1"`.
@@ -161,8 +161,8 @@ Either way, the tool on your machine talks to the server on the other one:
 
   The other machine's Ollama is then `http://localhost:11434` here, and every setting above stays
   as written. For LM Studio, vLLM or llama-server, forward their port the same way.
-- **Over the network.** Ollama listens on `127.0.0.1` only, unless `OLLAMA_HOST=0.0.0.0:11434` is
-  set where it runs. Then use `http://gpu-box:11434/v1` in the settings above. Ollama's port has no
+- **Over the network.** Ollama listens on this machine only, unless `OLLAMA_HOST` is set to every
+  address where it runs (Ollama's FAQ shows how). Then use `http://gpu-box:11434/v1` in the settings above. Ollama's port has no
   password and no encryption: do this only on a network you trust.
 
 To have the agents themselves run on another machine, put WhaleShark there: see
@@ -202,7 +202,7 @@ question = ["…", "…"]                 # all of these together mean a questio
 trust = "…"                           # its question about a new folder
 
 [env]                                 # variables it is started with
-OLLAMA_API_BASE = "http://127.0.0.1:11434"
+OLLAMA_API_BASE = "http://localhost:11434"
 ```
 
 Leave a screen word out rather than guess one: a wrong word makes WhaleShark believe the agent is
@@ -222,7 +222,7 @@ hooks = "none"
 suits = "small edits you watch; it asks before every command"
 
 [env]
-OLLAMA_API_BASE = "http://127.0.0.1:11434"
+OLLAMA_API_BASE = "http://localhost:11434"
 ```
 
 **Grok Build**, `tools/grok.toml`. Its rules are files in the folder `~/.grok/rules/`, which
@@ -280,8 +280,8 @@ Read on 22 October 2026. Where a page did not say, the table says "none" or the 
 - Gemini CLI: https://github.com/google-gemini/gemini-cli, https://www.geminicli.com/docs/cli/cli-reference,
   https://www.geminicli.com/docs/cli/gemini-md, https://www.geminicli.com/docs/cli/session-management,
   https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli
-- Qwen Code: https://github.com/QwenLM/qwen-code, https://qwenlm.github.io/qwen-code-docs/en/users/configuration/settings/,
-  https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/
+- Qwen Code: https://github.com/QwenLM/qwen-code, https://qwenlm.github.io/qwen-code-docs/ (Configuration:
+  Settings, and Authentication)
 - OpenCode: https://opencode.ai/docs/cli/, https://opencode.ai/docs/rules/, https://opencode.ai/docs/providers/,
   https://opencode.ai/docs/permissions/
 - Cursor CLI: https://cursor.com/docs/cli/overview, https://cursor.com/docs/cli/reference/parameters,
