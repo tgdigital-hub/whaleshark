@@ -136,6 +136,21 @@ The whole of A is done once with `install.sh` and once, on a second fresh machin
 | 40 | `sudo whaleshark server phone --user robin --off`; the phone opens the name | the name answers nothing of ours |
 | 41 | `sudo whaleshark doctor --server`, both logins | clean with the phone's road set up |
 
-### E. Write down
+### E. One login of your own, no root
+
+On a machine somebody else set up, as a login with no `sudo` ([server.md](../server.md#one-person-on-a-server-no-root)). Only stand-ins of `systemctl` and `loginctl` have answered so far.
+
+| # | Command | Must be seen |
+|---|---|---|
+| 42 | `whaleshark init --agent claude --at-login`, with lingering off | the unit in `~/.config/systemd/user`, `systemctl --user status whaleshark-keeper` active, and the line to ask the administrator for |
+| 43 | `whaleshark doctor` | "keeper runs as a user service: yes" and "keeper survives logout (linger): no" |
+| 44 | start a real agent, close every SSH session, wait ten minutes, log in again | the keeper ended at the logout, and was started at the login with the agent resumed in its conversation |
+| 45 | `loginctl enable-linger` as yourself, else the administrator as root; then 44 again | whether a login may switch it on itself; the agent still at work, the keeper never restarted |
+| 46 | `kill -9` of the keeper | started again within seconds, the tabs back, each agent resumed |
+| 47 | `whaleshark engine stop`, then `ssh -t <login>@<server> whaleshark open` | stopped and not started again until `open`; then one keeper, under the service (`systemctl --user status` shows its process) |
+| 48 | the administrator restarts the machine | the keeper running before any session, the agents resumed |
+| 49 | `whaleshark init --remove --all` | the unit gone, the running keeper still there |
+
+### F. Write down
 
 Each answer beside its step, and the sentence of the documentation it changes. A recorded real pass may hold a real address: whether it may be kept in the repository is decided before it is put there.

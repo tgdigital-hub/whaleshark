@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/platform"
 	"github.com/tgdigital-hub/whaleshark/internal/term"
 )
 
@@ -129,20 +130,24 @@ func connect(k *contract.Kit) (*link, error) {
 }
 
 // start runs `engine run` of this same program, apart from this terminal,
-// and dials until it listens.
+// and dials until it listens. Where the keeper is one of the login's
+// services they start it, so that it starts again when it fails.
 func start(k *contract.Kit, path string) (net.Conn, error) {
-	self, err := k.Platform.SelfPath()
-	if err != nil {
-		return nil, err
+	var gone chan error
+	if !platform.StartKeeper() {
+		self, err := k.Platform.SelfPath()
+		if err != nil {
+			return nil, err
+		}
+		// #nosec G204 -- this same program, by the path the system gives for it, with two words of ours
+		cmd := exec.Command(self, "engine", "run")
+		cmd.SysProcAttr = apart
+		if err = cmd.Start(); err != nil {
+			return nil, err
+		}
+		gone = make(chan error, 1)
+		go func() { gone <- cmd.Wait() }()
 	}
-	// #nosec G204 -- this same program, by the path the system gives for it, with two words of ours
-	cmd := exec.Command(self, "engine", "run")
-	cmd.SysProcAttr = apart
-	if err = cmd.Start(); err != nil {
-		return nil, err
-	}
-	gone := make(chan error, 1)
-	go func() { gone <- cmd.Wait() }()
 	for end := time.Now().Add(startWait); ; time.Sleep(startStep) {
 		if conn, err := net.Dial("unix", path); err == nil || time.Now().After(end) {
 			return conn, err

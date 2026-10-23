@@ -2,6 +2,34 @@
 
 **Nothing on this page has met a real server.** `server setup`, `server add` and `server upgrade` have run from nothing in containers of Debian 12 and Ubuntu 24.04, against the systems' real package sources. What a container cannot hold has only met stand-ins: the services, `server harden`, the firewall, and above all the walls between two logins. [platform/linux.md](platform/linux.md) says which is which, and holds the list for the first real servers. Read what each line does before you type it, and keep your provider's console within reach the first time.
 
+## One person on a server, no root
+
+For a Linux server where you are one plain login with no `sudo`, and somebody else runs the machine. Nothing here needs root; one line is for the server's administrator. It needs systemd, as Ubuntu and Debian have. **It has met stand-ins of `systemctl` and `loginctl` only, never a real server.**
+
+```
+# on the server, in an SSH session of your own
+curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh
+sh install.sh                       # the program in ~/.local/bin, for you alone; open a new session after it
+cd ~/my-app
+whaleshark init --agent claude --at-login
+whaleshark doctor
+whaleshark open
+```
+
+`--at-login` on Linux makes the keeper, which holds every tab and agent of yours, one of your own services: it writes `~/.config/systemd/user/whaleshark-keeper.service` and switches it on with `systemctl --user`. It starts the keeper unless one runs already; that one keeps your tabs, and after `whaleshark engine stop` the next `whaleshark open` starts the keeper as the service. From then on:
+
+- **A keeper that dies is started again** (`Restart=on-failure`): after a crash, a kill or the machine running out of memory. It brings the tabs back, with each Claude Code agent resumed in its own conversation and every other pane as a shell over its last lines. `whaleshark engine stop` leaves it stopped, on purpose: that is how an upgrade goes, and the next `whaleshark open` starts it again.
+- **Logging out ends nothing, and a restart of the machine starts the keeper again**, but only where the system *lingers* for you: keeps your services running while you have no session. `init` says whether it does. When it does not, the keeper stops when your last SSH session closes and starts when you log in again; many systems let you switch it on yourself with `loginctl enable-linger`, and where that is refused, ask the administrator to run, once, as root: `loginctl enable-linger <your login>`.
+- **`ssh -t me@staging whaleshark open` attaches to the keeper that runs**, from any computer, and closing the window or the SSH connection leaves every agent at work. Where no keeper runs, `open` has your services start it rather than starting a second one beside them.
+
+`whaleshark doctor` has two rows for it: "keeper runs as a user service" and "keeper survives logout (linger)", each yes or no with what to do. `whaleshark init --remove --all` switches the service off and takes its file out; a keeper that runs keeps running until `whaleshark engine stop`.
+
+If `systemctl --user` answers that it cannot connect, your session has no service manager of its own: a login reached by `su` or `sudo -u` has none. Log in by SSH as yourself.
+
+Everything else on this page is for a machine you set up yourself, with root.
+
+## A server of your own
+
 A server lets agents work while your laptop is shut. WhaleShark has no accounts of its own: each person is a login of the operating system, and everything that must be kept apart (files, terminals, agents, sign-ins, the page) is kept apart by that.
 
 | Login | For | `sudo` | Runs agents |

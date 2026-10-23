@@ -118,7 +118,7 @@ lines 6900 contract internal/contract cmd/whaleshark
 # 10 more for the long list of projects: the watcher keeps its files by
 # folder, so that a folder's look reads its own and not thousands. It
 # stands at 1,326. keeper, at 2,293 of its 2,510, pays.
-lines 1330 platform internal/platform
+lines 1370 platform internal/platform
 # cli: 40 more at the start of phase 2. Recording what the person does left
 # it four lines short of full, with three phases still to pass through it.
 # 30 more at the start of phase 3: the program typed alone sets a project up
@@ -224,7 +224,7 @@ lines 430 guide internal/guide
 # 40 more when the first part of phase 7 was put together: the new name was
 # built at 61 lines where 30 were counted, and the folder stood at its line
 # exactly (1,840) with the phase's second part still to come.
-lines 1880 runtask internal/runtask
+lines 1910 runtask internal/runtask
 # launch: 100 more at the start of phase 2, for a worktree at every start and
 # for the further kinds of agent; it stood at 999 with both still to come.
 # 40 more at the start of phase 3: the server's cap and block, the browser's
@@ -423,7 +423,7 @@ lines 920 overlap internal/overlap
 # (1,878).
 # 10 more for something asked for after that: the machine's memory read in one
 # place, for doctor's row and for the kit's figure.
-lines 1890 doctor internal/doctor
+lines 1945 doctor internal/doctor
 # 20 more for phase 7: the right button read where it was dropped. Counted at
 # twice its plan, as every part of this kind has come out.
 lines 1320 term internal/term
@@ -658,7 +658,7 @@ lines 610 restore internal/restore
 # platform, and 5 to watch: built whole at 271.
 # 10 more at the start of phase 7, at what was built (288): the window says in
 # which folder it was typed and which project that is.
-lines 290 window internal/window
+lines 295 window internal/window
 # 25 more at the start of phase 7, at what was built (290): the four new
 # calls, the placed overlay, and a tab's project and fleet.
 lines 295 engine internal/engine
@@ -761,7 +761,10 @@ skip _test.go testdata testkit
 # 47,500 by the owner's word that features may grow the tree a little: the
 # one-line installers, eight more agent tools, the grouped Actions list, the
 # lit rows of the left section and the fleet board with no job open.
-total 47500
+# 48,300 for the server round, by the same word: a keeper that runs as the
+# login's own service, one pull request per task, per-task launch settings,
+# and the guides and docs that go with them.
+total 48300
 
 # The whole module list, not only the direct ones.
 modules 4

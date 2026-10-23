@@ -382,14 +382,18 @@ func (i *setting) keys(person, reachable bool) error {
 
 // logOn has Windows start the keeper when the person logs on, or with on
 // false no longer: the one line restore.Service gives, in the login's own
-// list of what starts at log-on. Elsewhere it says who starts the keeper.
+// list of what starts at log-on. On Linux it makes the keeper one of the
+// login's own services; elsewhere it says who starts the keeper.
 func (i *setting) logOn(on bool) error {
 	p := i.c.Kit.Platform
 	self, err := p.SelfPath()
 	name, line := restore.Service(p.System(), self, os.Getenv)
+	srv, _ := contract.ReadServer(p.Peek)
 	switch {
+	case p.System() == "linux" && srv == nil && err == nil:
+		return i.unit(on, line)
 	case p.System() != "windows":
-		i.say("--at-login is for Windows: on a server its set-up starts the engine with the machine, and on a Mac the first `whaleshark open` does")
+		i.say("--at-login is for Windows and a Linux login of your own: on a server its set-up starts the engine with the machine, and on a Mac the first `whaleshark open` does")
 		return nil
 	case err != nil:
 		return err
@@ -402,6 +406,53 @@ func (i *setting) logOn(on bool) error {
 		i.say("the engine starts when you log on to Windows, from now on (undo: whaleshark init --remove --all)")
 	}
 	return err
+}
+
+// unit writes the keeper's unit among the login's own services and switches
+// it on, or with on false off and out again. A keeper that runs already is
+// left running, under the service or not: a second one beside it would fail,
+// and a restart ends every agent.
+func (i *setting) unit(on bool, text string) error {
+	path, unit := platform.UserUnit(i.dirs), contract.UnitKeeper
+	if !on {
+		platform.Services("disable", unit)
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		platform.Services("daemon-reload")
+		i.say("the engine is no longer one of your services; one that runs keeps running until `whaleshark engine stop`")
+		return nil
+	}
+	if err := errors.Join(os.MkdirAll(filepath.Dir(path), 0o700), os.WriteFile(path, []byte(text), 0o600)); err != nil {
+		return err
+	}
+	i.use(contract.InstalledEntry{Kind: kindLogOn, File: path})
+	out, err := platform.Services("daemon-reload")
+	if err == nil {
+		out, err = platform.Services("enable", unit)
+	}
+	_, running := i.c.Kit.Terms.Version()
+	if running != nil && err == nil {
+		out, err = platform.Services("start", unit)
+	}
+	switch {
+	case err != nil:
+		i.Problems = append(i.Problems, "your services did not take the engine (systemctl --user: "+cmp.Or(out, err.Error())+"): log in by SSH again, so that the system starts a service manager of yours")
+		return nil
+	case running == nil:
+		i.say("the engine is one of your services now (%s); the one running keeps your tabs, and after `whaleshark engine stop` the next `whaleshark open` starts it as the service", path)
+	default:
+		i.say("the engine runs as one of your services now (%s): it starts again when it fails and with the machine, and `whaleshark engine stop` leaves it stopped (undo: whaleshark init --remove --all)", path)
+	}
+	switch who, linger, err := platform.Lingering(); {
+	case err != nil:
+		i.say("whether your services run while you are logged out could not be told (loginctl: %v)", err)
+	case linger == "yes":
+		i.say("lingering is on for %s: the engine keeps running when you log out", who)
+	default:
+		i.say("lingering is off for %s: the engine stops when you log out, and starts when you log in again. Many systems let you switch it on yourself, with loginctl enable-linger; where that is refused, ask the server's administrator to run, as root: loginctl enable-linger %[1]s", who)
+	}
+	return nil
 }
 
 // undo takes one thing init wrote for the whole login out again.

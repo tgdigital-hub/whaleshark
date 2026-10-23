@@ -1,8 +1,13 @@
 package platform
 
 import (
+	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 	"strings"
+
+	"github.com/tgdigital-hub/whaleshark/internal/contract"
 )
 
 // runKey is the list of programs Windows starts for a login when it logs
@@ -34,4 +39,42 @@ func SetLogOn(name, line string) error {
 	}
 	// #nosec G204 -- Windows' own tool, with a name and a line of ours
 	return exec.Command("reg", args...).Run()
+}
+
+// UserUnit is where the keeper's unit lies among the login's own services
+// on Linux, in systemd/user of the settings folder beside ours. Their
+// manager, systemctl --user, starts it with the machine and again when it
+// fails, and asks no root.
+func UserUnit(dirs contract.Dirs) string {
+	return filepath.Join(filepath.Dir(dirs.Config), "systemd", "user", contract.UnitKeeper)
+}
+
+// Services runs systemctl --user and returns what it printed.
+func Services(args ...string) (string, error) {
+	// #nosec G204 -- the system's own tool, with words of ours
+	out, err := exec.Command("systemctl", append([]string{"--user"}, args...)...).CombinedOutput()
+	return strings.TrimSpace(string(out)), err
+}
+
+// Lingering is this login's name and whether its services run while it is
+// not logged in, as loginctl says it: "yes" or "no".
+func Lingering() (name, linger string, err error) {
+	if name = os.Getenv("USER"); name == "" {
+		if me, err := user.Current(); err == nil {
+			name = me.Username
+		}
+	}
+	// #nosec G204 -- the system's own tool, asked of this login
+	out, err := exec.Command("loginctl", "show-user", name, "--property=Linger", "--value").Output()
+	return name, strings.TrimSpace(string(out)), err
+}
+
+// StartKeeper has the login's services start the keeper where it is one of
+// them, and says whether they did.
+func StartKeeper() bool {
+	if _, err := Services("is-enabled", "-q", contract.UnitKeeper); err != nil {
+		return false
+	}
+	_, err := Services("start", contract.UnitKeeper)
+	return err == nil
 }

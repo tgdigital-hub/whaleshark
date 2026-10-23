@@ -406,6 +406,36 @@ func TestAKeeperThatIsNotThereOrIsStarting(t *testing.T) {
 	s.usable()
 }
 
+// Where the keeper is one of the login's services, the window has them
+// start it and never starts one beside it; to a keeper that runs, over SSH
+// too, it attaches and asks them nothing.
+func TestAKeeperThatIsAServiceIsStartedByIt(t *testing.T) {
+	bin := t.TempDir()
+	calls := filepath.Join(bin, "calls")
+	script := "#!/bin/sh\necho \"$*\" >> " + calls + "\ncase $2 in start) " + asKeeper + "=late '" + os.Args[0] + "' engine run >/dev/null 2>&1 & esac\n"
+	if err := os.WriteFile(filepath.Join(bin, "systemctl"), []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	k, path := standIn(t, func(*keeper) {})
+	s := begin(t, path, "PATH="+bin, "SSH_CONNECTION=10.0.0.2 50000 10.0.0.1 22")
+	k.attach(t)
+	k.hangUp()
+	if code := s.end(); code != 0 || exists(calls) {
+		t.Errorf("attached to a running keeper: exit %d, the services asked: %v", code, exists(calls))
+	}
+
+	s = begin(t, socketFor(t), "PATH="+bin)
+	wait(t, "the keeper the services started never showed", func() bool { return strings.Contains(s.shown(), "a late keeper") })
+	if code := s.end(); code != 0 {
+		t.Errorf("with the keeper a service the window ended with %d: %s", code, s.errs.String())
+	}
+	if got, _ := os.ReadFile(calls); string(got) != "--user is-enabled -q whaleshark-keeper.service\n--user start whaleshark-keeper.service\n" {
+		t.Errorf("the services were asked:\n%s", got)
+	}
+}
+
+func exists(path string) bool { _, err := os.Stat(path); return err == nil }
+
 func TestAKeeperOfAnotherVersion(t *testing.T) {
 	_, path := standIn(t, func(k *keeper) { k.version++ })
 	s := begin(t, path)
