@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"github.com/tgdigital-hub/whaleshark/internal/platform"
@@ -24,7 +25,7 @@ func TestTheKeepersServiceAndLingering(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("USER", "me")
 	d.write(filepath.Join(bin, "systemctl"), "#!/bin/sh\ncase $2 in is-enabled) cat "+bin+"/enabled;; is-active) cat "+bin+"/active;; esac\n")
-	d.write(filepath.Join(bin, "loginctl"), "#!/bin/sh\n[ \"$*\" = 'show-user me --property=Linger --value' ] && cat "+bin+"/linger\n")
+	d.write(filepath.Join(bin, "loginctl"), "#!/bin/sh\n[ \"$*\" = 'show-user "+strconv.Itoa(os.Getuid())+" --property=Linger --value' ] && cat "+bin+"/linger\n")
 	for _, name := range []string{"systemctl", "loginctl"} {
 		if err := os.Chmod(filepath.Join(bin, name), 0o700); err != nil {
 			t.Fatal(err)

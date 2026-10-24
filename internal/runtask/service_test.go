@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -92,7 +93,7 @@ func TestAtLoginOnLinuxIsAUserService(t *testing.T) {
 	if text, err := os.ReadFile(unit); err != nil || string(text) != want || !strings.Contains(want, `ExecStart="`+self+`" engine run`) {
 		t.Errorf("the unit in %s: %v\n%s", unit, err, text)
 	}
-	if got := calls(t, log); !strings.Contains(got, "systemctl --user daemon-reload\nsystemctl --user enable "+contract.UnitKeeper+"\nloginctl show-user me --property=Linger --value\n") ||
+	if got := calls(t, log); !strings.Contains(got, "systemctl --user daemon-reload\nsystemctl --user enable "+contract.UnitKeeper+"\nloginctl show-user "+strconv.Itoa(os.Getuid())+" --property=Linger --value\n") ||
 		strings.Contains(got, " start ") {
 		t.Errorf("with a keeper running, the calls:\n%s", got)
 	}

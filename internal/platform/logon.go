@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
@@ -57,15 +58,17 @@ func Services(args ...string) (string, error) {
 }
 
 // Lingering is this login's name and whether its services run while it is
-// not logged in, as loginctl says it: "yes" or "no".
+// not logged in, as loginctl says it: "yes" or "no". loginctl is asked by
+// the login's number, which the system gives, and not by the name in the
+// environment.
 func Lingering() (name, linger string, err error) {
 	if name = os.Getenv("USER"); name == "" {
 		if me, err := user.Current(); err == nil {
 			name = me.Username
 		}
 	}
-	// #nosec G204 -- the system's own tool, asked of this login
-	out, err := exec.Command("loginctl", "show-user", name, "--property=Linger", "--value").Output()
+	// #nosec G204 -- the system's own tool, asked of this login's own number
+	out, err := exec.Command("loginctl", "show-user", strconv.Itoa(os.Getuid()), "--property=Linger", "--value").Output()
 	return name, strings.TrimSpace(string(out)), err
 }
 

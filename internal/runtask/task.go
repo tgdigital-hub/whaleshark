@@ -321,6 +321,10 @@ func granted(root string, args []string) error {
 		rel, err := filepath.Rel(root, filepath.Join(root, value))
 		if filepath.IsAbs(value) {
 			rel, err = filepath.Rel(root, value)
+		} else if filepath.VolumeName(value) != "" || strings.HasPrefix(filepath.ToSlash(value), "/") {
+			// On Windows, /srv/other is the root of the drive in use and C:other
+			// a folder of a drive: neither is a full path, and neither is inside.
+			err = errors.New("outside the project")
 		}
 		if value == "" || err != nil || !filepath.IsLocal(rel) && rel != "." {
 			return fmt.Errorf("--add-dir is for a folder inside the project; one outside it is set in whaleshark.toml as agent.args, which the person approves")

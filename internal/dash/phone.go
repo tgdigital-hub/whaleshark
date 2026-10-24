@@ -226,6 +226,7 @@ func (s *server) record(id string, set func(*contract.Phone)) error {
 // and no other site's request carries it.
 func (s *server) bake(w http.ResponseWriter, r *http.Request, secret string) {
 	prefix, secure := jar(r.Context())
+	// #nosec G124 -- as the session's cookie in grant: Secure at the door over HTTPS, and none over ssh's forward, plain HTTP to the machine's own name
 	http.SetCookie(w, &http.Cookie{Name: prefix + s.cookie, Value: secret, Path: "/", MaxAge: int(sessionLife / time.Second),
 		HttpOnly: true, Secure: secure, SameSite: http.SameSiteStrictMode})
 }

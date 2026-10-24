@@ -174,7 +174,10 @@ func (e *exam) approved() {
 func (e *exam) denied(p contract.ProjectFile) {
 	home, _ := os.UserHomeDir()
 	from := [][2]string{{"your own settings", filepath.Join(home, ".claude", "settings.json")},
-		{"the project's", filepath.Join(e.c.Root, ".claude", "settings.json")}, {"agent.settings", p.Agent.Settings}}
+		{"the project's", filepath.Join(e.c.Root, ".claude", "settings.json")}, {"agent.settings", ""}}
+	if p.Agent.Settings != "" {
+		from[2][1] = filepath.Clean(p.Agent.Settings)
+	}
 	var all, by []string
 	for _, f := range from {
 		var s struct{ Permissions struct{ Deny []string } }
