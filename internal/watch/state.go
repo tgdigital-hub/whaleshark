@@ -60,7 +60,7 @@ func (w *Watcher) Hook(event, session, cwd string) {
 		return
 	}
 	w.mu.Lock()
-	w.hook, w.asked = status, false
+	w.hook, w.hookAt, w.asked = status, time.Now(), false
 	if status == "" {
 		w.st.Session = ""
 	} else if session != "" {
@@ -133,6 +133,10 @@ func (w *Watcher) look(now time.Time) State {
 	}
 	if read {
 		w.sees = onScreen(w.words, text, w.hook != "")
+		w.part = slices.ContainsFunc(w.words.Question, func(s string) bool { return s != "" && strings.Contains(text, s) })
+		if text != w.picture {
+			w.picture, w.moved = text, now
+		}
 	}
 	// A question the hooks announced is over when the screen that showed it
 	// shows the agent at work instead: the hook after the step comes only
@@ -165,6 +169,12 @@ func (w *Watcher) settle(now time.Time) {
 		}
 	case w.sees == question:
 		w.st.Status = contract.StatusBlocked
+	case w.hook == contract.StatusWorking && w.sees != working && !w.part && now.Sub(w.moved) >= w.lost && now.Sub(w.hookAt) >= w.lost:
+		// The hook that ended the turn was lost, or one of work came late:
+		// the agent's picture has stood still, with no question on it, long
+		// after the last hook, and its kind's words cannot say so where the
+		// tool shows neither of them at rest.
+		w.hook, w.st.Status = contract.StatusIdle, contract.StatusIdle
 	case w.hook != "":
 		w.st.Status = w.hook
 	case w.sees == working:

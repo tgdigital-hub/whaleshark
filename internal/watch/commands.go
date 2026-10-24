@@ -59,6 +59,10 @@ const (
 	pointWait = 8 * time.Second
 )
 
+// lostAfter is how long a hook of work is believed against a picture that
+// stands still: an agent at work redraws its clock every second.
+var lostAfter = 10 * time.Second
+
 // Pane is the pane a Watcher looks at and types into; the keeper hands one
 // in. None of it may need a lock the caller of a Watcher's methods holds.
 type Pane interface {
@@ -103,8 +107,13 @@ type Watcher struct {
 	away    bool                // another program is in front of the agent
 	under   [2]string           // a program in front and the tool its screen showed it to be
 	hook    string              // the state the hooks gave last; empty before the first and after the last
+	hookAt  time.Time           // when it came
+	lost    time.Duration       // lostAfter, as it was when the Watcher was made
 	words   contract.ToolScreen // the screen's words of the agent in st
 	sees    int                 // what the screen showed at the last reading
+	part    bool                // and whether it showed any phrase of a question
+	picture string              // the text at the last reading
+	moved   time.Time           // when that text last differed
 	asked   bool                // the screen has shown the question a hook announced
 	n       uint64              // the count at the last look
 	grew    time.Time           // when it last differed
@@ -119,7 +128,7 @@ type Watcher struct {
 // Watcher's own, never from inside a call of its methods.
 func New(p Pane, agent, name string, emit func(State)) *Watcher {
 	w := &Watcher{p: p, emit: emit, own: agent, all: wired(), poke: make(chan struct{}, 1), done: make(chan struct{}),
-		st: State{Agent: agent, Name: name, Status: contract.StatusUnknown}, wake: make(chan struct{})}
+		st: State{Agent: agent, Name: name, Status: contract.StatusUnknown}, wake: make(chan struct{}), lost: lostAfter}
 	if agent == "" {
 		w.first, _ = p.Front()
 	} else {

@@ -2,6 +2,7 @@ package watch
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -447,6 +448,79 @@ func TestAQuestionOutweighsEveryHook(t *testing.T) {
 		if err := w.Prompt("x", time.Millisecond); st.Status != blocked || !errors.Is(err, contract.ErrAgentBlocked) || len(p.typed) > 0 {
 			t.Fatalf("after %s at a question: %+v, %v, typed %q", name, st, err, p.typed)
 		}
+	}
+}
+
+// The real agent's screens of today, in auto mode: at work a clock that
+// moves, at rest neither of its kind's words; and a picker of its own.
+const (
+	restScreen = "❯ \n\n  ⏵⏵ auto mode on (shift+tab to cycle)"
+	workScreen = "✶ Deciphering… (%ds · ↓ 1.2k tokens)\n\n❯ \n\n  ⏵⏵ auto mode on (shift+tab to cycle)"
+	pickScreen = "Which one?\n❯ 1. Red\n  2. Blue\nEnter to select · ↑/↓ to navigate · Esc to cancel"
+)
+
+// The hook that ends a turn can be lost, and one of work can come late. An
+// agent whose picture then stands still is idle once lostAfter has passed,
+// and its pointer is typed; one whose clock moves stays at work, and one that
+// shows a phrase of a question is never taken for rest.
+func TestAStopThatWasLost(t *testing.T) {
+	was := lostAfter
+	lostAfter = 300 * time.Millisecond
+	t.Cleanup(func() { lostAfter = was })
+	p := &still{marked: true}
+	w := New(p, "claude", "", func(State) {})
+	defer w.Close()
+	status := func() string { st, _ := w.seen(); return st.Status }
+	rests := func(why string) time.Duration {
+		t.Helper()
+		from := time.Now()
+		for status() != idle {
+			if time.Since(from) > wait {
+				t.Fatalf("%s: still %s after %v", why, status(), wait)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		return time.Since(from)
+	}
+
+	w.Hook("SessionStart", "s", "")
+	w.Hook("UserPromptSubmit", "s", "")
+	for i := range 10 {
+		if p.show(fmt.Sprintf(workScreen, i)); status() != atWork {
+			t.Fatalf("at work with a moving clock: %s", status())
+		}
+		time.Sleep(lostAfter / 3)
+	}
+	// Its Stop never came.
+	p.show(restScreen)
+	if took := rests("a turn whose Stop was lost"); took < lostAfter/2 {
+		t.Fatalf("idle after %v, before the hook was given its time", took)
+	}
+	p.onType = func() {
+		if b := p.typed[len(p.typed)-1]; b == "\r" {
+			w.Hook("UserPromptSubmit", "s", "")
+		} else {
+			p.show(restScreen + "\n" + b)
+		}
+	}
+	if err := w.Point(contract.PointMail, ""); err != nil || len(p.typed) < 2 || !strings.Contains(p.typed[0], "whaleshark") {
+		t.Fatalf("the pointer at an agent at rest: %v, typed %q", err, p.typed)
+	}
+	p.onType = nil
+
+	// A hook of work that comes late, with the picture still.
+	w.Hook("Stop", "s", "")
+	w.Hook("PostToolUse", "s", "")
+	if status() != atWork {
+		t.Fatalf("a hook of work believed at first: %s", status())
+	}
+	rests("a late hook of work")
+
+	// A picker shows no word of the table, and a phrase of a question.
+	w.Hook("PreToolUse", "s", "")
+	p.show(pickScreen)
+	if time.Sleep(4 * lostAfter); status() != atWork {
+		t.Fatalf("at a picker: %s", status())
 	}
 }
 
