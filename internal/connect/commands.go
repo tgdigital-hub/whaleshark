@@ -53,6 +53,26 @@ const codeLetters = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW
 
 var keep = []string{"-a", "-x", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "-o", "ConnectTimeout=10"}
 
+// quote makes one word of a POSIX shell's input.
+func quote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+
+// remoteCommand is the program run on the server, as the words ssh sends to
+// the person's login shell there: a short sh snippet that finds the program
+// on the PATH, or else where install.sh puts it for a login with no root, or
+// in /usr/local/bin, since a shell that is not interactive often has not read
+// the PATH line install.sh added. The words after it are passed on as they
+// are, each in quotes.
+func remoteCommand(args ...string) []string {
+	script := `for p in ` + quote(remote) + ` "$HOME/.local/bin/whaleshark" /usr/local/bin/whaleshark; do ` +
+		`if command -v "$p" >/dev/null 2>&1; then exec "$p" "$@"; fi; done; ` +
+		`echo "whaleshark was not found on the server: not on its PATH, not in ~/.local/bin and not in /usr/local/bin" >&2; exit 127`
+	words := []string{"sh", "-c", quote(script), "sh"}
+	for _, a := range args {
+		words = append(words, quote(a))
+	}
+	return words
+}
+
 func refuse(exit int, code, message string, next ...string) *contract.Refusal {
 	return &contract.Refusal{Exit: exit, Code: code, Message: message, Next: next}
 }
@@ -198,10 +218,15 @@ func (l *link) up(ctx context.Context) error {
 		case <-time.After(200 * time.Millisecond):
 		}
 	}
-	url := l.mux(ctx, nil, remote, "dash", "url", "--json")
+	url := l.mux(ctx, nil, remoteCommand("dash", "url", "--json")...)
 	out, err := url.Output()
 	var d contract.DashURL
 	e := contract.Envelope{Result: &d, Error: &contract.Refusal{Message: fmt.Sprint(err)}}
+	// The snippet of remoteCommand says plainly what was missing.
+	var x *exec.ExitError
+	if errors.As(err, &x) && len(x.Stderr) > 0 {
+		e.Error.Message = string(x.Stderr)
+	}
 	bad, said := json.Unmarshal(out, &e), "its answer is none"
 	// The server's words go into this terminal and its code into a link for
 	// the browser: one harmless line of the first, and of the second only

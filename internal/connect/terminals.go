@@ -83,7 +83,7 @@ func terminals(ctx context.Context, c *contract.Call, target string) error {
 			return seq
 		}}
 		run, end := context.WithCancel(ctx)
-		cmd := ssh(run, slices.Concat([]string{"-t"}, keep, []string{target, "env", contract.EnvSystem + "=" + system, remote, "open"})...)
+		cmd := ssh(run, slices.Concat([]string{"-t"}, keep, slices.Concat([]string{target, "env", quote(contract.EnvSystem + "=" + system)}, remoteCommand("open")))...)
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = c.Stdin, l, c.Err
 		// Asked to end, ssh puts the terminal back as it was; killed, it cannot.
 		cmd.Cancel, cmd.WaitDelay = func() error { return cmd.Process.Signal(syscall.SIGTERM) }, time.Second

@@ -619,3 +619,43 @@ func TestATakenPortIsSaidOnce(t *testing.T) {
 		t.Errorf("ssh's lines were passed on as %q", passed.String())
 	}
 }
+
+// The program is found without the PATH: the remote command is one sh
+// snippet whose every other word is quoted, and it says plainly what was
+// missing.
+func TestRemoteCommandFindsTheProgram(t *testing.T) {
+	old := remote
+	t.Cleanup(func() { remote = old })
+	remote = "whaleshark"
+	words := remoteCommand("dash", "it's; rm -rf ~", "$HOME")
+	line := strings.Join(words, " ")
+	for _, want := range []string{`"$HOME/.local/bin/whaleshark"`, "/usr/local/bin/whaleshark", "command -v", "not found on the server", `'it'\''s; rm -rf ~'`, `'$HOME'`} {
+		if !strings.Contains(line, want) {
+			t.Errorf("the remote command lacks %q:\n%s", want, line)
+		}
+	}
+	if words[0] != "sh" || words[1] != "-c" || words[3] != "sh" {
+		t.Errorf("the remote command starts %q", words[:4])
+	}
+	if os.PathSeparator != '/' {
+		return
+	}
+	// Run as the server's shell would: with no whaleshark on the PATH and a
+	// home that holds one, then with none anywhere.
+	home := t.TempDir()
+	os.MkdirAll(filepath.Join(home, ".local", "bin"), 0o755)
+	run := func() (string, error) {
+		cmd := exec.Command("sh", "-c", line)
+		cmd.Env = []string{"HOME=" + home, "PATH=/usr/bin:/bin"}
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	if out, err := run(); err == nil || !strings.Contains(out, "not found on the server") {
+		t.Errorf("with no program the answer was %q, %v", out, err)
+	}
+	prog := filepath.Join(home, ".local", "bin", "whaleshark")
+	os.WriteFile(prog, []byte("#!/bin/sh\nfor a; do echo \"[$a]\"; done\n"), 0o755)
+	if out, err := run(); err != nil || out != "[dash]\n[it's; rm -rf ~]\n[$HOME]\n" {
+		t.Errorf("the program in ~/.local/bin was run as %q, %v", out, err)
+	}
+}
