@@ -17,7 +17,7 @@ Every command works out who is calling: a worker, the lead agent, a person, or a
 
 | Caller | May |
 |---|---|
-| a worker | report, note its progress, ask a question, read its mail. Nothing else: it cannot accept its own work, answer its own question or start agents |
+| a worker | report, note its progress, ask a question, read its mail, and take or release a named lock. Nothing else: it cannot accept its own work, answer its own question or start agents |
 | the lead agent | plan tasks, start and stop workers, accept or send back results, answer workers, put items in front of you |
 | a tab bound to no run | look, and change nothing in a run |
 | you | everything; and some things are yours alone: Stop all and Resume, `trust`, undoing an answer, a note to the lead agent, and, unless the project's approved settings say otherwise, `land` |
@@ -47,13 +47,13 @@ A second lead agent started by mistake can look and cannot change the run. `--hu
 
 1. Answer or dismiss an agent's permission prompt or its question whether it trusts a folder, or send any key to an agent. Stop all types nothing and ends no program: each agent stops at its next step.
 2. Start an agent with wider permissions than the project's approved settings say. It has no default that widens anything.
-3. Run a project's setup script, landing check, team file or changed agent arguments that you have not approved by content with `whaleshark trust`. A change needs approval again. The approval is kept in your login's own folder, never in the project.
+3. Run a project's setup script, landing check, team file, changed agent arguments, `[hooks] on_event` or `[agent] settings`, or use its `[land] mode`, `[overlap] remote_prs` or `[results] mirror_dir`, that you have not approved by content with `whaleshark trust`. A change needs approval again. The approval is kept in your login's own folder, never in the project.
 4. Use a `.whaleshark` folder your login did not make. One that came with a repository, an archive or a copy is refused by every command until you type `whaleshark init --adopt`. Adopting takes all of it on: its runs, their checks, and the sentence of each saved fleet, which your agents then read.
-5. Put work into your main branch, or push anything, outside `land`.
+5. Put work into your main branch, or push anything, outside `land`. The one exception is one you approve: with `[land] mode = "pr-per-task"`, `accept` pushes each task and its pull request is merged by itself once its checks pass, with no `land` and no look at protected files, so branch protection at your git host is what holds it.
 6. Delete work that is not proven merged.
 7. Install software or change another login's files, outside `whaleshark server`, which only the administrator can run.
 8. Restart, stop or retry an agent on a guess.
-9. Send anything about you anywhere. There is no telemetry and no crash upload, and nothing is ever downloaded or installed for you. One call out is made unasked, and can be switched off: with "Tell me when a new version is out" on, as it comes (Settings › Nudges, or `whaleshark set update.notice off`), the window asks GitHub once a day for the number of the latest release. It is one request to this project's own releases address, carrying the program's name and nothing else, no version, no identifier; the answer is read for a version number and followed nowhere. GitHub sees the address the request comes from, as any site does. On a server no login's window asks: only the administrator's own `sudo whaleshark server status` does. The only other calls out are ones you set up (a notice address, a paired phone's nudge, on the Cloudflare road its public keys and one request of `doctor` to your own public name) or typed (`land --pr`, `connect`).
+9. Send anything about you anywhere. There is no telemetry and no crash upload, and nothing is ever downloaded or installed for you. One call out is made unasked, and can be switched off: with "Tell me when a new version is out" on, as it comes (Settings › Nudges, or `whaleshark set update.notice off`), the window asks GitHub once a day for the number of the latest release. It is one request to this project's own releases address, carrying the program's name and nothing else, no version, no identifier; the answer is read for a version number and followed nowhere. GitHub sees the address the request comes from, as any site does. On a machine set up with `whaleshark server setup`, no login's window asks: only the administrator's own `sudo whaleshark server status` does; a plain login on any other server asks as any computer does. The only other calls out are ones you set up (a notice address, a paired phone's nudge, on the Cloudflare road its public keys and one request of `doctor` to your own public name; a project's `[worktrees] fetch_base`, `[overlap] remote_prs`, `[land] mode` and `[hooks] on_event`) or typed (`land --pr`, `connect`).
 
 ## The real wall: what you give the login
 
@@ -80,6 +80,8 @@ On your own computer the same holds with less to hold it: the agents run as you,
 | Cloudflare, or whoever takes over your Cloudflare account or its mailbox | pairing, which the account does not reach; routing in a root-owned file on the server | **against Cloudflare itself there is none**: it could do what a paired phone can |
 | a stolen phone or laptop | `dash phone forget`, `dash stop --forget`, removing the SSH key | until then the thief is you, for what that device could do |
 | a web page open in your own browser | the page has a host name of its own and accepts no other; every change needs the session's token and the page's own origin | |
+
+A plain login on a server somebody else runs has no block of ports and none of the rules above: every other login there can reach a site your agent runs and the port you picked for a phone (which shows a number and nothing else until you approve a pairing), and that server's administrator can read everything of yours.
 
 More of the same kind, for the page and the phone, is in [phone.md](phone.md); for a shared machine, in [server.md](server.md).
 

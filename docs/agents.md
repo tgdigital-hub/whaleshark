@@ -32,7 +32,7 @@ proven* and is experimental.
 | Tool | Models | Started as | In WhaleShark | Hooks | Model option | More folders | Rules file it reads (under your home folder) | What still falls short |
 |---|---|---|---|---|---|---|---|---|
 | Claude Code | cloud (or an Anthropic-compatible endpoint) | `claude` | built in, **proven** | yes | `--model` | `--add-dir` | `.claude/CLAUDE.md` | nothing known |
-| OpenAI Codex CLI | cloud, local (`--oss`) | `codex` | built in, not proven | yes, not tried | `--model` | `--add-dir` | `.codex/AGENTS.md` (or `$CODEX_HOME/AGENTS.md`) | screen words unknown; not held by Stop all; hooks of a project only once you trust it |
+| OpenAI Codex CLI | cloud, local (`--oss`) | `codex` | built in, not proven | yes, not tried | `--model` | `--add-dir` | `.codex/AGENTS.md` (or `$CODEX_HOME/AGENTS.md`) | screen words unknown; being held by Stop all not tried; hooks of a project only once you trust it |
 | Google Gemini CLI | cloud | `gemini` | built in, not proven | none WhaleShark reads | `--model` | `--include-directories` | `.gemini/GEMINI.md` | busy or quiet only; not held; no continuing after a restart; see the note below |
 | Qwen Code | cloud, local (OpenAI-compatible) | `qwen` | built in, not proven | none WhaleShark reads | `--model` | `--include-directories` | `.qwen/QWEN.md` | busy or quiet only; not held; no continuing after a restart |
 | OpenCode | cloud, local (OpenAI-compatible) | `opencode` | built in, not proven | none WhaleShark reads | `--model provider/model` | none | `.config/opencode/AGENTS.md` | as above, and it asks before it reads the prompt outside its folder |
@@ -200,6 +200,7 @@ rules = ".aider/RULES.md"             # the file it reads at its start, under yo
 suits = "small fixes"                 # a sentence for your orchestrator
 
 [screen]                              # the words its screen shows; each is optional
+title = "…"                           # its title while a chat has no name
 ready = "…"
 working = "…"
 question = ["…", "…"]                 # all of these together mean a question is open

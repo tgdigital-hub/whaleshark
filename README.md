@@ -16,7 +16,7 @@ irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install
 powershell -c "irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex"
 ```
 
-Then open a new terminal and type `whaleshark`. Homebrew, apt, winget, one fixed version and checking the files by hand are under [Install](#install). There is no release yet: see [Status](#status-not-released).
+Then open a new terminal and type `whaleshark`. Homebrew, apt, winget, one fixed version and checking the files by hand are under [Install](#install). **Until the first full release these lines find nothing:** there are test releases only, and [Status](#status-test-releases-only) gives the line that names one. On a Linux server where you have no root, read [One person on a server, no root](#one-person-on-a-server-no-root).
 
 ## How it works
 
@@ -117,7 +117,7 @@ goes to the storefront fleet, a list for the warehouse screens goes to the wareh
 Settings › Guardrails holds four safeguards. Three come switched off, and with them off a job runs as everything above describes.
 
 - **Plan first, then start** (off). On: the orchestrator must show you its plan (which fleets, which tasks, how many agents, which tool), and nothing starts until you approve it. What it adds later is shown the same way, and so is a task whose brief or check is changed after your yes: it is shown again before it starts.
-- **Protected files** (off). You keep a list of paths that matter (it starts with secrets files, database migrations, deploy settings; a project may add to it and never take from it). On: agents work as usual, but a job that changed such a file cannot be landed until you have approved the file as it is. Changed again after your yes, it asks again. A path counts whatever the case of its letters, a file moved away counts, and so does a link put where a listed folder would begin. It guards `whaleshark land` and no other way into your main branch.
+- **Protected files** (off). You keep a list of paths that matter (it starts with secrets files, database migrations, deploy settings; a project may add to it and never take from it). On: agents work as usual, but a job that changed such a file cannot be landed until you have approved the file as it is. Changed again after your yes, it asks again. A path counts whatever the case of its letters, a file moved away counts, and so does a link put where a listed folder would begin. It guards `whaleshark land` and no other way into your main branch, so with `[land] mode = "pr-per-task"`, where nothing goes through `land`, it holds nothing: there, your git host's rules are the guard.
 - **Spending guard** (off). On: the tool counts agent-hours, one agent open for one hour. At four fifths of your limit the orchestrator is told to wrap up. At the limit the job's agents are held where they stand, those with nothing in hand are closed, and you are asked: more hours, no limit for this job, or leave it held. One fleet can have a limit of its own; the limit is a job's, and a new job begins a new count. **It counts time, not tokens or money**: agent tools do not report those reliably. Agents are held as Stop all holds them, so a tool whose hooks WhaleShark does not read runs on until its next `whaleshark` command.
 - **Stuck detector** (on). It notices an agent that is going nowhere: long work with no progress note, the same check failing three times, the same note repeated, a result sent back three times. It tells the agent's leader, ten minutes later the orchestrator, ten minutes later you. Its spans of time are the project's own (`[limits]` in `whaleshark.toml`), which come with a repository and need no approval; while the detector is on, each is used up to a ceiling of its own, so no project's file makes it quiet: four hours without a progress note, a quarter of an hour at rest, and four hours for a task whose limit is set above that. A task with no time limit keeps none. It never stops an agent, and one missed note is no alarm: a failing check or a result sent back three times is enough alone, any other sign takes a second beside it or twice its time. The figures are reasoned, and one try with real agents gave no ground to change them: no false alarm in about two and a half hours of small tasks. That is not a measurement; real leaders dealt with a failing check and a silent worker themselves before the detector had anything to say.
 
@@ -144,7 +144,7 @@ So that an agent knows its part without being told, `whaleshark init` offers a s
 
 Each task works in a copy of the code of its own. As it comes, `accept` collects each task's work on one branch for the job, and `whaleshark land` brings the whole of it to your branch, as one pull request or a local merge. With `[land] mode = "pr-per-task"` in `whaleshark.toml` each accepted task is pushed as a pull request of its own instead, watched in the background, and merged by itself once its checks pass, one at a time; a red check goes back to its worker. `[worktrees] fetch_base = true` fetches the base branch before a job begins and before each task starts, so that work starts from where the remote is, and leaves your own checkout as it is. `[overlap] remote_prs = true` holds each task's `--owns` against the files of the open pull requests on the remote as well (`gh pr list`), when the task starts and when it is accepted: each pull request that changes a file it owns is an overlap event for the lead agent. Its own pull request does not count.
 
-A project can mirror its work to a card or a dashboard: `[hooks] on_event = "<command>"` runs the command once for each event of a job (a task done, a question, a merge), with the event as one JSON object on its standard input: its kind, task, attempt, text and data, the project's folder and the run. It runs in the project's folder, outside the record's lock and at most ten seconds an event, so a command that fails or hangs loses its own event and holds nothing up. Events are handed to it while a `wait` or a sweep runs. Both settings reach outside the project and count only once you have run `whaleshark trust`.
+A project can mirror its work to a card or a dashboard: `[hooks] on_event = "<command>"` runs the command once for each event of a job (a task done, a question, a merge), with the event as one JSON object on its standard input: its kind, task, attempt, text and data, the project's folder and the run. It runs in the project's folder, outside the record's lock and at most ten seconds an event, so a command that fails or hangs loses its own event and holds nothing up. Events are handed to it while a `wait` or a sweep runs. `[land] mode`, `[overlap] remote_prs` and `[hooks] on_event` reach outside the project and count only once you have run `whaleshark trust`; `[worktrees] fetch_base` needs no approval.
 
 ### Big installs, and clearing up
 
@@ -197,7 +197,7 @@ or, with nothing but `curl` (on any Linux too):
 curl -fsSL https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.sh | sh
 ```
 
-or, for one version: `curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh && sh install.sh`. With the release's files already in a folder: `sh install.sh --from DIR`.
+or, for one version: `curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0-rc.N/install.sh && sh install.sh`. With the release's files already in a folder: `sh install.sh --from DIR`.
 
 **Debian and Ubuntu**: the first install is three lines (the key, the source, the install), because the machine must first be told of our repository and its key.
 
@@ -221,7 +221,7 @@ Until winget has the package, one line in PowerShell (Windows PowerShell 5.1 or 
 irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex
 ```
 
-or, for one version: `irm https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.ps1 | iex`. From `cmd`: `powershell -c "irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex"`. With the release's files already in a folder: `powershell -ExecutionPolicy Bypass -File install.ps1 -From DIR`.
+or, for one version: `irm https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0-rc.N/install.ps1 | iex`. From `cmd`: `powershell -c "irm https://github.com/tgdigital-hub/whaleshark/releases/latest/download/install.ps1 | iex"`. With the release's files already in a folder: `powershell -ExecutionPolicy Bypass -File install.ps1 -From DIR`.
 
 `install.ps1` is the twin of `install.sh` below and makes the same checks with the same key, using the `ssh-keygen` of the OpenSSH client that Windows 10 and 11 ship (where it is missing, it says how to add it). It needs no administrator, puts the program at `%LOCALAPPDATA%\Programs\whaleshark\whaleshark.exe`, adds that folder to your login's `PATH` once, and takes off the mark Windows puts on a downloaded file. Then open a new terminal and type `whaleshark`. Typed commands work in `cmd`, both PowerShells and git's bash.
 
@@ -240,11 +240,30 @@ release namespaces="file" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAASRVefb9n1zHgxy4
 
 **Then:** type `whaleshark` in your project, then your agent tool, as "What you type first" shows above. Closing the window stops nothing.
 
-On Windows, `whaleshark init --at-login` has the engine started when you log on, so your tabs are there before you open the window: one line in your login's own list of what Windows starts at log-on, which needs no administrator, and which `whaleshark init --remove --all` takes out again. On a Mac the first `whaleshark open` starts the engine; on a server its set-up starts it with the machine.
+On Windows, `whaleshark init --at-login` has the engine started when you log on, so your tabs are there before you open the window: one line in your login's own list of what Windows starts at log-on, which needs no administrator, and which `whaleshark init --remove --all` takes out again. On a Linux login of your own the same flag makes the engine one of your services ([below](#one-person-on-a-server-no-root)). On a Mac the first `whaleshark open` starts the engine; on a server its set-up starts it with the machine.
 
 `whaleshark help` lists all 44 commands, `whaleshark help <command>` shows one in full, and `whaleshark doctor` checks an installation line by line, each line with its fix.
 
 The first worker started in a project you have never opened in Claude Code stops at Claude Code's own question whether you trust the folder. WhaleShark answers no prompt of another program, ever: say yes once yourself.
+
+## One person on a server, no root
+
+For a Linux server where you are a plain login with no `sudo`. It needs systemd, as Ubuntu and Debian have, and git 2.38 or newer. **None of this has met a real server yet.**
+
+```
+curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0-rc.N/install.sh   # N: see Status
+sh install.sh                                # then open a new SSH session
+cd ~/my-app
+whaleshark init --agent claude --at-login    # your agent tool must be installed and signed in first
+whaleshark doctor
+whaleshark open
+```
+
+- **Agents that outlast your session.** `--at-login` makes the keeper a user service of yours, and `loginctl enable-linger` keeps it running after you log out and starts it with the machine; where that is refused, your administrator runs it once for you. `whaleshark doctor` has a row for each. [docs/server.md](docs/server.md#one-person-on-a-server-no-root).
+- **Your phone.** `whaleshark set phone.port 8822`, `whaleshark dash phone on`, then an SSH tunnel from the phone (`ssh -L 8822:localhost:8822 me@my-server`) or Tailscale run as you. [docs/phone.md](docs/phone.md#a-phone-with-no-root-ssh-or-tailscale).
+- **Alerts.** Telegram or ntfy through `notify.url`: [Nudges without a server](#nudges-without-a-server).
+
+Other logins of that machine share its ports, and its administrator can read everything: [docs/protection.md](docs/protection.md#who-could-attack-and-what-is-left).
 
 ## A server for several people
 
@@ -260,7 +279,7 @@ ssh ops@SERVER sudo whaleshark server harden
 ssh ops@SERVER sudo whaleshark server add --user ana
 ```
 
-For one fixed version, the first line is `curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh && sh install.sh`.
+For one fixed version, the first line is `curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0-rc.N/install.sh && sh install.sh`. `N` is the newest test release: see [Status](#status-test-releases-only).
 
 `server harden` closes the old doors (passwords, root login), and it runs only for someone who has just come in by the new one, so a wrong key locks nobody out. Then `sudo whaleshark doctor --server` proves the machine line by line. [docs/server.md](docs/server.md) says what each line does, how to connect from your computer, and what one person can see of another.
 
@@ -275,7 +294,7 @@ For apps, which do not exist: the phone's door also serves the same things as da
 Everything that tells you that you are needed works on one computer, with no server, no page and no phone paired. You are nudged when an item waits for you, when work has failed for good, when a job is finished, and when the lead agent has sat for `nudge.lead_minutes` (10) with news it has not read; not when the lead agent merely reports progress.
 
 ```
-whaleshark set notify.url "https://ntfy.sh/my-topic"   # one request to this address each time
+whaleshark set notify.url "https://ntfy.sh/my-topic"   # one request here when no open window shows the nudge
 whaleshark set notify.full_text on                       # send the text too, not the title alone
 whaleshark set dnd "until 06:00"                         # hold back all but urgent nudges until then
 whaleshark set dnd 22:00-06:00                           # or every night, in your own time zone:
@@ -283,6 +302,8 @@ whaleshark set timezone America/Los_Angeles
 whaleshark set mute on                                   # no sound
 whaleshark doctor --notify                               # send one test nudge now
 ```
+
+A nudge goes first to the pop-up of an open window, and only where no window shows it to `notify.url`. `doctor --notify` goes the same way, so test the address with the window closed; and where you want every nudge at the address, a window left open on a server included, `whaleshark set nudge.popup off`.
 
 Only you can set `notify.url`, and the settings screen shows the address and asks once: it sends what your agents wrote to somebody else's service. In the address `{text}` stands for the message and `{link}` for `notify.link`, each escaped; an address without `{text}` gets the message as the body of the request. A program in `hooks/nudge.d` of your settings folder is started at each nudge with the nudge as one JSON object on its standard input: your own sound, a message, a log line. It is used only while nobody but you can write to it. `dnd` is `on`, `off`, `until TIME` or nightly hours such as `22:00-06:00`, which come back every day, counted in `timezone` (empty is this computer's own); urgent items still go through, and what was held is said once the hours are over. Your lead agent sends a nudge of its own, a "done and live" ping, with `whaleshark need --notify-only "<text>"`: it goes by the same roads and leaves no item.
 
@@ -297,7 +318,7 @@ The token stands in your own `config.toml`, which only your login reads; anyone 
 
 ## A notice that a new version is out
 
-Once a day, when you open the window, WhaleShark asks GitHub for the number of the latest release and shows one dim line if yours is older. The request carries the program's name and nothing else; nothing is downloaded and nothing is installed. Settings › Nudges switches it off (`whaleshark set update.notice off`). On a server only the administrator's own `sudo whaleshark server status` asks.
+Once a day, when you open the window, WhaleShark asks GitHub for the number of the latest release and shows one dim line if yours is older. The request carries the program's name and nothing else; nothing is downloaded and nothing is installed. Settings › Nudges switches it off (`whaleshark set update.notice off`). It looks at full releases only, and a plain login on a Linux server asks like any computer. On a machine set up with `whaleshark server setup`, no login's window asks: only the administrator's own `sudo whaleshark server status` does.
 
 ## A browser check
 
@@ -322,7 +343,7 @@ whaleshark dash stop
 whaleshark engine stop                       # ends every program in its panes, after asking
 ```
 
-Then remove the program with what installed it (`brew uninstall whaleshark`, `sudo apt-get remove whaleshark`, `winget uninstall whaleshark`, or delete `~/.local/bin/whaleshark`), and delete what is left: `~/.config/whaleshark`, `~/.local/state/whaleshark`, `~/.cache/whaleshark` (on Windows the `whaleshark` folders under `%APPDATA%` and `%LOCALAPPDATA%`), and the `.whaleshark` folder of each project, which holds its runs and the tasks' copies of the code (its line in the repository's `.git/info/exclude` may go too). Branches a run made stay in your repository until you delete them. There is no command that undoes `server setup`; [docs/server.md](docs/server.md) lists what it put on the machine.
+Then remove the program with what installed it (`brew uninstall whaleshark`, `sudo apt-get remove whaleshark`, `winget uninstall whaleshark`, or delete `~/.local/bin/whaleshark`), and delete what is left: `~/.config/whaleshark`, `~/.local/state/whaleshark`, `~/.cache/whaleshark`, on Linux `~/.cache/ws` (on Windows the `whaleshark` folders under `%APPDATA%` and `%LOCALAPPDATA%`), and the `.whaleshark` folder of each project, which holds its runs and the tasks' copies of the code (its line in the repository's `.git/info/exclude` may go too). Branches a run made stay in your repository until you delete them. There is no command that undoes `server setup`; [docs/server.md](docs/server.md) lists what it put on the machine.
 
 ## Building
 

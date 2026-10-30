@@ -8,13 +8,15 @@ For a Linux server where you are one plain login with no `sudo`, and somebody el
 
 ```
 # on the server, in an SSH session of your own
-curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh
+curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0-rc.N/install.sh
 sh install.sh                       # the program in ~/.local/bin, for you alone; open a new session after it
 cd ~/my-app
 whaleshark init --agent claude --at-login
 whaleshark doctor
 whaleshark open
 ```
+
+`N` is the newest test release ([Status](../README.md#status-test-releases-only)); from the first full release on, `v0.1.0` or the newest version. Install your agent tool as your own login and sign in to it before `init`, as its maker's page says: the service is given the `PATH` of the session `init` ran in, so a tool in a folder added later is found only after `init --at-login` again.
 
 `--at-login` on Linux makes the keeper, which holds every tab and agent of yours, one of your own services: it writes `~/.config/systemd/user/whaleshark-keeper.service` and switches it on with `systemctl --user`. It starts the keeper unless one runs already; that one keeps your tabs, and after `whaleshark engine stop` the next `whaleshark open` starts the keeper as the service. From then on:
 
@@ -25,6 +27,12 @@ whaleshark open
 `whaleshark doctor` has two rows for it: "keeper runs as a user service" and "keeper survives logout (linger)", each yes or no with what to do. `whaleshark init --remove --all` switches the service off and takes its file out; a keeper that runs keeps running until `whaleshark engine stop`.
 
 If `systemctl --user` answers that it cannot connect, your session has no service manager of its own: a login reached by `su` or `sudo -u` has none. Log in by SSH as yourself.
+
+**A command given to `ssh` may not find the program.** The standard `~/.bashrc` of Debian and Ubuntu stops early for a command given to `ssh`, before the line `install.sh` added at its end. If `ssh me@staging whaleshark version` says "command not found", move that line to the top of `~/.bashrc`. `whaleshark connect` from your own computer needs this; `ssh -t me@staging '~/.local/bin/whaleshark open'` does not.
+
+**Your phone and alerts.** A phone reaches the page through an SSH tunnel or Tailscale run as you ([phone.md](phone.md#a-phone-with-no-root-ssh-or-tailscale)); no service starts the page's server after a restart of the machine, so `whaleshark dash start` does then. Alerts go to Telegram or ntfy by `notify.url` ([README](../README.md#nudges-without-a-server)).
+
+**Upgrading.** Run the new version's `install.sh` as before. A keeper that runs goes on with the file it started with until `whaleshark engine stop` and the next `whaleshark open`, which ends its agents' programs and resumes them where the tool can. As on any computer, your window asks GitHub once a day whether a newer full release is out (`whaleshark set update.notice off` ends that); it never installs anything.
 
 Everything else on this page is for a machine you set up yourself, with root.
 
@@ -43,7 +51,7 @@ A fresh Ubuntu 24.04 or Debian 12. Any other system is refused before anything i
 
 ```
 # on the server, as the login your provider gave you
-curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0/install.sh
+curl -fsSLO https://github.com/tgdigital-hub/whaleshark/releases/download/v0.1.0-rc.N/install.sh
 sh install.sh
 sudo ~/.local/bin/whaleshark server setup --admin ops
 
@@ -103,7 +111,7 @@ The administrator, and a flaw in the system's kernel, cross every one of these.
 
 ## Upgrading
 
-As the administrator, fetch the new version's `install.sh` and run it as yourself, then `sudo ~/.local/bin/whaleshark server upgrade`; where the program came from apt, `sudo whaleshark server upgrade` alone asks apt for the new one. It shows what `server status` shows, puts the verified new version in place for everyone, and restarts each login's page. Programs already running keep the file they started with, and a keeper is never restarted by it, because that would end every agent of its login. Each open run gets one `upgraded` event that tells its lead agent to start waiting again. There is no self-update. On a server no login's window looks for new versions: only the administrator's own `sudo whaleshark server status` asks GitHub for the latest full release, as the README says.
+As the administrator, fetch the new version's `install.sh` and run it as yourself, then `sudo ~/.local/bin/whaleshark server upgrade`; where the program came from apt, `sudo whaleshark server upgrade` alone asks apt for the new one. It shows what `server status` shows, puts the verified new version in place for everyone, and restarts each login's page. Programs already running keep the file they started with, and a keeper is never restarted by it, because that would end every agent of its login. Each open run gets one `upgraded` event that tells its lead agent to start waiting again. There is no self-update. On a machine set up with `server setup`, no login's window looks for new versions: only the administrator's own `sudo whaleshark server status` asks GitHub for the latest full release, once a day (`server.notice` switches it off). A plain login with no such set-up asks as any computer does: see [the README](../README.md#a-notice-that-a-new-version-is-out).
 
 ## What it put on the machine
 
