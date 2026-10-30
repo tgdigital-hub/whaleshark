@@ -42,6 +42,42 @@ jobs:
       - name: The gate
         run: go run ./build/ci build vet fmt test cross lines modules page commands imports timing publish
 
+  # The road of a plain user on a server, end to end (build/rehearse/README.md):
+  # a login made here with no sudo, and with lingering on, which the server's
+  # administrator gives. Everything after that step runs as that login, from a
+  # copy of the tree in its own home, with nobody logged in as it.
+  rehearse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fetch this commit
+        run: |
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch -q --depth 1 origin "$GITHUB_SHA" || git fetch -q --depth 1 origin "$GITHUB_REF"
+          git checkout -q FETCH_HEAD
+      - name: A Go to start from
+        run: command -v go || ls -d "$RUNNER_TOOL_CACHE"/go/*/*/bin | sort -V | tail -1 >> "$GITHUB_PATH"
+      - name: A plain login, with its services running and its own copy of the tree
+        run: |
+          sudo useradd --create-home --shell /bin/bash plain
+          sudo loginctl enable-linger plain
+          home=$(getent passwd plain | cut -d: -f6)
+          sudo cp -R . "$home/tree"
+          sudo chown -R plain: "$home/tree"
+          bus="/run/user/$(id -u plain)/bus"
+          for _ in $(seq 60); do sudo test -S "$bus" && exit 0; sleep 1; done
+          echo "the login's own services did not start" >&2
+          exit 1
+      - name: The rehearsal, as that login
+        run: |
+          run="/run/user/$(id -u plain)"
+          sudo -u plain -H env PATH="$PATH" GOTOOLCHAIN=auto CGO_ENABLED=0 REHEARSE_SERVICE=1 \
+            XDG_RUNTIME_DIR="$run" DBUS_SESSION_BUS_ADDRESS="unix:path=$run/bus" sh -eu -c '
+              cd "$HOME/tree"
+              if sudo -n true 2>/dev/null; then echo "this login has sudo" >&2; exit 1; fi
+              go test -count=1 -v -timeout 9m ./build/rehearse'
+
   security:
     runs-on: ubuntu-24.04
     steps:

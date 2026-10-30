@@ -364,10 +364,11 @@ func (sw sweeper) hold(root string, s *contract.State, l *look) {
 
 // merged is [tasks] close_on_accept in pr-per-task mode: a task whose pull
 // request is merged gives up its tab and its copy of the code, as close
-// does; until then its worker is kept for a red check.
+// does; until then its worker is kept for a red check. It closes as the lead
+// agent, whom the rules know by its pane: with none bound, it waits for one.
 func (sw sweeper) merged(root, run string, l *look, now time.Time) {
 	s, err := sw.k.Store.Read(root, run)
-	if err != nil || !l.limits.Tasks.CloseOnAccept {
+	if err != nil || !l.limits.Tasks.CloseOnAccept || s.Run.Orchestrator == nil {
 		return
 	}
 	var ids []string
@@ -377,7 +378,7 @@ func (sw sweeper) merged(root, run string, l *look, now time.Time) {
 		}
 	}
 	if len(ids) > 0 {
-		launch.Close(&contract.Call{Kit: sw.k, Root: root, Run: run, Caller: contract.Caller{Kind: contract.Orchestrator},
+		launch.Close(&contract.Call{Kit: sw.k, Root: root, Run: run, Caller: contract.Caller{Kind: contract.Orchestrator, Pane: s.Run.Orchestrator.Pane},
 			Command: contract.Find("close"), Out: io.Discard, Err: io.Discard, Now: now}, ids...)
 	}
 }

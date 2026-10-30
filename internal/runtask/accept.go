@@ -102,9 +102,15 @@ func accept(c *contract.Call) (any, error) {
 	}
 	// With close_on_accept a task that is done gives up its tab and its copy
 	// of the code at once; a pull request's waits for its merge, the sweep's.
-	if p, perr := contract.ReadProjectFile(c.Root); err == nil && perr == nil && p.Tasks.CloseOnAccept && p.Land.Mode != contract.LandPR {
-		if cerr := launch.Close(c, c.Args...); cerr != nil {
-			fmt.Fprintf(c.Out, "The tabs stay open: %s\n", cli.Line(cerr.Error()))
+	if p, perr := contract.ReadProjectFile(c.Root); err == nil && perr == nil && p.Tasks.CloseOnAccept {
+		tasks := c.Args
+		if p.Land.Mode == contract.LandPR {
+			tasks = withoutPR(c)
+		}
+		if len(tasks) > 0 {
+			if cerr := launch.Close(c, tasks...); cerr != nil {
+				fmt.Fprintf(c.Out, "The tabs stay open: %s\n", cli.Line(cerr.Error()))
+			}
 		}
 	}
 	if err == nil {
@@ -114,6 +120,21 @@ func accept(c *contract.Call) (any, error) {
 		launch.CloseOwnTab(c)
 	}
 	return out, err
+}
+
+// withoutPR is the tasks of this accept that are done with no pull request to
+// wait for: in pr-per-task mode, those that change no code.
+func withoutPR(c *contract.Call) (tasks []string) {
+	s, err := c.Kit.Store.Read(c.Root, c.Run)
+	if err != nil {
+		return nil
+	}
+	for _, arg := range c.Args {
+		if t, err := c.Kit.Rules.FindTask(s, arg); err == nil && t.PR == nil && t.Status == contract.TaskDone {
+			tasks = append(tasks, arg)
+		}
+	}
+	return tasks
 }
 
 // acceptAll is accept for several tasks (8a): they are merged in the order
