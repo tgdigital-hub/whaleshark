@@ -134,7 +134,9 @@ main() {
 	*[!A-Za-z0-9/._-]*) bin=\'$(say "$DEST/whaleshark" | sed "s/'/'\\\\''/g")\' ;;
 	*) bin=$DEST/whaleshark ;;
 	esac
-	say "Next: type whaleshark in a project. On a server: sudo $bin server setup"
+	say "Next: type whaleshark in a project."
+	say "Without root: run whaleshark init --at-login in any folder for a user service."
+	say "On a server: sudo $bin server setup"
 }
 
 main "$@"

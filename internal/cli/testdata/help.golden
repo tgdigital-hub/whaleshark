@@ -189,7 +189,7 @@ For:      the lead agent, the person, a tab not bound to a run
 Flags:    --agent KIND,...  write the rules and the hooks for these agent tools
           --rules WHERE     where the rules go without the question: global, project or none  (the person only)
           --keys            show the shortcuts and, on your yes, write them into your terminals' settings
-          --at-login        on Windows, start the engine when you log on
+          --at-login        start the engine when you log on (Windows; Linux as a user service)
           --print-block     print the rules for the lead agent, and change nothing
           --remove          take out what init wrote for this project
           --all             with --remove, for every project of this login
