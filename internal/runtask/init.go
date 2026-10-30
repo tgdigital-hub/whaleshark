@@ -556,6 +556,14 @@ func (i *setting) remove() error {
 			return err
 		}
 	}
+	if all {
+		system := k.Platform.System()
+		if had, err := platform.DropPage(system, platform.PageEntry(system, i.dirs)); err != nil {
+			return err
+		} else if had {
+			i.say("the page is no longer one of your services; one that runs keeps running until `whaleshark dash stop`")
+		}
+	}
 	i.say("%s out of your list. Runs and their folders are untouched.", what)
 	return contract.WriteProjects(k.Platform, i.dirs.State, listed)
 }

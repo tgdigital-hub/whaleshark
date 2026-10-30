@@ -114,8 +114,14 @@ func TestAtLoginOnLinuxIsAUserService(t *testing.T) {
 		t.Errorf("with lingering on:\n%s", out)
 	}
 
+	page := platform.PageEntry("linux", dirs)
+	write(t, page, "the page's unit\n")
 	out = init("--remove", "--all")
-	if got := calls(t, log); !strings.Contains(got, "systemctl --user disable "+contract.UnitKeeper+"\nsystemctl --user daemon-reload\n") {
+	if _, err := os.Stat(page); !os.IsNotExist(err) || !strings.Contains(out, "the page is no longer one of your services") {
+		t.Errorf("the page's unit after --remove --all: %v\n%s", err, out)
+	}
+	if got := calls(t, log); !strings.Contains(got, "systemctl --user disable "+contract.UnitKeeper+"\nsystemctl --user daemon-reload\n") ||
+		!strings.Contains(got, "systemctl --user disable "+contract.UnitDash+"\n") {
 		t.Errorf("at --remove --all, the calls:\n%s", got)
 	}
 	if _, err := os.Stat(unit); !os.IsNotExist(err) || !strings.Contains(out, "no longer one of your services") {

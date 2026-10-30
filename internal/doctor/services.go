@@ -9,6 +9,51 @@ import (
 	"github.com/tgdigital-hub/whaleshark/internal/restore"
 )
 
+// pageBack says, where a phone's port is picked and no server is, whether the
+// page comes back after a restart of the machine: an entry of this program
+// file, switched on, and on Linux lingering, without which a login's services
+// wait for the login.
+func (e *exam) pageBack() {
+	p := e.k.Platform
+	cfg, _ := contract.ReadPerson(p.Peek, e.dirs.Config)
+	if srv, err := contract.ReadServer(p.Peek); err != nil || srv != nil || cfg.Phone.Port == 0 {
+		return
+	}
+	const row, on = "page comes back after a restart: ", "whaleshark dash phone on"
+	system := p.System()
+	path := platform.PageEntry(system, e.dirs)
+	self, _ := p.SelfPath()
+	have, _ := p.Peek(path)
+	phones, _ := contract.ReadPhones(p.Peek, e.dirs.State)
+	enabled := system != "linux"
+	if !enabled {
+		state, _ := platform.Services("is-enabled", contract.UnitDash)
+		enabled = state == "enabled"
+	}
+	switch {
+	case !phones.On:
+		e.say(note, on, row+"no; phone access is off")
+	case path == "":
+		e.say(note, "whaleshark dash start", row+"no; nothing starts it on this system")
+	case len(have) == 0 || !enabled:
+		e.say(note, on, row+"no; it is not one of your services")
+	case !strings.Contains(string(have), restore.Program(system, self)):
+		e.say(problem, on, row+"no; its entry names another program file than this one: %s", path)
+	case system != "linux":
+		e.say(ok, "", row+"yes, at your next log-in")
+	default:
+		switch name, linger, err := platform.Lingering(); {
+		case err != nil:
+			e.say(note, "", row+"could not be told (loginctl: %v)", err)
+		case linger != "yes":
+			e.say(note, "loginctl enable-linger; where that is refused, ask the server's administrator to run, as root: loginctl enable-linger "+name,
+				row+"not until you log in; lingering is off for %s", name)
+		default:
+			e.say(ok, "", row+"yes, as a user service")
+		}
+	}
+}
+
 // services is what only Linux asks: whether the keeper is one of the
 // login's own services, which start it again when it fails, and whether
 // those run while the login is logged out.

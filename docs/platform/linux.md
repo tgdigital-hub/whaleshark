@@ -149,7 +149,10 @@ On a machine somebody else set up, as a login with no `sudo` ([server.md](../ser
 | 46 | `kill -9` of the keeper | started again within seconds, the tabs back, each agent resumed |
 | 47 | `whaleshark engine stop`, then `ssh -t <login>@<server> whaleshark open` | stopped and not started again until `open`; then one keeper, under the service (`systemctl --user status` shows its process) |
 | 48 | the administrator restarts the machine | the keeper running before any session, the agents resumed |
-| 49 | `whaleshark init --remove --all` | the unit gone, the running keeper still there |
+| 49 | `whaleshark set phone.port 8822`, `whaleshark dash phone on`, `whaleshark doctor` | `whaleshark-dash.service` in `~/.config/systemd/user` and enabled; "page comes back after a restart: yes, as a user service" with lingering on |
+| 50 | the administrator restarts the machine; before any session, `ssh -L 8822:localhost:8822 <login>@<server>` and open the page | the page there with no `dash start` typed, and the paired phone still paired |
+| 51 | `whaleshark dash stop`, then `systemctl --user status whaleshark-dash` | stopped and not started again until the next restart or `whaleshark dash start` |
+| 52 | `whaleshark init --remove --all` | both units gone, the running keeper and page still there |
 
 ### F. Write down
 

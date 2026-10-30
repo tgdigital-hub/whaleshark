@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
+	"github.com/tgdigital-hub/whaleshark/internal/platform"
+	"github.com/tgdigital-hub/whaleshark/internal/restore"
 )
 
 const (
@@ -400,6 +402,37 @@ type paired struct {
 	Nudges   bool      `json:"nudges"`
 }
 
+// comesBack makes the page's server one of the login's services while phone
+// access is on where no server is, or with on false no longer, and says what
+// that means after a restart of the machine. The door stays open if it fails:
+// the page runs, it only does not come back by itself. A variable for the
+// tests, which must not reach the machine's real services.
+var comesBack = func(k *contract.Kit, dirs contract.Dirs, on bool) string {
+	system := k.Platform.System()
+	path := platform.PageEntry(system, dirs)
+	by := "After a restart of this machine `whaleshark dash start` opens the door again."
+	if !on {
+		platform.DropPage(system, path)
+		return ""
+	}
+	self, err := k.Platform.SelfPath()
+	if path == "" || err != nil {
+		return by
+	}
+	_, text := restore.PageService(system, self, os.Getenv)
+	if err = platform.KeepPage(system, path, text); err != nil {
+		return "The page could not be made one of your services (" + err.Error() + "). " + by
+	}
+	if system != "linux" {
+		return "The page comes back at your next log-in to this Mac (" + path + "); `dash phone off` takes that away."
+	}
+	said := "The page comes back with your services (" + path + "); `dash phone off` takes that away."
+	if who, linger, err := platform.Lingering(); err != nil || linger != "yes" {
+		said += " Your services start with the machine only under lingering, which is not on: loginctl enable-linger; where that is refused, ask the server's administrator to run, as root: loginctl enable-linger " + who
+	}
+	return said
+}
+
 // phones is `dash phone on|off|list|forget <phone>|approve <number>|refuse
 // <number>`. On a server the door needs the administrator to have set this
 // login's public name; where no server is, the port the person picked. Who
@@ -489,11 +522,15 @@ func phones(c *contract.Call, dirs contract.Dirs, running bool) (any, error) {
 		out.Code = contract.PairText(a.Name, code)
 		line = fmt.Sprintf("The door for your phone is open on port %d of this machine itself, and on nothing another machine can reach.\nFrom the phone (Termius, Blink), carry a port of its own here over ssh:\n  ssh -L 8822:localhost:%[1]d %s@%s\nthen open http://localhost:8822/ in its browser, and approve the number it shows: whaleshark dash phone list\nAn app pairs with this code, good once and for one minute, and then asks for the same approval:\n  %s",
 			cfg.Phone.Port, login, host, out.Code)
+		line += "\n" + comesBack(k, dirs, true)
 	case word == "on":
 		out.Code = contract.PairText(a.Name, code)
 		line = "The door for your phone is open. In any browser, open\n  https://" + a.Name + "/\nlog in at Cloudflare, and approve its number on the page here: whaleshark dash url\nAn app pairs with this code, good once and for one minute, and then asks for the same approval:\n  " + out.Code
 	case word == "off":
 		line = "The door for phones is closed. Paired phones stay paired."
+		if local {
+			comesBack(k, dirs, false)
+		}
 	case word == "forget":
 		line = "Phone " + id + " is forgotten: its session has ended."
 	default:

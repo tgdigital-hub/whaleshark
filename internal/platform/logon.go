@@ -1,6 +1,9 @@
 package platform
 
 import (
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/user"
@@ -15,6 +18,9 @@ import (
 // on, in the login's own part of the registry: reading and writing it asks
 // no administrator and shows no prompt.
 const runKey = `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+
+// pageAgent is the file of the page's entry on a Mac, as restore names it.
+const pageAgent = "com.github.tgdigital-hub.whaleshark.page.plist"
 
 // LogOn is the command line Windows starts under that name when this login
 // logs on, empty where there is none. Only Windows has the list.
@@ -48,6 +54,57 @@ func SetLogOn(name, line string) error {
 // fails, and asks no root.
 func UserUnit(dirs contract.Dirs) string {
 	return filepath.Join(filepath.Dir(dirs.Config), "systemd", "user", contract.UnitKeeper)
+}
+
+// PageEntry is where the entry that brings the page's server back lies: on
+// Linux beside the keeper's unit, on a Mac among the login's own LaunchAgents,
+// which launchd reads at the next log-in. Empty where there is none.
+func PageEntry(system string, dirs contract.Dirs) string {
+	switch system {
+	case "linux":
+		return filepath.Join(filepath.Dir(dirs.Config), "systemd", "user", contract.UnitDash)
+	case "darwin":
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, "Library", "LaunchAgents", pageAgent)
+		}
+	}
+	return ""
+}
+
+// KeepPage writes the entry and, on Linux, switches it on. It starts nothing:
+// a server that runs already holds the page, and the entry takes over at the
+// next start of the login's services.
+func KeepPage(system, path, text string) error {
+	if err := errors.Join(os.MkdirAll(filepath.Dir(path), 0o700), os.WriteFile(path, []byte(text), 0o600)); err != nil {
+		return err
+	}
+	if system != "linux" {
+		return nil
+	}
+	out, err := Services("daemon-reload")
+	if err == nil {
+		out, err = Services("enable", contract.UnitDash)
+	}
+	if err != nil {
+		return fmt.Errorf("systemctl --user: %s: %w", out, err)
+	}
+	return nil
+}
+
+// DropPage switches the entry off and takes it out, and says whether there
+// was one. A server that runs keeps running.
+func DropPage(system, path string) (bool, error) {
+	if _, err := os.Stat(path); path == "" || errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if system == "linux" {
+		Services("disable", contract.UnitDash)
+	}
+	err := os.Remove(path)
+	if system == "linux" {
+		Services("daemon-reload")
+	}
+	return true, err
 }
 
 // Services runs systemctl --user and returns what it printed.

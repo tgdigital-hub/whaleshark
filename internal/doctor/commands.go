@@ -111,6 +111,7 @@ func run(c *contract.Call) (any, error) {
 	e.paste()
 	e.windows()
 	e.services()
+	e.pageBack()
 	if c.Flags["server"] != nil {
 		e.machine()
 	}

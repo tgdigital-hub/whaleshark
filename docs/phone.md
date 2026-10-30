@@ -17,7 +17,9 @@ whaleshark set phone.port 8822      # any free port from 1024 up; yours alone to
 whaleshark dash phone on            # starts the page's server if it is not running, and opens the door
 ```
 
-`dash phone on` prints the line for the phone. A new `phone.port` is used at the next `dash phone on`. The page's server is started apart from your terminal and keeps running when your SSH session ends, unless the system ends a login's programs at logout. No service starts it after a restart of the machine: then `whaleshark dash start` opens the door again as you left phone access.
+`dash phone on` prints the line for the phone. A new `phone.port` is used at the next `dash phone on`. The page's server is started apart from your terminal and keeps running when your SSH session ends, unless the system ends a login's programs at logout.
+
+**After a restart of the machine the page comes back by itself, and asks no root.** `dash phone on` makes it one of your login's own services, as phone access left it, with the door open: on Linux a systemd user unit, `whaleshark-dash.service`, beside the keeper's; on a Mac a LaunchAgent, which starts it at your next log-in, not before. On Linux your services start with the machine only under lingering (`loginctl enable-linger`, as for the keeper); without it the page returns when you next log in. `whaleshark doctor` has a row that says which it will be. `dash phone off` takes the service away, as does `whaleshark init --remove --all`; a page that runs keeps running until `whaleshark dash stop`, which also keeps it stopped until the next restart. On Windows nothing starts it: `whaleshark dash start` opens the door again. None of this has met a real restart: only stand-ins of `systemctl` and `loginctl` have answered.
 
 **Over SSH, from Termius or Blink.** Carry a port of the phone's own to that port on the box:
 

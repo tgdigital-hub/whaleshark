@@ -118,7 +118,7 @@ lines 7350 contract internal/contract cmd/whaleshark
 # 10 more for the long list of projects: the watcher keeps its files by
 # folder, so that a folder's look reads its own and not thousands. It
 # stands at 1,326. keeper, at 2,293 of its 2,510, pays.
-lines 1370 platform internal/platform
+lines 1440 platform internal/platform
 # cli: 40 more at the start of phase 2. Recording what the person does left
 # it four lines short of full, with three phases still to pass through it.
 # 30 more at the start of phase 3: the program typed alone sets a project up
@@ -426,7 +426,7 @@ lines 1010 overlap internal/overlap
 # (1,878).
 # 10 more for something asked for after that: the machine's memory read in one
 # place, for doctor's row and for the kit's figure.
-lines 1945 doctor internal/doctor
+lines 2030 doctor internal/doctor
 # 20 more for phase 7: the right button read where it was dropped. Counted at
 # twice its plan, as every part of this kind has come out.
 lines 1320 term internal/term
@@ -526,7 +526,7 @@ lines 275 team internal/team
 # built (2,239): the interface for apps took 285 where its share was counted
 # at 400.
 # 5 more: an app is told when its note waits.
-lines 2245 dash internal/dash
+lines 2350 dash internal/dash
 lines 350 push internal/push
 # connect and install: 30 and 20 of the engine's share (the clipboard lift,
 # the keeper's service entry), planned since the engine decision and put
@@ -656,7 +656,7 @@ lines 640 input internal/input
 # 95 more for phase 7: the layout file's new fields, and a file of before read
 # once into workspaces. Counted at twice its plan, as every part of this kind
 # has come out.
-lines 610 restore internal/restore
+lines 620 restore internal/restore
 # window gives 60 at the wiring of phase 3 and 20 at its integration, to
 # platform, and 5 to watch: built whole at 271.
 # 10 more at the start of phase 7, at what was built (288): the window says in
@@ -770,7 +770,11 @@ skip _test.go testdata testkit
 # 50,000 for the server round's second part, by the same word: tasks that
 # change no code, a notes folder, named locks, the page on localhost alone,
 # and the smaller wishes (load guard, card refs, quiet hours, gc, hooks).
-total 50000
+# 51,500 for the no-root server trial, by the same word: the phone page as
+# the login's own service so it comes back after a reboot, with its doctor
+# row, the pull-request mode's protected-files check and connect finding
+# the program in a plain login's own folder.
+total 51500
 
 # The whole module list, not only the direct ones.
 modules 4

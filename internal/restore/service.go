@@ -10,6 +10,9 @@ import (
 // label names the keeper's entry among the login's services.
 const label = "com.github.tgdigital-hub.whaleshark.engine"
 
+// pageLabel names the page's entry there.
+const pageLabel = "com.github.tgdigital-hub.whaleshark.page"
+
 // carried are the variables of the person's own shell the entry hands to the
 // keeper, when they are set where the entry is made. A service is started
 // with next to nothing: without PATH a resumed agent's program is not
@@ -32,20 +35,63 @@ var carried = []string{"PATH", "SHELL", "LANG", "LC_ALL", "LC_CTYPE", "XDG_CONFI
 // runs; nothing starts a keeper again that died, until the next log-on or
 // the next `whaleshark open`. Any other system gets nothing.
 func Service(system, self string, getenv func(string) string) (name, text string) {
+	if system == "windows" {
+		return label, `"` + self + `" engine run`
+	}
+	return entry(system, self, "engine", "run", getenv)
+}
+
+// PageService is the same for the page's server of a login with no server of
+// `whaleshark server`, so that a phone's door comes back with the machine:
+// on "linux" a unit beside the keeper's, on "darwin" an entry beside where
+// the keeper's would lie, which starts at the login's next log-in. With no
+// terminal `dash start` is the server itself; `dash stop` ends it well, and
+// it stays stopped. Windows and any other system get nothing.
+func PageService(system, self string, getenv func(string) string) (name, text string) {
+	return entry(system, self, "dash", "start", getenv)
+}
+
+// Program is the part of an entry's text that names the program file, by
+// which a doctor tells an entry of another program file.
+func Program(system, self string) string {
+	if system == "darwin" {
+		return plistString(self)
+	}
+	return `ExecStart="` + unitProgram(self) + `"`
+}
+
+func plistString(s string) string { return "<string>" + html.EscapeString(s) + "</string>" }
+
+// unitQuote is a value in double quotes, with the two signs that mean
+// something inside them and the sign that starts a specifier.
+var unitQuote = strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`, "%", "%%")
+
+// unitProgram is the program's path for a command line, where a dollar would
+// also be read as a variable.
+func unitProgram(self string) string {
+	return strings.ReplaceAll(unitQuote.Replace(self), "$", "$$")
+}
+
+// entry is the text of an entry that runs this program with two words; the
+// keeper's alone has the settings for its panes.
+func entry(system, self, word, next string, getenv func(string) string) (name, text string) {
+	keeper := word == "engine"
 	var b strings.Builder
 	switch system {
 	case "darwin":
-		str := func(s string) string { return "<string>" + html.EscapeString(s) + "</string>\n" }
+		str := func(s string) string { return plistString(s) + "\n" }
+		id := pageLabel
+		if keeper {
+			id = label
+		}
 		b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	` + str(label) + `	<key>ProgramArguments</key>
+	` + str(id) + `	<key>ProgramArguments</key>
 	<array>
-		` + str(self) + `		<string>engine</string>
-		<string>run</string>
-	</array>
+		` + str(self) + `		` + str(word) + `		` + str(next) + `	</array>
 	<key>EnvironmentVariables</key>
 	<dict>
 `)
@@ -54,8 +100,6 @@ func Service(system, self string, getenv func(string) string) (name, text string
 				b.WriteString("\t\t<key>" + v + "</key>\n\t\t" + str(getenv(v)))
 			}
 		}
-		// Interactive: the system holds back the processor and the disk of
-		// any other kind of entry, and with it every pane.
 		b.WriteString(`	</dict>
 	<key>RunAtLoad</key>
 	<true/>
@@ -64,31 +108,34 @@ func Service(system, self string, getenv func(string) string) (name, text string
 		<key>SuccessfulExit</key>
 		<false/>
 	</dict>
-	<key>ProcessType</key>
-	<string>Interactive</string>
-</dict>
-</plist>
 `)
-		return label + ".plist", b.String()
+		if keeper {
+			// Interactive: the system holds back the processor and the disk of
+			// any other kind of entry, and with it every pane.
+			b.WriteString("\t<key>ProcessType</key>\n\t<string>Interactive</string>\n")
+		}
+		b.WriteString("</dict>\n</plist>\n")
+		return id + ".plist", b.String()
 	case "linux":
-		// A value in double quotes, with the two signs that mean something
-		// inside them and the sign that starts a specifier.
-		quote := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\n", `\n`, "%", "%%")
-		b.WriteString("[Unit]\nDescription=WhaleShark keeper: every pane's terminal of this login\n\n[Service]\n")
-		// A dollar in the command line would be read as a variable.
-		b.WriteString(`ExecStart="` + strings.ReplaceAll(quote.Replace(self), "$", "$$") + `" engine run` + "\n")
+		about, unit := "page: what a phone reaches", contract.UnitDash
+		if keeper {
+			about, unit = "keeper: every pane's terminal", contract.UnitKeeper // the one name a server's set-up and doctor know it by
+		}
+		b.WriteString("[Unit]\nDescription=WhaleShark " + about + " of this login\n\n[Service]\n")
+		b.WriteString(Program(system, self) + " " + word + " " + next + "\n")
 		for _, v := range carried {
 			if getenv(v) != "" {
-				b.WriteString(`Environment="` + v + "=" + quote.Replace(getenv(v)) + `"` + "\n")
+				b.WriteString(`Environment="` + v + "=" + unitQuote.Replace(getenv(v)) + `"` + "\n")
 			}
 		}
-		// mixed: a stop asks the keeper alone, which ends its panes in its
-		// own order; what is left after that is ended by the system.
-		b.WriteString("Restart=on-failure\nKillMode=mixed\n\n[Install]\nWantedBy=default.target\n")
-		return contract.UnitKeeper, b.String() // the one name a server's set-up and doctor know it by
-	}
-	if system == "windows" {
-		return label, `"` + self + `" engine run`
+		b.WriteString("Restart=on-failure\n")
+		if keeper {
+			// mixed: a stop asks the keeper alone, which ends its panes in its
+			// own order; what is left after that is ended by the system.
+			b.WriteString("KillMode=mixed\n")
+		}
+		b.WriteString("\n[Install]\nWantedBy=default.target\n")
+		return unit, b.String()
 	}
 	return "", ""
 }
