@@ -21,7 +21,9 @@ import (
 
 // pr-per-task (land.mode): each accepted task is pushed as its own branch
 // and pull request, watched by the sweep, and merged by itself once green.
-// Nothing here moves the run's branch or the person's own checkout.
+// Nothing here moves the run's branch or the person's own checkout. Work that
+// changes protected files stays on this machine until the person's yes: its
+// PullRequest has Number 0, the head that waits, and nothing on the remote.
 
 // watchEvery is how often a run's pull requests are asked after; a pull
 // request that shows no check for noChecks is taken to have none.
@@ -97,11 +99,27 @@ func (g integrator) Request(root string, s *contract.State, task string, c contr
 	if err != nil {
 		return nil, err
 	}
+	now := contract.Now()
+	ok, why, err := g.gate(root, s, t.ID, project, "", c.OID, now)
+	switch {
+	case err != nil:
+		return nil, err
+	case why != "":
+		return nil, refuse(contract.ExitRefused, contract.RefusedProtected, t.ID+" is not pushed: "+why)
+	case !ok:
+		return &contract.PullRequest{Head: c.OID, State: contract.PRWatching, OpenedAt: now}, nil
+	}
+	return g.open(root, s, t, c.OID, project)
+}
+
+// open pushes a head that may leave this machine, and opens its pull request
+// or finds the one that is open.
+func (g integrator) open(root string, s *contract.State, t *contract.Task, head string, project contract.ProjectFile) (*contract.PullRequest, error) {
 	onto, branch := s.Run.Base.Ref, t.Worktree.Branch
-	if _, err := git(root, "push", "--quiet", "--", upstream(root, onto), c.OID+":"+ref(branch)); err != nil {
+	if _, err := git(root, "push", "--quiet", "--", upstream(root, onto), head+":"+ref(branch)); err != nil {
 		return nil, err
 	}
-	pr := &contract.PullRequest{Head: c.OID, State: contract.PRWatching, OpenedAt: contract.Now()}
+	pr := &contract.PullRequest{Head: head, State: contract.PRWatching, OpenedAt: contract.Now()}
 	out, _ := call(root, "", "gh", "pr", "view", branch, "--json", "number,url,state", "--jq", `"\(.number) \(.url) \(.state)"`)
 	if f := strings.Fields(out); len(f) == 3 && f[2] == "OPEN" {
 		pr.Number, _ = strconv.Atoi(f[0])
@@ -121,7 +139,7 @@ func (g integrator) Request(root string, s *contract.State, task string, c contr
 	if project.Land.DraftFirst {
 		args = append(args, "--draft")
 	}
-	out, err = call(root, body, "gh", args...)
+	out, err := call(root, body, "gh", args...)
 	if err == nil {
 		pr.URL = strings.TrimSpace(out[strings.LastIndexByte(out, '\n')+1:])
 		if pr.Number, err = strconv.Atoi(path.Base(pr.URL)); err != nil {
@@ -175,6 +193,9 @@ func (g integrator) Watch(root, run string, now time.Time) error {
 
 // watch looks once at one task's pull request and takes the one step due.
 func (g integrator) watch(root string, s *contract.State, t *contract.Task, project contract.ProjectFile, now time.Time) error {
+	if t.PR.Number == 0 {
+		return g.release(root, s, t, project, now)
+	}
 	pr, n := *t.PR, strconv.Itoa(t.PR.Number)
 	var checks []struct{ Name, Bucket string }
 	out, err := call(root, "", "gh", "pr", "checks", n, "--json", "name,bucket")
@@ -233,26 +254,59 @@ func (g integrator) watch(root string, s *contract.State, t *contract.Task, proj
 	return g.merge(root, s, t, project, now)
 }
 
-// cleared is the look of 20.2 at a green pull request, the one a landing
-// takes: its head is held to the person's yes for exactly those files, from
-// where it left the base as it stands. While the yes lacks the person is
-// asked, once, and the next watch looks again. The record has one item for
-// protected files, so a second pull request waits for the first one's answer;
-// one the person said no to, or that cannot be asked about, stops being
-// watched and is told of, until it is accepted again.
-func (g integrator) cleared(root string, s *contract.State, t *contract.Task, project contract.ProjectFile, base string, now time.Time) (bool, error) {
-	k := g.k
-	stop := func(why string) (bool, error) {
-		return false, g.mark(root, s, t.ID, contract.PRAsked, contract.Event{Kind: "land_failed", Task: t.ID,
-			Text: t.PR.URL + " is not merged: " + why, Data: map[string]any{"url": t.PR.URL}}, now)
+// release looks once at work held back for its protected files, and pushes it
+// once the person's yes covers it. Work the folder has moved on from, as when
+// the task was sent back meanwhile, is not what is to go: it is told of instead.
+func (g integrator) release(root string, s *contract.State, t *contract.Task, project contract.ProjectFile, now time.Time) error {
+	if ok, err := g.cleared(root, s, t, project, "", now); err != nil || !ok {
+		return err
 	}
+	if here, err := at(folder(root, s, t.ID), "HEAD"); err == nil && here != t.PR.Head {
+		return g.mark(root, s, t.ID, contract.PRAsked, contract.Event{Kind: "land_failed", Task: t.ID,
+			Text: "The work of " + t.ID + " is not pushed: its folder is at " + here + ", and what was checked and approved is " + t.PR.Head + ". Accept the task again."}, now)
+	}
+	pr, err := g.open(root, s, t, t.PR.Head, project)
+	if err != nil {
+		return err
+	}
+	return g.k.Store.Change(root, s.Run.ID, func(s *contract.State) error {
+		s.Tasks[t.ID].PR = pr
+		return nil
+	})
+}
+
+// cleared is gate at a task being watched: one the person said no to, or that
+// cannot be asked about, stops being watched and is told of, until it is
+// accepted again.
+func (g integrator) cleared(root string, s *contract.State, t *contract.Task, project contract.ProjectFile, base string, now time.Time) (bool, error) {
+	ok, why, err := g.gate(root, s, t.ID, project, base, t.PR.Head, now)
+	if err != nil || why == "" {
+		return ok, err
+	}
+	what, data := "The work of "+t.ID+" is not pushed: ", map[string]any{}
+	if t.PR.Number != 0 {
+		what, data = t.PR.URL+" is not merged: ", map[string]any{"url": t.PR.URL}
+	}
+	return false, g.mark(root, s, t.ID, contract.PRAsked, contract.Event{Kind: "land_failed", Task: t.ID, Text: what + why, Data: data}, now)
+}
+
+// gate is the look of 20.2 at a task's head, the one a landing takes: before
+// it is pushed and again before it is merged, it is held to the person's yes
+// for exactly those files, from where it left the base as it stands (with no
+// base named, as fetched now). While the yes lacks the person is asked, once,
+// and ok stays false. The record has one item for protected files, so another
+// task waits for the first one's answer, and after a yes until that one is
+// merged, since a second yes would take the first one's place. Why says what
+// stops it for good: a no, or nobody to ask.
+func (g integrator) gate(root string, s *contract.State, task string, project contract.ProjectFile, base, head string, now time.Time) (ok bool, why string, err error) {
+	k := g.k
 	dirs, err := k.Platform.Dirs()
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 	person, err := contract.ReadPerson(k.Platform.Peek, dirs.Config)
 	if err != nil {
-		return stop("the settings file does not read, so it cannot be told whether protected files are on (" + cli.Line(err.Error()) + "). Mend it, then accept the task again.")
+		return false, "the settings file does not read, so it cannot be told whether protected files are on (" + cli.Line(err.Error()) + "). Mend it, then accept the task again.", nil
 	}
 	patterns := contract.Protected(person, project)
 	for i, p := range patterns {
@@ -260,15 +314,20 @@ func (g integrator) cleared(root string, s *contract.State, t *contract.Task, pr
 	}
 	seen, files := "", []string(nil)
 	if len(patterns) > 0 {
+		if base == "" {
+			base = s.Run.Base.Ref
+			if far, err := fetch(root, base); err == nil {
+				base = far
+			}
+		}
 		from, err := at(root, base)
 		if err != nil {
 			from = s.Run.Base.OID
 		}
-		if seen, files, err = changed(root, from, t.PR.Head, patterns); err != nil {
-			return false, err
+		if seen, files, err = changed(root, from, head, patterns); err != nil {
+			return false, "", err
 		}
 	}
-	ok, why := false, ""
 	err = k.Store.Change(root, s.Run.ID, func(s *contract.State) error {
 		var q *contract.Question
 		p := s.Run.Protect
@@ -276,11 +335,11 @@ func (g integrator) cleared(root string, s *contract.State, t *contract.Task, pr
 			q = s.Questions[p.Item]
 		}
 		waits := q != nil && (q.State == contract.QuestionOpen || q.State == contract.QuestionAnswered)
-		ours := waits && q.Task == t.ID
+		ours := waits && q.Task == task
 		switch {
 		case k.Rules.Landable(s, seen, files) == nil:
 			if ok = true; ours {
-				k.Rules.Protect(s, t.ID, seen, files, now) // it was put back, or is the one approved: the item closes
+				k.Rules.Protect(s, task, seen, files, now) // it was put back, or is the one approved: the item closes
 			}
 			return nil
 		case s.Run.Parent != nil:
@@ -289,19 +348,18 @@ func (g integrator) cleared(root string, s *contract.State, t *contract.Task, pr
 		case q != nil && !waits && p.Seen == seen && q.State == contract.QuestionUsed:
 			why = "the person did not approve its protected files (" + strings.Join(files, ", ") + "). Send the task back, or cancel it."
 			return nil
-		case waits && !ours:
+		case q != nil && q.Task != task && (waits || q.State == contract.QuestionUsed && q.Answer == contract.AnswerApprove):
 			if other := s.Tasks[q.Task]; other != nil && other.PR != nil && other.PR.State == contract.PRWatching && other.Status == contract.TaskReview {
 				return nil
 			}
-			q.State = contract.QuestionClosed // of a pull request nobody watches any more
+			if waits {
+				q.State = contract.QuestionClosed // of a pull request nobody watches any more
+			}
 		}
-		k.Rules.Protect(s, t.ID, seen, files, now)
+		k.Rules.Protect(s, task, seen, files, now)
 		return nil
 	})
-	if err == nil && why != "" {
-		return stop(why)
-	}
-	return ok, err
+	return ok, why, err
 }
 
 // touched is the files that both the base, since the two parted, and the

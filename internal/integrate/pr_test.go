@@ -273,45 +273,113 @@ func TestAReviewHoldsTheMerge(t *testing.T) {
 	}
 }
 
-// A protected file in a pull request stops its merge however green: the person
-// is asked as for a landing, once, no agent can give the yes, and the yes lets
-// the head it was given for merge.
-func TestAProtectedPullRequestWaitsForTheYes(t *testing.T) {
+// pushed is the task's branch on the remote, or nothing.
+func (f *forge) pushed(id string) string {
+	return testkit.Git(f.t, f.remote, "for-each-ref", "--format=%(objectname)", "refs/heads/whaleshark/r1-"+id)
+}
+
+// A protected file keeps the work on this machine however often the sweep
+// looks: the person is asked at the accept, once, no agent can give the yes,
+// gh is not called, and the yes pushes the head it was given for. Its pull
+// request is looked at again before the merge.
+func TestAProtectedChangeIsNotPushedBeforeTheYes(t *testing.T) {
 	f := openForge(t, "[protect]\nalso = [\"infra/**\"]\n", map[string]string{"a.txt": "one\n"})
 	f.protectOn()
 	f.task("A", map[string]string{"infra/main.tf": "new\n", ".github/workflows/ci.yml": "on: push\n"})
-	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "https://example.test/pull/1")
-	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "is not pushed", "the person is asked", ".github/workflows/ci.yml")
 	for range 2 {
 		f.watch()
 	}
 	s, q := f.state(), f.item()
-	if f.said("order") != "" || q == nil || q.Cause != contract.CauseProtect || q.Task != "A" || strings.Count(f.kinds(), "protected") != 1 ||
-		!slices.Equal(s.Run.Protect.Files, []string{".github/workflows/ci.yml", "infra/main.tf"}) || s.Tasks["A"].PR.State != contract.PRWatching {
-		t.Fatalf("merges %q, the item %+v, the record %+v, the events %s", f.said("order"), q, s.Run.Protect, f.kinds())
+	if f.pushed("A") != "" || f.said("count") != "" || q == nil || q.Cause != contract.CauseProtect || q.Task != "A" || strings.Count(f.kinds(), "protected") != 1 ||
+		!slices.Equal(s.Run.Protect.Files, []string{".github/workflows/ci.yml", "infra/main.tf"}) || s.Tasks["A"].PR.State != contract.PRWatching || s.Tasks["A"].Status != contract.TaskReview {
+		t.Fatalf("pushed %q, gh count %q, the item %+v, the record %+v, the events %s", f.pushed("A"), f.said("count"), q, s.Run.Protect, f.kinds())
 	}
+	head := s.Tasks["A"].PR.Head
 	play(t, f.p.Command(scenario.Orch, "answer", q.ID, "approve"), 5, "the person's own click")
 	f.watch()
-	if f.said("order") != "" {
-		t.Fatal("merged on an agent's yes")
+	if f.pushed("A") != "" {
+		t.Fatal("pushed on an agent's yes")
 	}
 	f.yes()
 	f.watch()
 	s = f.state()
-	if f.said("order") != "1" || s.Tasks["A"].Status != contract.TaskDone || f.said("matched-1") != s.Tasks["A"].PR.Head {
-		t.Fatalf("after the yes the merges are %q, held to %q, and A is %s", f.said("order"), f.said("matched-1"), s.Tasks["A"].Status)
+	if pr := s.Tasks["A"].PR; f.pushed("A") != head || pr.Number != 1 || pr.Head != head || pr.State != contract.PRWatching || f.said("order") != "" {
+		t.Fatalf("after the yes the remote has %q and the record %+v, merges %q", f.pushed("A"), pr, f.said("order"))
+	}
+	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
+	f.watch()
+	s = f.state()
+	if f.said("order") != "1" || s.Tasks["A"].Status != contract.TaskDone || f.said("matched-1") != head {
+		t.Fatalf("once green the merges are %q, held to %q, and A is %s", f.said("order"), f.said("matched-1"), s.Tasks["A"].Status)
 	}
 }
 
-// The person's no stops the watching, and is told once. The worker's next try
-// is a new question.
-func TestAProtectedPullRequestSaidNoTo(t *testing.T) {
+// A change with no protected file goes at once, with the guard on.
+func TestAnUnprotectedChangeIsPushedAtOnce(t *testing.T) {
 	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
 	f.protectOn()
-	f.task("A", map[string]string{"deploy/run.sh": "echo go\n"})
-	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0)
+	f.task("A", map[string]string{"b.txt": "b\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "https://example.test/pull/1")
+	if pr := f.state().Tasks["A"].PR; f.pushed("A") != pr.Head || f.item() != nil {
+		t.Fatalf("the remote has %q, the record %+v, the item %+v", f.pushed("A"), pr, f.item())
+	}
+}
+
+// A guarded head that changes after it was pushed is held back like the first:
+// the remote keeps what was approved until the new one has its own yes, on the
+// same pull request. The merge-time look stands behind this.
+func TestANewHeadOfAProtectedChangeAsksAgain(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.protectOn()
+	dir := f.task("A", map[string]string{"deploy/run.sh": "one\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "is not pushed")
+	f.yes()
+	f.watch()
+	first := f.pushed("A")
+	f.change(func(s *contract.State) { must(t, f.k.Rules.Reject(s, "A", "again", contract.Live, f.now)) })
+	second := testkit.Commit(t, dir, "again", map[string]string{"deploy/run.sh": "two\n"})
+	f.change(func(s *contract.State) {
+		s.Tasks["A"].Status, s.Attempts["A.1"].State = contract.TaskReview, contract.AttemptReported
+		s.Attempts["A.1"].Report = &contract.Report{Outcome: contract.ReportDone}
+	})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "is not pushed")
+	if f.pushed("A") != first || f.item() == nil {
+		t.Fatalf("the new head went out: %q, the item %+v", f.pushed("A"), f.item())
+	}
+	f.yes()
+	f.watch()
+	if pr := f.state().Tasks["A"].PR; f.pushed("A") != second || pr.Number != 1 || f.said("count") != "1" {
+		t.Fatalf("after the second yes the remote has %q and the record %+v", f.pushed("A"), pr)
+	}
+}
+
+// The merge-time look is still there: where a yes no longer covers what was
+// pushed, a green pull request is not merged and the person is asked.
+func TestTheMergeStillLooksAtProtectedFiles(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.task("A", map[string]string{"deploy/run.sh": "one\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "https://example.test/pull/1") // the guard was off
+	f.protectOn()
 	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
 	f.watch()
+	if q := f.item(); f.said("order") != "" || q == nil || q.Task != "A" {
+		t.Fatalf("merges %q, the item %+v", f.said("order"), q)
+	}
+	f.yes()
+	f.watch()
+	if f.said("order") != "1" {
+		t.Fatalf("after the yes the merges are %q", f.said("order"))
+	}
+}
+
+// The person's no leaves it unpushed, stops the watching and is told once. The
+// same work accepted again is refused; the worker's next try is a new question.
+func TestAProtectedChangeSaidNoTo(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.protectOn()
+	dir := f.task("A", map[string]string{"deploy/run.sh": "echo go\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "is not pushed")
 	id := f.item().ID
 	f.change(func(s *contract.State) {
 		s.Questions[id].State, s.Questions[id].Answer, s.Questions[id].SettlesAt = contract.QuestionAnswered, contract.AnswerSendBack+" not this", contract.Now()
@@ -321,37 +389,66 @@ func TestAProtectedPullRequestSaidNoTo(t *testing.T) {
 	})
 	f.watch()
 	f.watch()
-	if s := f.state(); f.said("order") != "" || s.Tasks["A"].PR.State != contract.PRAsked || f.item() != nil ||
+	if s := f.state(); f.pushed("A") != "" || s.Tasks["A"].PR.State != contract.PRAsked || f.item() != nil ||
 		strings.Count(f.kinds(), "protected") != 1 || strings.Count(f.kinds(), "land_failed") != 1 {
-		t.Fatalf("after the no: merges %q, %+v, the events %s", f.said("order"), s.Tasks["A"].PR, f.kinds())
+		t.Fatalf("after the no: pushed %q, %+v, the events %s", f.pushed("A"), s.Tasks["A"].PR, f.kinds())
+	}
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 5, "did not approve")
+	if f.pushed("A") != "" {
+		t.Fatal("pushed what the person said no to")
+	}
+	testkit.Commit(t, dir, "mended", map[string]string{"deploy/run.sh": "echo mended\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "the person is asked")
+	if f.pushed("A") != "" || f.item() == nil {
+		t.Fatalf("the next try: pushed %q, the item %+v", f.pushed("A"), f.item())
 	}
 }
 
-// One item at a time: a second protected pull request waits for the first's
-// answer and is asked about after it, and one with no protected file passes.
-func TestProtectedPullRequestsAskInTurn(t *testing.T) {
+// Sent back while it waits, the old head is not what the yes pushes.
+func TestAFolderThatMovedIsNotPushed(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.protectOn()
+	dir := f.task("A", map[string]string{"deploy/run.sh": "one\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "is not pushed")
+	testkit.Commit(t, dir, "after the check", map[string]string{"b.txt": "b\n"})
+	f.yes()
+	f.watch()
+	if f.pushed("A") != "" || f.state().Tasks["A"].PR.State != contract.PRAsked || !strings.HasSuffix(f.kinds(), "land_failed") {
+		t.Fatalf("pushed %q, %+v, the events %s", f.pushed("A"), f.state().Tasks["A"].PR, f.kinds())
+	}
+}
+
+// One item at a time, and a yes holds until its task is merged: a second
+// protected change waits unpushed and is asked about after the first is in,
+// so the second yes cannot take the first one's place. One with no protected
+// file passes.
+func TestProtectedChangesAskInTurn(t *testing.T) {
 	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
 	f.protectOn()
 	f.task("A", map[string]string{"deploy/a.sh": "a\n"})
 	f.task("B", map[string]string{"deploy/b.sh": "b\n"})
 	f.task("C", map[string]string{"c.txt": "c\n"})
 	play(t, f.p.Command(scenario.Orch, "accept", "A", "B", "C"), 0)
-	for n := 1; n <= 3; n++ {
-		f.checks(n, `[{"name":"ci","bucket":"pass"}]`)
-	}
+	f.checks(1, `[{"name":"ci","bucket":"pass"}]`) // C, the only one out
 	f.watch()
-	f.watch()
-	if q := f.item(); f.said("order") != "3" || q == nil || q.Task != "A" || strings.Count(f.kinds(), "protected") != 1 {
+	if q := f.item(); f.said("order") != "1" || f.pushed("A") != "" || f.pushed("B") != "" || q == nil || q.Task != "A" || strings.Count(f.kinds(), "protected") != 1 {
 		t.Fatalf("merges %q, the item %+v, the events %s", f.said("order"), q, f.kinds())
 	}
 	f.yes()
 	f.watch()
-	if q := f.item(); strings.Join(strings.Fields(f.said("order")), " ") != "3 1" || q == nil || q.Task != "B" {
-		t.Fatalf("after the first yes the merges are %q, the item %+v", f.said("order"), q)
+	if q := f.item(); f.pushed("A") == "" || f.pushed("B") != "" || q != nil {
+		t.Fatalf("after the first yes: A %q, B %q, the item %+v", f.pushed("A"), f.pushed("B"), q)
+	}
+	f.checks(2, `[{"name":"ci","bucket":"pass"}]`)
+	f.watch()
+	if q := f.item(); strings.Join(strings.Fields(f.said("order")), " ") != "1 2" || q == nil || q.Task != "B" || f.pushed("B") != "" {
+		t.Fatalf("once A is green the merges are %q, the item %+v", f.said("order"), q)
 	}
 	f.yes()
 	f.watch()
-	if got := strings.Join(strings.Fields(f.said("order")), " "); got != "3 1 2" {
+	f.checks(3, `[{"name":"ci","bucket":"pass"}]`)
+	f.watch()
+	if got := strings.Join(strings.Fields(f.said("order")), " "); got != "1 2 3" {
 		t.Fatalf("after the second yes the merges are %q", got)
 	}
 }

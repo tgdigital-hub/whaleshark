@@ -463,6 +463,8 @@ func mirror(c *contract.Call, t *contract.Task) {
 // request ends an accept in pr-per-task mode: the checked work is pushed as
 // the task's own pull request, and the task waits on it, its result reported,
 // until the sweep's watch merges it (merged) or its checks fail (ci_failed).
+// Work with protected files the person has not approved is not pushed: it
+// waits here for the yes, and the sweep's watch pushes it then (PR.Number 0).
 func request(c *contract.Call, t *contract.Task, seen *contract.State, checked contract.Checked, out accepted, back func(error) (accepted, error)) (accepted, error) {
 	k := c.Kit
 	pr, err := k.Integrator.Request(c.Root, seen, t.ID, checked)
@@ -471,10 +473,16 @@ func request(c *contract.Call, t *contract.Task, seen *contract.State, checked c
 	}
 	err = k.Store.Change(c.Root, c.Run, func(s *contract.State) error {
 		s.Tasks[t.ID].PR = pr
+		if p := s.Run.Protect; p != nil && pr.Number == 0 && s.Questions[p.Item] != nil && s.Questions[p.Item].Task == t.ID && s.Questions[p.Item].State == contract.QuestionOpen {
+			out.Protected = p.Files
+		}
 		return k.Rules.Unchecked(s, t.ID, c.Now)
 	})
 	out.How, out.URL = "pr", pr.URL
-	if err == nil {
+	if err == nil && pr.Number == 0 {
+		fmt.Fprintf(c.Out, "%s passed its check and is not pushed: it changes protected files.\nIt is pushed and its pull request opened once the person approves them; merged, ci_failed or land_failed tells.\n", t.ID)
+		out.say(c)
+	} else if err == nil {
 		fmt.Fprintf(c.Out, "%s passed its check and is pushed: %s\nIt is merged by itself once its checks pass; merged or ci_failed tells.\n", t.ID, pr.URL)
 	}
 	return out, err

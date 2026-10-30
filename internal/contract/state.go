@@ -278,8 +278,10 @@ func ReviewHold(s *State, id string) string {
 
 // PullRequest is a task's own pull request. State is PRWatching while its
 // checks are watched, PRFailed after ci_failed until the task is accepted
-// again, PRAsked after base_moved, and PRMerged at the end; Head is the
-// commit that was pushed.
+// again, PRAsked after base_moved or land_failed until the task is accepted
+// again, and PRMerged at the end. Head is the commit that was pushed; with
+// Number 0 nothing is pushed yet: Head waits for the person's yes on its
+// protected files.
 type PullRequest struct {
 	Number   int       `json:"number"`
 	URL      string    `json:"url"`
