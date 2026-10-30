@@ -44,6 +44,10 @@ root='{root}'
 echo "$*" >> "$d/calls"
 case "$1 $2" in
 "pr view")
+	if [ "$5" = headRefOid ]; then
+		git -C "$remote" rev-parse "$(cat "$d/head-$3")"
+		exit 0
+	fi
 	if [ "$5" = state,mergeCommit ]; then
 		if [ -f "$d/merged-$3" ]; then echo "MERGED $(cat "$d/merged-$3")"; else echo "OPEN null"; fi
 		exit 0

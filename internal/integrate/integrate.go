@@ -377,6 +377,12 @@ func protected(root string, s *contract.State, tip string, patterns []string) (s
 	if err != nil {
 		base = s.Run.Base.OID
 	}
+	return changed(root, base, tip, low)
+}
+
+// changed is protected's one diff, from where tip left base, with the list
+// in lower case already.
+func changed(root, base, tip string, low []string) (string, []string, error) {
 	out, err := git(root, "diff", "--raw", "-z", "--no-abbrev", "--no-renames", "--merge-base", base, tip)
 	if err != nil {
 		return "", nil, err

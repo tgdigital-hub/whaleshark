@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tgdigital-hub/whaleshark/internal/cli"
 	"github.com/tgdigital-hub/whaleshark/internal/contract"
 	"github.com/tgdigital-hub/whaleshark/internal/lock"
 )
@@ -199,8 +200,9 @@ func (g integrator) watch(root string, s *contract.State, t *contract.Task, proj
 	}
 	// Green. Where the base moved under it in the task's own files, it is
 	// brought up to date and watched again, or the lead agent is asked.
-	onto := s.Run.Base.Ref
+	onto, base := s.Run.Base.Ref, s.Run.Base.Ref
 	if far, err := fetch(root, onto); err == nil {
+		base = far
 		if files := touched(root, pr.Head, far); len(files) > 0 {
 			why := "it moved under " + pr.URL + " in " + strings.Join(files, ", ")
 			if project.Land.Refresh == "auto" {
@@ -225,7 +227,81 @@ func (g integrator) watch(root string, s *contract.State, t *contract.Task, proj
 	if contract.ReviewHold(s, t.ID) != "" {
 		return nil
 	}
+	if ok, err := g.cleared(root, s, t, project, base, now); err != nil || !ok {
+		return err
+	}
 	return g.merge(root, s, t, project, now)
+}
+
+// cleared is the look of 20.2 at a green pull request, the one a landing
+// takes: its head is held to the person's yes for exactly those files, from
+// where it left the base as it stands. While the yes lacks the person is
+// asked, once, and the next watch looks again. The record has one item for
+// protected files, so a second pull request waits for the first one's answer;
+// one the person said no to, or that cannot be asked about, stops being
+// watched and is told of, until it is accepted again.
+func (g integrator) cleared(root string, s *contract.State, t *contract.Task, project contract.ProjectFile, base string, now time.Time) (bool, error) {
+	k := g.k
+	stop := func(why string) (bool, error) {
+		return false, g.mark(root, s, t.ID, contract.PRAsked, contract.Event{Kind: "land_failed", Task: t.ID,
+			Text: t.PR.URL + " is not merged: " + why, Data: map[string]any{"url": t.PR.URL}}, now)
+	}
+	dirs, err := k.Platform.Dirs()
+	if err != nil {
+		return false, err
+	}
+	person, err := contract.ReadPerson(k.Platform.Peek, dirs.Config)
+	if err != nil {
+		return stop("the settings file does not read, so it cannot be told whether protected files are on (" + cli.Line(err.Error()) + "). Mend it, then accept the task again.")
+	}
+	patterns := contract.Protected(person, project)
+	for i, p := range patterns {
+		patterns[i] = strings.ToLower(p)
+	}
+	seen, files := "", []string(nil)
+	if len(patterns) > 0 {
+		from, err := at(root, base)
+		if err != nil {
+			from = s.Run.Base.OID
+		}
+		if seen, files, err = changed(root, from, t.PR.Head, patterns); err != nil {
+			return false, err
+		}
+	}
+	ok, why := false, ""
+	err = k.Store.Change(root, s.Run.ID, func(s *contract.State) error {
+		var q *contract.Question
+		p := s.Run.Protect
+		if p != nil {
+			q = s.Questions[p.Item]
+		}
+		waits := q != nil && (q.State == contract.QuestionOpen || q.State == contract.QuestionAnswered)
+		ours := waits && q.Task == t.ID
+		switch {
+		case k.Rules.Landable(s, seen, files) == nil:
+			if ok = true; ours {
+				k.Rules.Protect(s, t.ID, seen, files, now) // it was put back, or is the one approved: the item closes
+			}
+			return nil
+		case s.Run.Parent != nil:
+			why = "it changes protected files (" + strings.Join(files, ", ") + "), and only a job with no parent can ask the person about them."
+			return nil
+		case q != nil && !waits && p.Seen == seen && q.State == contract.QuestionUsed:
+			why = "the person did not approve its protected files (" + strings.Join(files, ", ") + "). Send the task back, or cancel it."
+			return nil
+		case waits && !ours:
+			if other := s.Tasks[q.Task]; other != nil && other.PR != nil && other.PR.State == contract.PRWatching && other.Status == contract.TaskReview {
+				return nil
+			}
+			q.State = contract.QuestionClosed // of a pull request nobody watches any more
+		}
+		k.Rules.Protect(s, t.ID, seen, files, now)
+		return nil
+	})
+	if err == nil && why != "" {
+		return stop(why)
+	}
+	return ok, err
 }
 
 // touched is the files that both the base, since the two parted, and the
@@ -254,7 +330,8 @@ func touched(root, head, base string) []string {
 // says it is merged. A pull request whose turn it is not yet is in the
 // lock's line and is looked at again at the next watch. The task is marked
 // as being checked first, as accept does, so that nothing is merged that
-// the record would then refuse.
+// the record would then refuse. What is merged is the head that was checked:
+// one that moved since is not merged, and gh holds GitHub to the same head.
 func (g integrator) merge(root string, s *contract.State, t *contract.Task, project contract.ProjectFile, now time.Time) error {
 	k, run, n := g.k, s.Run.ID, strconv.Itoa(t.PR.Number)
 	holder := contract.HolderOf(contract.Orchestrator, run, t.ID)
@@ -265,13 +342,21 @@ func (g integrator) merge(root string, s *contract.State, t *contract.Task, proj
 		return err
 	}
 	defer lock.Release(k.Platform, root, "merge", holder, run, false, now)
+	head, err := call(root, "", "gh", "pr", "view", n, "--json", "headRefOid", "--jq", ".headRefOid")
+	if err != nil {
+		return err
+	}
+	if head != t.PR.Head {
+		return g.mark(root, s, t.ID, contract.PRAsked, contract.Event{Kind: "land_failed", Task: t.ID,
+			Text: t.PR.URL + " is not merged: its head is " + head + ", and what was checked is " + t.PR.Head + ". Send the task back, so that what is merged has been checked.", Data: map[string]any{"url": t.PR.URL}}, now)
+	}
 	if err := k.Store.Change(root, run, func(s *contract.State) error { return k.Rules.Checking(s, t.ID, contract.Checked{}, now) }); err != nil {
 		return err
 	}
 	back := func(err error) error {
 		return errors.Join(err, k.Store.Change(root, run, func(s *contract.State) error { return k.Rules.Unchecked(s, t.ID, now) }))
 	}
-	if _, err := call(root, "", "gh", "pr", "merge", n, "--"+project.Land.MergeMethod); err != nil {
+	if _, err := call(root, "", "gh", "pr", "merge", n, "--"+project.Land.MergeMethod, "--match-head-commit", t.PR.Head); err != nil {
 		return back(err)
 	}
 	out, err := call(root, "", "gh", "pr", "view", n, "--json", "state,mergeCommit", "--jq", `"\(.state) \(.mergeCommit.oid)"`)

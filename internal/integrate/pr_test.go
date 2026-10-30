@@ -3,6 +3,7 @@ package integrate_test
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -20,6 +21,10 @@ const fakeGH = `#!/bin/sh
 d='%s'
 case "$1 $2" in
 "pr view")
+	if [ "$5" = headRefOid ]; then
+		git -C "$(cat "$d/remote")" rev-parse "$(cat "$d/head-$3")"
+		exit 0
+	fi
 	if [ "$5" = state,mergeCommit ]; then
 		if [ -f "$d/merged-$3" ]; then echo "MERGED $(cat "$d/merged-$3")"; else echo "OPEN null"; fi
 		exit 0
@@ -33,13 +38,14 @@ case "$1 $2" in
 	for a in "$@"; do [ "$prev" = --head ] && head=$a; prev=$a; done
 	echo $n > "$d/branch-$(echo "$head" | tr / _)"
 	echo "$*" > "$d/args-$n"
+	echo "$head" > "$d/head-$n"
 	cat > "$d/body-$n"
 	echo "https://example.test/pull/$n" ;;
 "pr ready") echo "$3" >> "$d/ready" ;;
 "pr checks")
 	if [ -f "$d/checks-$3" ]; then cat "$d/checks-$3"; else echo '[{"name":"ci","bucket":"pending"}]'; fi ;;
 "pr merge")
-	echo "$3" >> "$d/order"; echo "$4" > "$d/method-$3"; printf '%%040d' "$3" > "$d/merged-$3" ;;
+	echo "$3" >> "$d/order"; echo "$4" > "$d/method-$3"; echo "$6" > "$d/matched-$3"; printf '%%040d' "$3" > "$d/merged-$3" ;;
 *) exit 1 ;;
 esac
 `
@@ -61,6 +67,7 @@ func openForge(t *testing.T, toml string, files map[string]string) *forge {
 	testkit.Git(t, f.remote, "init", "-q", "--bare", "-b", "main")
 	r.git(r.root, "remote", "add", "origin", f.remote)
 	r.git(r.root, "push", "-q", "origin", "main")
+	write(t, filepath.Join(f.gh, "remote"), f.remote)
 	tools := t.TempDir()
 	write(t, filepath.Join(tools, "gh"), strings.ReplaceAll(strings.Replace(fakeGH, "%s", f.gh, 1), "%%", "%"))
 	must(t, os.Chmod(filepath.Join(tools, "gh"), 0o700))
@@ -263,5 +270,127 @@ func TestAReviewHoldsTheMerge(t *testing.T) {
 	f.watch()
 	if f.said("order") != "1" || f.state().Tasks["A"].Status != contract.TaskDone {
 		t.Fatal("not merged once its review said safe")
+	}
+}
+
+// A protected file in a pull request stops its merge however green: the person
+// is asked as for a landing, once, no agent can give the yes, and the yes lets
+// the head it was given for merge.
+func TestAProtectedPullRequestWaitsForTheYes(t *testing.T) {
+	f := openForge(t, "[protect]\nalso = [\"infra/**\"]\n", map[string]string{"a.txt": "one\n"})
+	f.protectOn()
+	f.task("A", map[string]string{"infra/main.tf": "new\n", ".github/workflows/ci.yml": "on: push\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0, "https://example.test/pull/1")
+	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
+	for range 2 {
+		f.watch()
+	}
+	s, q := f.state(), f.item()
+	if f.said("order") != "" || q == nil || q.Cause != contract.CauseProtect || q.Task != "A" || strings.Count(f.kinds(), "protected") != 1 ||
+		!slices.Equal(s.Run.Protect.Files, []string{".github/workflows/ci.yml", "infra/main.tf"}) || s.Tasks["A"].PR.State != contract.PRWatching {
+		t.Fatalf("merges %q, the item %+v, the record %+v, the events %s", f.said("order"), q, s.Run.Protect, f.kinds())
+	}
+	play(t, f.p.Command(scenario.Orch, "answer", q.ID, "approve"), 5, "the person's own click")
+	f.watch()
+	if f.said("order") != "" {
+		t.Fatal("merged on an agent's yes")
+	}
+	f.yes()
+	f.watch()
+	s = f.state()
+	if f.said("order") != "1" || s.Tasks["A"].Status != contract.TaskDone || f.said("matched-1") != s.Tasks["A"].PR.Head {
+		t.Fatalf("after the yes the merges are %q, held to %q, and A is %s", f.said("order"), f.said("matched-1"), s.Tasks["A"].Status)
+	}
+}
+
+// The person's no stops the watching, and is told once. The worker's next try
+// is a new question.
+func TestAProtectedPullRequestSaidNoTo(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.protectOn()
+	f.task("A", map[string]string{"deploy/run.sh": "echo go\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0)
+	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
+	f.watch()
+	id := f.item().ID
+	f.change(func(s *contract.State) {
+		s.Questions[id].State, s.Questions[id].Answer, s.Questions[id].SettlesAt = contract.QuestionAnswered, contract.AnswerSendBack+" not this", contract.Now()
+		if _, ok, err := f.k.Rules.Use(s, id, contract.Now()); !ok || err != nil {
+			t.Fatalf("the no was not used: %v", err)
+		}
+	})
+	f.watch()
+	f.watch()
+	if s := f.state(); f.said("order") != "" || s.Tasks["A"].PR.State != contract.PRAsked || f.item() != nil ||
+		strings.Count(f.kinds(), "protected") != 1 || strings.Count(f.kinds(), "land_failed") != 1 {
+		t.Fatalf("after the no: merges %q, %+v, the events %s", f.said("order"), s.Tasks["A"].PR, f.kinds())
+	}
+}
+
+// One item at a time: a second protected pull request waits for the first's
+// answer and is asked about after it, and one with no protected file passes.
+func TestProtectedPullRequestsAskInTurn(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.protectOn()
+	f.task("A", map[string]string{"deploy/a.sh": "a\n"})
+	f.task("B", map[string]string{"deploy/b.sh": "b\n"})
+	f.task("C", map[string]string{"c.txt": "c\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A", "B", "C"), 0)
+	for n := 1; n <= 3; n++ {
+		f.checks(n, `[{"name":"ci","bucket":"pass"}]`)
+	}
+	f.watch()
+	f.watch()
+	if q := f.item(); f.said("order") != "3" || q == nil || q.Task != "A" || strings.Count(f.kinds(), "protected") != 1 {
+		t.Fatalf("merges %q, the item %+v, the events %s", f.said("order"), q, f.kinds())
+	}
+	f.yes()
+	f.watch()
+	if q := f.item(); strings.Join(strings.Fields(f.said("order")), " ") != "3 1" || q == nil || q.Task != "B" {
+		t.Fatalf("after the first yes the merges are %q, the item %+v", f.said("order"), q)
+	}
+	f.yes()
+	f.watch()
+	if got := strings.Join(strings.Fields(f.said("order")), " "); got != "3 1 2" {
+		t.Fatalf("after the second yes the merges are %q", got)
+	}
+}
+
+// What came in from the base, in a protected path, is not the task's change.
+func TestTheBasesOwnProtectedFileAsksNothing(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.protectOn()
+	other := t.TempDir()
+	testkit.Git(t, other, "clone", "-q", f.remote, ".")
+	testkit.Commit(t, other, "theirs", map[string]string{"deploy/run.sh": "theirs\n"})
+	testkit.Git(t, other, "push", "-q", "origin", "main")
+	dir := f.task("A", map[string]string{"b.txt": "b\n"})
+	f.git(dir, "pull", "-q", "--no-rebase", "--no-edit", "origin", "main")
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0)
+	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
+	f.watch()
+	if f.said("order") != "1" || f.item() != nil {
+		t.Fatalf("the merges %q, the item %+v", f.said("order"), f.item())
+	}
+}
+
+// A head that moved after the check is not merged, however green, and is told of.
+func TestAHeadThatMovedIsNotMerged(t *testing.T) {
+	f := openForge(t, "", map[string]string{"a.txt": "one\n"})
+	f.task("A", map[string]string{"a.txt": "two\n"})
+	play(t, f.p.Command(scenario.Orch, "accept", "A"), 0)
+	other := t.TempDir()
+	testkit.Git(t, other, "clone", "-q", "-b", "whaleshark/r1-A", f.remote, ".")
+	moved := testkit.Commit(t, other, "after the check", map[string]string{"a.txt": "three\n"})
+	testkit.Git(t, other, "push", "-q", "origin", "whaleshark/r1-A")
+	f.checks(1, `[{"name":"ci","bucket":"pass"}]`)
+	f.watch()
+	s := f.state()
+	if e := s.Inbox.Events[len(s.Inbox.Events)-1]; f.said("order") != "" || s.Tasks["A"].PR.State != contract.PRAsked || s.Tasks["A"].Status == contract.TaskDone ||
+		e.Kind != "land_failed" || e.Task != "A" || !strings.Contains(e.Text, moved) {
+		t.Fatalf("after the head moved: merges %q, %+v, the event %+v", f.said("order"), s.Tasks["A"].PR, e)
+	}
+	if l := contract.ReadLocks(f.k.Platform.Peek, f.root); len(l) != 0 {
+		t.Fatalf("the refusal left the locks %+v", l)
 	}
 }
