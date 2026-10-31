@@ -15,3 +15,5 @@ A plain user on a Linux server, with no root, from the installer to a merged job
 - A real agent: the fake agent of `test/fakeagent` stands under the name `claude`.
 - A real logout and a reboot. In the job the login's services run through lingering with nobody logged in as it, and a killed keeper comes back; that the panes and agents come back after a keeper's restart is the scenarios' part.
 - The phone road, and a worker's deny list in a real agent.
+
+The kill of the keeper sits in `kill_unix.go` and `kill_windows.go`, so `GOOS=windows go vet ./build/rehearse/` builds.

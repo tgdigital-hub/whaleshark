@@ -16,7 +16,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -253,7 +252,7 @@ func TestInstallDoctorAndService(t *testing.T) {
 	if first == 0 {
 		t.Fatal("the service has no main process")
 	}
-	if err := syscall.Kill(first, syscall.SIGKILL); err != nil {
+	if err := killProcess(first); err != nil {
 		t.Fatal(err)
 	}
 	soon(t, "the keeper back after it was killed", func() (bool, string) {
